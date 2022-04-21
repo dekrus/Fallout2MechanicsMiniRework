@@ -1,8 +1,8 @@
 # Fallout2MechanicsMiniRework
 [__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases)
 
- This is a small rework some gameplay mechanics of Fallout 2 and games based on it.
-  The style of the page design is brazenly copied from https://github.com/BGforgeNet/FO2tweaks
+ This is a small rework some gameplay mechanics of Fallout 2 and games based on it.  
+ The style of the page design is brazenly copied from https://github.com/BGforgeNet/FO2tweaks
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
