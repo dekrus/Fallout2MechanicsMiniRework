@@ -3,7 +3,9 @@
 *.int
 DAT_Packer/*
 release/*
+*.dat
 *.rar
 *.7z
+*.zip
 data/*
 !data/text
