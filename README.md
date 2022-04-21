@@ -103,11 +103,11 @@ And I added 2 edits from myself
 ### Swing&Thrust
 With the tweak enabled, the swing and thurst animations will now have different properties when attacking target.
 
-1.When NPC or Player attacking with knife using the Swing animation:
+1. When NPC or Player attacking with knife using the Swing animation:
 - Target's AC reduced by an amount equal to (target's agility +(attacker melee weapon skill/15)).
 - On low armored targets swing with knife more likely to inflict max dmg, rather than min dmg.  
 
-2.Thrust attack:
+2. Thrust attack:
 - Penetrates some of target DR and DT based on max knife dmg and attacker melee dmg stat.
 - Increases the chance of a critical hit by 1.5 times.
 
