@@ -1,8 +1,8 @@
 *.tmp
 *.err
 *.int
-DAT_Packer/
-release/
+DAT_Packer/*
+release/*
 *.rar
 *.7z
 data/*
