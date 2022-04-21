@@ -54,8 +54,8 @@ Purple highlights new possible targets if shot misses initial target(crosshair).
 ![Misses](images/Misstohit.jpg)
 
 #### Random bodypart hit
-Chance to hit random bodypart with unaimed attacks for NPCs to makes the fight more intense :)
-  Also can be enabled for player.
+Chance to hit random bodypart with unaimed attacks for NPCs to makes the fight more intense :)  
+Also can be enabled for player.
 
 ### Sneak
 Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map.  
@@ -73,7 +73,7 @@ As long as sneaking player is within the detection range of an NPC, that NPC wil
 
 ### Steal
 The original mechanics of pickpocketing did not take into account the perception of the target and also probability of failing pickpocket(~15%) did not depend on the skill and always the same for both 85 and 300 skill levels.
-New steal mechanic is a attempt to fix these "features".
+New steal mechanic is a attempt to fix these "features".  
 Basic moments:
 - If steal skill developed over 150%, then for every 10 points the maximum steal chance is increased by 1% (0,1% for 1 point) to a maximum of 99%.
 - When the skill exceeds 160 + (target's current perception x 5) then it becomes possible to steal weapons and items from the hands of the NPC.
@@ -93,7 +93,7 @@ Modifiers that reduce skill requirements and increase the chance of a successful
 - Low light conditions (caves, cellars, night, etc.) the darker the easier it is to get into your pocket, adjusted for the presence of the night_vision perk.
 - The target is unconscious / blinded (bonus depends on the severity of the condition).
 
-additional settings:
+Additional settings:
 - The first attempt to steal will always have 100% if you have reached the minimum skill level.
 - Subsequent attempts, in order to avoid abuse of experience for stealing, will be calculated according to the formula.
 And I added 2 edits from myself
@@ -102,9 +102,11 @@ And I added 2 edits from myself
 
 ### Swing&Thrust
 With the tweak enabled, the swing and thurst animations will now have different properties when attacking target.
+
 1.When NPC or Player attacking with knife using the Swing animation:
 - Target's AC reduced by an amount equal to (target's agility +(attacker melee weapon skill/15)).
-- On low armored targets swing with knife more likely to inflict max dmg, rather than min dmg.
+- On low armored targets swing with knife more likely to inflict max dmg, rather than min dmg.  
+
 2.Thrust attack:
 - Penetrates some of target DR and DT based on max knife dmg and attacker melee dmg stat.
 - Increases the chance of a critical hit by 1.5 times.
