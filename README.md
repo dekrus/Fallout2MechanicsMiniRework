@@ -67,7 +67,7 @@ Color indication of sneak detection works for original and new sneak mechanics.
 As long as sneaking player is within the detection range of an NPC, that NPC will be outlined:
 
 - Red - the player has been detected.
-- Yellow - Not detected, but the player will be detected if approaching closer. ~2-3 hexes closer
+- Yellow - Not detected, but the player will be detected if approaching ~2-3 hexes closer.
 - Green - Not detected, safe to approach.
 ![Sneak](images/SneakDetection.jpg)
 
