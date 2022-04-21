@@ -1,11 +1,11 @@
 # Fallout2MechanicsMiniRework
-[__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases/latest)
+[__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases)
 
  This is a small rework some gameplay mechanics of Fallout 2 and games based on it.
  The style of the page design is brazenly copied from https://github.com/BGforgeNet/FO2tweaks
  
 ## Installation
-- Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases/latest) page.
+- Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
 - Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+.
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable or fine tune components as you desire.
 
@@ -13,7 +13,7 @@
 - [Compatibility](#compatibility)
 - [Unistallation](#uninstallation)
 
-## Meckanics mods
+## Mods
 - [Poison](#poison)
 - [Healing](#healing)
 - [Misses](#misses)
@@ -51,7 +51,7 @@ Changes how misses work in a more "logical" way.
 - Misses of aimed attacks now have a small chance to hit an adjacent body part.
 
 Purple highlights new possible targets if shot misses initial target(crosshair).
-![Misses](images/Misstohit.png)
+![Misses](images/Misstohit.jpg)
 
 #### Random bodypart hit
 Chance to hit random bodypart with unaimed attacks for NPCs to makes the fight more intense :)
@@ -69,7 +69,7 @@ As long as sneaking player is within the detection range of an NPC, that NPC wil
 Red - the player has been detected.
 Yellow - Not detected, but the player will be detected if approaching closer. ~2-3 hexes closer
 Green - Not detected, safe to approach.
-![Sneak](images/SneakDetection.png)
+![Sneak](images/SneakDetection.jpg)
 
 ### Steal
 The original mechanics of pickpocketing did not take into account the perception of the target and also probability of failing pickpocket(~15%) did not depend on the skill and always the same for both 85 and 300 skill levels.
