@@ -37,8 +37,7 @@ This is a rework of the original mechanics, designed to make Poison more dangero
 Replaces the instant stimpak heal with a regeneration over time.
 
 - Stimpack increases healing rate, triggering health regeneration.
-- Super Stimpak restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual hp restored.
-- Also Super Stimpak heals broken limbs.
+- Super Stimpak restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual hp restored. Also Super Stimpak heals broken limbs.
 - Some monsters have passive regeneration: wanamingos/centaurs. (Can be disabled in ini)
 - Fire and plasma damage temporarily reduces the target's regeneration.
 - New bonus perk "Regeneration", which is automatically added if the base "healing rate" is more than 5, allowing to heal injuried limb while regeneratin hp.
@@ -66,7 +65,9 @@ Detection range = round((perception range x (100.0 - ((sneak skill - 5 - armor_w
 #### Sneak detection
 Color indication of sneak detection works for original and new sneak mechanics.
 As long as sneaking player is within the detection range of an NPC, that NPC will be outlined:
-
+'''diff
+- Red
+'''
 Red - the player has been detected.
 Yellow - Not detected, but the player will be detected if approaching closer. ~2-3 hexes closer
 Green - Not detected, safe to approach.
