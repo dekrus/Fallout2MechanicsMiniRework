@@ -1,0 +1,9 @@
+*.tmp
+*.err
+*.int
+DAT_Packer/
+*.rar
+*.7z
+data/*
+!data/text
+mods/*

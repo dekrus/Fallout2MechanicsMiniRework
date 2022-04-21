@@ -1,0 +1,2195 @@
+#define SFALL_SC_EVALUATION  (true) // short - circuit evaluation
+#define critcrippled(crit)          (critter_state(crit) BWAND (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND))
+#define msg_file "gl_RegPoisMod.msg"
+#define msg_perk_regen 1
+#define msg_perk_poison_mastery_name 2
+#define msg_perk_regen_acquired 3
+#define msg_perk_regen_description 4
+#define msg_perk_poison_mastery_description 5
+#define msg_right_hand_healed 6
+#define msg_right_leg_healed 7
+#define msg_left_hand_healed 8
+#define msg_left_leg_healed 9
+#define msg_eyes_healed 10
+#define msg_envenomed 11
+#define msg_envenomed_description 12
+#define msg_pois_appl_npc 13
+#define msg_pois_appl_player 14
+#define msg_gland_gone 15
+#define msg_wpn_poison_full 16
+#define msg_gland_gone_npc 17
+#define msg_failed_poison_sneak 18
+#define msg_player_1_hp_healed 19
+#define msg_player_many_hp_healed 20
+#define msg_npc_1_hp_healed 21
+#define msg_npc_many_hp_healed 22
+#define msg_player_poison_dmg 23
+#define msg_npc_poison_dmg 24
+#define msg_npc_poison_dmg_deadly 25
+#define msg_npc_reach_poison_lethal_value 26
+#define msg_player_after_poison_effect 27
+#define modmsg(x) message_str_game(new_regpois_msg, x)
+
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\define_extra.h"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.math.h"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.strings.h"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\COMMAND.H"
+
+   procedure start;
+   procedure poisonInRealTime;
+   procedure regenInRealTime;
+   procedure ModInTurnBased;
+   procedure Poisdmg;
+   procedure map_enter_p_proc;
+   procedure rest;
+   procedure use_skill;
+   procedure poisatk;
+   procedure use_tail;
+   procedure use_tail_on_obj;
+   procedure worldMapTravel;
+   procedure map_exit_p_proc;
+   procedure stimtoburn;
+   procedure stimrestore;
+   procedure newperks;
+   procedure cripheal;
+   procedure death;
+   procedure map_enter_p_proc_handler;
+
+   variable new_regpois_msg;
+   variable RegenMod;
+   variable RegenMaxHPpercentMult;
+   variable HealingRateMult;
+   variable HealingRateDiv;
+   variable PoisonMod;
+   variable ShowModMSG;
+   variable ShowFloatMSG;
+   variable PoisonMaxHPpercentMult;
+   variable PoisonLevelMult;
+   variable PoisonLevelDiv;
+   variable PoisonDecayDiv;
+   variable RegenTickHP;
+   variable RegenTickHP2;
+   variable DudeRegenTickHP;
+   variable critter;
+   variable PoisonTickDmg;
+   variable Nevada;
+   variable Sonora;
+   variable dudehrexitmap;
+   variable dudehrcount;
+   variable dudehrcount2;
+   variable stimtimer;
+   variable stimusetimer;
+   variable gamemode;
+   variable healfromskill;
+   variable dudeishealing;
+   variable combatendtime;
+   variable hasregenperk;
+   variable poisondeath;
+   variable deadtarget;
+   variable UnsafeRegenModScripting;
+   variable stimburn;
+   variable regen_perk_name;
+   variable regen_perk_description;
+   variable perk_poison_mastery_name;
+   variable perk_poison_mastery_description;
+   variable regen_perk_acquired_msg;
+   variable right_hand_healed_msg;
+   variable right_leg_healed_msg;
+   variable left_hand_healed_msg;
+   variable left_leg_healed_msg;
+   variable eyes_healed_msg;
+   variable envenomed_msg;
+   variable envenomed_description_msg;
+   variable gland_gone_msg;
+   variable failed_sneak_use_msg;
+
+procedure start begin
+  if (game_loaded) then begin
+   register_hook_proc(HOOK_COMBATTURN, ModInTurnBased);
+   register_hook_proc(HOOK_ADJUSTPOISON, Poisdmg);
+   register_hook_proc(HOOK_RESTTIMER, rest);
+   register_hook_proc(HOOK_USESKILL, use_skill);
+   register_hook_proc(HOOK_COMBATDAMAGE, poisatk);
+   register_hook_proc(HOOK_USEOBJ, use_tail);
+   register_hook_proc(HOOK_USEOBJON, use_tail_on_obj);
+   register_hook_proc(HOOK_GAMEMODECHANGE, worldMapTravel);
+   register_hook_proc(HOOK_DEATHANIM2, death);
+   register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
+   //register_hook_proc(HOOK_MOUSECLICK, newperks);
+   set_global_script_type(3);
+   set_global_script_repeat(250);
+   new_regpois_msg = add_extra_msg_file(msg_file);
+   Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
+   Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+   RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+   RegenMaxHPpercentMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|RegenMaxHPpercentMult");
+   HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
+   HealingRateDiv = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateDiv");
+   UnsafeRegenModScripting = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|UnsafeRegenModScripting");
+   PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
+   ShowModMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowMSG");
+   ShowFloatMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowFloatMSG");
+   PoisonMaxHPpercentMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonMaxHPpercentMult");
+   PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
+   PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
+   PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
+   regen_perk_name = message_str_game(new_regpois_msg, msg_perk_regen);
+   perk_poison_mastery_name = message_str_game(new_regpois_msg, msg_perk_poison_mastery_name);
+   perk_poison_mastery_description = message_str_game(new_regpois_msg, msg_perk_poison_mastery_description);
+   regen_perk_acquired_msg = message_str_game(new_regpois_msg, msg_perk_regen_acquired);
+   regen_perk_description = message_str_game(new_regpois_msg, msg_perk_regen_description);
+   right_hand_healed_msg = message_str_game(new_regpois_msg, msg_right_hand_healed);
+   right_leg_healed_msg = message_str_game(new_regpois_msg, msg_right_leg_healed);
+   left_hand_healed_msg = message_str_game(new_regpois_msg, msg_left_hand_healed);
+   left_leg_healed_msg = message_str_game(new_regpois_msg, msg_left_leg_healed);
+   eyes_healed_msg = message_str_game(new_regpois_msg, msg_eyes_healed);
+   envenomed_msg = message_str_game(new_regpois_msg, msg_envenomed);
+   envenomed_description_msg = message_str_game(new_regpois_msg, msg_envenomed_description);
+   gland_gone_msg = message_str_game(new_regpois_msg, msg_gland_gone);
+   failed_sneak_use_msg = message_str_game(new_regpois_msg, msg_failed_poison_sneak);
+   call map_enter_p_proc();
+   stimtimer = (game_time + 500);
+   gamemode = get_game_mode;
+   combatendtime = game_time;
+   if UnsafeRegenModScripting == 1 then begin
+     set_stat_max(STAT_heal_rate, 50);
+   end
+   if UnsafeRegenModScripting != 1 then begin
+     set_stat_max(STAT_heal_rate, 30);
+   end
+   //set_pc_stat_min(STAT_heal_rate, -100);
+   //regenperk activation
+   if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
+		call newperks();
+		end
+  end
+  else begin
+   call regenInRealTime();
+   call poisonInRealTime();
+  end
+end
+
+procedure map_enter_p_proc_handler begin
+  variable stdnum = get_sfall_arg;
+  variable self = get_sfall_arg;
+  variable source = get_sfall_arg;
+  variable critwaspoisoned = 0;
+  variable tardt = 0;
+  variable tardr = 0;
+  variable team = -1;
+  if stdnum == map_enter_proc then begin
+   //game_time_advance(ONE_GAME_SECOND * 5);
+   dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
+   if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+   RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+   DudeRegenTickHP = RegenTickHP;
+   end
+   foreach critter in list_as_array(0) begin
+     team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+     poisondeath = 0;
+     // regen if not poisoned (exept dude and party)
+     //if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso not(obj_in_party(critter)) then begin
+      //if (RegenMaxHPpercentMult < 1) then begin
+        //RegenMaxHPpercentMult = 1;
+      //end
+      //RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+      //if (RegenTickHP < 1) then begin
+        //RegenTickHP = 1;
+      //end
+     //critter_heal(critter, RegenTickHP);
+     //end
+
+     // if poisoned (exept dude and party)
+     if PoisonMod != 0 andAlso get_poison(Critter) > 0 andAlso critter != dude_obj andAlso team != TEAM_PLAYER andAlso get_critter_stat(critter, STAT_current_hp ) > 0 then begin
+      critwaspoisoned = 1;
+      poisondeath = 0;
+      // regen while poisonedd
+      if RegenMod != 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 then begin
+        if (RegenMaxHPpercentMult < 1) then begin
+        RegenMaxHPpercentMult = 1;
+        end
+        RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(0, 1) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+        if (RegenTickHP < 1) then begin
+        RegenTickHP = 1;
+        end
+        critter_heal(critter, RegenTickHP);
+      end
+      // Poison dmg
+      if (PoisonMaxHPpercentMult < 1) then begin
+        PoisonMaxHPpercentMult = 1;
+      end
+      PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+      if PoisonTickDmg <= 1 then begin
+        PoisonTickDmg = random(random(0, 1), 1);
+      end
+      //critter_heal(Critter, - PoisonTickDmg);
+      //poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+      if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+        if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+         //poison(critter, - 999);
+         //reg_anim_clear(critter);
+         // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да и умирает от отравлени€.");
+         tardt = get_proto_data(obj_pid(Critter), 244);
+         tardr = get_proto_data(obj_pid(Critter), 272);
+         poisondeath = 1;
+         poison(critter, -999);
+         //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
+         set_proto_data(obj_pid(Critter), 244, 0);
+         set_proto_data(obj_pid(Critter), 272, 0);
+         critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+         set_proto_data(obj_pid(Critter), 244, tardt);
+         set_proto_data(obj_pid(Critter), 272, tardr);
+         // critter_heal(Critter, - PoisonTickDmg);
+         if team != TEAM_PLAYER then begin
+         give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+         end
+        end
+        //else begin
+        // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да.");
+        //end
+      end
+      //if poisondeath == 0 then begin
+      //critter_heal(Critter, - PoisonTickDmg);
+      //end
+     end
+     // heal after poison is cleared (exept dude and party)
+     if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
+      if (RegenMaxHPpercentMult < 1) then begin
+      RegenMaxHPpercentMult = 1;
+      end
+      RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+      if (RegenTickHP < 1) then begin
+      RegenTickHP = 1;
+      end
+      critter_heal(critter, RegenTickHP);
+     end
+   end
+   //dudehrcount = ((660 - (game_time - stimtimer)) / 120);
+   //if (stimtimer < 1 or dudehrcount < 0) andAlso get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+   //dudehrcount = 6;
+   //end
+  end
+  if poisondeath != 0 andAlso critwaspoisoned != 0 then begin
+   call map_enter_p_proc_handler();
+   //display_msg("new call");
+  end
+end
+
+procedure death begin
+  variable wpnpid = get_sfall_arg;
+  variable attacker = get_sfall_arg;
+  variable target = get_sfall_arg;
+  variable dmgtotar = get_sfall_arg;
+  variable deathanim = get_sfall_arg;
+    variable tardt = 0;
+  variable tardr = 0;
+  //display_msg("anim dea=" + deathanim );
+ // display_msg("wpnpid=" + wpnpid );
+
+  //display_msg("dmgtotar=" + dmgtotar );
+ // display_msg("anim dea1=" + deathanim );
+  if poisondeath != 0 then begin
+              tardt = get_proto_data(obj_pid(Critter), 244);
+         tardr = get_proto_data(obj_pid(Critter), 272);
+   // display_msg("attacker=" + obj_name(attacker) );
+   //display_msg("anim dea3=" + deathanim );
+   //set_sfall_return(ANIM_fall_front);
+
+      if obj_art_fid(target) == FID_MAPLNT then begin
+      reg_anim_animate_reverse(target, ANIM_fall_back, -1);
+      end
+      if obj_art_fid(target) != FID_MAPLNT then begin
+      reg_anim_animate_reverse(target, ANIM_fall_back_sf, -1);
+      end
+   //reg_anim_clear(target);
+      set_sfall_return(ANIM_fall_back);
+      //if get_critter_stat(target, STAT_current_hp) > 0 then begin
+           //set_proto_data(obj_pid(target), 244, 0);
+         //set_proto_data(obj_pid(target), 272, 0);
+         //critter_dmg(target, get_critter_stat(target,STAT_current_hp), DMG_normal_dam);
+         //set_proto_data(obj_pid(target), 244, tardt);
+         //set_proto_data(obj_pid(target), 272, tardr);
+         //set_sfall_return(ANIM_fall_front);
+         //end
+  // reg_anim_animate_reverse(target, ANIM_fall_back, -1);
+  end
+ // set_sfall_return(ANIM_fall_front);
+ // display_msg("anim dea2=" + deathanim );
+end
+
+procedure newperks begin
+  variable Tox = has_fake_perk(perk_poison_mastery_name);
+  if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso ((get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) > 5) or (get_critter_stat(dude_obj, STAT_heal_rate) > 5 andAlso stimtimer < game_time - 800) )then begin
+		display_msg(regen_perk_acquired_msg);
+		set_fake_perk(regen_perk_name, 1, 79, regen_perk_description);
+	end
+  if get_game_mode bwor CHARSCREEN then begin
+  	if poisonMod != 0 andAlso get_pc_stat(PCSTAT_level) >= 6 andAlso Tox == 0 andAlso (has_skill(dude_obj, SKILL_SCIENCE) > 49 or has_skill(dude_obj, SKILL_OUTDOORSMAN) > 69) then begin
+  		set_selectable_perk(perk_poison_mastery_name, 1, 102, perk_poison_mastery_description);
+  	end
+  	if Tox != 0 then begin
+  	  set_selectable_perk(perk_poison_mastery_name, 0, 102, perk_poison_mastery_description);
+  	  if Tox > 1 then begin
+      set_perk_owed(get_perk_owed + 1);
+      set_fake_perk(perk_poison_mastery_name, Tox - 1, 102, perk_poison_mastery_description);
+  	  end
+  	end
+	end
+end
+
+procedure cripheal begin
+  variable healed = 0;
+  variable dudeHR = get_critter_stat(dude_obj, STAT_heal_rate);
+  variable rnd = 0;
+  if has_fake_perk(regen_perk_name) != 0 then begin
+   if critter_state(dude_obj) BWAND DAM_CRIP_ARM_RIGHT then begin
+    rnd = random(0, 100);
+    if rnd < ((4 * dudeHR) - (25 * healed) )then begin
+     critter_uninjure(dude_obj, DAM_CRIP_ARM_RIGHT);
+     display_msg(right_hand_healed_msg);
+     healed += 2;
+     end
+   end
+   if critter_state(dude_obj) BWAND DAM_CRIP_LEG_LEFT then begin
+     rnd = random(0, 100);
+     if rnd < ((4 * dudeHR) - (25 * healed) )then begin
+     critter_uninjure(dude_obj, DAM_CRIP_LEG_LEFT);
+     display_msg(left_leg_healed_msg);
+     healed += 2;
+     end
+   end
+   if critter_state(dude_obj) BWAND DAM_CRIP_ARM_LEFT then begin
+     rnd = random(0, 100);
+     if rnd < ((4 * dudeHR) - (25 * healed) )then begin
+     critter_uninjure(dude_obj, DAM_CRIP_ARM_LEFT);
+     display_msg(left_hand_healed_msg);
+     healed += 2;
+     end
+   end
+   if critter_state(dude_obj) BWAND DAM_CRIP_LEG_RIGHT then begin
+     rnd = random(0, 100);
+    if rnd < ((4 * dudeHR) - (25 * healed) )then begin
+     critter_uninjure(dude_obj, DAM_CRIP_LEG_RIGHT);
+     display_msg(right_leg_healed_msg);
+     healed += 2;
+     end
+   end
+   if critter_state(dude_obj) BWAND DAM_BLIND then begin
+     rnd = random(0, 100);
+    if rnd < ((4 * dudeHR) - (20 * healed) )then begin
+     critter_uninjure(dude_obj, DAM_BLIND);
+     display_msg(eyes_healed_msg);
+     healed += 2;
+     end
+   end
+  end
+end
+
+procedure poisatk begin
+  variable target = get_sfall_arg;
+  variable attacker = get_sfall_arg;
+  variable dmgtotar = get_sfall_arg;
+  variable dmgtoatkr = get_sfall_arg;
+  variable flagfortar = get_sfall_arg;
+  variable flagforatkr = get_sfall_arg;
+  variable weapon = get_sfall_arg;
+  variable leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
+  variable rightHand = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND));
+  variable wpnanim = get_proto_data(obj_pid(weapon), 36);
+  variable pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
+  variable wpnpid = obj_pid(weapon);
+  variable wpndmgtype = 0;
+  variable tarhr = 0;
+  variable atkrhr = 0;
+  variable burncount = 0;
+  variable burn = 0;
+  variable Tox = has_fake_perk(perk_poison_mastery_name);
+  variable lhname = proto_data(leftHand, 1);
+  variable rhname = proto_data(rightHand, 1);
+  variable lhpoison = has_fake_perk_npc(attacker, (envenomed_msg + lhname));
+  variable rhpoison = has_fake_perk_npc(attacker, (envenomed_msg + rhname));
+  variable acthnd = active_hand;
+  variable caliber = get_proto_data(wpnpid, PROTO_WP_CALIBER);
+  if dmgtotar > 0 andAlso weapon != 0 then begin
+   // needler poison dmg
+   if Tox != 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
+     poison(target, random((4 + tox), (7 + tox)));
+    // display_msg("tar pois lvl=" + get_poison(target));
+   end
+   // needler poison dmg for npc-attacker
+   if attacker != dude_obj andAlso caliber == CALIBER_HN_NEEDLER then begin
+     poison(target, 6);
+   end
+   // melee poison dmg
+   if acthnd == 0 andAlso lhpoison > 0 then begin
+     poison(target, ((lhpoison / 3) + random(2, 5)));
+     if random(0, 2 + (2 * Tox)) == 0 then begin
+     set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
+     end
+   end
+
+   if acthnd == 1 andAlso rhpoison > 0 then begin
+     poison(target, ((rhpoison / 3) + random(2, 5)));
+     if random(0, 2 + (2 * Tox)) == 0 then begin
+     set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
+     end
+   end
+  end
+  // scorch effect from fire dmg ( reduce healing rate )
+  if RegenMod != 0 andAlso weapon != 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
+   wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
+   tarhr = get_critter_stat(target, STAT_heal_rate);
+   atkrhr = get_critter_stat(attacker, STAT_heal_rate);
+
+     //scorch effect for target(s)
+     if dmgtotar > 8 then begin
+      for (burncount = 0; burncount < (dmgtotar / 8) ; burncount++) begin
+        if tarhr > 5 then begin
+         stimburn = 1;
+         call stimtoburn();
+         set_self(target);
+         set_self(target);
+         burn = create_object_sid(40, 0, 0, -1);
+         add_mult_objs_to_inven(target, burn, 1);
+         use_obj_on_obj(burn, target);
+         if target != dude_obj andAlso wpnpid == 159 andAlso tarhr > 5 then begin
+         set_self(target);
+         set_self(target);
+         burn = create_object_sid(40, 0, 0, -1);
+         add_mult_objs_to_inven(target, burn, 1);
+         use_obj_on_obj(burn, target);
+         use_obj_on_obj(burn, target);
+         end
+         if pyromaniac > 0 andAlso attacker == dude_obj then begin
+           set_self(target);
+           set_self(target);
+           burn = create_object_sid(40, 0, 0, -1);
+           add_mult_objs_to_inven(target, burn, 1);
+           use_obj_on_obj(burn, target);
+         end
+         set_self(0);
+        end
+      end
+     end
+  //scorch effect for attacker
+  if dmgtoatkr > 8 then begin
+   stimburn = 1;
+   call stimtoburn();
+      if pyromaniac > 0 then begin
+      //nothing :-)
+      end
+        else begin
+         if atkrhr > 5 then begin
+         set_self(attacker);
+         set_self(attacker);
+         burn = create_object_sid(40, 0, 0, -1);
+         add_mult_objs_to_inven(attacker, burn, 1);
+         use_obj_on_obj(burn, attacker);
+         set_self(0);
+         end
+        end
+      end
+   call stimrestore();
+  end
+  // scorch effect from plasma dmg
+  if RegenMod != 0 andAlso weapon != 0 andAlso wpndmgtype == DMG_plasma then begin
+
+     //scorch effect for target(s)
+     if dmgtotar > 20 then begin
+      for (burncount = 0; burncount < (dmgtotar / 20) ; burncount++) begin
+        if tarhr > 5 then begin
+         stimburn = 1;
+         call stimtoburn();
+         set_self(target);
+         set_self(target);
+         burn = create_object_sid(40, 0, 0, -1);
+         add_mult_objs_to_inven(target, burn, 1);
+         use_obj_on_obj(burn, target);
+         if pyromaniac > 0 andAlso attacker == dude_obj then begin
+           set_self(target);
+           set_self(target);
+           burn = create_object_sid(40, 0, 0, -1);
+           add_mult_objs_to_inven(target, burn, 1);
+           use_obj_on_obj(burn, target);
+         end
+         set_self(0);
+        end
+      end
+     end
+  //scorch effect for attacker
+  if dmgtoatkr > 20 then begin
+      if pyromaniac > 0 then begin
+      //nothing :-)
+      end
+        else begin
+         if atkrhr > 5 then begin
+         stimburn = 1;
+         call stimtoburn();
+         set_self(attacker);
+         set_self(attacker);
+         burn = create_object_sid(40, 0, 0, -1);
+         add_mult_objs_to_inven(attacker, burn, 1);
+         use_obj_on_obj(burn, attacker);
+         set_self(0);
+         end
+        end
+      end
+   call stimrestore();
+  end
+  stimburn = 0;
+end
+
+procedure stimtoburn begin // turning stimpak to burn debuff
+variable rnd = 0;
+rnd = random(1, 4);
+   if UnsafeRegenModScripting == 1 then begin
+     rnd = rnd + 2;
+   set_proto_data(40, PROTO_DR_STAT_A, 0);
+   set_proto_data(40, PROTO_DR_STAT_B, 0);
+   set_proto_data(40, PROTO_DR_STAT_C, 14);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
+   set_proto_data(40, PROTO_DR_DURATION_1, 2);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
+   set_proto_data(40, PROTO_DR_DURATION_2, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
+   end
+   else begin
+   set_proto_data(40, PROTO_DR_STAT_A, 0);
+   set_proto_data(40, PROTO_DR_STAT_B, 0);
+   set_proto_data(40, PROTO_DR_STAT_C, 14);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
+   set_proto_data(40, PROTO_DR_DURATION_1, 1);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
+   set_proto_data(40, PROTO_DR_DURATION_2, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
+  end
+end
+
+procedure stimrestore begin
+  if UnsafeRegenModScripting == 1 then begin
+   set_proto_data(40, PROTO_DR_STAT_A, -2);
+   set_proto_data(40, PROTO_DR_STAT_B, 35);
+   set_proto_data(40, PROTO_DR_STAT_C, 14);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_C, 20);
+   set_proto_data(40, PROTO_DR_DURATION_1, 1);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_C, -26);
+   set_proto_data(40, PROTO_DR_DURATION_2, 60);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
+  end
+  else begin
+   set_proto_data(40, PROTO_DR_STAT_A, -2);
+   set_proto_data(40, PROTO_DR_STAT_B, 35);
+   set_proto_data(40, PROTO_DR_STAT_C, 14);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
+   set_proto_data(40, PROTO_DR_AMOUNT_1_C, 6);
+   set_proto_data(40, PROTO_DR_DURATION_1, 1);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_2_C, -8);
+   set_proto_data(40, PROTO_DR_DURATION_2, 60);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 2);
+  end
+end
+
+procedure use_tail begin
+  variable user = get_sfall_arg;
+  variable obj = get_sfall_arg;
+  variable leftHand  = obj_pid(critter_inven_obj2(user, INVEN_TYPE_LEFT_HAND));
+  variable rightHand = obj_pid(critter_inven_obj2(user, INVEN_TYPE_RIGHT_HAND));
+  variable leftHanddmgtype = get_proto_data(leftHand, PROTO_WP_DMG_TYPE);
+  variable rightHanddmgtype = get_proto_data(rightHand, PROTO_WP_DMG_TYPE);
+  variable leftHandanim = get_proto_data(leftHand, PROTO_WP_ANIM);
+  variable rightHandanim = get_proto_data(rightHand, PROTO_WP_ANIM);
+  variable LHpois = 0;
+  variable RHpois = 0;
+  variable Tox = has_fake_perk(perk_poison_mastery_name);
+  variable acthnd = active_hand;
+  variable lhname = proto_data(leftHand, 1);
+  variable rhname = proto_data(rightHand, 1);
+  variable lhpoison = has_fake_perk_npc(user, (envenomed_msg + lhname));
+  variable rhpoison = has_fake_perk_npc(user, (envenomed_msg + rhname));
+  // small radscorp tail
+  if obj_pid(obj) == 591 andAlso PoisonMod != 0 then begin
+   //left hand act and wpn
+   if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   LHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   end
+   end
+   //left hand act and right hand wpn
+   if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   RHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   end
+   end
+   //right hand act and wpn
+   if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   RHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   end
+   end
+   //right hand act and left hand wpn
+   if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   LHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   end
+   end
+   if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
+     display_msg(gland_gone_msg);
+   end
+   else begin set_sfall_return(0);
+     if LHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+     end
+     if RHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+     end
+   end
+  end
+  // original radscorp tail
+  if obj_pid(obj) == 92 andAlso PoisonMod != 0 then begin
+   //left hand act and wpn
+   if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   LHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   end
+   end
+   //left hand act and right hand wpn
+   if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   RHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   end
+   end
+   //right hand act and wpn
+   if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   RHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   end
+   end
+   //right hand act and left hand wpn
+   if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then begin
+   LHpois = 1;
+   end
+   else begin
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   end
+   end
+   if random(0, 22) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
+     display_msg(gland_gone_msg);
+   end
+   else begin set_sfall_return(0);
+     if LHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+     end
+     if RHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+     end
+   end
+  end
+  if PoisonMod != 0 andAlso (obj_pid(obj) == 591 or obj_pid(obj) == 92) then begin
+   if has_fake_perk_npc(user, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
+     set_fake_perk_npc(user, (envenomed_msg + rhname), 10 + (5 * tox), 23, envenomed_description_msg);
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,rhname));
+   end
+   if has_fake_perk_npc(user, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
+     set_fake_perk_npc(user, (envenomed_msg + lhname), 10 + (5 * tox), 23, envenomed_description_msg);
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,lhname));
+   end
+  end
+end
+
+procedure use_tail_on_obj begin
+   variable target = get_sfall_arg;
+   variable user = get_sfall_arg;
+   variable obj = get_sfall_arg;
+   variable objpid = obj_pid(obj);
+   variable leftHand  = obj_pid(critter_inven_obj2(target, INVEN_TYPE_LEFT_HAND));
+   variable rightHand = obj_pid(critter_inven_obj2(target, INVEN_TYPE_RIGHT_HAND));
+   variable leftHanddmgtype = get_proto_data(leftHand, PROTO_WP_DMG_TYPE);
+   variable rightHanddmgtype = get_proto_data(rightHand, PROTO_WP_DMG_TYPE);
+   variable leftHandanim = get_proto_data(leftHand, PROTO_WP_ANIM);
+   variable rightHandanim = get_proto_data(rightHand, PROTO_WP_ANIM);
+   variable LHpois = 0;
+   variable RHpois = 0;
+   variable injuryhealed = 0;
+   variable SShphealed = get_critter_stat(target, STAT_max_hit_points) - get_critter_stat(target, STAT_current_hp);
+   variable HRhealcost = 0;
+   variable SShpdmg = 0;
+   variable tarHR = get_critter_stat(target, STAT_heal_rate);
+   variable Tox = has_fake_perk(perk_poison_mastery_name);
+   variable fast_meta = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism);
+   variable STEAL_MOD = 0;
+   variable target_pe = get_critter_stat(target, STAT_pe);
+   variable rnd = random(0, 1);
+   variable lhname = proto_data(leftHand, 1);
+   variable rhname = proto_data(rightHand, 1);
+   variable lhpoison = has_fake_perk_npc(target, (envenomed_msg + lhname));
+   variable rhpoison = has_fake_perk_npc(target, (envenomed_msg + rhname));
+   variable tar_name = obj_name(target);
+   variable user_team = has_trait(TRAIT_OBJECT, user, OBJECT_TEAM_NUM);
+   variable tar_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+   //UnsafeScripting=1 in ddraw.ini!!! divides the time of action of the drug, reducing it by 4 times (examle: from 1 min to 15 sec)
+   if UnsafeRegenModScripting == 1 then begin
+      if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
+      write_int(0x479BD4, 280509755);
+      end
+      if read_int(0x479BE8) != -288292236 then begin // return to normal memory adress stat
+      write_int(0x479BE8, -288292236);
+      end
+      if objpid == PID_STIMPAK then begin// only for stimpak, other drugs unaffected (can be used for any drug item if needed)
+      write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 є1
+      write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 є2
+      end
+   end
+  if objpid == PID_HYPO_POISON andAlso user_team == TEAM_PLAYER andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso tar_team != TEAM_PLAYER then begin
+    if obj_can_see_obj(target, dude_obj) andAlso (random(target_pe, target_pe * 10) > random(0, (has_skill(user, SKILL_DOCTOR) + has_skill(user, SKILL_SNEAK)))) andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) != CR_BODY_ROBOTIC then begin
+     if using_skill(dude_obj, SKILL_SNEAK) then begin
+     display_msg(failed_sneak_use_msg);
+     end
+     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != 16777336 then begin
+     float_msg(target, g_mstr(random(3054, 3058)), FLOAT_COLOR_BAD);
+     set_sfall_return(0);
+     end
+     else begin
+     set_self(target);
+     attack(user);
+     set_self(0);
+     end
+   end
+  end
+  // stimpak usage timer start
+  if user == dude_obj andAlso target == dude_obj andAlso obj_pid(obj) == 40 then begin
+   stimtimer = game_time;
+   //if UnsafeRegenModScripting == 1 then begin
+     //stimusetimer = game_time;
+     //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult") * 3;
+   //end
+  end
+  // modified stimpak if dude hase fast_metabolism
+  if RegenMod != 0 andAlso stimburn == 0 andAlso fast_meta then begin
+   if target == dude_obj then begin
+     if UnsafeRegenModScripting == 1 then begin
+      set_proto_data(40, PROTO_DR_STAT_A, -2);
+      set_proto_data(40, PROTO_DR_STAT_B, 35);
+      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_C, 30);
+      set_proto_data(40, PROTO_DR_DURATION_1, 1);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -40);
+      set_proto_data(40, PROTO_DR_DURATION_2, 4);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 10);
+     end
+     else begin
+      set_proto_data(40, PROTO_DR_STAT_A, -2);
+      set_proto_data(40, PROTO_DR_STAT_B, 35);
+      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 4);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 6);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_C, 8);
+      set_proto_data(40, PROTO_DR_DURATION_1, 1);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -10);
+      set_proto_data(40, PROTO_DR_DURATION_2, 1);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 2);
+     end
+   end
+   if target != dude_obj then begin
+     call stimrestore();
+   end
+  end
+  // superstimpak usage mechanics
+  if RegenMod != 0 andAlso objpid == 144 then begin
+   if critter_state(target) BWAND DAM_CRIP_LEG_LEFT then begin
+   critter_uninjure(target, DAM_CRIP_LEG_LEFT);
+   injuryhealed += 10;
+   end
+   if critter_state(target) BWAND DAM_CRIP_LEG_RIGHT then begin
+   critter_uninjure(target, DAM_CRIP_LEG_RIGHT);
+   injuryhealed += 10;
+   end
+   if critter_state(target) BWAND DAM_CRIP_ARM_LEFT then begin
+   critter_uninjure(target, DAM_CRIP_ARM_LEFT);
+   injuryhealed += 6;
+   end
+   if critter_state(target) BWAND DAM_CRIP_ARM_RIGHT then begin
+   critter_uninjure(target, DAM_CRIP_ARM_RIGHT);
+   injuryhealed += 6;
+   end
+   if critter_state(target) BWAND DAM_BLIND then begin
+   critter_uninjure(target, DAM_BLIND);
+   injuryhealed += 4;
+   end
+   if SShphealed > 60 then begin
+     SShphealed = 60;
+   end
+   HRhealcost = SShphealed / 3;
+   if HRhealcost < 1 then begin
+     HRhealcost = 0;
+   end
+   //display_msg("SShphealed=" + SShphealed);
+   //display_msg("HRhealcost=" + HRhealcost);
+   //display_msg("SShpdmg=" + SShpdmg);
+   SShpdmg = (tarHR - (HRhealcost + (injuryhealed / 4))) / 2;
+   if SShpdmg > 0 then begin
+     SShpdmg = 0;
+   end
+   if SShphealed == 0 then begin
+     SShpdmg = 0;
+   end
+   if SShphealed < SShpdmg then begin
+     SShpdmg = SShphealed;
+   end
+   // display_msg("SShpdmg=" + SShpdmg);
+   set_proto_data(144, PROTO_DR_STAT_A, 35);
+   set_proto_data(144, PROTO_DR_STAT_B, 14);
+   set_proto_data(144, PROTO_DR_STAT_C, -1);
+   set_proto_data(144, PROTO_DR_AMOUNT_1_A, SShphealed - injuryhealed);
+   set_proto_data(144, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 5)));
+   set_proto_data(144, PROTO_DR_AMOUNT_1_C, 0);
+   set_proto_data(144, PROTO_DR_DURATION_1, 2);
+   set_proto_data(144, PROTO_DR_AMOUNT_2_A, SShpdmg);
+   set_proto_data(144, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 5)) / 2.00000));
+   set_proto_data(144, PROTO_DR_AMOUNT_2_C, 0);
+   set_proto_data(144, PROTO_DR_DURATION_2, 360);
+   set_proto_data(144, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(144, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 5)) / 2.00000));
+   set_proto_data(144, PROTO_DR_AMOUNT_3_C, 0);
+      // modified stimpak if dude hase fast_metabolism
+   if fast_meta andAlso target == dude_obj then begin
+   SShpdmg = (tarHR - (HRhealcost + (injuryhealed / 6))) / 3;
+   if SShpdmg > 0 then begin
+     SShpdmg = 0;
+   end
+   HRhealcost = SShphealed / 4;
+   //display_msg("SShphealed2=" + SShphealed);
+   // display_msg("HRhealcost2=" + HRhealcost);
+   //display_msg("SShpdmg2=" + SShpdmg);
+   set_proto_data(144, PROTO_DR_STAT_A, 35);
+   set_proto_data(144, PROTO_DR_STAT_B, 14);
+   set_proto_data(144, PROTO_DR_STAT_C, -1);
+   set_proto_data(144, PROTO_DR_AMOUNT_1_A, 10 + SShphealed - (injuryhealed / 2));
+   set_proto_data(144, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 10)));
+   set_proto_data(144, PROTO_DR_AMOUNT_1_C, 0);
+   set_proto_data(144, PROTO_DR_DURATION_1, 1);
+   set_proto_data(144, PROTO_DR_AMOUNT_2_A, SShpdmg);
+   set_proto_data(144, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 10)) / 2.00000));
+   set_proto_data(144, PROTO_DR_AMOUNT_2_C, 0);
+   set_proto_data(144, PROTO_DR_DURATION_2, 60);
+   set_proto_data(144, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(144, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 10)) / 2.00000));
+   set_proto_data(144, PROTO_DR_AMOUNT_3_C, 0);
+   end
+  end
+  // small radscorp tail
+  if PoisonMod != 0 andAlso obj_pid(obj) == 591 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team != TEAM_PLAYER then begin
+   //right hand act and wpn
+   if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+   set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   RHpois = 1;
+   end
+   //right hand act and left hand wpn
+   if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam)  andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+   set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   LHpois = 1;
+   end
+   if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
+     set_sfall_return(1);
+     if target != dude_obj then begin
+     display_msg(parse_str_2(modmsg(msg_gland_gone_npc), tar_name,0));
+     end
+     else begin
+     display_msg(gland_gone_msg);
+     end
+   end
+   else begin set_sfall_return(0);
+     if LHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+     end
+     if RHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+     end
+   end
+  end
+  // original radscorp tail
+  if obj_pid(obj) == 92 andAlso PoisonMod != 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
+   //right hand act and wpn
+   if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
+     set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+     RHpois = 1;
+     end
+     //right hand act and left hand wpn
+     if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
+     set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+     LHpois = 1;
+     end
+     if random(0, 22) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
+      set_sfall_return(1);
+     if target != dude_obj then begin
+     display_msg(parse_str_2(modmsg(msg_gland_gone_npc), tar_name,0));
+     end
+     else begin
+     display_msg(gland_gone_msg);
+     end
+   end
+   else begin set_sfall_return(0);
+     if LHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+     end
+     if RHpois != 0 then begin
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+     end
+   end
+  end
+  if PoisonMod != 0 andAlso (obj_pid(obj) == 591 or obj_pid(obj) == 92) andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
+   if has_fake_perk_npc(target, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
+     set_fake_perk_npc(target, (envenomed_msg + rhname), 10 + (5 * tox), 23, envenomed_description_msg);
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,rhname));
+   end
+   if has_fake_perk_npc(target, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
+     set_fake_perk_npc(target, (envenomed_msg + lhname), 10 + (5 * tox), 23, envenomed_description_msg);
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,lhname));
+   end
+  end
+end
+
+procedure use_skill begin
+  variable user = get_sfall_arg;
+  variable target = get_sfall_arg;
+  variable skill = get_sfall_arg;
+  variable skill_bonus = get_sfall_arg;
+  dudehrcount = 0;
+  healfromskill = 0;
+  deadtarget = 0;
+  if (RegenMod != 0 or PoisonMod != 0) andAlso (skill == SKILL_FIRST_AID or skill == SKILL_DOCTOR) andAlso get_critter_stat(target, STAT_current_hp) > 0 then begin
+   healfromskill = target;
+   call rest;
+   if deadtarget > 0 then begin
+   FadeOut(200);
+   game_time_advance(5150);
+   FadeIn(200);
+   set_sfall_return(0);
+   end
+   if PoisonDecayDiv != 10 then begin
+    call rest;
+   end
+   healfromskill = 0;
+   game_time_advance(500);
+  end
+end
+
+procedure map_exit_p_proc begin
+  variable critwaspoisoned = 0;
+  variable tardt = 0;
+  variable team = -1;
+  dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
+  if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+  RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+  DudeRegenTickHP = RegenTickHP;
+  end
+  foreach critter in list_as_array(0) begin
+   poisondeath = 0;
+   PoisonTickDmg = 0;
+   team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+   // regen if not poisoned (exept dude and party)
+   if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
+     if (RegenMaxHPpercentMult < 1) then begin
+      RegenMaxHPpercentMult = 1;
+     end
+     RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+     if (RegenTickHP < 1) then begin
+      RegenTickHP = 1;
+     end
+   critter_heal(critter, RegenTickHP);
+   end
+
+   // if poisoned (exept dude and party)
+   while PoisonMod != 0 andAlso (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso get_poison(Critter) > 0 andAlso critter != dude_obj andAlso team != TEAM_PLAYER andAlso get_critter_stat(critter, STAT_current_hp ) > 0 do begin
+     poisondeath = 0;
+     // regen while poisonedd
+     if RegenMod != 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 then begin
+      if (RegenMaxHPpercentMult < 1) then begin
+      RegenMaxHPpercentMult = 1;
+      end
+      RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(0, 1) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+      if (RegenTickHP < 1) then begin
+      RegenTickHP = 1;
+      end
+      critter_heal(critter, RegenTickHP);
+     end
+//     Poison dmg
+     if (PoisonMaxHPpercentMult < 1) then begin
+      PoisonMaxHPpercentMult = 1;
+     end
+     PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+     if PoisonTickDmg <= 1 then begin
+      PoisonTickDmg = random(random(0, 1), 1);
+     end
+     //critter_heal(Critter, - PoisonTickDmg);
+
+     if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+      if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+        //poison(critter, - 999);
+        //reg_anim_clear(critter);
+        //display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да и умирает от отравлени€.");
+        //tardt = get_proto_data(obj_pid(Critter), 244);
+        poisondeath = 1;
+
+        //poison(critter, - 999);
+        //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
+        //set_proto_data(obj_pid(Critter), 244, 0);
+        //critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+        //set_proto_data(obj_pid(Critter), 244, tardt);
+        //critter_heal(Critter, - PoisonTickDmg);
+        //if not(obj_in_party(critter)) then begin
+        //give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+        //end
+      end
+      else begin
+      // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да.");
+      end
+     end
+     if poisondeath == 0 then begin
+     poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+     critter_heal(Critter, - PoisonTickDmg);
+     end
+     PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+     if PoisonTickDmg <= 1 then begin
+      PoisonTickDmg = random(random(0, 1), 1);
+     end
+
+   end
+   // heal after poison is cleared (exept dude and party)
+   if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
+     if (RegenMaxHPpercentMult < 1) then begin
+     RegenMaxHPpercentMult = 1;
+     end
+     RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+     if (RegenTickHP < 1) then begin
+     RegenTickHP = 1;
+     end
+     critter_heal(critter, RegenTickHP);
+   end
+  end
+  dudehrcount = ((660 - (game_time - stimtimer)) / 120);
+  if (stimtimer < 1 or dudehrcount < 0) andAlso get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+  dudehrcount = 6;
+  end
+end
+
+procedure rest begin
+  variable gameticks = 0;
+  variable eventtype = 0;
+  variable critter_array = 0;
+  variable theonecrit = 0;
+  variable theonecrit2 = 0;
+  variable lastdudehr = 0;
+  variable i = 0;
+  variable tarishealing = 0;
+  variable tardt = 0;
+  variable tardr = 0;
+  variable tar_name = 0;
+  variable team = -1;
+  RegenTickHP2 = 0;
+  gameticks = get_sfall_arg;
+  eventtype = get_sfall_arg;
+  for (i = 0; i < 20; i++) begin
+   foreach (critter in list_as_array(0)) begin
+     poisondeath = 0;
+     tar_name = obj_name(critter);
+     team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+           // regen while resting/time skipping
+              if RegenMod != 0 andAlso ((critter != dude_obj andAlso get_poison(Critter) < 1) or critter == dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 then begin
+               if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+               RegenTickHP = ( round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+               if (RegenTickHP < 1) then begin RegenTickHP = 1; end
+
+               if critter == dude_obj then begin
+                 DudeRegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+                 if get_poison(dude_obj) < 1 then begin
+                 critter_heal(dude_obj, RegenTickHP);
+                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                    end
+                  end
+                  if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+                    call cripheal();
+                  end
+                 tarishealing = 1;
+                 end
+                 dudehrcount += 1;
+               end
+               else begin
+                 tarishealing = 1;
+                  if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
+                    RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
+                  end
+                 critter_heal(critter, RegenTickHP);
+                 if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                    end
+                 end
+               end
+              end
+             // poison dmg while resting/time skipping
+             if PoisonMod != 0 andAlso get_poison(Critter) > 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 then begin
+              if RegenMod != 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 then begin
+               if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+               RegenTickHP = ( round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+               if (RegenTickHP < 1) then begin RegenTickHP = 1; end
+               if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
+                 RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
+               end
+               critter_heal(critter, RegenTickHP);
+                  if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+                    call cripheal();
+                  end
+               tarishealing = 1;
+
+               if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                    end
+               end
+               if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                    end
+               end
+               if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+               lastdudehr = get_critter_stat(dude_obj, STAT_heal_rate);
+               end
+              end
+             if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+                 PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+               if PoisonTickDmg <= 1 then begin
+                 PoisonTickDmg = random(random(0, 1), 1);
+               end
+               //critter_heal(Critter, - PoisonTickDmg);
+               if PoisonTickDmg > 0 andAlso ShowModMSG != 0 andAlso Critter == dude_obj then begin
+                 display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
+               end
+               poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+               if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+                 if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+                  if critter == healfromskill then begin
+                  deadtarget += 1;
+                  end
+                  if team == TEAM_PLAYER then begin
+                  poison(critter, - 999);
+                  reg_anim_clear(critter);
+                  poisondeath = 1;
+                  critter_heal(Critter, - 9999);
+                  display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
+                  end
+                  else begin
+                  poison(critter, - 999);
+                  reg_anim_clear(critter);
+                  // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да и умирает от отравлени€.");
+                  tardt = get_proto_data(obj_pid(Critter), 244);
+                  tardr = get_proto_data(obj_pid(Critter), 272);
+                  poisondeath = 1;
+                  poison(critter, - 999);
+                  //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
+                  set_proto_data(obj_pid(Critter), 244, 0);
+                  set_proto_data(obj_pid(Critter), 272, 0);
+                  critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+                  set_proto_data(obj_pid(Critter), 244, tardt);
+                  set_proto_data(obj_pid(Critter), 272, tardr);
+                  give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+                  end
+                 end
+                 else begin
+                  if ShowModMSG != 0 then begin
+                  display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                  end
+                 end
+               end
+               if poisondeath == 0 then begin
+               critter_heal(Critter, - PoisonTickDmg);
+               end
+              end
+              //if target dies from poison during skill use triggers original poison script to dmg dude_obj
+              if deadtarget != 0 andAlso i > 18 then begin
+             //FadeOut(200);
+              //game_time_advance(5150);
+             // FadeIn(200);
+              healfromskill = 0;
+              //deadtarget = 0;
+              end
+   end
+   if tarishealing != 0 then begin
+   game_time_advance(49);
+   end
+   tarishealing = 0;
+  end
+end
+
+procedure worldMapTravel begin
+  variable lastgamemode = get_sfall_arg_at(1);
+  variable partypoisoncountdown = 0;
+  variable critterishealing = 0;
+  variable poisonedcrit = 0;
+  variable tar_name = 0;
+  variable team = -1;
+  gamemode = get_game_mode;
+  RegenTickHP2 = 0;
+  dudehrcount2 = 0;
+  DudeRegenTickHP = 0;
+  dudeishealing = 0;
+  //regenperk activation
+  if lastgamemode bwor CHARSCREEN or gamemode bwor CHARSCREEN then begin
+   call newperks;
+  end
+  if (lastgamemode == PCOMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == DIALOG andAlso gamemode == WORLDMAP) orElse (lastgamemode == LOADGAME andAlso gamemode == WORLDMAP) orElse (lastgamemode == COMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == 0 andAlso gamemode == WORLDMAP) then begin
+  if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+   dudeishealing = 1;
+  end
+      for (partypoisoncountdown = 0; partypoisoncountdown < 20 ; partypoisoncountdown++) begin
+                     critterishealing = 0;
+             foreach (critter in party_member_list(0)) begin
+                tar_name = obj_name(critter);
+              // regen for party memebers and dude_obj
+               if RegenMod != 0 andAlso get_poison(critter) < 1 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso (get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) or (critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(critter))) then begin
+               if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+               RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+               if RegenTickHP < 1 then begin RegenTickHP = 1; end
+                  if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
+                    RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
+                  end
+                 critter_heal(critter, RegenTickHP);
+                  if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+                    call cripheal();
+                  end
+                 critterishealing = 1;
+                 poisonedcrit = 1;
+
+                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                    end
+                  end
+                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                    end
+                  end
+               end
+                      // Poison dmg for party memebers and dude_obj if dude is regenerating
+                     team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+                     if team == TEAM_PLAYER then begin
+                       if PoisonMod != 0 andAlso (critter != dude_obj orElse (RegenMod != 0 andAlso critter == dude_obj andAlso dudeishealing != 0) ) andAlso get_poison(Critter) > 0  andAlso get_critter_stat(critter, STAT_current_hp ) > 0then begin
+                        if RegenMod != 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) or (critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(critter))) then begin
+                        if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+                        RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+                        if (RegenTickHP < 1) then begin RegenTickHP = 1; end
+                        if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
+                          RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
+                        end
+                        critter_heal(critter, RegenTickHP);
+                          if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+                           call cripheal();
+                          end
+                        critterishealing = 1;
+                        poisonedcrit = 1;
+
+                          if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                             if RegenTickHP == 1 then begin
+                             display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                             end
+                             else begin
+                             display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                             end
+                          end
+                          if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                             if RegenTickHP == 1 then begin
+                             display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                             end
+                             else begin
+                             display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                             end
+                          end
+                        end
+                        if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+                        PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+                        if PoisonTickDmg <= 1 then begin
+                          PoisonTickDmg = random(random(0, 1), 1);
+                          end
+                          if PoisonTickDmg > 0 andAlso Critter == dude_obj then begin
+                           poisonedcrit = 1;
+                           if ShowModMSG != 0 then begin
+                           display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
+                           end
+                          end
+                          critter_heal(Critter, - PoisonTickDmg);
+                          poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+                          if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+                           if get_critter_stat(critter, STAT_current_hp ) < 1 then begin
+                             poison(critter, - 999);
+                             reg_anim_clear(critter);
+                             if ShowModMSG != 0 then begin
+                             display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
+                             end
+                           end
+                           else begin
+                             poisonedcrit = 1;
+                             if ShowModMSG != 0 then begin
+                             display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                             end
+                           end
+                          end
+                        end
+                       end
+                     end
+           // time skip for heals
+           if critterishealing != 0 andAlso poisonedcrit > 0 then begin
+           RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * 7 * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+           game_time_advance(53);
+           end
+      end
+  partypoisoncountdown = 0;
+  critterishealing = 0;
+  poisonedcrit = 0;
+  end
+end
+
+procedure poisonInRealTime begin
+  variable leftHand  = 0;
+  variable rightHand = 0;
+  variable losblock = 0;
+  variable tardt = 0;
+  variable tardr = 0;
+  variable Tox = has_fake_perk(perk_poison_mastery_name);
+  variable tar_name = 0;
+  variable team = -1;
+  // weapon poisonBuff deacay for dude & party members
+   foreach (critter in party_member_list(0)) begin
+   tar_name = obj_name(Critter);
+   if (get_game_mode == 0 or get_game_mode == 1) andAlso PoisonMod != 0 andAlso random(0, 2) >= (2 * Tox) then begin
+     leftHand  = obj_pid(critter_inven_obj2(critter, INVEN_TYPE_LEFT_HAND));
+     rightHand = obj_pid(critter_inven_obj2(critter, INVEN_TYPE_RIGHT_HAND));
+     //Fo2 weapons has_fake_perk_npc
+     if leftHand != 4 andAlso rightHand != 4 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(4, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(4, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(4, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 7 andAlso rightHand != 7 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(7, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(7, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(7, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 45 andAlso rightHand != 45 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(45, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(45, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(45, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 116 andAlso rightHand != 116 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(116, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(116, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(116, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 234 andAlso rightHand != 234 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(234, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(234, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(234, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 236 andAlso rightHand != 236 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(236, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(236, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(236, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 280 andAlso rightHand != 280 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(280, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(280, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(280, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 319 andAlso rightHand != 319 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(319, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(319, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(319, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 320 andAlso rightHand != 320 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(320, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(320, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(320, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 383 andAlso rightHand != 383 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(383, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(383, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(383, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 517 andAlso rightHand != 517 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(517, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(517, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(517, 1))) - 1), 23, envenomed_description_msg);
+     end
+     if leftHand != 522 andAlso rightHand != 522 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(522, 1))) != 0 then begin
+      set_fake_perk_npc(critter, (envenomed_msg + proto_data(522, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(522, 1))) - 1), 23, envenomed_description_msg);
+     end
+     //Nevada Weapons
+     if Nevada != 0 then begin
+      if leftHand != 112 andAlso rightHand != 112 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(112, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(112, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(112, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 365 andAlso rightHand != 365 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(365, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(365, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(365, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 420 andAlso rightHand != 420 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(420, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(420, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(420, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 573 andAlso rightHand != 573 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(573, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(573, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(573, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 575 andAlso rightHand != 575 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(575, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(575, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(575, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 654 andAlso rightHand != 654 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(654, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(654, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(654, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 667 andAlso rightHand != 667 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(667, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(667, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(667, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 668 andAlso rightHand != 668 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(668, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(668, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(668, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 677 andAlso rightHand != 677 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(677, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(677, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(677, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 678 andAlso rightHand != 678 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(678, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(678, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(678, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 738 andAlso rightHand != 738 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(738, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(738, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(738, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 739 andAlso rightHand != 739 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(739, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(739, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(739, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 762 andAlso rightHand != 762 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(762, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(762, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(762, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 763 andAlso rightHand != 763 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(763, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(763, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(763, 1))) - 1), 23, envenomed_description_msg);
+      end
+     end
+     //Sonora Weapons
+     if Sonora != 0 then begin
+      if leftHand != 190 andAlso rightHand != 190 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(190, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(190, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(190, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 19 andAlso rightHand != 19 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(19, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(19, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(19, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 127 andAlso rightHand != 127 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(127, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(127, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(127, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 128 andAlso rightHand != 128 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(128, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(128, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(128, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 132 andAlso rightHand != 132 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(132, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(132, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(132, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 133 andAlso rightHand != 133 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(133, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(133, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(133, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 134 andAlso rightHand != 134 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(134, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(134, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(134, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 135 andAlso rightHand != 135 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(135, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(135, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(135, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 137 andAlso rightHand != 137 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(137, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(137, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(137, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 138 andAlso rightHand != 138 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(138, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(138, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(138, 1))) - 1), 23, envenomed_description_msg);
+      end
+      if leftHand != 174 andAlso rightHand != 174 andAlso has_fake_perk_npc(critter, (envenomed_msg + proto_data(174, 1))) != 0 then begin
+        set_fake_perk_npc(critter, (envenomed_msg + proto_data(174, 1)), (has_fake_perk_npc(critter, (envenomed_msg + proto_data(174, 1))) - 1), 23, envenomed_description_msg);
+      end
+     end
+   end
+  end
+  if PoisonMod != 0 andAlso  game_time > combatendtime + 20 then begin
+   foreach (critter in list_as_array(0)) begin
+     tar_name = obj_name(Critter);
+     team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+     if  get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_game_mode == 0 andAlso get_poison(Critter) > 0 then begin
+      if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+        PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
+      if PoisonTickDmg <= 1 then begin
+        PoisonTickDmg = random(random(0, 1), 1);
+      end
+      if PoisonTickDmg > 0 andAlso Critter == dude_obj andAlso ShowModMSG != 0 then begin
+        display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
+      end
+      losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+      if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+        //if obj_type(losblock) == OBJ_TYPE_CRITTER then begin
+         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+           poison(critter, - 999);
+           reg_anim_clear(critter);
+          // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от €да и умирает от отравлени€.");
+           tardt = get_proto_data(obj_pid(Critter), 244);
+           tardr = get_proto_data(obj_pid(Critter), 272);
+           poisondeath = 1;
+           poison(critter, - 999);
+           critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
+           set_proto_data(obj_pid(Critter), 244, 0);
+           set_proto_data(obj_pid(Critter), 272, 0);
+           critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+           set_proto_data(obj_pid(Critter), 244, tardt);
+           set_proto_data(obj_pid(Critter), 272, tardr);
+           if team != TEAM_PLAYER then begin
+           give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+           end
+         end
+          if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso not(losblock) andAlso ShowModMSG != 0 then begin
+           display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+         end
+        //end
+      end
+      if poisondeath == 0 then begin
+      critter_heal(Critter, - PoisonTickDmg);
+      end
+      poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+     end
+   end
+  end
+end
+
+procedure regenInRealTime begin
+  variable losblock = 0;
+  variable game_mode = get_game_mode;
+  variable tar_name = 0;
+  if RegenMod != 0 andAlso game_time > combatendtime + 20 then begin
+   foreach (critter in list_as_array(0)) begin
+     tar_name = obj_name(critter);
+     if get_critter_stat(critter, STAT_current_hp ) > 0 andAlso game_mode == 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) or (critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(critter))) then begin
+      if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+      RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+      if (RegenTickHP < 1) then begin RegenTickHP = 1; end
+                  if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
+                    RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
+                  end
+      critter_heal(critter, RegenTickHP);
+      if critter == dude_obj then begin
+        if has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+         call cripheal();
+        end
+      DudeRegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+      end
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                    end
+
+      end
+      losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(losblock) then begin
+      //if losblock == critter then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                    end
+      //end
+      end
+     end
+   end
+  end
+end
+
+procedure ModInTurnBased begin
+  variable CritterTurnStatus = get_sfall_arg;
+  variable Critter = get_sfall_arg;
+  variable critmaxhp = get_critter_stat(critter, STAT_max_hp);
+  variable critcurhp = get_critter_stat(Critter, STAT_current_hp );
+  variable crithr = get_critter_stat(critter, STAT_heal_rate);
+  variable critcurpoison = get_poison(Critter);
+  variable losblock = 0;
+  variable tardt = 0;
+  variable tardr = 0;
+  variable tar_name = obj_name(critter);
+  variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
+  if RegenMod != 0  then begin
+   //if UnsafeRegenModScripting == 1 then begin
+     //if stimusetimer > game_time - 150 then begin
+      //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult") * 2;
+     //end
+     //else begin
+      //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
+     //end
+   //end
+   if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
+     RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
+     if RegenTickHP < 1 then begin RegenTickHP = 1; end
+     if ((CritterTurnStatus == 0) andAlso (crithr > 5)) andAlso ((critcurhp < critmaxhp) or (critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(critter)))then begin
+
+                  if critcurhp + RegenTickHP >= critmaxhp then begin
+                    RegenTickHP = critmaxhp - critcurhp;
+                  end
+     critter_heal(Critter, RegenTickHP);
+     losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+     if ShowFloatMSG != 0 andAlso get_poison(critter) < 1 andAlso RegenTickHP > 0 and not(losblock) then begin
+     float_msg(critter, "+" + RegenTickHP, FLOAT_MSG_GREEN);
+     end
+     if critter == dude_obj then begin
+      if has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
+        call cripheal();
+      end
+         DudeRegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+         end
+     if Critter == dude_obj andAlso RegenTickHP > 0 andAlso ShowModMSG != 0 then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
+                    end
+     end
+      //losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SHOOT);
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj then begin
+         // if obj_type(losblock) == OBJ_TYPE_CRITTER then begin
+                    if RegenTickHP == 1 then begin
+                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+                    end
+                    else begin
+                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+                    end
+       // end
+     end
+     end
+  end
+  if PoisonMod != 0 then begin
+   if CritterTurnStatus == 0 andAlso CritterTurnStatus != -2 andAlso CritterTurnStatus != -1 andAlso (critcurpoison > 0) andAlso critcurhp > 0 then begin
+
+      if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+       PoisonTickDmg = round(critmaxhp / 100.00000 * PoisonMaxHPpercentMult * (critcurpoison * PoisonLevelMult / PoisonLevelDiv));
+      if PoisonTickDmg <= 1 then begin
+        PoisonTickDmg = random(random(0, 1), 1);
+        end
+      if PoisonTickDmg > 0 andAlso Critter == dude_obj then begin
+        display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
+      end
+      //losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+      if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+         //if obj_type(losblock) == OBJ_TYPE_CRITTER  then begin
+           if (critcurhp - PoisonTickDmg) < 1 then begin
+            if team == TEAM_PLAYER then begin
+              critter_heal(Critter, - PoisonTickDmg * 2);
+              if ShowModMSG != 0 then begin
+              display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
+              end
+            end
+            else begin
+            tardt = get_proto_data(obj_pid(Critter), 244);
+            tardr = get_proto_data(obj_pid(Critter), 272);
+            poisondeath = 1;
+            party_remove(critter);
+            poison(critter, - 999);
+            critter_heal(Critter, - (critcurhp - 1));
+            set_proto_data(obj_pid(Critter), 244, 0);
+            set_proto_data(obj_pid(Critter), 272, 0);
+            critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+            set_proto_data(obj_pid(Critter), 244, tardt);
+            set_proto_data(obj_pid(Critter), 272, tardr);
+            end
+           end
+           else begin
+            //display_msg("attacker=" + obj_name(get_last_attacker(critter)));
+            if ShowModMSG != 0 then begin
+            display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+            end
+           end
+         // end
+      end
+      losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+      if ShowFloatMSG != 0 andAlso not(losblock) then begin
+        if PoisonTickDmg > 0 andAlso RegenMod != 0 then begin
+         if RegenMod != 0 andAlso PoisonTickDmg > 0 andAlso crithr > 5 then begin
+           if PoisonTickDmg > RegenTickHP then begin
+           float_msg(critter, "-" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
+           end
+           if PoisonTickDmg == RegenTickHP then begin
+           float_msg(critter, "" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
+           end
+           if PoisonTickDmg < RegenTickHP then begin
+           float_msg(critter, "+" + (RegenTickHP - PoisonTickDmg), FLOAT_MSG_BLUE);
+           end
+         end
+         if PoisonTickDmg > 0 andAlso crithr < 6 then begin
+         float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+         end
+        end
+        if PoisonTickDmg > 0 andAlso RegenMod == 0 then begin
+         float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+        end
+      end
+
+      poison(critter, - (1 + (round (critcurpoison * 0.10 ) * 10 / PoisonDecayDiv)));
+      if poisondeath == 0 then begin
+      critter_heal(Critter, - PoisonTickDmg);
+      end
+   end
+  end
+  if CritterTurnStatus == -2 then begin
+  combatendtime = game_time;
+  end
+  if (get_poison(dude_obj) > 0 andAlso CritterTurnStatus < 0) or (get_critter_stat(dude_obj, STAT_heal_rate) > 5 andAlso CritterTurnStatus < 0) then begin
+  float_msg(dude_obj, 0, 0);
+  end
+  poisondeath = 0;
+end
+
+procedure Poisdmg begin
+  variable Critter = 0;
+  variable companion = 0;
+  variable OriginalPoisonDecay = 0;
+  variable OriginalPoisonDMG = 0;
+  variable newpoisondmg = 0;
+  variable PoisonTickDmg = 0;
+  variable PoisonEcxessLevel = 0;
+  variable pseudoPoisonLevel = 0;
+  variable pseudoCurrentHP = 0;
+  variable poisonres = 0;
+  variable repeat = 0;
+  variable tardt = 0;
+  variable tardr = 0;
+  variable tar_name = 0;
+  variable team = -1;
+  variable party_team = -1;
+  if PoisonMod != 0  then begin
+  Critter = get_sfall_arg;
+  originalPoisonDecay = get_sfall_arg;
+  originalPoisonDMG = get_sfall_arg;
+  poisonres = get_critter_stat(critter, STAT_poison_resist );
+  pseudoPoisonLevel = get_poison(critter);
+  pseudoCurrentHP = get_critter_stat(critter, STAT_current_hp );
+  team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
+  tar_name = obj_name(Critter);
+  if get_critter_stat(critter, STAT_max_hp ) < 400 andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == dude_obj) or ((get_poison(critter) + originalPoisonDecay) >= 100 andAlso critter != dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) andAlso pseudoCurrentHP > 0 then begin
+   if team == TEAM_PLAYER then begin
+      critter_heal(Critter, - pseudoCurrentHP * 2);
+   end
+   else begin
+   tardt = get_proto_data(obj_pid(Critter), 244);
+   tardr = get_proto_data(obj_pid(Critter), 272);
+   poisondeath = 1;
+   party_remove(critter);
+   poison(critter, - 999);
+   critter_heal(Critter, - (pseudoCurrentHP - 1));
+   set_proto_data(obj_pid(Critter), 244, 0);
+   set_proto_data(obj_pid(Critter), 272, 0);
+   critter_dmg(critter, pseudoCurrentHP, DMG_normal_dam);
+   set_proto_data(obj_pid(Critter), 244, tardt);
+   set_proto_data(obj_pid(Critter), 272, tardr);
+   end
+   display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), tar_name, pseudoPoisonLevel));
+  end
+  if originalPoisonDecay == -2 andAlso OriginalPoisonDMG == -1 andAlso not(combat_is_initialized) then begin
+   // Poison dmg for party memebers (exept dude_obj) start
+   foreach (companion in party_member_list(0)) begin
+    tar_name = obj_name(companion);
+    party_team = has_trait(TRAIT_OBJECT, companion, OBJECT_TEAM_NUM);
+    if team == TEAM_PLAYER then begin
+     while PoisonMod != 0 andAlso companion != dude_obj andAlso get_poison(companion) > 0  andAlso get_critter_stat(companion, STAT_current_hp ) > 0 do begin
+      if RegenMod != 0 andAlso get_critter_stat(companion, STAT_current_hp ) > 0 andAlso get_critter_stat(companion, STAT_heal_rate) > 5 then begin
+      if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
+      RegenTickHP = (1 * round(get_critter_stat(companion, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(companion, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+      if (RegenTickHP < 1) then begin RegenTickHP = 1; end
+      critter_heal(companion, RegenTickHP);
+      end
+      if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+      PoisonTickDmg = round(get_critter_stat(companion, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(companion) * PoisonLevelMult / PoisonLevelDiv));
+      if PoisonTickDmg <= 1 then begin
+        PoisonTickDmg = random(random(0, 1), 1);
+        end
+        poison(companion, - (1 + (round (get_poison(companion) * 0.10 ) * 10 / PoisonDecayDiv)));
+        if PoisonTickDmg > 0 andAlso companion != dude_obj then begin
+         if (get_critter_stat(companion, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+           poison(companion, - 999);
+           reg_anim_clear(critter);
+           critter_heal(Critter, - 9999);
+           if ShowModMSG != 0 then begin
+           display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
+           end
+         end
+         else begin
+           display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+         end
+        end
+        if poisondeath == 0 then begin
+        critter_heal(Critter, - PoisonTickDmg);
+        end
+      end
+     end
+   end
+   // Poison dmg for party memebers (exept dude_obj) end
+   while pseudoPoisonLevel > 0 do begin
+      if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
+        PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (pseudoPoisonLevel * PoisonLevelMult / PoisonLevelDiv));
+         if (PoisonTickDmg <= 1) then begin
+           PoisonTickDmg = random(random(0, 1), 1);
+           end
+           pseudoPoisonLevel = pseudoPoisonLevel - (1 + round((pseudoPoisonLevel * 0.10 ) * 10 / PoisonDecayDiv));
+           if PoisonTickDmg > 0 andAlso Critter == dude_obj then begin
+            display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
+           end
+           if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
+            if (pseudoCurrentHP - PoisonTickDmg) < 1 then begin
+              poison(critter, - 999);
+              reg_anim_clear(critter);
+              if ShowModMSG != 0 then begin
+              display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
+              end
+            end
+            else begin
+              if ShowModMSG != 0 then begin
+              display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+              end
+            end
+           end
+     while get_critter_stat(critter, STAT_heal_rate) > 5 and repeat < 11 do begin
+      repeat += 1;
+      game_time_advance(100);
+     end
+     pseudoCurrentHP = pseudoCurrentHP - PoisonTickDmg;
+   end
+   if dudehrexitmap > 5 then begin
+   RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (dudehrexitmap * HealingRateMult / HealingRateDiv));
+   DudeRegenTickHP = RegenTickHP;
+   end
+   dudehrcount = MAX(dudehrcount2, dudehrcount);
+   if dudehrcount < 0 then begin
+     dudehrcount = 0;
+   end
+   if dudehrcount > 6 then begin
+   dudehrcount = (dudehrcount - 1) / 2;
+   end
+   if dudehrcount == 5 then begin
+   dudehrcount = dudehrcount - 1;
+   end
+   if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
+     dudehrcount = 6;
+   end
+   //if RegenMod != 0 andAlso dudeishealing == 0 then begin
+   //set_sfall_return( - get_poison(critter));
+   //set_sfall_arg(1, - get_poison(critter));
+   //set_sfall_return( - ((get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP)) + (DudeRegenTickHP * (dudehrcount) * 3));
+   //set_sfall_arg(2, - ((get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP)) + (DudeRegenTickHP * (dudehrcount) * 3));
+     //heal for overhealed damage
+     //if get_game_mode == WORLDMAP andAlso get_sfall_arg_at(2) > 0 then begin
+      //critter_heal(critter, get_sfall_arg_at(2));
+     //end
+   //end
+   //else begin
+   set_sfall_return( - get_poison(critter));
+   set_sfall_arg(1, - get_poison(critter));
+   set_sfall_return( - (get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP));
+   set_sfall_arg(2, - (get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP));
+   //end
+   dudehrcount = 0;
+   dudehrcount2 = 0;
+   DudeRegenTickHP = 0;
+   end
+  end
+  if PoisonMod != 0 andAlso critter == dude_obj andAlso get_poison(critter) < 1 andAlso OriginalPoisonDMG == -1 then begin
+   display_msg(parse_str_2(modmsg(msg_player_after_poison_effect), tar_name, OriginalPoisonDMG));
+   critter_heal(critter, random(-1, 1));
+  end
+  RegenTickHP = 0;
+  repeat = 0;
+end
+
+procedure map_enter_p_proc begin
+  dudehrexitmap = 0;
+  dudehrcount = 0;
+  if PoisonMod != 0 then begin
+   if (get_proto_data(92, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
+   set_proto_data(92, PROTO_IT_FLAGS, (get_proto_data(92, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
+   end
+   if (get_proto_data(92, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) != ITEM_ACTION_USE then begin
+   set_proto_data(92, PROTO_IT_FLAGS, (get_proto_data(92, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
+   end
+   if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 andAlso (get_proto_data(591, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
+   set_proto_data(591, PROTO_IT_FLAGS, (get_proto_data(591, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
+   end
+   if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 andAlso (get_proto_data(591, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) != ITEM_ACTION_USE then begin
+   set_proto_data(591, PROTO_IT_FLAGS, (get_proto_data(591, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
+   end
+   //radscorpion tail weight modifying
+   set_proto_data(92, PROTO_IT_WEIGHT, 5);
+   set_proto_data(591, PROTO_IT_WEIGHT, 2);
+   // poison injection moddification
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_poison);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 50);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_C, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_2, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_C, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_CHANCE, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_PERK, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_DELAY, 0);
+   // antidot moddification
+   if Sonora == 0 then begin
+   set_proto_data(49, PROTO_DR_STAT_A, -2);
+   set_proto_data(49, PROTO_DR_STAT_B, 36);
+   set_proto_data(49, PROTO_DR_STAT_C, 32);
+   set_proto_data(49, PROTO_DR_AMOUNT_1_A, -25);
+   set_proto_data(49, PROTO_DR_AMOUNT_1_B, -15);
+   set_proto_data(49, PROTO_DR_AMOUNT_1_C, 10);
+   set_proto_data(49, PROTO_DR_DURATION_1, 1);
+   set_proto_data(49, PROTO_DR_AMOUNT_2_A, 0);
+   set_proto_data(49, PROTO_DR_AMOUNT_2_B, 0);
+   set_proto_data(49, PROTO_DR_AMOUNT_2_C, -10);
+   set_proto_data(49, PROTO_DR_DURATION_2, 0);
+   set_proto_data(49, PROTO_DR_AMOUNT_3_A, 0);
+   set_proto_data(49, PROTO_DR_AMOUNT_3_B, 0);
+   set_proto_data(49, PROTO_DR_AMOUNT_3_C, 0);
+   set_proto_data(49, PROTO_DR_ADDICT_CHANCE, 0);
+   set_proto_data(49, PROTO_DR_ADDICT_PERK, 0);
+   set_proto_data(49, PROTO_DR_ADDICT_DELAY, 0);
+   end
+  end
+  if RegenMod != 0  then begin
+   if UnsafeRegenModScripting == 1 then begin
+      set_proto_data(40, PROTO_DR_STAT_A, -2);
+      set_proto_data(40, PROTO_DR_STAT_B, 35);
+      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_C, 20);
+      set_proto_data(40, PROTO_DR_DURATION_1, 1);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -26);
+      set_proto_data(40, PROTO_DR_DURATION_2, 60);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
+   end
+   else begin
+     set_proto_data(40, PROTO_DR_STAT_A, -2);
+     set_proto_data(40, PROTO_DR_STAT_B, 35);
+     set_proto_data(40, PROTO_DR_STAT_C, 14);
+     set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
+     set_proto_data(40, PROTO_DR_AMOUNT_1_C, 6);
+     set_proto_data(40, PROTO_DR_DURATION_1, 1);
+     set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+     set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(40, PROTO_DR_AMOUNT_2_C, -8);
+     set_proto_data(40, PROTO_DR_DURATION_2, 60);
+     set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+     set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(40, PROTO_DR_AMOUNT_3_C, 2);
+   end
+   set_proto_data(273, PROTO_DR_STAT_A, -2);
+   set_proto_data(273, PROTO_DR_STAT_B, 35);
+   set_proto_data(273, PROTO_DR_STAT_C, 1);
+   set_proto_data(273, PROTO_DR_AMOUNT_1_A, 2);
+   set_proto_data(273, PROTO_DR_AMOUNT_1_B, 4);
+   set_proto_data(273, 56, -1);
+   set_proto_data(273, 60, 1);
+   set_proto_data(273, 64, 3);
+   set_proto_data(273, 68, 5);
+   set_proto_data(273, 72, 0);
+   set_proto_data(273, PROTO_DR_DURATION_2, 2);
+   set_proto_data(273, 80, 2);
+   set_proto_data(273, 84, 4);
+   set_proto_data(273, 88, 1);
+   if Sonora == 0 then begin
+   set_proto_data(16777458, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR"));
+   set_proto_data(16777459, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR"));
+   set_proto_data(16777570, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAQHR"));
+   set_proto_data(16777464, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|CENHR"));
+   set_proto_data(16777465, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|MCENHR"));
+      if Nevada == 0 then begin
+         set_proto_data(16777504, 304, 99); // set Frank Horrigan poison res to 95 %
+      end
+   end
+   // Nevada food edition
+   if Nevada != 0 then begin
+     // mutafruit heal
+     set_proto_data(71, PROTO_DR_AMOUNT_1_A, 0);
+     set_proto_data(71, PROTO_DR_AMOUNT_1_B, 1);
+     // iguana max hp instead of hr
+     set_proto_data(81, PROTO_DR_STAT_C, STAT_max_hp);
+     set_proto_data(81, PROTO_DR_AMOUNT_1_C, 0);
+     set_proto_data(81, PROTO_DR_AMOUNT_2_C , 0);
+     // набор по уходу hr + 1
+     set_proto_data(90, PROTO_DR_AMOUNT_1_C, 1);
+     // iguana bits hp instead of hr
+     set_proto_data(103, PROTO_DR_STAT_C, STAT_max_hp);
+     set_proto_data(103, PROTO_DR_AMOUNT_1_C, 0);
+     set_proto_data(103, PROTO_DR_AMOUNT_2_C , 0);
+     // nuka heal
+     set_proto_data(106, PROTO_DR_AMOUNT_1_A, 1);
+     // water heal
+     set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
+     // clear water heal
+     set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
+     // прах проотца отравл€ет на 6, а не на 25
+     set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
+     //drymeat max hp instead of hr
+     set_proto_data(284, PROTO_DR_STAT_B, STAT_max_hp);
+     set_proto_data(284, PROTO_DR_AMOUNT_1_B, 1);
+     set_proto_data(284, PROTO_DR_AMOUNT_3_B, -1);
+     //pirog max hp instead of hr
+     set_proto_data(343, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(343, PROTO_DR_AMOUNT_1_B, 3);
+     set_proto_data(343, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(343, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(343, PROTO_DR_STAT_A, STAT_max_hp);
+     set_proto_data(343, PROTO_DR_AMOUNT_1_A, 3);
+     set_proto_data(343, PROTO_DR_AMOUNT_2_A, -3);
+     set_proto_data(343, PROTO_DR_AMOUNT_3_A, 0);
+     //mantis max hp instead of hr
+     set_proto_data(419, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(419, PROTO_DR_AMOUNT_1_B, 3);
+     set_proto_data(419, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(419, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(419, PROTO_DR_STAT_A, STAT_max_hp);
+     set_proto_data(419, PROTO_DR_AMOUNT_1_A, 1);
+     set_proto_data(419, PROTO_DR_AMOUNT_2_A, -1);
+     set_proto_data(419, PROTO_DR_AMOUNT_3_A, 0);
+     //rootbeer heal
+     set_proto_data(423, PROTO_DR_AMOUNT_1_A, 2);
+     //milk max hp instead of hr
+     set_proto_data(440, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(440, PROTO_DR_AMOUNT_1_B, 3);
+     set_proto_data(440, PROTO_DR_AMOUNT_2_B, 2);
+     //burger max hp instead of hr
+     set_proto_data(468, PROTO_DR_STAT_C, STAT_current_hp);
+     set_proto_data(468, PROTO_DR_AMOUNT_1_C, 1);
+     set_proto_data(468, PROTO_DR_AMOUNT_2_C, 0);
+     set_proto_data(468, PROTO_DR_AMOUNT_3_C, 0);
+     set_proto_data(468, PROTO_DR_STAT_A, STAT_max_hp);
+     set_proto_data(468, PROTO_DR_AMOUNT_1_A, 1);
+     set_proto_data(468, PROTO_DR_AMOUNT_2_A, -1);
+     set_proto_data(468, PROTO_DR_AMOUNT_3_A, 0);
+     //pizza max hp instead of hr
+     set_proto_data(581, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(581, PROTO_DR_STAT_B, STAT_max_hp);
+     set_proto_data(581, PROTO_DR_AMOUNT_1_B, 2);
+     set_proto_data(581, PROTO_DR_AMOUNT_2_B, -2);
+     //cola heal hp instead of hr
+     set_proto_data(583, PROTO_DR_STAT_A, STAT_current_hp);
+     set_proto_data(583, PROTO_DR_AMOUNT_1_A, 3);
+     set_proto_data(583, PROTO_DR_AMOUNT_2_A, 0);
+     //обед кќрќванщика
+     set_proto_data(672, PROTO_DR_AMOUNT_1_A, 1);
+     set_proto_data(672, PROTO_DR_AMOUNT_2_A, -1);
+     //potroh heal hp instead of hr
+     set_proto_data(708, PROTO_DR_STAT_A, STAT_current_hp);
+     set_proto_data(708, PROTO_DR_AMOUNT_1_A, 4);
+     set_proto_data(708, PROTO_DR_AMOUNT_2_A, 0);
+     //drgn meat max hp instead of hr
+     set_proto_data(743, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(743, PROTO_DR_AMOUNT_1_B, 4);
+     set_proto_data(743, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(743, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(743, PROTO_DR_STAT_A, STAT_max_hp);
+     set_proto_data(743, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(743, PROTO_DR_AMOUNT_2_A, -2);
+     set_proto_data(743, PROTO_DR_AMOUNT_3_A, 0);
+   end
+   // Sonora food edition
+   if Sonora != 0 then begin
+     // noodles heal
+     set_proto_data(63, PROTO_DR_AMOUNT_1_A, 4);
+     // tele diner max hp instead of hr
+     set_proto_data(64, PROTO_DR_AMOUNT_1_A, 5);
+     set_proto_data(64, PROTO_DR_STAT_B, STAT_max_hp);
+     set_proto_data(64, PROTO_DR_AMOUNT_1_B, 1);
+     set_proto_data(64, PROTO_DR_AMOUNT_3_B, -1); // amount stat B 3
+     // food09
+     set_proto_data(68, PROTO_DR_AMOUNT_1_A, 6);
+     set_proto_data(68, PROTO_DR_STAT_B, STAT_max_hp);
+     set_proto_data(68, PROTO_DR_AMOUNT_1_B, 2);
+     set_proto_data(68, PROTO_DR_AMOUNT_3_B, -2); // amount stat B 3
+     // chips heal
+     set_proto_data(71, PROTO_DR_AMOUNT_1_A, 4);
+     // nuka
+     set_proto_data(106, PROTO_DR_AMOUNT_1_A, 5);
+     set_proto_data(106, PROTO_DR_AMOUNT_1_B, 1);
+     // irradiated nuka
+     set_proto_data(107, PROTO_DR_AMOUNT_1_A, 5);
+     set_proto_data(107, PROTO_DR_AMOUNT_1_B, 1);
+     // water
+     set_proto_data(108, PROTO_DR_AMOUNT_1_A, 5);
+     set_proto_data(108, PROTO_DR_AMOUNT_1_B, 1);
+   end
+  end
+end
