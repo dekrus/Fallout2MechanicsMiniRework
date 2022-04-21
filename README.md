@@ -21,7 +21,7 @@
 - [Sneak](#sneak)
   - [Sneak detection](#sneak-detection)
 - [Steal](#steal)
-- [Swing&Thrust](#swing&thrust)
+- [Swing&Thrust](#Swing&Thrust)
 
 ### Poison
 This is a rework of the original mechanics, designed to make Poison more dangerous for both the player and NPCs.
