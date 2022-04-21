@@ -101,7 +101,7 @@ And I added 2 edits from myself
 - Complicated stealing from merchants.
 
 ### Swing&Thrust
-With the tweak enabled, the swing and thurst animations will now have different properties when attacking target.
+With the tweak enabled, the swing and thrust animation knife attacks will now have different properties when attacking target.
 
 1. When NPC or Player attacking with knife using the Swing animation:
 - Target's AC reduced by an amount equal to (target's agility +(attacker melee weapon skill/15)).
