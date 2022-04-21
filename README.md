@@ -24,6 +24,7 @@
 - [Swing&Thrust](#swingthrust)
 
 ### Poison
+Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini
 This is a rework of the original mechanics, designed to make Poison more dangerous for both the player and NPCs.
 
 - Now poison damage is received not only by the player, but also by all creatures without immunity to poison.
@@ -33,6 +34,7 @@ This is a rework of the original mechanics, designed to make Poison more dangero
 - New perk "Poison Mastery" , available from level 6 and requiring science above 50 or naturalist skill above 70. This perk adds poison dmg when using Needler ammo and also increases the effectiveness of poisoned weapons.
 
 ### Healing
+Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini
 Replaces the instant stimpak heal with a regeneration over time.
 
 - Stimpack increases healing rate, triggering health regeneration.
