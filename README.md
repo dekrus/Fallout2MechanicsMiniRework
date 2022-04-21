@@ -1,8 +1,7 @@
 # Fallout2MechanicsMiniRework
 [__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases)
 
- This is a small rework some gameplay mechanics of Fallout 2 and games based on it.
- The style of the page design is brazenly copied from https://github.com/BGforgeNet/FO2tweaks
+ This is a small rework some gameplay mechanics of Fallout 2 and games based on it.  The style of the page design is brazenly copied from https://github.com/BGforgeNet/FO2tweaks
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
@@ -54,13 +53,10 @@ Purple highlights new possible targets if shot misses initial target(crosshair).
 ![Misses](images/Misstohit.jpg)
 
 #### Random bodypart hit
-Chance to hit random bodypart with unaimed attacks for NPCs to makes the fight more intense :)
-Also can be enabled for player.
+Chance to hit random bodypart with unaimed attacks for NPCs to makes the fight more intense :)  Also can be enabled for player.
 
 ### Sneak
-Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map.
-Low illumination penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).
-Detection range = round((perception range x (100.0 - ((sneak skill - 5 - armor_weight) / 1.85))) / 100.0) - (sneak skill / 60);
+Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map.  Low illumination penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).  Detection range = round((perception range x (100.0 - ((sneak skill - 5 - armor_weight) / 1.85))) / 100.0) - (sneak skill / 60);
 
 #### Sneak detection
 Color indication of sneak detection works for original and new sneak mechanics.
