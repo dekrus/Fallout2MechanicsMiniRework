@@ -2,8 +2,8 @@
 *.err
 *.int
 DAT_Packer/
+release/
 *.rar
 *.7z
 data/*
 !data/text
-mods/*
