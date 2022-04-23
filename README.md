@@ -9,6 +9,7 @@
 - Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+.
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable or fine tune components as you desire.
 
+## Сontents
 - [Mods](#Meckanics-mods)
 - [Compatibility](#compatibility)
 - [Unistallation](#uninstallation)
@@ -37,7 +38,7 @@ This is a rework of the original mechanics, designed to make Poison more dangero
 Replaces the instant stimpak heal with a regeneration over time.
 
 - Stimpack increases healing rate, triggering health regeneration.
-- Super Stimpak restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual hp restored. Also Super Stimpak heals broken limbs.
+- Super Stimpak instantly restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual hp restored. Also Super Stimpak heals broken limbs.
 - Some monsters have passive regeneration: wanamingos/centaurs. (Can be disabled in ini)
 - Fire and plasma damage temporarily reduces the target's regeneration.
 - New bonus perk "Regeneration", which is automatically added if the base "healing rate" is more than 5, allowing to heal injuried limb while regeneratin hp.
@@ -46,8 +47,8 @@ Replaces the instant stimpak heal with a regeneration over time.
 Changes how misses work in a more "logical" way.
 
 - Expanded the area for hitting a random target in the path of a bullet / throwing weapon.
-- To hit the eyes and groin, it is now necessary that the target be turned to face you, now it will not work to hit the eyes by shooting in the back of the head. Aimed shot to the eyes while the target isn't facing you will always turn into headshots, the same happens if the target is lies face down. Instead of groin, shots and melee hits from the back or rears will hit the torso or one of the legs.
-- The position of body parts (and accordingly, the possibility of hit them) changes depending on the animation of the target (if it lies and facing the sky/floor, lies on its side, etc.)
+- To hit the eyes and groin, it is now necessary that the target be turned to face you, now it will not work to hit the eyes by shooting in the back of the head. Successful aimed shot to the eyes while the target isn't facing attacker will always turn into headshot, the same happens if the target is lies face down. Instead of groin, shots and melee hits from the back or rears will hit the torso or one of the legs.
+- The position of body parts (and accordingly, the possibility of hit them) changes depending on the animation of the target (if target lies face up or down, lies on its side, etc.)
 - Misses of aimed attacks now have a small chance to hit an adjacent body part.
 
 Purple highlights new possible targets if shot misses initial target(crosshair).
@@ -96,8 +97,7 @@ Modifiers that reduce skill requirements and increase the chance of a successful
 Additional settings:
 - The first attempt to steal will always have 100% if you have reached the minimum skill level.
 - Subsequent attempts, in order to avoid abuse of experience for stealing, will be calculated according to the formula.
-And I added 2 edits from myself
-- the complication of stealing items depending on their cost, the more expensive the more difficult.
+- Complication of stealing items depending on their cost, the more expensive the more difficult.
 - Complicated stealing from merchants.
 
 ### Swing&Thrust

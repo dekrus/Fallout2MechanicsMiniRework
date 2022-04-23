@@ -25,3 +25,4 @@
 {25}{}{%1% takes %2% damage from poison and dies.}
 {26}{}{%1%: Poison level has reached a lethal value!}
 {27}{}{You feel the aftereffect of poisoning.}
+{28}{}{Regeneration: To enable alternative stimpack mechanics in ddraw.ini the "AllowUnsafeScripting" option must be enabled.}

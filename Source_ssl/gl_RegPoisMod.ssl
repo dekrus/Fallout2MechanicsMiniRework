@@ -1,5 +1,6 @@
 #define SFALL_SC_EVALUATION  (true) // short - circuit evaluation
 #define critcrippled(crit)          (critter_state(crit) BWAND (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND))
+#define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
 #define msg_file "gl_RegPoisMod.msg"
 #define msg_perk_regen 1
 #define msg_perk_poison_mastery_name 2
@@ -28,6 +29,7 @@
 #define msg_npc_poison_dmg_deadly 25
 #define msg_npc_reach_poison_lethal_value 26
 #define msg_player_after_poison_effect 27
+#define msg_UnsafeScripting 28
 #define modmsg(x) message_str_game(new_regpois_msg, x)
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
@@ -41,13 +43,13 @@
    procedure poisonInRealTime;
    procedure regenInRealTime;
    procedure ModInTurnBased;
-   procedure Poisdmg;
+   procedure ADJUSTPOISON;
    procedure map_enter_p_proc;
    procedure rest;
-   procedure use_skill;
-   procedure poisatk;
-   procedure use_tail;
-   procedure use_tail_on_obj;
+   procedure USESKIL;
+   procedure COMBATDAMAGE;
+   procedure USEOBJ;
+   procedure USEOBJON;
    procedure worldMapTravel;
    procedure map_exit_p_proc;
    procedure stimtoburn;
@@ -104,23 +106,25 @@
    variable envenomed_description_msg;
    variable gland_gone_msg;
    variable failed_sneak_use_msg;
+   variable sfall_unsafescripting;
+   variable sfall_unsafescripting_msg;
 
 procedure start begin
   if (game_loaded) then begin
    register_hook_proc(HOOK_COMBATTURN, ModInTurnBased);
-   register_hook_proc(HOOK_ADJUSTPOISON, Poisdmg);
+   register_hook_proc_spec(HOOK_ADJUSTPOISON, ADJUSTPOISON);
    register_hook_proc(HOOK_RESTTIMER, rest);
-   register_hook_proc(HOOK_USESKILL, use_skill);
-   register_hook_proc(HOOK_COMBATDAMAGE, poisatk);
-   register_hook_proc(HOOK_USEOBJ, use_tail);
-   register_hook_proc(HOOK_USEOBJON, use_tail_on_obj);
+   register_hook_proc(HOOK_USESKILL, USESKIL);
+   register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+   register_hook_proc(HOOK_USEOBJ, USEOBJ);
+   register_hook_proc(HOOK_USEOBJON, USEOBJON);
    register_hook_proc(HOOK_GAMEMODECHANGE, worldMapTravel);
    register_hook_proc(HOOK_DEATHANIM2, death);
    register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
-   //register_hook_proc(HOOK_MOUSECLICK, newperks);
    set_global_script_type(3);
    set_global_script_repeat(250);
    new_regpois_msg = add_extra_msg_file(msg_file);
+   sfall_unsafescripting = get_ini_setting ("ddraw.ini|Debugging|AllowUnsafeScripting");
    Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
    Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
    RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
@@ -135,31 +139,34 @@ procedure start begin
    PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
    PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
    PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
-   regen_perk_name = message_str_game(new_regpois_msg, msg_perk_regen);
-   perk_poison_mastery_name = message_str_game(new_regpois_msg, msg_perk_poison_mastery_name);
-   perk_poison_mastery_description = message_str_game(new_regpois_msg, msg_perk_poison_mastery_description);
-   regen_perk_acquired_msg = message_str_game(new_regpois_msg, msg_perk_regen_acquired);
-   regen_perk_description = message_str_game(new_regpois_msg, msg_perk_regen_description);
-   right_hand_healed_msg = message_str_game(new_regpois_msg, msg_right_hand_healed);
-   right_leg_healed_msg = message_str_game(new_regpois_msg, msg_right_leg_healed);
-   left_hand_healed_msg = message_str_game(new_regpois_msg, msg_left_hand_healed);
-   left_leg_healed_msg = message_str_game(new_regpois_msg, msg_left_leg_healed);
-   eyes_healed_msg = message_str_game(new_regpois_msg, msg_eyes_healed);
-   envenomed_msg = message_str_game(new_regpois_msg, msg_envenomed);
-   envenomed_description_msg = message_str_game(new_regpois_msg, msg_envenomed_description);
-   gland_gone_msg = message_str_game(new_regpois_msg, msg_gland_gone);
-   failed_sneak_use_msg = message_str_game(new_regpois_msg, msg_failed_poison_sneak);
+   regen_perk_name = modmsg(msg_perk_regen);
+   perk_poison_mastery_name = modmsg(msg_perk_poison_mastery_name);
+   perk_poison_mastery_description = modmsg(msg_perk_poison_mastery_description);
+   regen_perk_acquired_msg = modmsg(msg_perk_regen_acquired);
+   regen_perk_description = modmsg(msg_perk_regen_description);
+   right_hand_healed_msg = modmsg(msg_right_hand_healed);
+   right_leg_healed_msg = modmsg(msg_right_leg_healed);
+   left_hand_healed_msg = modmsg(msg_left_hand_healed);
+   left_leg_healed_msg = modmsg(msg_left_leg_healed);
+   eyes_healed_msg = modmsg(msg_eyes_healed);
+   envenomed_msg = modmsg(msg_envenomed);
+   envenomed_description_msg = modmsg(msg_envenomed_description);
+   gland_gone_msg = modmsg(msg_gland_gone);
+   failed_sneak_use_msg = modmsg(msg_failed_poison_sneak);
+   sfall_unsafescripting_msg = modmsg(msg_UnsafeScripting);
    call map_enter_p_proc();
    stimtimer = (game_time + 500);
    gamemode = get_game_mode;
    combatendtime = game_time;
    if UnsafeRegenModScripting == 1 then begin
-     set_stat_max(STAT_heal_rate, 50);
+      //warning if sfall_unsafescripting is disabled while UnsafeRegenModScripting enabled
+      if sfall_unsafescripting != 1 then begin
+         display_msg(sfall_unsafescripting_msg);
+      end
+      else begin
+         set_stat_max(STAT_heal_rate, 50);
+      end
    end
-   if UnsafeRegenModScripting != 1 then begin
-     set_stat_max(STAT_heal_rate, 30);
-   end
-   //set_pc_stat_min(STAT_heal_rate, -100);
    //regenperk activation
    if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
 		call newperks();
@@ -189,18 +196,6 @@ procedure map_enter_p_proc_handler begin
    foreach critter in list_as_array(0) begin
      team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
      poisondeath = 0;
-     // regen if not poisoned (exept dude and party)
-     //if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso not(obj_in_party(critter)) then begin
-      //if (RegenMaxHPpercentMult < 1) then begin
-        //RegenMaxHPpercentMult = 1;
-      //end
-      //RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
-      //if (RegenTickHP < 1) then begin
-        //RegenTickHP = 1;
-      //end
-     //critter_heal(critter, RegenTickHP);
-     //end
-
      // if poisoned (exept dude and party)
      if PoisonMod != 0 andAlso get_poison(Critter) > 0 andAlso critter != dude_obj andAlso team != TEAM_PLAYER andAlso get_critter_stat(critter, STAT_current_hp ) > 0 then begin
       critwaspoisoned = 1;
@@ -224,35 +219,22 @@ procedure map_enter_p_proc_handler begin
       if PoisonTickDmg <= 1 then begin
         PoisonTickDmg = random(random(0, 1), 1);
       end
-      //critter_heal(Critter, - PoisonTickDmg);
-      //poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
-         //poison(critter, - 999);
-         //reg_anim_clear(critter);
-         // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда и умирает от отравления.");
          tardt = get_proto_data(obj_pid(Critter), 244);
          tardr = get_proto_data(obj_pid(Critter), 272);
          poisondeath = 1;
          poison(critter, -999);
-         //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
          set_proto_data(obj_pid(Critter), 244, 0);
          set_proto_data(obj_pid(Critter), 272, 0);
          critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
          set_proto_data(obj_pid(Critter), 244, tardt);
          set_proto_data(obj_pid(Critter), 272, tardr);
-         // critter_heal(Critter, - PoisonTickDmg);
          if team != TEAM_PLAYER then begin
          give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
          end
         end
-        //else begin
-        // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда.");
-        //end
       end
-      //if poisondeath == 0 then begin
-      //critter_heal(Critter, - PoisonTickDmg);
-      //end
      end
      // heal after poison is cleared (exept dude and party)
      if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
@@ -266,14 +248,9 @@ procedure map_enter_p_proc_handler begin
       critter_heal(critter, RegenTickHP);
      end
    end
-   //dudehrcount = ((660 - (game_time - stimtimer)) / 120);
-   //if (stimtimer < 1 or dudehrcount < 0) andAlso get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
-   //dudehrcount = 6;
-   //end
   end
   if poisondeath != 0 andAlso critwaspoisoned != 0 then begin
    call map_enter_p_proc_handler();
-   //display_msg("new call");
   end
 end
 
@@ -285,38 +262,19 @@ procedure death begin
   variable deathanim = get_sfall_arg;
     variable tardt = 0;
   variable tardr = 0;
-  //display_msg("anim dea=" + deathanim );
- // display_msg("wpnpid=" + wpnpid );
-
-  //display_msg("dmgtotar=" + dmgtotar );
- // display_msg("anim dea1=" + deathanim );
   if poisondeath != 0 then begin
-              tardt = get_proto_data(obj_pid(Critter), 244);
+         tardt = get_proto_data(obj_pid(Critter), 244);
          tardr = get_proto_data(obj_pid(Critter), 272);
-   // display_msg("attacker=" + obj_name(attacker) );
-   //display_msg("anim dea3=" + deathanim );
-   //set_sfall_return(ANIM_fall_front);
-
+      // OUTLINE for fix death animation if fog of war is enabled
+      set_outline(target, OUTLINE_RED_GLOW);
       if obj_art_fid(target) == FID_MAPLNT then begin
       reg_anim_animate_reverse(target, ANIM_fall_back, -1);
       end
       if obj_art_fid(target) != FID_MAPLNT then begin
       reg_anim_animate_reverse(target, ANIM_fall_back_sf, -1);
       end
-   //reg_anim_clear(target);
       set_sfall_return(ANIM_fall_back);
-      //if get_critter_stat(target, STAT_current_hp) > 0 then begin
-           //set_proto_data(obj_pid(target), 244, 0);
-         //set_proto_data(obj_pid(target), 272, 0);
-         //critter_dmg(target, get_critter_stat(target,STAT_current_hp), DMG_normal_dam);
-         //set_proto_data(obj_pid(target), 244, tardt);
-         //set_proto_data(obj_pid(target), 272, tardr);
-         //set_sfall_return(ANIM_fall_front);
-         //end
-  // reg_anim_animate_reverse(target, ANIM_fall_back, -1);
   end
- // set_sfall_return(ANIM_fall_front);
- // display_msg("anim dea2=" + deathanim );
 end
 
 procedure newperks begin
@@ -387,7 +345,7 @@ procedure cripheal begin
   end
 end
 
-procedure poisatk begin
+procedure COMBATDAMAGE begin
   variable target = get_sfall_arg;
   variable attacker = get_sfall_arg;
   variable dmgtotar = get_sfall_arg;
@@ -544,7 +502,7 @@ end
 procedure stimtoburn begin // turning stimpak to burn debuff
 variable rnd = 0;
 rnd = random(1, 4);
-   if UnsafeRegenModScripting == 1 then begin
+   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
      rnd = rnd + 2;
    set_proto_data(40, PROTO_DR_STAT_A, 0);
    set_proto_data(40, PROTO_DR_STAT_B, 0);
@@ -561,7 +519,7 @@ rnd = random(1, 4);
    set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
    end
-   else begin
+   if UnsafeRegenModScripting != 1 then begin
    set_proto_data(40, PROTO_DR_STAT_A, 0);
    set_proto_data(40, PROTO_DR_STAT_B, 0);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -580,7 +538,7 @@ rnd = random(1, 4);
 end
 
 procedure stimrestore begin
-  if UnsafeRegenModScripting == 1 then begin
+  if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
    set_proto_data(40, PROTO_DR_STAT_A, -2);
    set_proto_data(40, PROTO_DR_STAT_B, 35);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -596,7 +554,7 @@ procedure stimrestore begin
    set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
   end
-  else begin
+  if UnsafeRegenModScripting != 1 then begin
    set_proto_data(40, PROTO_DR_STAT_A, -2);
    set_proto_data(40, PROTO_DR_STAT_B, 35);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -614,7 +572,7 @@ procedure stimrestore begin
   end
 end
 
-procedure use_tail begin
+procedure USEOBJ begin
   variable user = get_sfall_arg;
   variable obj = get_sfall_arg;
   variable leftHand  = obj_pid(critter_inven_obj2(user, INVEN_TYPE_LEFT_HAND));
@@ -751,7 +709,7 @@ procedure use_tail begin
   end
 end
 
-procedure use_tail_on_obj begin
+procedure USEOBJON begin
    variable target = get_sfall_arg;
    variable user = get_sfall_arg;
    variable obj = get_sfall_arg;
@@ -781,25 +739,28 @@ procedure use_tail_on_obj begin
    variable tar_name = obj_name(target);
    variable user_team = has_trait(TRAIT_OBJECT, user, OBJECT_TEAM_NUM);
    variable tar_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
-   //UnsafeScripting=1 in ddraw.ini!!! divides the time of action of the drug, reducing it by 4 times (examle: from 1 min to 15 sec)
-   if UnsafeRegenModScripting == 1 then begin
+   //divides the duration of drug by 4 (examle: from 1 min to 15 sec)
+   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+      // return memory to normal if was modified
       if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
       write_int(0x479BD4, 280509755);
       end
+      // return memory to normal if was modified
       if read_int(0x479BE8) != -288292236 then begin // return to normal memory adress stat
       write_int(0x479BE8, -288292236);
       end
-      if objpid == PID_STIMPAK then begin// only for stimpak, other drugs unaffected (can be used for any drug item if needed)
+      if objpid == PID_STIMPAK or objpid == PID_HEALING_POWDER then begin// only for stimpak and healing powder, other drugs unaffected (can be used for any drug item if needed)
       write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 №1
       write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 №2
       end
    end
+   //
   if objpid == PID_HYPO_POISON andAlso user_team == TEAM_PLAYER andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso tar_team != TEAM_PLAYER then begin
     if obj_can_see_obj(target, dude_obj) andAlso (random(target_pe, target_pe * 10) > random(0, (has_skill(user, SKILL_DOCTOR) + has_skill(user, SKILL_SNEAK)))) andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) != CR_BODY_ROBOTIC then begin
      if using_skill(dude_obj, SKILL_SNEAK) then begin
      display_msg(failed_sneak_use_msg);
      end
-     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != 16777336 then begin
+     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 then begin
      float_msg(target, g_mstr(random(3054, 3058)), FLOAT_COLOR_BAD);
      set_sfall_return(0);
      end
@@ -813,15 +774,11 @@ procedure use_tail_on_obj begin
   // stimpak usage timer start
   if user == dude_obj andAlso target == dude_obj andAlso obj_pid(obj) == 40 then begin
    stimtimer = game_time;
-   //if UnsafeRegenModScripting == 1 then begin
-     //stimusetimer = game_time;
-     //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult") * 3;
-   //end
   end
   // modified stimpak if dude hase fast_metabolism
   if RegenMod != 0 andAlso stimburn == 0 andAlso fast_meta then begin
    if target == dude_obj then begin
-     if UnsafeRegenModScripting == 1 then begin
+     if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, 35);
       set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -837,7 +794,7 @@ procedure use_tail_on_obj begin
       set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
       set_proto_data(40, PROTO_DR_AMOUNT_3_C, 10);
      end
-     else begin
+     if UnsafeRegenModScripting != 1 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, 35);
       set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -887,9 +844,6 @@ procedure use_tail_on_obj begin
    if HRhealcost < 1 then begin
      HRhealcost = 0;
    end
-   //display_msg("SShphealed=" + SShphealed);
-   //display_msg("HRhealcost=" + HRhealcost);
-   //display_msg("SShpdmg=" + SShpdmg);
    SShpdmg = (tarHR - (HRhealcost + (injuryhealed / 4))) / 2;
    if SShpdmg > 0 then begin
      SShpdmg = 0;
@@ -922,9 +876,6 @@ procedure use_tail_on_obj begin
      SShpdmg = 0;
    end
    HRhealcost = SShphealed / 4;
-   //display_msg("SShphealed2=" + SShphealed);
-   // display_msg("HRhealcost2=" + HRhealcost);
-   //display_msg("SShpdmg2=" + SShpdmg);
    set_proto_data(144, PROTO_DR_STAT_A, 35);
    set_proto_data(144, PROTO_DR_STAT_B, 14);
    set_proto_data(144, PROTO_DR_STAT_C, -1);
@@ -1013,7 +964,7 @@ procedure use_tail_on_obj begin
   end
 end
 
-procedure use_skill begin
+procedure USESKIL begin
   variable user = get_sfall_arg;
   variable target = get_sfall_arg;
   variable skill = get_sfall_arg;
@@ -1077,7 +1028,7 @@ procedure map_exit_p_proc begin
       end
       critter_heal(critter, RegenTickHP);
      end
-//     Poison dmg
+      //Poison dmg
      if (PoisonMaxHPpercentMult < 1) then begin
       PoisonMaxHPpercentMult = 1;
      end
@@ -1085,28 +1036,12 @@ procedure map_exit_p_proc begin
      if PoisonTickDmg <= 1 then begin
       PoisonTickDmg = random(random(0, 1), 1);
      end
-     //critter_heal(Critter, - PoisonTickDmg);
 
      if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
       if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
-        //poison(critter, - 999);
-        //reg_anim_clear(critter);
-        //display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда и умирает от отравления.");
-        //tardt = get_proto_data(obj_pid(Critter), 244);
         poisondeath = 1;
-
-        //poison(critter, - 999);
-        //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
-        //set_proto_data(obj_pid(Critter), 244, 0);
-        //critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
-        //set_proto_data(obj_pid(Critter), 244, tardt);
-        //critter_heal(Critter, - PoisonTickDmg);
-        //if not(obj_in_party(critter)) then begin
-        //give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
-        //end
       end
       else begin
-      // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда.");
       end
      end
      if poisondeath == 0 then begin
@@ -1189,7 +1124,7 @@ procedure rest begin
                     RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
                   end
                  critter_heal(critter, RegenTickHP);
-                 if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                 if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                     if RegenTickHP == 1 then begin
                     display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
                     end
@@ -1222,7 +1157,7 @@ procedure rest begin
                     display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
                     end
                end
-               if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+               if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                     if RegenTickHP == 1 then begin
                     display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
                     end
@@ -1285,11 +1220,7 @@ procedure rest begin
               end
               //if target dies from poison during skill use triggers original poison script to dmg dude_obj
               if deadtarget != 0 andAlso i > 18 then begin
-             //FadeOut(200);
-              //game_time_advance(5150);
-             // FadeIn(200);
               healfromskill = 0;
-              //deadtarget = 0;
               end
    end
    if tarishealing != 0 then begin
@@ -1346,7 +1277,7 @@ procedure worldMapTravel begin
                     display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
                     end
                   end
-                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                     if RegenTickHP == 1 then begin
                     display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
                     end
@@ -1381,7 +1312,7 @@ procedure worldMapTravel begin
                              display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
                              end
                           end
-                          if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
+                          if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                              if RegenTickHP == 1 then begin
                              display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
                              end
@@ -1583,11 +1514,9 @@ procedure poisonInRealTime begin
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-        //if obj_type(losblock) == OBJ_TYPE_CRITTER then begin
          if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
            poison(critter, - 999);
            reg_anim_clear(critter);
-          // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда и умирает от отравления.");
            tardt = get_proto_data(obj_pid(Critter), 244);
            tardr = get_proto_data(obj_pid(Critter), 272);
            poisondeath = 1;
@@ -1605,7 +1534,6 @@ procedure poisonInRealTime begin
           if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso not(losblock) andAlso ShowModMSG != 0 then begin
            display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
          end
-        //end
       end
       if poisondeath == 0 then begin
       critter_heal(Critter, - PoisonTickDmg);
@@ -1647,15 +1575,13 @@ procedure regenInRealTime begin
 
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(losblock) then begin
-      //if losblock == critter then begin
-                    if RegenTickHP == 1 then begin
-                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
-                    end
-                    else begin
-                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
-                    end
-      //end
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) andAlso not(losblock) then begin
+        if RegenTickHP == 1 then begin
+        display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+        end
+        else begin
+        display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+        end
       end
      end
    end
@@ -1675,14 +1601,6 @@ procedure ModInTurnBased begin
   variable tar_name = obj_name(critter);
   variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
   if RegenMod != 0  then begin
-   //if UnsafeRegenModScripting == 1 then begin
-     //if stimusetimer > game_time - 150 then begin
-      //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult") * 2;
-     //end
-     //else begin
-      //HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
-     //end
-   //end
    if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
      RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
      if RegenTickHP < 1 then begin RegenTickHP = 1; end
@@ -1710,22 +1628,18 @@ procedure ModInTurnBased begin
                     display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
                     end
      end
-      //losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SHOOT);
-      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj then begin
-         // if obj_type(losblock) == OBJ_TYPE_CRITTER then begin
-                    if RegenTickHP == 1 then begin
-                    display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
-                    end
-                    else begin
-                    display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
-                    end
-       // end
-     end
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) then begin
+           if RegenTickHP == 1 then begin
+           display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
+           end
+           else begin
+           display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
+           end
+      end
      end
   end
   if PoisonMod != 0 then begin
    if CritterTurnStatus == 0 andAlso CritterTurnStatus != -2 andAlso CritterTurnStatus != -1 andAlso (critcurpoison > 0) andAlso critcurhp > 0 then begin
-
       if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
        PoisonTickDmg = round(critmaxhp / 100.00000 * PoisonMaxHPpercentMult * (critcurpoison * PoisonLevelMult / PoisonLevelDiv));
       if PoisonTickDmg <= 1 then begin
@@ -1734,9 +1648,7 @@ procedure ModInTurnBased begin
       if PoisonTickDmg > 0 andAlso Critter == dude_obj then begin
         display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
       end
-      //losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-         //if obj_type(losblock) == OBJ_TYPE_CRITTER  then begin
            if (critcurhp - PoisonTickDmg) < 1 then begin
             if team == TEAM_PLAYER then begin
               critter_heal(Critter, - PoisonTickDmg * 2);
@@ -1759,12 +1671,10 @@ procedure ModInTurnBased begin
             end
            end
            else begin
-            //display_msg("attacker=" + obj_name(get_last_attacker(critter)));
             if ShowModMSG != 0 then begin
             display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
             end
            end
-         // end
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
       if ShowFloatMSG != 0 andAlso not(losblock) then begin
@@ -1804,7 +1714,7 @@ procedure ModInTurnBased begin
   poisondeath = 0;
 end
 
-procedure Poisdmg begin
+procedure ADJUSTPOISON begin
   variable Critter = 0;
   variable companion = 0;
   variable OriginalPoisonDecay = 0;
@@ -1821,6 +1731,7 @@ procedure Poisdmg begin
   variable tar_name = 0;
   variable team = -1;
   variable party_team = -1;
+  variable kill_type = -1;
   if PoisonMod != 0  then begin
   Critter = get_sfall_arg;
   originalPoisonDecay = get_sfall_arg;
@@ -1830,7 +1741,12 @@ procedure Poisdmg begin
   pseudoCurrentHP = get_critter_stat(critter, STAT_current_hp );
   team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
   tar_name = obj_name(Critter);
-  if get_critter_stat(critter, STAT_max_hp ) < 400 andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == dude_obj) or ((get_poison(critter) + originalPoisonDecay) >= 100 andAlso critter != dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) andAlso pseudoCurrentHP > 0 then begin
+  kill_type = critter_kill_type(critter);
+  // preventing robots from getting poison level
+  if kill_type == KILL_TYPE_robot_kills then begin
+      set_sfall_return(0);
+  end
+  if get_critter_stat(critter, STAT_max_hp ) < 400 andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == dude_obj) or ((get_poison(critter) + originalPoisonDecay) >= 100 andAlso critter != dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) then begin
    if team == TEAM_PLAYER then begin
       critter_heal(Critter, - pseudoCurrentHP * 2);
    end
@@ -1843,7 +1759,7 @@ procedure Poisdmg begin
    critter_heal(Critter, - (pseudoCurrentHP - 1));
    set_proto_data(obj_pid(Critter), 244, 0);
    set_proto_data(obj_pid(Critter), 272, 0);
-   critter_dmg(critter, pseudoCurrentHP, DMG_normal_dam);
+   critter_dmg(critter, 1, DMG_normal_dam);
    set_proto_data(obj_pid(Critter), 244, tardt);
    set_proto_data(obj_pid(Critter), 272, tardr);
    end
@@ -1935,22 +1851,10 @@ procedure Poisdmg begin
    if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
      dudehrcount = 6;
    end
-   //if RegenMod != 0 andAlso dudeishealing == 0 then begin
-   //set_sfall_return( - get_poison(critter));
-   //set_sfall_arg(1, - get_poison(critter));
-   //set_sfall_return( - ((get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP)) + (DudeRegenTickHP * (dudehrcount) * 3));
-   //set_sfall_arg(2, - ((get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP)) + (DudeRegenTickHP * (dudehrcount) * 3));
-     //heal for overhealed damage
-     //if get_game_mode == WORLDMAP andAlso get_sfall_arg_at(2) > 0 then begin
-      //critter_heal(critter, get_sfall_arg_at(2));
-     //end
-   //end
-   //else begin
    set_sfall_return( - get_poison(critter));
    set_sfall_arg(1, - get_poison(critter));
    set_sfall_return( - (get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP));
    set_sfall_arg(2, - (get_critter_stat(critter, STAT_current_hp ) - pseudoCurrentHP));
-   //end
    dudehrcount = 0;
    dudehrcount2 = 0;
    DudeRegenTickHP = 0;
@@ -1968,6 +1872,7 @@ procedure map_enter_p_proc begin
   dudehrexitmap = 0;
   dudehrcount = 0;
   if PoisonMod != 0 then begin
+   //radscorpion tail add use ablility
    if (get_proto_data(92, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
    set_proto_data(92, PROTO_IT_FLAGS, (get_proto_data(92, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
    end
@@ -2023,7 +1928,7 @@ procedure map_enter_p_proc begin
    end
   end
   if RegenMod != 0  then begin
-   if UnsafeRegenModScripting == 1 then begin
+   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, 35);
       set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -2039,7 +1944,7 @@ procedure map_enter_p_proc begin
       set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
       set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
    end
-   else begin
+   if UnsafeRegenModScripting != 1 then begin
      set_proto_data(40, PROTO_DR_STAT_A, -2);
      set_proto_data(40, PROTO_DR_STAT_B, 35);
      set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -2100,7 +2005,7 @@ procedure map_enter_p_proc begin
      set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
      // clear water heal
      set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
-     // прах проотца отравляет на 6, а не на 25
+     // the ashes of the forefather poison for 6, not 25
      set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
      //drymeat max hp instead of hr
      set_proto_data(284, PROTO_DR_STAT_B, STAT_max_hp);

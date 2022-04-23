@@ -18,18 +18,20 @@ procedure sneak_check;
 procedure sign_handler;
 
 procedure start begin
-   if (game_loaded) then begin
+   if game_loaded then begin
       SneakDetection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakDetection");
       SneakRework = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
       armor_penalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
       min_perception_range_ini = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|MinDetectionRange");
-      register_hook_proc(HOOK_WITHINPERCEPTION, sneak_check);
-      register_hook_proc(HOOK_COMBATTURN, sign_handler);
-      set_global_script_type(1);
-      set_global_script_repeat(0);
-      fo2tweaks_highlighting = get_ini_setting("mods\\fo2tweaks.ini|main|highlighting");
-      if fo2tweaks_highlighting != 0 then begin
-         highlight_key = get_ini_setting("mods\\fo2tweaks.ini|highlighting|key");
+      if SneakDetection != 0 or SneakRework != 0 then begin
+         register_hook_proc(HOOK_WITHINPERCEPTION, sneak_check);
+         register_hook_proc(HOOK_COMBATTURN, sign_handler);
+         set_global_script_type(1);
+         set_global_script_repeat(0);
+         fo2tweaks_highlighting = get_ini_setting("mods\\fo2tweaks.ini|main|highlighting");
+            if fo2tweaks_highlighting != 0 then begin
+               highlight_key = get_ini_setting("mods\\fo2tweaks.ini|highlighting|key");
+            end
       end
    end
 end
@@ -66,8 +68,8 @@ procedure sneak_check begin
    variable darkness_penalty = 0;
    variable sneak_div = 0;
    variable armor_weight = 0;
-   variable critter_type = 0;
    variable min_perception_range = min_perception_range_ini;
+   variable watcher_kill_type = critter_kill_type(watcher);
    distance_objs(distance, watcher, dude_obj);
    watcher_pe = get_critter_stat(watcher,STAT_pe);
    losblock = obj_blocking_line(dude_obj, tile_num(watcher), BLOCKING_TYPE_SHOOT);
@@ -136,8 +138,7 @@ procedure sneak_check begin
    // new sneak mechanics
    if target == dude_obj andAlso SneakRework == 1 then begin
          // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
-      critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-      if light_level < 41216 + (night_vision * 21504) andAlso critter_type != KILL_TYPE_alien_kills andAlso critter_type != KILL_TYPE_robot_kills andAlso critter_type != KILL_TYPE_floater_kills then begin
+      if light_level < 41216 + (night_vision * 21504) andAlso watcher_kill_type != KILL_TYPE_alien_kills andAlso watcher_kill_type != KILL_TYPE_robot_kills andAlso watcher_kill_type != KILL_TYPE_floater_kills then begin
          darkness_penalty = (light_level - (night_vision * 14336)) / 6000;
          target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50000; // -2 if 0 light, -0,4 if 50% light
       end
@@ -182,7 +183,7 @@ procedure sneak_check begin
             end
          end
       end
-            debug_msg("orig_dist=" + orig_dist + " perception_range=" + perception_range);
+            debug_msg("orig_perception_range=" + orig_dist + " New_perception_range=" + perception_range);
             //if stealthboy active
          if get_flags(dude_obj) bwand FLAG_TRANSGLASS then begin
             if watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
@@ -238,6 +239,7 @@ procedure sneak_check begin
          tile_refresh_display;
       end
    end
+   // outline off and refresh
    if SneakDetection == 1 andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (losblock2 andAlso losblock andAlso (watcher != losblock)) or not(using_skill(dude_obj,SKILL_SNEAK)))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW)   then begin
       set_outline(watcher, OUTLINE_NONE);
       tile_refresh_display;
