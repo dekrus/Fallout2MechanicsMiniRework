@@ -27,7 +27,7 @@ variable CrippleMod;
 variable SwingThrustTweak;
 variable tardt;
 variable tardr;
-variable trhusthit;
+variable thrusthit;
 variable weapon;
 variable dropped_hex;
 variable critter_flags;
@@ -268,7 +268,7 @@ procedure explosiveinjures begin
          end
       end
       if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-         if trhusthit == 1 then begin // return norman dr|dt values
+         if thrusthit == 1 then begin // return norman dr|dt values
             set_proto_data(obj_pid(target), 244, tardt);
             set_proto_data(obj_pid(target), 272, tardr);
          end
@@ -453,6 +453,8 @@ procedure misstohit begin
    variable newtardr = 0;
    variable critter_type = -1;
    variable tar_cur_frm = 0;
+   variable attacker_meleedmg = 0;
+   variable wpn_maxdmg = 0;
    if MissMod != 0 or SwingThrustTweak != 0 then begin
       hitmiss = get_sfall_arg;
       attacker = get_sfall_arg;
@@ -547,19 +549,21 @@ procedure misstohit begin
       if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
       end
       if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
-         trhusthit = 0;
+         thrusthit = 0;
          if hitmiss > MISS then begin
-         trhusthit = 1;
+         wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
+         thrusthit = 1;
          tardt = get_proto_data(obj_pid(target), 244);
          tardr = get_proto_data(obj_pid(target), 272);
-
-         newtardt = tardt - ceil((get_proto_data(wpn, PROTO_WP_DMG_MAX) + get_critter_stat(attacker, STAT_melee_dmg)) / 8);
-         newtardr = tardr - 2 - ceil((get_proto_data(wpn, PROTO_WP_DMG_MAX) + get_critter_stat(attacker, STAT_melee_dmg)) / 3);
+         attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
+         newtardt = tardt - ceil((wpn_maxdmg + attacker_meleedmg) / 8);
+         newtardr = tardr - 2 - ceil((wpn_maxdmg + attacker_meleedmg) / 3);
          set_proto_data(obj_pid(target), 244, newtardt);
          set_proto_data(obj_pid(target), 272, newtardr);
             if random (0, 98) < (get_critter_stat(attacker, STAT_crit_chance) / 2) then begin
-            set_sfall_return(3); //  critical hit
-            set_sfall_arg(0, 3);
+            set_sfall_return(CRITICAL_HIT); //  critical hit
+            set_sfall_arg(0, CRITICAL_HIT);
+            return;
             end
          end
       end
@@ -584,6 +588,7 @@ procedure misstohit begin
                      set_sfall_return(critter); // new target
                      set_sfall_arg(2, critter);
                      newtarget = 1;
+                     return;
                      end
                   end
                end
@@ -622,6 +627,7 @@ procedure misstohit begin
                      set_sfall_return(critter); // new target
                      set_sfall_arg(2, critter);
                      newtarget = 1;
+                     return;
                      end
                   end
                end
@@ -637,6 +643,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock1);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
 
                   rnd = random(0, 100);
@@ -649,6 +656,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock2);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
 
                   rnd = random(0, 100);
@@ -661,6 +669,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock3);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
 
                   rnd = random(0, 100);
@@ -673,6 +682,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock4);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
 
                   rnd = random(0, 100);
@@ -685,6 +695,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock5);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
 
                   rnd = random(0, 100);
@@ -697,6 +708,7 @@ procedure misstohit begin
                   set_sfall_arg(2, losblock6);
                   losblockhit = 1;
                   newtarget = 1;
+                  return;
                   end
                end
             end
@@ -728,6 +740,7 @@ procedure misstohit begin
                            set_sfall_arg(3, BODY_UNCALLED);
                            set_sfall_return(critter); // new target
                            set_sfall_arg(2, critter);
+                           return;
                         end
                      end
                   end
@@ -745,36 +758,39 @@ procedure misstohit begin
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_HEAD); // new bodypart
                      set_sfall_arg(3, BODY_HIT_HEAD);
+                     return;
                   end
 
          // groin from back and rears convertion to torso or random leg
-              if bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6  or (bpart == 7 andAlso tar_cur_frm == 6 andAlso not( rotationatkr == rotationtar))  then begin
-                        rnd = random(1, 100);
-                        if rnd <= 60 then begin
-                           set_sfall_return(hitmiss); // hit or miss
-                           set_sfall_arg(0, hitmiss);
-                           set_sfall_return(BODY_HIT_TORSO); // new bodypart
-                           set_sfall_arg(3, BODY_HIT_TORSO);
-                        end
-                        if rnd > 60 then begin
-                           set_sfall_return(hitmiss); // hit or miss
-                           set_sfall_arg(0, hitmiss);
-                           set_sfall_return(rndleg); //  new bodypart
-                           set_sfall_arg(3, rndleg);
-                        end
-
+              if (bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6)  or (bpart == BODY_HIT_GROIN andAlso tar_cur_frm == 6 andAlso not( rotationatkr == rotationtar))  then begin
+                     rnd = random(1, 100);
+                     if rnd <= 60 then begin
+                        set_sfall_return(hitmiss); // hit or miss
+                        set_sfall_arg(0, hitmiss);
+                        set_sfall_return(BODY_HIT_TORSO); // new bodypart
+                        set_sfall_arg(3, BODY_HIT_TORSO);
+                        return;
+                     end
+                     if rnd > 60 then begin
+                        set_sfall_return(hitmiss); // hit or miss
+                        set_sfall_arg(0, hitmiss);
+                        set_sfall_return(rndleg); //  new bodypart
+                        set_sfall_arg(3, rndleg);
+                        return;
+                     end
                end
             end
       end
 
    //deathclaw conversion of aimed hits in eye/groin in critter's back into head/ torso+legs hits
-      if critter_type == 13 andAlso hitmiss > MISS then begin // 13 = deathclaw
+      if critter_type == KILL_TYPE_deathclaw_kills andAlso hitmiss > MISS then begin // 13 = deathclaw
          if ( ((tar_cur_frm != 6 andAlso tar_cur_frm != 5) andAlso (rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) )) or ( tar_cur_frm == 6 andAlso ( rotationatkr == ((rotationtar + 3) % 6)  or rotationatkr == ((rotationtar + 4) % 6)  or rotationatkr == ((rotationtar + 5) % 6) )) or ( tar_cur_frm == 5 andAlso ( rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 2) % 6)  or rotationatkr == ((rotationtar + 3) % 6) )) ) then begin
               if bpart == BODY_HIT_EYES then begin
                   set_sfall_return(hitmiss); // hit or miss
                   set_sfall_arg(0, hitmiss);
                   set_sfall_return(BODY_HIT_HEAD); // new bodypart
                   set_sfall_arg(3, BODY_HIT_HEAD);
+                  return;
                end
          end
       // groin from back and rears convertion to torso or random leg
@@ -785,12 +801,14 @@ procedure misstohit begin
                set_sfall_arg(0, hitmiss);
                set_sfall_return(BODY_HIT_TORSO); // new bodypart torso
                set_sfall_arg(3, BODY_HIT_TORSO);
+               return;
             end
             if rnd > 60 then begin
                set_sfall_return(hitmiss); // hit or miss
                set_sfall_arg(0, hitmiss);
                set_sfall_return(rndleg); //  new bodypart = rnd leg
                set_sfall_arg(3, rndleg);
+               return;
             end
       end
    end
@@ -803,6 +821,7 @@ procedure misstohit begin
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_HEAD); // new bodypart
                      set_sfall_arg(3, BODY_HIT_HEAD);
+                     return;
                   end
              end
          // groin(regulator) from face and anterior rears convertion to torso or random leg(motivators)
@@ -814,6 +833,7 @@ procedure misstohit begin
                            set_sfall_arg(0, hitmiss);
                            set_sfall_return(BODY_HIT_TORSO); // new bodypart torso
                            set_sfall_arg(3, BODY_HIT_TORSO);
+                           return;
                         end
 
                         if rnd > 60 then begin
@@ -821,6 +841,7 @@ procedure misstohit begin
                            set_sfall_arg(0, hitmiss);
                            set_sfall_return(rndleg); //  new bodypart  rnd leg
                            set_sfall_arg(3, rndleg);
+                           return;
                         end
                end
             end
@@ -837,12 +858,14 @@ procedure misstohit begin
                            set_sfall_arg(0, hitmiss);
                            set_sfall_return(BODY_HIT_HEAD); // new bodypart
                            set_sfall_arg(3, BODY_HIT_HEAD);
+                           return;
                         end
                         if rnd > 60 then begin
                            set_sfall_return(hitmiss); // hit or miss
                            set_sfall_arg(0, hitmiss);
                            set_sfall_return(BODY_HIT_TORSO); //  new bodypart
                            set_sfall_arg(3, BODY_HIT_TORSO);
+                           return;
                         end
                   end
              end
@@ -856,12 +879,14 @@ procedure misstohit begin
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_TORSO); // new bodypart
                      set_sfall_arg(3, BODY_HIT_TORSO);
+                     return;
                   end
                   if rnd > 60 then begin
                      set_sfall_return(hitmiss); // hit or miss
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_HEAD); //  new bodypart
                      set_sfall_arg(3, BODY_HIT_HEAD);
+                     return;
                   end
                end
             end
@@ -876,6 +901,7 @@ procedure misstohit begin
             if rnd > 55 then begin // old bodypart 8 - torso uncalled
                set_sfall_return(hitmiss); // hit or miss not changed
                set_sfall_arg(0, hitmiss);
+               return;
             end
             // ~1% can hit head/eyes only if target is lying on the floor
             if (rnd <= 10 andAlso tar_cur_frm == 10 andAlso ( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6)) )
@@ -888,6 +914,7 @@ procedure misstohit begin
                      set_sfall_return(BODY_HIT_HEAD); // new bodypart 0 - head
                      set_sfall_arg(3, BODY_HIT_HEAD);
                      set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1)); // return 1 action point because a new attack costs 1 more
+                     return;
                   end
                   if rnd2 > 94 andAlso tar_cur_frm == 10 then begin // ~0, 5 % to critical hit eyes
                      set_sfall_return(CRITICAL_HIT); // always critical hit chance
@@ -895,6 +922,7 @@ procedure misstohit begin
                      set_sfall_return(BODY_HIT_EYES); // new bodypart 6 - eyes
                      set_sfall_arg(3, BODY_HIT_EYES);
                      set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+                     return;
                   end
             end
             if rnd > 10 andAlso rnd <= 19 then begin // 9 %
@@ -910,6 +938,7 @@ procedure misstohit begin
                set_sfall_return(rndarm); // new bodypart 1, 2 - arms
                set_sfall_arg(3, rndarm);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
             if rnd > 19 andAlso rnd <= 45 then begin // 25 %
                   rnd2 = random(0, 100);
@@ -924,6 +953,7 @@ procedure misstohit begin
                set_sfall_return(rndleg); // new bodypart 4, 5 - legs
                set_sfall_arg(3, rndleg);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
             if rnd > 45 andAlso rnd <= 55 then begin // 14 %
                   rnd2 = random(0, 100);
@@ -938,6 +968,7 @@ procedure misstohit begin
                set_sfall_return(BODY_HIT_GROIN); // new bodypart 7 - groin
                set_sfall_arg(3, BODY_HIT_GROIN);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
          end
 
@@ -948,6 +979,7 @@ procedure misstohit begin
             if rnd > 29 then begin // old bodypart 8 - torso uncalled
                set_sfall_return(hitmiss); // hit or miss not changed
                set_sfall_arg(0, hitmiss);
+               return;
             end
             if rnd <= 3 then begin // 3 %
                rnd2 = random(0, 100);
@@ -958,14 +990,16 @@ procedure misstohit begin
                   set_sfall_return(BODY_HIT_HEAD); // new bodypart 0 - head
                   set_sfall_arg(3, BODY_HIT_HEAD);
                   set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1)); // return 1 action point because a new attack costs 1 more
+                  return;
                   end
                   if (rnd2 > 95 andAlso tar_cur_frm == 10) or
-                  (rnd2 > 95 andAlso not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) )) then begin // ~0, 15 % to hit eyes
+                  (rnd2 > 95 andAlso not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) )) then begin // ~0,15 % to hit eyes
                   set_sfall_return(CRITICAL_HIT); // always critical hit chance
                   set_sfall_arg(0, CRITICAL_HIT);
                   set_sfall_return(BODY_HIT_EYES); // new bodypart 6 - eyes
                   set_sfall_arg(3, BODY_HIT_EYES);
                   set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+                  return;
                   end
             end
             if rnd > 3 andAlso rnd <= 12 then begin // 9 %
@@ -991,6 +1025,7 @@ procedure misstohit begin
                set_sfall_return(rndarm); // new bodypart 1, 2 - arms
                set_sfall_arg(3, rndarm);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
             if rnd > 12 andAlso rnd <= 23 then begin // 11 %
                   rnd2 = random(0, 100);
@@ -1005,9 +1040,10 @@ procedure misstohit begin
                set_sfall_return(rndleg); // new bodypart 4, 5 - legs
                set_sfall_arg(3, rndleg);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
-            if rnd > 23 andAlso rnd <= 30 andAlso (tar_cur_frm == 10 or (not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6) ) or rotationatkr == ((rotationtar + 5) % 6) )
-            or (tar_cur_frm == 6 andAlso (rotationatkr == rotationtar or rotationatkr == (rotationtar - 1) or rotationatkr == ((rotationtar + 1) % 6) ) or (rotationatkr == 5 andAlso rotationtar == 0))) then begin // 7 %
+            if rnd > 23 andAlso rnd <= 30 andAlso (tar_cur_frm == 10 or (not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)) )
+            or (tar_cur_frm == 6 andAlso (rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)))) then begin // 7 %
                   rnd2 = random(0, 100);
                   if rnd2 <= 15 then begin // 10 % bonus crit chance
                   set_sfall_return(CRITICAL_HIT); // crit hit
@@ -1020,6 +1056,7 @@ procedure misstohit begin
                set_sfall_return(BODY_HIT_GROIN); // new bodypart 7 - groin
                set_sfall_arg(3, BODY_HIT_GROIN);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+               return;
             end
          end
       end
@@ -1034,10 +1071,12 @@ procedure misstohit begin
             set_sfall_arg(0, HIT);
             set_sfall_return(rnd); // new bodypart
             set_sfall_arg(3, rnd);
+            return;
             end
             else begin
             set_sfall_return(hitmiss); // hit instead of miss
             set_sfall_arg(0, hitmiss);
+            return;
             end
          end
          if rnd > 98  then begin // 1 - 3 %
@@ -1045,6 +1084,7 @@ procedure misstohit begin
             set_sfall_arg(0, HIT);
             set_sfall_return(BODY_HIT_HEAD); // new bodypart
             set_sfall_arg(3, BODY_HIT_HEAD);
+            return;
          end
       end
 
@@ -1062,6 +1102,7 @@ procedure misstohit begin
             end
             set_sfall_return(BODY_HIT_EYES); // new bodypart 6 - eye
             set_sfall_arg(3, BODY_HIT_EYES);
+            return;
          end
       end
 
@@ -1075,38 +1116,43 @@ procedure misstohit begin
             set_sfall_arg(0, HIT);
             set_sfall_return(BODY_HIT_HEAD); // new bodypart
             set_sfall_arg(3, BODY_HIT_HEAD);
+            return;
          end
          if rnd > 98 then begin
             set_sfall_return(HIT); // hit or miss
             set_sfall_arg(0, HIT);
             set_sfall_return(BODY_HIT_TORSO); //  new bodypart 3 - aimed_body
             set_sfall_arg(3, BODY_HIT_TORSO);
+            return;
          end
       end
       //groin miss to (1-5)% legs or (1-5) body hit
-      if bpart == BODY_HIT_GROIN andAlso hitch > 19 andAlso hitmiss == 1 then begin
+      if bpart == BODY_HIT_GROIN andAlso hitch > 19 andAlso hitmiss == MISS then begin
          rnd = random(0, 100);
          if rnd < (hitch / 19) then begin
             set_sfall_return(HIT); // hit or miss
             set_sfall_arg(0, HIT);
             set_sfall_return(BODY_HIT_TORSO); //  new bodypart 3 - aimed_body
             set_sfall_arg(3, BODY_HIT_TORSO);
+            return;
          end
          if rnd > (100 - hitch / 19)  then begin
             set_sfall_return(HIT); // hit or miss
             set_sfall_arg(0, HIT);
             set_sfall_return(rndleg); //  new bodypart 4 - left leg, 5 - right leg
             set_sfall_arg(3, rndleg);
+            return;
          end
       end
       // legs&arms miss to body hit (1-5)%
-      if (bpart < 6 ) andAlso bpart != BODY_HIT_TORSO  andAlso hitch > 19 andAlso hitmiss == 1 then begin
+      if (bpart < 6 ) andAlso bpart != BODY_HIT_TORSO  andAlso hitch > 19 andAlso hitmiss == MISS then begin
          rnd = random(0, 100);
          if rnd < (hitch / 19) then begin
             set_sfall_return(HIT); // hit
             set_sfall_arg(0, HIT);
             set_sfall_return(BODY_HIT_TORSO); //  new bodypart
             set_sfall_arg(3, BODY_HIT_TORSO);
+            return;
          end
       end
    end
