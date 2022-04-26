@@ -6,7 +6,7 @@
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
-- Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+.
+- Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+. https://sourceforge.net/projects/sfall/files/
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable or fine tune components as you desire.
 
 ## Сontents

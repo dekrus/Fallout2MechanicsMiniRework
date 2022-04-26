@@ -13,6 +13,7 @@
 #define msg_healed_for 11
 #define msg_dead 12
 #define modmsg(x) message_str_game(new_steal_msg, x)
+#define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -156,11 +157,13 @@ procedure steal_handler begin
    end
       // stealing penalty if target's allies can see the thief
    foreach ally in list_as_array(LIST_CRITTERS) begin
-      if ally != target andAlso obj_can_see_obj(ally, dude_obj) then begin
-         ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
-         if ally_team == team then begin
-         ally_pe = get_critter_stat(ally, STAT_pe);
-         target_pe = target_pe + ally_pe + 2;
+      if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) then begin
+         if obj_can_see_obj(ally, dude_obj) then begin
+            ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
+            if ally_team == team then begin
+            ally_pe = get_critter_stat(ally, STAT_pe);
+            target_pe = target_pe + ally_pe + 2;
+            end
          end
       end
    end
@@ -376,12 +379,14 @@ procedure steal_skill_use begin
       end
          //penalty to target pe if light lower 50%(or 70% if has night_vision)
       foreach ally in list_as_array(LIST_CRITTERS) begin
-         if ally != target andAlso obj_can_see_obj(ally, dude_obj) then begin
-            ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
-            if ally_team == team then begin
-            ally_pe = get_critter_stat(ally, STAT_pe);
-            target_pe = target_pe + ally_pe;
-            ally_can_see += 1;
+         if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) then begin
+            if obj_can_see_obj(ally, dude_obj) then begin
+               ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
+               if ally_team == team then begin
+               ally_pe = get_critter_stat(ally, STAT_pe);
+               target_pe = target_pe + ally_pe;
+               ally_can_see += 1;
+               end
             end
          end
       end

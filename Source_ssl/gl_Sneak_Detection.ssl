@@ -251,14 +251,15 @@ procedure sign_handler begin
    variable watcher = get_sfall_arg;
    variable color = 0;
    variable team = 0;
-   if not(key_pressed(highlight_key)) andAlso watcher == dude_obj then begin
-      foreach Critter in list_as_array(LIST_CRITTERS) begin
-         color = get_outline(Critter);
-         team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
-         if Critter != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW) andAlso team != TEAM_PLAYER then begin
-         set_outline(Critter, OUTLINE_NONE);
-         tile_refresh_display;
-         end
-      end
+   if not(key_pressed(highlight_key)) then begin
+      tile_refresh_display;
+      //foreach Critter in list_as_array(LIST_CRITTERS) begin
+         //color = get_outline(Critter);
+         //team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
+         //if Critter != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW) andAlso team != TEAM_PLAYER then begin
+         //set_outline(Critter, OUTLINE_NONE);
+         //tile_refresh_display;
+         //end
+      //end
    end
 end
