@@ -14,6 +14,7 @@
 #define msg_dead 12
 #define modmsg(x) message_str_game(new_steal_msg, x)
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
+#define NO_STEAL(obj)    (get_proto_data(obj_pid(obj), PROTO_CR_FLAGS) bwand CFLG_NOSTEAL)
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -120,9 +121,11 @@ procedure steal_handler begin
    variable light_level = get_light_level;
    variable target_rot := has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
    variable target_rot_to_tar := rotation_to_tile(tile_num(target), tile_num(dude_obj));
+   variable ally_rot = -6;
+   variable ally_rot_to_tar = - 6;
    variable team := has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
    variable ally = 0;
-   variable ally_team = 0;
+   variable ally_team = -1;
    variable ally_pe = 0;
    variable max_steal_chance = 0;
    variable isSuccess = 0;
@@ -130,6 +133,14 @@ procedure steal_handler begin
    variable sneak_bonus = 0;
    variable user_state = critter_state(dude_obj);
    variable taget_state = critter_state(target);
+   variable distance;
+         // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
+   if light_level < 41216 + (night_vision * 21504) then begin
+      target_pe_mult = (light_level - (night_vision * 14336)) / 6000;
+      if target_pe_mult < 5 then begin
+         target_pe_mult = 5;
+      end
+   end
    // PERK_pickpocket check for add|remove item size, cost and weight penalty
    if pickpocket < 1 then begin
       if StealRebalance == 2 then begin
@@ -151,18 +162,24 @@ procedure steal_handler begin
       wpn_is_stolen = 2;
    end
       // pe in formula cannot be lower then base_pe - base_pe / 3
-   target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
-   if target_pe < target_min_pe then begin
-      target_pe = target_min_pe;
-   end
+   //target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
+   //if target_pe < target_min_pe then begin
+      //target_pe = target_min_pe;
+   //end
       // stealing penalty if target's allies can see the thief
    foreach ally in list_as_array(LIST_CRITTERS) begin
+         ally_rot = -6;
+         ally_rot_to_tar = -6;
       if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) then begin
-         if obj_can_see_obj(ally, dude_obj) then begin
+            ally_rot = has_trait(TRAIT_OBJECT, ally, OBJECT_CUR_ROT);
+            ally_rot_to_tar = rotation_to_tile(tile_num(ally), tile_num(dude_obj));
             ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
-            if ally_team == team then begin
+            distance_objs(distance, ally, dude_obj);
             ally_pe = get_critter_stat(ally, STAT_pe);
-            target_pe = target_pe + ally_pe + 2;
+         if ally_team == team andAlso distance <= ally_pe*target_pe_mult/4 andAlso (ally_rot == ally_rot_to_tar or ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6)  then begin
+               if obj_can_see_obj(ally, dude_obj) then begin
+               ally_pe = get_critter_stat(ally, STAT_pe);
+               target_pe = target_pe + ally_pe + 2;
             end
          end
       end
@@ -191,21 +208,13 @@ procedure steal_handler begin
    if (taget_state BWAND DAM_KNOCKED_DOWN) or (taget_state BWAND DAM_KNOCKED_OUT) then begin
       steal_bonus = steal_bonus + 25;
    end
-      // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
-   if light_level < 41216 + (night_vision * 21504) then begin
-      target_pe_mult = (light_level - (night_vision * 14336)) / 6000;
-      if target_pe_mult < 5 then begin
-         target_pe_mult = 5;
-      end
-   end
       //steal_bonus if target can't see thief
    if not(obj_can_see_obj(target, dude_obj)) then begin
-      steal_bonus = steal_bonus + 10;
-      sneak_bonus = user_sneak_skill / 2;
+      steal_bonus = steal_bonus + 15;
    end
       // bonus for sneak_success even if target can see thief
-   if obj_can_see_obj(target, dude_obj) andAlso using_skill(dude_obj, SKILL_SNEAK) then begin
-         sneak_bonus = user_sneak_skill / 6;
+   if  using_skill(dude_obj, SKILL_SNEAK) then begin
+      sneak_bonus = user_sneak_skill / 6;
    end
    if sneak_bonus > user_steal_skill / 2 then begin
       sneak_bonus = user_steal_skill / 2;
@@ -239,30 +248,20 @@ procedure steal_handler begin
       pseudo_chance_to_steal = 0;
       steal_bonus = steal_bonus - sneak_bonus;
       while pseudo_chance_to_steal < 40 do begin
-            sneak_bonus = 0;
-            user_steal_skill = user_steal_skill + 1;
-               //steal_bonus if target can't see thief
-            if not(obj_can_see_obj(target, dude_obj)) then begin
-               sneak_bonus = 10 + user_sneak_skill / 2;
-            end
-               // bonus for sneak_success even if target can see thief
-            if obj_can_see_obj(target, dude_obj) andAlso using_skill(dude_obj, SKILL_SNEAK) then begin
-               if sneak_success == 1 then begin
-                  sneak_bonus = user_sneak_skill / 5;
-               end
-               // a little bonus for not sneak_success
-               if sneak_success == 0 then begin
-                  sneak_bonus = user_sneak_skill / 10;
-               end
-            end
-            if sneak_bonus > user_steal_skill / 2 then begin
-               sneak_bonus = user_steal_skill / 2;
-            end
-           pseudo_chance_to_steal = 40 - steal_count + sneak_bonus + steal_bonus + (user_steal_skill_mult * user_steal_skill) - ((item_size + 1) * 4) - (item_weight_lvar) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
+      sneak_bonus = 0;
+         // bonus for sneak_success even if target can see thief
+      if using_skill(dude_obj, SKILL_SNEAK) then begin
+         sneak_bonus = user_sneak_skill / 6;
+      end
+         user_steal_skill = user_steal_skill + 1;
+         if sneak_bonus > user_steal_skill / 2 then begin
+            sneak_bonus = user_steal_skill / 2;
+         end
+        pseudo_chance_to_steal = 40 - steal_count + sneak_bonus + steal_bonus + (user_steal_skill_mult * user_steal_skill) - ((item_size + 1) * 4) - (item_weight_lvar) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
       end
       min_skill_needed = user_steal_skill;
    end
-   max_steal_chance = (user_steal_skill - 140) / 10;
+   max_steal_chance = (user_steal_skill - 130) / 10;
       if max_steal_chance > 4 then begin
       max_steal_chance = 4;
       end
@@ -339,6 +338,8 @@ procedure steal_skill_use begin
    variable light_level = get_light_level;
    variable target_rot := has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
    variable target_rot_to_tar := rotation_to_tile(tile_num(target), tile_num(dude_obj));
+   variable ally_rot = -6;
+   variable ally_rot_to_tar = - 6;
    variable team := has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
    variable ally = 0;
    variable ally_team = 0;
@@ -349,8 +350,13 @@ procedure steal_skill_use begin
    variable rnd = 0;
    variable user_state = critter_state(dude_obj);
    variable taget_state = critter_state(target);
+   variable obj;
+   variable color;
+   variable distance;
+   variable losblock;
+   variable losblock2;
    //calculating the minimum skill to get into the target's pocket
-   if MinStealReq != 0 andAlso skill == SKILL_STEAL andAlso critter_type < 5 andAlso not(team == TEAM_PLAYER) then begin
+   if MinStealReq != 0 andAlso not(NO_STEAL(target)) andAlso skill == SKILL_STEAL andAlso critter_type < 5 andAlso not(team == TEAM_PLAYER) then begin
       steal_count = 0;
       if last_pickpocket_target == target then begin
          pickpocket_count += 1;
@@ -373,19 +379,25 @@ procedure steal_skill_use begin
          end
       end
       //pe in formula cannot be lower then base_pe - base_pe / 3
-      target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
-      if target_pe < target_min_pe then begin
-         target_pe = target_min_pe;
-      end
-         //penalty to target pe if light lower 50%(or 70% if has night_vision)
+      //target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
+      //if target_pe < target_min_pe then begin
+         //target_pe = target_min_pe;
+      //end
+         //stealing penalty if target's allies can see the thief
       foreach ally in list_as_array(LIST_CRITTERS) begin
+         ally_rot = -6;
+         ally_rot_to_tar = -6;
          if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) then begin
-            if obj_can_see_obj(ally, dude_obj) then begin
-               ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
-               if ally_team == team then begin
-               ally_pe = get_critter_stat(ally, STAT_pe);
-               target_pe = target_pe + ally_pe;
-               ally_can_see += 1;
+            ally_rot = has_trait(TRAIT_OBJECT, ally, OBJECT_CUR_ROT);
+            ally_rot_to_tar = rotation_to_tile(tile_num(ally), tile_num(dude_obj));
+            ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
+            distance_objs(distance, ally, dude_obj);
+            ally_pe = get_critter_stat(ally, STAT_pe);
+            if ally_team == team andAlso distance <= ally_pe*target_pe_mult/4 andAlso (ally_rot == ally_rot_to_tar or ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6)   then begin
+               if obj_can_see_obj(ally, dude_obj) then begin
+                  float_msg(ally, "?", FLOAT_MSG_YELLOW);
+                  target_pe = target_pe + ally_pe;
+                  ally_can_see += 1;
                end
             end
          end
@@ -417,16 +429,16 @@ procedure steal_skill_use begin
       // bonus for sneak_success even if target can see thief
       if obj_can_see_obj(target, dude_obj) andAlso using_skill(dude_obj, SKILL_SNEAK) then begin
          if sneak_success == 1 then begin
-            min_steal_skill = min_steal_skill - user_sneak_skill / 7;
+            min_steal_skill = min_steal_skill - user_sneak_skill / 10;
          end
          // a little bonus for not sneak_success
          if sneak_success == 0 then begin
-            min_steal_skill = min_steal_skill - user_sneak_skill / 20;
+            min_steal_skill = min_steal_skill - user_sneak_skill / 10;
          end
       end
          //crippled arm = harder to pickpocket
       if (user_state BWAND DAM_CRIP_ARM_RIGHT) or (user_state BWAND DAM_CRIP_ARM_LEFT) then begin
-         user_steal_skill = user_steal_skill / 3;
+         min_steal_skill = min_steal_skill * 2;
       end
          //crippled arms = impossible to pickpocket
       if (user_state BWAND DAM_CRIP_ARM_RIGHT) andAlso (user_state BWAND DAM_CRIP_ARM_LEFT) then begin
@@ -474,5 +486,13 @@ procedure steal_skill_use begin
       display_msg(modmsg(msg_cant_pickpocket) + parse_str_2(modmsg(msg_cant_plant2), min_steal_skill, 0));
       end
       last_pickpocket_target = target;
+      //foreach obj in list_as_array(LIST_CRITTERS) begin
+      //color = get_outline(obj);
+      //team = has_trait(TRAIT_OBJECT, obj, OBJECT_TEAM_NUM);
+         //if team != TEAM_PLAYER andAlso color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW then begin
+         //set_outline(obj, OUTLINE_NONE);
+         //end
+      //end
+      //tile_refresh_display;
    end
 end

@@ -1889,32 +1889,32 @@ procedure map_enter_p_proc begin
    set_proto_data(92, PROTO_IT_WEIGHT, 5);
    set_proto_data(591, PROTO_IT_WEIGHT, 2);
    // poison injection moddification
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_poison);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 50);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_hp);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, STAT_current_poison);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, STAT_ag);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, 50);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, -2);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 30);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_A, 0);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_B, 0);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_C, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_2, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_2, 60);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_A, 0);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_B, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_C, 0);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_C, 2);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_CHANCE, 0);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_PERK, 0);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_DELAY, 0);
    // antidot moddification
    if Sonora == 0 then begin
    set_proto_data(49, PROTO_DR_STAT_A, -2);
-   set_proto_data(49, PROTO_DR_STAT_B, 36);
-   set_proto_data(49, PROTO_DR_STAT_C, 32);
+   set_proto_data(49, PROTO_DR_STAT_B, STAT_current_poison);
+   set_proto_data(49, PROTO_DR_STAT_C, STAT_poison_resist);
    set_proto_data(49, PROTO_DR_AMOUNT_1_A, -25);
    set_proto_data(49, PROTO_DR_AMOUNT_1_B, -15);
    set_proto_data(49, PROTO_DR_AMOUNT_1_C, 10);
-   set_proto_data(49, PROTO_DR_DURATION_1, 1);
+   set_proto_data(49, PROTO_DR_DURATION_1, 10);
    set_proto_data(49, PROTO_DR_AMOUNT_2_A, 0);
    set_proto_data(49, PROTO_DR_AMOUNT_2_B, 0);
    set_proto_data(49, PROTO_DR_AMOUNT_2_C, -10);
@@ -1930,8 +1930,8 @@ procedure map_enter_p_proc begin
   if RegenMod != 0  then begin
    if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
-      set_proto_data(40, PROTO_DR_STAT_B, 35);
-      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
+      set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
       set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
       set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
       set_proto_data(40, PROTO_DR_AMOUNT_1_C, 20);
@@ -1946,8 +1946,8 @@ procedure map_enter_p_proc begin
    end
    if UnsafeRegenModScripting != 1 then begin
      set_proto_data(40, PROTO_DR_STAT_A, -2);
-     set_proto_data(40, PROTO_DR_STAT_B, 35);
-     set_proto_data(40, PROTO_DR_STAT_C, 14);
+     set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
      set_proto_data(40, PROTO_DR_AMOUNT_1_C, 6);
@@ -1965,15 +1965,15 @@ procedure map_enter_p_proc begin
    set_proto_data(273, PROTO_DR_STAT_C, 1);
    set_proto_data(273, PROTO_DR_AMOUNT_1_A, 2);
    set_proto_data(273, PROTO_DR_AMOUNT_1_B, 4);
-   set_proto_data(273, 56, -1);
-   set_proto_data(273, 60, 1);
-   set_proto_data(273, 64, 3);
-   set_proto_data(273, 68, 5);
-   set_proto_data(273, 72, 0);
-   set_proto_data(273, PROTO_DR_DURATION_2, 2);
-   set_proto_data(273, 80, 2);
-   set_proto_data(273, 84, 4);
-   set_proto_data(273, 88, 1);
+   set_proto_data(273, PROTO_DR_AMOUNT_1_C, -1);
+   set_proto_data(273, PROTO_DR_DURATION_1, 1);
+   set_proto_data(273, PROTO_DR_AMOUNT_2_A, 3);
+   set_proto_data(273, PROTO_DR_AMOUNT_2_B, 5);
+   set_proto_data(273, PROTO_DR_AMOUNT_2_C, 0);
+   set_proto_data(273, PROTO_DR_DURATION_2, 1);
+   set_proto_data(273, PROTO_DR_AMOUNT_3_A, 2);
+   set_proto_data(273, PROTO_DR_AMOUNT_3_B, 4);
+   set_proto_data(273, PROTO_DR_AMOUNT_3_C, 1);
    if Sonora == 0 then begin
    set_proto_data(16777458, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR"));
    set_proto_data(16777459, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR"));
@@ -1987,88 +1987,125 @@ procedure map_enter_p_proc begin
    // Nevada food edition
    if Nevada != 0 then begin
      // mutafruit heal
+     set_proto_data(71, PROTO_DR_STAT_A, -2);
+     set_proto_data(71, PROTO_DR_STAT_B, STAT_current_hp);
      set_proto_data(71, PROTO_DR_AMOUNT_1_A, 0);
      set_proto_data(71, PROTO_DR_AMOUNT_1_B, 1);
-     // iguana max hp instead of hr
-     set_proto_data(81, PROTO_DR_STAT_C, STAT_max_hp);
-     set_proto_data(81, PROTO_DR_AMOUNT_1_C, 0);
-     set_proto_data(81, PROTO_DR_AMOUNT_2_C , 0);
+     // iguana
+     set_proto_data(81, PROTO_DR_STAT_C, STAT_poison_resist);
+     set_proto_data(81, PROTO_DR_AMOUNT_1_C, 2);
+     set_proto_data(81, PROTO_DR_AMOUNT_2_C , -2);
+     set_proto_data(81, PROTO_DR_AMOUNT_3_C , 0);
      // набор по уходу hr + 1
-     set_proto_data(90, PROTO_DR_AMOUNT_1_C, 1);
-     // iguana bits hp instead of hr
-     set_proto_data(103, PROTO_DR_STAT_C, STAT_max_hp);
-     set_proto_data(103, PROTO_DR_AMOUNT_1_C, 0);
-     set_proto_data(103, PROTO_DR_AMOUNT_2_C , 0);
+     set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
+     set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
+     // iguana bits
+     set_proto_data(103, PROTO_DR_STAT_C, STAT_poison_resist);
+     set_proto_data(103, PROTO_DR_AMOUNT_1_C, 5);
+     set_proto_data(103, PROTO_DR_AMOUNT_2_C , -5);
      // nuka heal
      set_proto_data(106, PROTO_DR_AMOUNT_1_A, 1);
-     // water heal
-     set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
-     // clear water heal
-     set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
+     // water
+      set_proto_data(126, PROTO_DR_STAT_A, STAT_current_hp);
+      set_proto_data(126, PROTO_DR_STAT_B, STAT_current_poison);
+      set_proto_data(126, PROTO_DR_STAT_C, STAT_current_rad);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_B, -2);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_C, -1);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_A, 2);
+      //clear water  8
+      set_proto_data(212, PROTO_DR_STAT_A, STAT_current_hp);
+      set_proto_data(212, PROTO_DR_STAT_B, STAT_current_poison);
+      set_proto_data(212, PROTO_DR_STAT_C, STAT_current_rad);
+      set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
+      set_proto_data(212, PROTO_DR_AMOUNT_1_B, -5);
+      set_proto_data(212, PROTO_DR_AMOUNT_1_C, -5);
      // the ashes of the forefather poison for 6, not 25
      set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
-     //drymeat max hp instead of hr
-     set_proto_data(284, PROTO_DR_STAT_B, STAT_max_hp);
+     //drymeat
+     set_proto_data(284, PROTO_DR_STAT_B, STAT_current_hp);
      set_proto_data(284, PROTO_DR_AMOUNT_1_B, 1);
-     set_proto_data(284, PROTO_DR_AMOUNT_3_B, -1);
+     set_proto_data(284, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(284, PROTO_DR_AMOUNT_3_B, 0);
      //pirog max hp instead of hr
-     set_proto_data(343, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(343, PROTO_DR_AMOUNT_1_B, 3);
-     set_proto_data(343, PROTO_DR_AMOUNT_2_B, 0);
-     set_proto_data(343, PROTO_DR_AMOUNT_3_B, 0);
-     set_proto_data(343, PROTO_DR_STAT_A, STAT_max_hp);
-     set_proto_data(343, PROTO_DR_AMOUNT_1_A, 3);
-     set_proto_data(343, PROTO_DR_AMOUNT_2_A, -3);
-     set_proto_data(343, PROTO_DR_AMOUNT_3_A, 0);
-     //mantis max hp instead of hr
-     set_proto_data(419, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(419, PROTO_DR_AMOUNT_1_B, 3);
-     set_proto_data(419, PROTO_DR_AMOUNT_2_B, 0);
-     set_proto_data(419, PROTO_DR_AMOUNT_3_B, 0);
-     set_proto_data(419, PROTO_DR_STAT_A, STAT_max_hp);
-     set_proto_data(419, PROTO_DR_AMOUNT_1_A, 1);
-     set_proto_data(419, PROTO_DR_AMOUNT_2_A, -1);
+      set_proto_data(343, PROTO_DR_STAT_A, STAT_max_hp);
+      set_proto_data(343, PROTO_DR_STAT_B, STAT_current_hp);
+      set_proto_data(343, PROTO_DR_STAT_C, STAT_ac);
+      set_proto_data(343, PROTO_DR_AMOUNT_1_A, 4);
+      set_proto_data(343, PROTO_DR_AMOUNT_1_B, 4);
+      set_proto_data(343, PROTO_DR_AMOUNT_1_C, 3);
+      set_proto_data(343, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(343, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(343, PROTO_DR_AMOUNT_2_C, -3);
+     //mantis
+     set_proto_data(419, PROTO_DR_STAT_A, STAT_current_hp);
+     set_proto_data(419, PROTO_DR_STAT_B, STAT_crit_chance);
+     set_proto_data(419, PROTO_DR_STAT_C, 0);
+     set_proto_data(419, PROTO_DR_AMOUNT_1_A, 3);
+     set_proto_data(419, PROTO_DR_AMOUNT_1_B, 1);
+     set_proto_data(419, PROTO_DR_AMOUNT_1_C, 0);
+     set_proto_data(419, PROTO_DR_DURATION_1, 15);
+     set_proto_data(419, PROTO_DR_AMOUNT_2_A, 0);
+     set_proto_data(419, PROTO_DR_AMOUNT_2_B, -1);
+     set_proto_data(419, PROTO_DR_AMOUNT_2_C, 0);
+     set_proto_data(419, PROTO_DR_DURATION_2, 0);
      set_proto_data(419, PROTO_DR_AMOUNT_3_A, 0);
-     //rootbeer heal
-     set_proto_data(423, PROTO_DR_AMOUNT_1_A, 2);
-     //milk max hp instead of hr
+     set_proto_data(419, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(419, PROTO_DR_AMOUNT_3_C, 0);
+     //rootbeer
+     set_proto_data(423, PROTO_DR_AMOUNT_1_A, 3);
+     //milk
      set_proto_data(440, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(440, PROTO_DR_AMOUNT_1_B, 3);
-     set_proto_data(440, PROTO_DR_AMOUNT_2_B, 2);
-     //burger max hp instead of hr
-     set_proto_data(468, PROTO_DR_STAT_C, STAT_current_hp);
-     set_proto_data(468, PROTO_DR_AMOUNT_1_C, 1);
-     set_proto_data(468, PROTO_DR_AMOUNT_2_C, 0);
-     set_proto_data(468, PROTO_DR_AMOUNT_3_C, 0);
-     set_proto_data(468, PROTO_DR_STAT_A, STAT_max_hp);
-     set_proto_data(468, PROTO_DR_AMOUNT_1_A, 1);
-     set_proto_data(468, PROTO_DR_AMOUNT_2_A, -1);
+     set_proto_data(440, PROTO_DR_STAT_C, STAT_current_poison);
+     set_proto_data(440, PROTO_DR_AMOUNT_1_B, 2);
+     set_proto_data(440, PROTO_DR_AMOUNT_1_C, -4);
+     set_proto_data(440, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(440, PROTO_DR_AMOUNT_2_C, 0);
+     //burger
+     set_proto_data(468, PROTO_DR_STAT_A, STAT_current_hp);
+     set_proto_data(468, PROTO_DR_STAT_C, STAT_carry_amt);
+     set_proto_data(468, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(468, PROTO_DR_AMOUNT_1_C, 3);
+     set_proto_data(468, PROTO_DR_DURATION_1, 30);
+     set_proto_data(468, PROTO_DR_AMOUNT_2_A, 0);
+     set_proto_data(468, PROTO_DR_AMOUNT_2_C, -3);
+     set_proto_data(468, PROTO_DR_DURATION_2, 0);
      set_proto_data(468, PROTO_DR_AMOUNT_3_A, 0);
+     set_proto_data(468, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(468, PROTO_DR_AMOUNT_3_C, 0);
      //pizza max hp instead of hr
      set_proto_data(581, PROTO_DR_AMOUNT_1_A, 2);
      set_proto_data(581, PROTO_DR_STAT_B, STAT_max_hp);
+     set_proto_data(581, PROTO_DR_STAT_C, STAT_melee_dmg);
      set_proto_data(581, PROTO_DR_AMOUNT_1_B, 2);
      set_proto_data(581, PROTO_DR_AMOUNT_2_B, -2);
+     set_proto_data(581, PROTO_DR_AMOUNT_1_C, 1);
+     set_proto_data(581, PROTO_DR_AMOUNT_2_C, -1);
      //cola heal hp instead of hr
      set_proto_data(583, PROTO_DR_STAT_A, STAT_current_hp);
      set_proto_data(583, PROTO_DR_AMOUNT_1_A, 3);
      set_proto_data(583, PROTO_DR_AMOUNT_2_A, 0);
      //обед кќрќванщика
-     set_proto_data(672, PROTO_DR_AMOUNT_1_A, 1);
-     set_proto_data(672, PROTO_DR_AMOUNT_2_A, -1);
+     set_proto_data(672, PROTO_DR_STAT_A, STAT_max_hp);
+     set_proto_data(672, PROTO_DR_STAT_B, STAT_carry_amt);
+     set_proto_data(672, PROTO_DR_AMOUNT_1_A, 10);
+     set_proto_data(672, PROTO_DR_AMOUNT_1_B, 15);
+     set_proto_data(672, PROTO_DR_DURATION_1, 1440);
+     set_proto_data(672, PROTO_DR_AMOUNT_2_A, -10);
+     set_proto_data(672, PROTO_DR_AMOUNT_2_B, -15);
      //potroh heal hp instead of hr
      set_proto_data(708, PROTO_DR_STAT_A, STAT_current_hp);
      set_proto_data(708, PROTO_DR_AMOUNT_1_A, 4);
      set_proto_data(708, PROTO_DR_AMOUNT_2_A, 0);
-     //drgn meat max hp instead of hr
+     //drgn meat crit instead of hr
+     set_proto_data(743, PROTO_DR_STAT_A, STAT_crit_chance);
      set_proto_data(743, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(743, PROTO_DR_AMOUNT_1_B, 4);
-     set_proto_data(743, PROTO_DR_AMOUNT_2_B, 0);
-     set_proto_data(743, PROTO_DR_AMOUNT_3_B, 0);
-     set_proto_data(743, PROTO_DR_STAT_A, STAT_max_hp);
      set_proto_data(743, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(743, PROTO_DR_AMOUNT_1_B, 4);
      set_proto_data(743, PROTO_DR_AMOUNT_2_A, -2);
+     set_proto_data(743, PROTO_DR_AMOUNT_2_B, 0);
      set_proto_data(743, PROTO_DR_AMOUNT_3_A, 0);
+     set_proto_data(743, PROTO_DR_AMOUNT_3_B, 0);
    end
    // Sonora food edition
    if Sonora != 0 then begin
@@ -2078,12 +2115,12 @@ procedure map_enter_p_proc begin
      set_proto_data(64, PROTO_DR_AMOUNT_1_A, 5);
      set_proto_data(64, PROTO_DR_STAT_B, STAT_max_hp);
      set_proto_data(64, PROTO_DR_AMOUNT_1_B, 1);
-     set_proto_data(64, PROTO_DR_AMOUNT_3_B, -1); // amount stat B 3
+     set_proto_data(64, PROTO_DR_AMOUNT_3_B, -1);
      // food09
      set_proto_data(68, PROTO_DR_AMOUNT_1_A, 6);
      set_proto_data(68, PROTO_DR_STAT_B, STAT_max_hp);
      set_proto_data(68, PROTO_DR_AMOUNT_1_B, 2);
-     set_proto_data(68, PROTO_DR_AMOUNT_3_B, -2); // amount stat B 3
+     set_proto_data(68, PROTO_DR_AMOUNT_3_B, -2);
      // chips heal
      set_proto_data(71, PROTO_DR_AMOUNT_1_A, 4);
      // nuka
