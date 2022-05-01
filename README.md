@@ -32,16 +32,16 @@ This is a rework of the original mechanics, designed to make Poison more dangero
 - Poison damage triggers at the end of each of the poisoned creature's turns in combat, or every 4-5 seconds out of combat.
 - If the critter or player accumulates more than 100 poison units, instant death occurs.
 - Now tails of radscorpions can be used to apply poison to the player’s(or companions') piercing and cutting weapons.
-- New perk "Poison Mastery" , available from level 6 and requiring science above 50 or naturalist skill above 70. This perk adds poison dmg when using Needler ammo and also increases the effectiveness of poisoned weapons.
+- New perk "Poison Mastery", available from level 6 and requiring science above 50 or naturalist skill above 70. This perk adds poison dmg when using Needler ammo and also increases the effectiveness of poisoned weapons.
 
 ### Healing (Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)
 Replaces the instant stimpak heal with a regeneration over time.
 
-- Stimpack increases healing rate, triggering health regeneration.
+- Stimpack increases healing rate, triggering health regeneration (slow for 10 rounds or fast for 3 rounds depending on the selected settings).
 - Super Stimpak instantly restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual hp restored. Also Super Stimpak heals broken limbs.
-- Some monsters have passive regeneration: wanamingos/centaurs. (Can be disabled in ini)
+- Some monsters have passive regeneration: wanamingos/centaurs.
 - Fire and plasma damage temporarily reduces the target's regeneration.
-- New bonus perk "Regeneration", which is automatically added if the base "healing rate" is more than 5, allowing to heal injuried limb while regeneratin hp.
+- New bonus perk "Regeneration", which is automatically added if the base "Healing rate" is more than 5, adding a chance to heal injured limbs while regenerating HP.
 
 ### Misses
 Changes how misses work in a more "logical" way.
@@ -61,41 +61,41 @@ Also can be enabled for player.
 ### Sneak
 Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map.  
 Low illumination penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).  
-Detection range = round((perception range x (100.0 - ((sneak skill - 5 - armor_weight) / 1.85))) / 100.0) - (sneak skill / 60);
+Detection range = round((perception_range x (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
 
 #### Sneak detection
 Color indication of sneak detection works for original and new sneak mechanics.
-As long as sneaking player is within the detection range of an NPC, that NPC will be outlined:
+As long as sneaking player is within the detection range of an watching NPC, that NPC will be outlined:
 
-- Red - the player has been detected.
-- Yellow - Not detected, but the player will be detected if approaching ~2-3 hexes closer.
-- Green - Not detected, safe to approach.
+- Red    - Player has been detected.
+- Yellow - Not detected, but player will be detected if approaching ~2-3 hexes closer.
+- Green  - Not detected, safe to approach.
 ![Sneak](images/SneakDetection.jpg)
 
 ### Steal
 The original mechanics of pickpocketing did not take into account the perception of the target and also probability of failing pickpocket(~15%) did not depend on the skill and always the same for both 85 and 300 skill levels.
 New steal mechanic is a attempt to fix these "features".  
 Basic moments:
-- If steal skill developed over 150%, then for every 10 points the maximum steal chance is increased by 1% (0,1% for 1 point) to a maximum of 99%.
+- The calculation of probability of a successful stealing is similar to the original formula with the addition of dependence on the perception of the target and steal skill of player.
+- If steal skill developed over 140%, then for every 10 points the maximum steal chance is increased by 1% (0,1% for 1 point) to a maximum of 99%.
 - When the skill exceeds 160 + (target's current perception x 5) then it becomes possible to steal weapons and items from the hands of the NPC.
 - To peep into a target's pocket, you need to meet minimum skill requirements.
 - In case of an unsuccessful attempt to use the theft skill, the target can sometimes become hostile, the presence of the Harmless perk significantly reduces this chance.
-- The calculation of the probability of a successful stealing is similar to the original formula with the addition of dependence on the perception of the target and steal skill of the player.
 
 Modifiers that increase the skill requirement and reduce the chance of a successful pickpocket:
 - the player in front of the target.
-- the player is seen by the allies of the target.
+- the player is in front of and seen by nearby allies of the target.
 Modifiers that reduce the chance of a successful pickpocket:
-- the weight and size of the item (if the pickpocket perk is not taken)
-- the number of items stolen in a row. The difficulty will increase depending on the change in the weight / size of the inventory of the NPC, when stealing several large items in a row, the NPC will have MUCH more opportunity to notice the stealing.
+- the weight and size of the item (if the "Pickpocket" perk is not taken)
+- the number of items stolen in a row.
 
 Modifiers that reduce skill requirements and increase the chance of a successful pickpocket:
 - Sneaking mode. Bonus depends on the sneak skill level + a significant increase in the bonus if the target can not see the player.
-- Low light conditions (caves, cellars, night, etc.) the darker the easier it is to get into your pocket, adjusted for the presence of the night_vision perk.
+- Low light conditions (caves, cellars, night, etc.) the darker the easier it is to get into your pocket, adjusted for the presence of the "Night vision" perk.
 - The target is unconscious / blinded (bonus depends on the severity of the condition).
 
 Additional settings:
-- The first attempt to steal will always have 100% if you have reached the minimum skill level.
+- The first attempt to steal will always have 100% if you have reached the minimum skill level. (workaround to reduce saves/loads)
 - Subsequent attempts, in order to avoid abuse of experience for stealing, will be calculated according to the formula.
 - Complication of stealing items depending on their cost, the more expensive the more difficult.
 - Complicated stealing from merchants.
