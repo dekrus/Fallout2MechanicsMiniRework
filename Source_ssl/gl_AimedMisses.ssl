@@ -12,6 +12,7 @@
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall\define_extra.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\SFALL_HEADERS\ARTFID.H"
 
 procedure start;
 procedure misstohit;
@@ -455,6 +456,7 @@ procedure misstohit begin
    variable tar_cur_frm = 0;
    variable attacker_meleedmg = 0;
    variable wpn_maxdmg = 0;
+   variable tar_fid = 0;
    if MissMod != 0 or SwingThrustTweak != 0 then begin
       hitmiss = get_sfall_arg;
       attacker = get_sfall_arg;
@@ -472,6 +474,7 @@ procedure misstohit begin
       distance_objs(distance1, target, attacker);
       critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
+      tar_fid = obj_art_fid(target);
 
    //determining the type of attack
       if get_object_data(combat_data, C_ATTACK_HIT_MODE) == ATKTYPE_LWEP1 then begin // left first attack mode range
@@ -752,8 +755,8 @@ procedure misstohit begin
 
 // humans,ghouls,supermutants/radscop/ Horrigan  conversion of aimed hits in eye/groin in critter's back into head/ torso+legs hits
       if critter_type < 5 or critter_type == 6 or critter_type > 17 then begin // (kill type 0 - 4) = humans, ghouls, supermutants / 6=radscop / > 18= Horrigan and maybe player(38 or 38)
-            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0 andAlso ( tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
-                 if bpart == BODY_HIT_EYES andAlso tar_cur_frm != 10  then begin
+            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0 andAlso ((tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)  or  tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
+                 if bpart == BODY_HIT_EYES andAlso (tar_cur_frm != 10 or (tar_cur_frm != 4 andAlso tar_fid == 16777311)) then begin
                      set_sfall_return(hitmiss); // hit or miss
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_HEAD); // new bodypart
@@ -762,7 +765,7 @@ procedure misstohit begin
                   end
 
          // groin from back and rears convertion to torso or random leg
-              if (bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6)  or (bpart == BODY_HIT_GROIN andAlso tar_cur_frm == 6 andAlso not( rotationatkr == rotationtar))  then begin
+              if (bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6 or (tar_cur_frm != 4 andAlso tar_fid == 16777311) )  or (bpart == BODY_HIT_GROIN andAlso (tar_cur_frm == 6 or (tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)) andAlso not( rotationatkr == rotationtar))  then begin
                      rnd = random(1, 100);
                      if rnd <= 60 then begin
                         set_sfall_return(hitmiss); // hit or miss

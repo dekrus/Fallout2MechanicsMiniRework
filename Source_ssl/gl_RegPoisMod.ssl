@@ -108,6 +108,7 @@
    variable failed_sneak_use_msg;
    variable sfall_unsafescripting;
    variable sfall_unsafescripting_msg;
+   variable HR_fog_of_war;
 
 procedure start begin
   if (game_loaded) then begin
@@ -139,6 +140,7 @@ procedure start begin
    PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
    PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
    PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
+   HR_fog_of_war = get_ini_setting("f2_res.ini|MAPS|FOG_OF_WAR");
    regen_perk_name = modmsg(msg_perk_regen);
    perk_poison_mastery_name = modmsg(msg_perk_poison_mastery_name);
    perk_poison_mastery_description = modmsg(msg_perk_poison_mastery_description);
@@ -186,6 +188,8 @@ procedure map_enter_p_proc_handler begin
   variable tardt = 0;
   variable tardr = 0;
   variable team = -1;
+  variable critter_fid = 0;
+  variable crit_pid = 0;
   if stdnum == map_enter_proc then begin
    //game_time_advance(ONE_GAME_SECOND * 5);
    dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
@@ -230,7 +234,9 @@ procedure map_enter_p_proc_handler begin
          critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
          set_proto_data(obj_pid(Critter), 244, tardt);
          set_proto_data(obj_pid(Critter), 272, tardr);
-         if team != TEAM_PLAYER then begin
+         critter_fid = obj_art_fid(Critter);
+         crit_pid = obj_pid(critter);
+         if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
          give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
          end
         end
@@ -373,8 +379,7 @@ procedure COMBATDAMAGE begin
   if dmgtotar > 0 andAlso weapon != 0 then begin
    // needler poison dmg
    if Tox != 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
-     poison(target, random((4 + tox), (7 + tox)));
-    // display_msg("tar pois lvl=" + get_poison(target));
+     poison(target, 10);
    end
    // needler poison dmg for npc-attacker
    if attacker != dude_obj andAlso caliber == CALIBER_HN_NEEDLER then begin
@@ -382,15 +387,15 @@ procedure COMBATDAMAGE begin
    end
    // melee poison dmg
    if acthnd == 0 andAlso lhpoison > 0 then begin
-     poison(target, ((lhpoison / 3) + random(2, 5)));
-     if random(0, 2 + (2 * Tox)) == 0 then begin
+     poison(target, ((lhpoison / 3) + random(2, 5) + (Tox * 2)));
+     if random(0, 2 + (5 * Tox)) == 0 then begin
      set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
      end
    end
 
    if acthnd == 1 andAlso rhpoison > 0 then begin
-     poison(target, ((rhpoison / 3) + random(2, 5)));
-     if random(0, 2 + (2 * Tox)) == 0 then begin
+     poison(target, ((rhpoison / 3) + random(2, 5) + (Tox * 2)));
+     if random(0, 2 + (5 * Tox)) == 0 then begin
      set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
      end
    end
@@ -593,7 +598,7 @@ procedure USEOBJ begin
   if obj_pid(obj) == 591 andAlso PoisonMod != 0 then begin
    //left hand act and wpn
    if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
@@ -603,7 +608,7 @@ procedure USEOBJ begin
    end
    //left hand act and right hand wpn
    if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
@@ -613,7 +618,7 @@ procedure USEOBJ begin
    end
    //right hand act and wpn
    if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
@@ -623,7 +628,7 @@ procedure USEOBJ begin
    end
    //right hand act and left hand wpn
    if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
@@ -647,7 +652,7 @@ procedure USEOBJ begin
   if obj_pid(obj) == 92 andAlso PoisonMod != 0 then begin
    //left hand act and wpn
    if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
@@ -657,7 +662,7 @@ procedure USEOBJ begin
    end
    //left hand act and right hand wpn
    if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
@@ -667,7 +672,7 @@ procedure USEOBJ begin
    end
    //right hand act and wpn
    if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
@@ -677,7 +682,7 @@ procedure USEOBJ begin
    end
    //right hand act and left hand wpn
    if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
@@ -760,7 +765,7 @@ procedure USEOBJON begin
      if using_skill(dude_obj, SKILL_SNEAK) then begin
      display_msg(failed_sneak_use_msg);
      end
-     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 then begin
+     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 andAlso obj_art_fid(target) != 16777325 then begin
      float_msg(target, g_mstr(random(3054, 3058)), FLOAT_COLOR_BAD);
      set_sfall_return(0);
      end
@@ -896,12 +901,12 @@ procedure USEOBJON begin
   if PoisonMod != 0 andAlso obj_pid(obj) == 591 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team != TEAM_PLAYER then begin
    //right hand act and wpn
    if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    RHpois = 1;
    end
    //right hand act and left hand wpn
    if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam)  andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
    LHpois = 1;
    end
    if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
@@ -926,12 +931,12 @@ procedure USEOBJON begin
   if obj_pid(obj) == 92 andAlso PoisonMod != 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
    //right hand act and wpn
    if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-     set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+     set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
      RHpois = 1;
      end
      //right hand act and left hand wpn
      if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-     set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 2 + (2 * tox)), 23, envenomed_description_msg);
+     set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
      LHpois = 1;
      end
      if random(0, 22) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
@@ -1085,6 +1090,8 @@ procedure rest begin
   variable tardr = 0;
   variable tar_name = 0;
   variable team = -1;
+  variable critter_fid = 0;
+  variable crit_pid = 0;
   RegenTickHP2 = 0;
   gameticks = get_sfall_arg;
   eventtype = get_sfall_arg;
@@ -1205,7 +1212,11 @@ procedure rest begin
                   critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
                   set_proto_data(obj_pid(Critter), 244, tardt);
                   set_proto_data(obj_pid(Critter), 272, tardr);
+                  critter_fid = obj_art_fid(Critter);
+                  crit_pid = obj_pid(critter);
+                  if critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
                   give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+                  end
                   end
                  end
                  else begin
@@ -1373,6 +1384,9 @@ procedure poisonInRealTime begin
   variable Tox = has_fake_perk(perk_poison_mastery_name);
   variable tar_name = 0;
   variable team = -1;
+  variable critter_fid = 0;
+  variable game_mode = get_game_mode;
+  variable crit_pid = 0;
   // weapon poisonBuff deacay for dude & party members
    foreach (critter in party_member_list(0)) begin
    tar_name = obj_name(Critter);
@@ -1503,7 +1517,9 @@ procedure poisonInRealTime begin
    foreach (critter in list_as_array(0)) begin
      tar_name = obj_name(Critter);
      team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
-     if  get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_game_mode == 0 andAlso get_poison(Critter) > 0 then begin
+     critter_fid = obj_art_fid(Critter);
+     crit_pid = obj_pid(critter);
+     if get_critter_stat(critter, STAT_current_hp ) > 0 andAlso game_mode == 0 andAlso get_poison(Critter) > 0 then begin
       if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
         PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
       if PoisonTickDmg <= 1 then begin
@@ -1514,24 +1530,23 @@ procedure poisonInRealTime begin
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
-           poison(critter, - 999);
+         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1  then begin
            reg_anim_clear(critter);
-           tardt = get_proto_data(obj_pid(Critter), 244);
-           tardr = get_proto_data(obj_pid(Critter), 272);
+           tardt = get_proto_data(crit_pid, 244);
+           tardr = get_proto_data(crit_pid, 272);
            poisondeath = 1;
-           poison(critter, - 999);
            critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
-           set_proto_data(obj_pid(Critter), 244, 0);
-           set_proto_data(obj_pid(Critter), 272, 0);
+           poison(critter, -999);
+           set_proto_data(crit_pid, 244, 0);
+           set_proto_data(crit_pid, 272, 0);
            critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
-           set_proto_data(obj_pid(Critter), 244, tardt);
-           set_proto_data(obj_pid(Critter), 272, tardr);
-           if team != TEAM_PLAYER then begin
-           give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+           set_proto_data(crit_pid, 244, tardt);
+           set_proto_data(crit_pid, 272, tardr);
+           if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
+           give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
            end
          end
-          if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso not(losblock) andAlso ShowModMSG != 0 then begin
+          if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso (not(losblock) or HR_fog_of_war == 0) andAlso ShowModMSG != 0 then begin
            display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
          end
       end
@@ -1575,7 +1590,7 @@ procedure regenInRealTime begin
 
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) andAlso not(losblock) then begin
+      if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) andAlso (not(losblock) or HR_fog_of_war == 0) then begin
         if RegenTickHP == 1 then begin
         display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
         end
@@ -1605,13 +1620,12 @@ procedure ModInTurnBased begin
      RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
      if RegenTickHP < 1 then begin RegenTickHP = 1; end
      if ((CritterTurnStatus == 0) andAlso (crithr > 5)) andAlso ((critcurhp < critmaxhp) or (critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(critter)))then begin
-
-                  if critcurhp + RegenTickHP >= critmaxhp then begin
-                    RegenTickHP = critmaxhp - critcurhp;
-                  end
+       if critcurhp + RegenTickHP >= critmaxhp then begin
+         RegenTickHP = critmaxhp - critcurhp;
+       end
      critter_heal(Critter, RegenTickHP);
      losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-     if ShowFloatMSG != 0 andAlso get_poison(critter) < 1 andAlso RegenTickHP > 0 and not(losblock) then begin
+     if ShowFloatMSG != 0 andAlso get_poison(critter) < 1 andAlso RegenTickHP > 0 and (not(losblock) or HR_fog_of_war == 0) then begin
      float_msg(critter, "+" + RegenTickHP, FLOAT_MSG_GREEN);
      end
      if critter == dude_obj then begin
@@ -1665,6 +1679,7 @@ procedure ModInTurnBased begin
             critter_heal(Critter, - (critcurhp - 1));
             set_proto_data(obj_pid(Critter), 244, 0);
             set_proto_data(obj_pid(Critter), 272, 0);
+            set_outline(Critter, OUTLINE_RED_GLOW);
             critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
             set_proto_data(obj_pid(Critter), 244, tardt);
             set_proto_data(obj_pid(Critter), 272, tardr);
@@ -1677,7 +1692,7 @@ procedure ModInTurnBased begin
            end
       end
       losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-      if ShowFloatMSG != 0 andAlso not(losblock) then begin
+      if ShowFloatMSG != 0 andAlso (not(losblock) or HR_fog_of_war == 0) then begin
         if PoisonTickDmg > 0 andAlso RegenMod != 0 then begin
          if RegenMod != 0 andAlso PoisonTickDmg > 0 andAlso crithr > 5 then begin
            if PoisonTickDmg > RegenTickHP then begin
@@ -1996,7 +2011,7 @@ procedure map_enter_p_proc begin
      set_proto_data(81, PROTO_DR_AMOUNT_1_C, 2);
      set_proto_data(81, PROTO_DR_AMOUNT_2_C , -2);
      set_proto_data(81, PROTO_DR_AMOUNT_3_C , 0);
-     // набор по уходу hr + 1
+     // pretty & glamour care kit
      set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
      set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
      // iguana bits
@@ -2066,7 +2081,7 @@ procedure map_enter_p_proc begin
      set_proto_data(468, PROTO_DR_STAT_C, STAT_carry_amt);
      set_proto_data(468, PROTO_DR_AMOUNT_1_A, 2);
      set_proto_data(468, PROTO_DR_AMOUNT_1_C, 3);
-     set_proto_data(468, PROTO_DR_DURATION_1, 30);
+     set_proto_data(468, PROTO_DR_DURATION_1, 930);
      set_proto_data(468, PROTO_DR_AMOUNT_2_A, 0);
      set_proto_data(468, PROTO_DR_AMOUNT_2_C, -3);
      set_proto_data(468, PROTO_DR_DURATION_2, 0);

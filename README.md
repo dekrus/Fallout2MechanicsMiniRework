@@ -68,6 +68,8 @@ Color indication of sneak detection works for original and new sneak mechanics.
 As long as sneaking player is within the detection range of an watching NPC, that NPC will be outlined:
 
 - Red    - Player has been detected.
+- Purple - (Steal mod only) Player has been detected, but the NPC will not notice an attempt to steal from other NPCs.
+- Gray   - (Fog of War disabled) Not detected, but player will be detected if line of sight becomes unblocked
 - Yellow - Not detected, but player will be detected if approaching ~2-3 hexes closer.
 - Green  - Not detected, safe to approach.
 ![Sneak](images/SneakDetection.jpg)

@@ -1,4 +1,7 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+//#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (get_flags(obj) bwand FLAG_LIGHTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
+#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
+#define is_wall(obj)   obj_type(obj) == OBJ_TYPE_WALL
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -12,11 +15,16 @@ variable Critter = 0;
 variable highlight_key = -1;
 variable fo2tweaks_highlighting = 0;
 variable min_perception_range_ini;
+variable ddraw_ShootThru_Fix;
+variable HR_fog_of_war;
+variable StealRebalance;
+variable last_refresh_time;
 
 procedure start;
 procedure sneak_check;
 procedure sign_handler;
 procedure disable_highlight;
+procedure refresh_outlines;
 
 procedure start begin
    if game_loaded then begin
@@ -25,18 +33,128 @@ procedure start begin
       armor_penalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
       min_perception_range_ini = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|MinDetectionRange");
       if SneakDetection != 0 or SneakRework != 0 then begin
+         StealRebalance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
          register_hook_proc(HOOK_WITHINPERCEPTION, sneak_check);
          register_hook_proc(HOOK_COMBATTURN, sign_handler);
          register_hook_proc(HOOK_KEYPRESS, disable_highlight);
-         set_global_script_type(1);
-         set_global_script_repeat(0);
+         ddraw_ShootThru_Fix = get_ini_setting("ddraw.ini|Misc|ObjCanSeeObj_ShootThru_Fix");
          fo2tweaks_highlighting = get_ini_setting("mods\\fo2tweaks.ini|main|highlighting");
+         HR_fog_of_war = get_ini_setting("f2_res.ini|MAPS|FOG_OF_WAR");
          if fo2tweaks_highlighting != 0 then begin
             highlight_key = get_ini_setting("mods\\fo2tweaks.ini|highlighting|key");
          end
       end
+      set_global_script_type(1);
+      set_global_script_repeat(0);
    end
 end
+
+procedure refresh_outlines begin
+   variable time = game_time;
+   if time > last_refresh_time then begin
+      tile_refresh_display;
+      last_refresh_time = (time + (ONE_GAME_SECOND / 5));
+   end
+end
+
+//by JimTheDinosaur https://nma-fallout.com/threads/stuff-for-define_extra-h.202989/page-2
+procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
+  	variable temp_dist = tile_distance(begin_tile, dest_tile);
+  	variable temp_rot = rotation_to_tile(begin_tile, dest_tile);
+  	if temp_rot == 4 then begin
+  	   if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 5, temp_dist), dest_tile) then
+  	      temp_rot = 5;
+  	   else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 3, temp_dist), dest_tile) then
+  	      temp_rot = 3;
+  	   end
+  	   else if temp_rot == 1 then begin
+  	   if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 0, temp_dist), dest_tile) then
+  	      temp_rot = 0;
+  	   else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 2, temp_dist), dest_tile) then
+  	      temp_rot = 2;
+  	end
+  	return temp_rot;
+end
+
+//Checking Line of Sight is(not) blocked, taking into account the value of ddraw.ini "ObjCanSeeObj_ShootThru_Fix"
+procedure LOS_is_blocked(variable watcher_obj ,variable target_obj1 ) begin
+   variable blocking_obj;
+   variable last_blocking_obj;
+   variable count = 0;
+   if ddraw_ShootThru_Fix == 0 then begin
+      blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+   end
+   if ddraw_ShootThru_Fix == 1 then begin
+      blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+   end
+   if blocking_obj == target_obj1 then begin
+      return false;
+   end
+   if not(ShootThru(blocking_obj)) then begin
+      return true;
+   end
+   if ddraw_ShootThru_Fix == 0 andAlso blocking_obj != target_obj1 then begin
+      return true;
+   end
+   if blocking_obj != target_obj1 andAlso ShootThru(blocking_obj) then begin
+      while blocking_obj != target_obj1 andAlso ShootThru(blocking_obj) do begin
+         if watcher_obj == blocking_obj then begin
+            return true;
+         end
+         if ddraw_ShootThru_Fix == 0 then begin
+            blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+            return true;
+         end
+         if ddraw_ShootThru_Fix == 1 then begin
+            last_blocking_obj = blocking_obj;
+            blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+            if tile_num(last_blocking_obj) == tile_num(blocking_obj) then begin
+               return true;
+            end
+            if not(ShootThru(blocking_obj)) then begin
+               return true;
+            end
+            if blocking_obj == target_obj1 then begin
+               return false;
+            end
+         end
+         count += 1;
+         if count > 24 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs are in the same tile
+            return true;
+         end
+      end
+   end
+end
+
+//procedure LOS_blocked_by_wall(variable watcher_obj, variable target_obj1) begin
+   //variable blocking_obj;
+   //variable count = 0;
+      //blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_SHOOT);
+   //if blocking_obj == target_obj1 then begin
+      //return false;
+   //end
+   //if is_wall(blocking_obj) then begin
+      //return true;
+   //end
+   //if blocking_obj != target_obj1 andAlso not(is_wall(blocking_obj)) then begin
+      //while blocking_obj != target_obj1 andAlso not(is_wall(blocking_obj)) do begin
+         //if watcher_obj == blocking_obj then begin
+            //return;
+         //end
+         //blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_SHOOT);
+         //if is_wall(blocking_obj) then begin
+            //return true;
+         //end
+         //if blocking_obj == target_obj1 then begin
+            //return false;
+         //end
+         //count += 1;
+         //if count > 25 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs are in the same tile
+            //return;
+         //end
+      //end
+   //end
+//end
 
 procedure disable_highlight begin
    variable event = get_sfall_arg;
@@ -44,11 +162,14 @@ procedure disable_highlight begin
    variable team = -1;
    variable obj;
    variable color;
-   if key == 2 andAlso event == 1 then begin
+   variable obj_elevation;
+   variable player_elevation = elevation(dude_obj);
+   if key == 2 andAlso get_game_mode == 0 then begin
       foreach obj in list_as_array(LIST_CRITTERS) begin
       color = get_outline(obj);
+      obj_elevation = elevation(obj);
       team = has_trait(TRAIT_OBJECT, obj, OBJECT_TEAM_NUM);
-         if team != TEAM_PLAYER andAlso color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW then begin
+         if team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW or color == OUTLINE_PURPLE or color == OUTLINE_GREY) andAlso obj_elevation == player_elevation then begin
          set_outline(obj, OUTLINE_NONE);
          end
       end
@@ -67,11 +188,9 @@ procedure sneak_check begin
    variable distance = 0;
    variable watcher_pe = get_critter_stat(watcher,STAT_pe);
    variable sneak = has_skill(target, SKILL_SNEAK);
-   variable sneakbonus= has_skill(target, SKILL_SNEAK) / 121;
+   variable sneakbonus = 0;
    variable watcher_rot = has_trait(TRAIT_OBJECT, watcher, OBJECT_CUR_ROT);
    variable watcher_rot_to_tar = rotation_to_tile(tile_num(watcher), tile_num(target));
-   variable losblock = 0;
-   variable losblock2 = 0;
    variable misc_flags = 0;
    variable perception_range = 0;
    variable stealthboy = 0;
@@ -89,19 +208,20 @@ procedure sneak_check begin
    variable armor_weight = 0;
    variable min_perception_range = min_perception_range_ini;
    variable watcher_kill_type = critter_kill_type(watcher);
+   variable watcher_elevation = elevation(watcher);
+   variable target_elevation = elevation(target);
    distance_objs(distance, watcher, target);
    watcher_pe = get_critter_stat(watcher,STAT_pe);
-   losblock = obj_blocking_line(target, tile_num(watcher), BLOCKING_TYPE_SHOOT);
-   losblock2 = obj_blocking_line(target, tile_num(watcher), BLOCKING_TYPE_SIGHT);
    orig_dist = (watcher_pe * 5);
    if (get_flags(target) bwand FLAG_TRANSGLASS) then begin
       stealthboy = 1;
    end
-   if watcher != dude_obj andAlso target == dude_obj andAlso SneakDetection == 1 andAlso SneakRework != 1 andAlso distance <= orig_dist andAlso (losblock andAlso (watcher == losblock)  or  Not(losblock2) )  andAlso obj_on_screen(watcher) then begin
+   if SneakRework != 1 andAlso SneakDetection == 1 andAlso not(combat_is_initialized) andAlso team != TEAM_PLAYER andAlso watcher != dude_obj andAlso target == dude_obj andAlso target_elevation == watcher_elevation andAlso obj_on_screen(watcher) then begin
+      sneakbonus = has_skill(target, SKILL_SNEAK) / 121;
       if sneakbonus > 1 then begin
          sneakbonus = 1;
       end
-      if team != TEAM_PLAYER andAlso watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
+      if watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
          orig_dist = (watcher_pe * 5);
          perception_range = (watcher_pe * 5);
          if stealthboy == 1 then begin
@@ -117,7 +237,7 @@ procedure sneak_check begin
             end
          end
       end
-      if team != TEAM_PLAYER andAlso ( watcher_rot == (watcher_rot_to_tar + 3)%6 or watcher_rot == (watcher_rot_to_tar + 2)%6 or watcher_rot == (watcher_rot_to_tar + 4)%6 ) then begin
+      if watcher_rot == (watcher_rot_to_tar + 3)%6 or watcher_rot == (watcher_rot_to_tar + 2)%6 or watcher_rot == (watcher_rot_to_tar + 4)%6 then begin
          if combat_is_initialized then begin
             orig_dist = watcher_pe * 2;
             perception_range = watcher_pe * 2;
@@ -137,34 +257,60 @@ procedure sneak_check begin
          end
       end
       // outline for original sneak formula
-      if SneakDetection == 1 andAlso SneakRework != 1 andAlso target == dude_obj andAlso using_skill(dude_obj,SKILL_SNEAK) then begin
-         if  distance < orig_dist andAlso team != TEAM_PLAYER andAlso distance >= ns_sneak_dist andAlso distance >= perception_range  then begin
-            if sneak_success andAlso color != OUTLINE_GREEN_GLOW then begin
-               set_outline(watcher, OUTLINE_GREEN_GLOW);
+      if using_skill(dude_obj,SKILL_SNEAK) then begin
+         if not(LOS_is_blocked(watcher, target)) then begin
+            if  distance < orig_dist andAlso distance >= ns_sneak_dist andAlso distance >= perception_range  then begin
+               if sneak_success andAlso color != OUTLINE_GREEN_GLOW then begin
+                  set_outline(watcher, OUTLINE_GREEN_GLOW);
+               end
+               if not(sneak_success) andAlso color != OUTLINE_YELLOW then begin
+                  set_outline(watcher, OUTLINE_YELLOW);
+               end
             end
-            if not(sneak_success) andAlso color != OUTLINE_YELLOW then begin
+            if distance < orig_dist andAlso distance < ns_sneak_dist andAlso distance >= perception_range andAlso color != OUTLINE_YELLOW then begin
                set_outline(watcher, OUTLINE_YELLOW);
             end
+            if distance < perception_range then begin
+               if StealRebalance < 2 andAlso color != OUTLINE_RED then begin
+                  set_outline(watcher, OUTLINE_RED);
+               end
+               if StealRebalance == 2 then begin
+                  if light_level < 41216 + (night_vision * 21504) andAlso watcher_kill_type != KILL_TYPE_alien_kills andAlso watcher_kill_type != KILL_TYPE_robot_kills andAlso watcher_kill_type != KILL_TYPE_floater_kills then begin
+                     darkness_penalty = (light_level - (night_vision * 14336)) / 6000;
+                     target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50000; // -2 if 0 light, -0,4 if 50% light
+                  end
+                  target_pe_mult = target_pe_mult + 5;
+                  watcher_rot_to_tar = real_rotation_to_tile(tile_num(watcher), tile_num(target));
+                  if color != OUTLINE_RED andAlso watcher_pe >= 3 andAlso (watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
+                     set_outline(watcher, OUTLINE_RED);
+                  end
+                  if color != OUTLINE_PURPLE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
+                     set_outline(watcher, OUTLINE_PURPLE);
+                  end
+               end
+            end
          end
-         if distance < orig_dist andAlso team != TEAM_PLAYER andAlso distance < ns_sneak_dist andAlso distance >= perception_range andAlso color != OUTLINE_YELLOW then begin
-         set_outline(watcher, OUTLINE_YELLOW);
+         else if HR_fog_of_war == 0 then begin
+            if color != OUTLINE_GREY andAlso distance < perception_range then begin
+               set_outline(watcher, OUTLINE_GREY);
+            end
          end
-         if distance < perception_range andAlso team != TEAM_PLAYER andAlso color != OUTLINE_RED then begin
-         set_outline(watcher, OUTLINE_RED);
-         end
-         tile_refresh_display;
+         call refresh_outlines();
+      end
+      if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+         set_outline(watcher, OUTLINE_NONE);
       end
    end
    // new sneak mechanics
-   if watcher != dude_obj andAlso target == dude_obj andAlso SneakRework == 1 then begin
-         // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
+   if SneakRework == 1 andAlso watcher != dude_obj andAlso team != TEAM_PLAYER andAlso target == dude_obj andAlso target_elevation == watcher_elevation then begin
+      distance_objs(distance, watcher, target);
+      watcher_pe = get_critter_stat(watcher,STAT_pe);
+      watcher_rot_to_tar = real_rotation_to_tile(tile_num(watcher), tile_num(target));
+       // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
       if light_level < 41216 + (night_vision * 21504) andAlso watcher_kill_type != KILL_TYPE_alien_kills andAlso watcher_kill_type != KILL_TYPE_robot_kills andAlso watcher_kill_type != KILL_TYPE_floater_kills then begin
-         darkness_penalty = (light_level - (night_vision * 14336)) / 6000;
+         darkness_penalty = (light_level - (night_vision * 14336)) / 6000;   // darkness_penalty == from  2 (0 light)) to 6 (50% light - basement)
          target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50000; // -2 if 0 light, -0,4 if 50% light
       end
-   // darkness_penalty = from  2 (0 light)) to 6 (50% light - basement)
-
-      if  watcher != dude_obj andAlso team != TEAM_PLAYER then begin
          target_pe_mult = target_pe_mult + 5;
          //facing
          if watcher_rot == watcher_rot_to_tar then begin
@@ -202,7 +348,6 @@ procedure sneak_check begin
                orig_dist = 2 * watcher_pe;
             end
          end
-      end
          // perception penalty if target is blind
       if (watcher_state BWAND DAM_BLIND) andAlso not(watcher_rot == (watcher_rot_to_tar+2)%6 or watcher_rot == (watcher_rot_to_tar+3)%6 or watcher_rot == (watcher_rot_to_tar+4)%6) then begin
          perception_range = watcher_pe * 3;
@@ -220,18 +365,18 @@ procedure sneak_check begin
             end
          end
       //new sneak formula
-      if using_skill(target,SKILL_SNEAK) then begin
          if armor_penalty != 0 then begin
             armor_weight = (get_proto_data(obj_pid(critter_inven_obj(target, INVEN_TYPE_WORN)),PROTO_IT_WEIGHT) * 2 / 3) - 5;
          end
          if sneak < 0 then begin
             sneak = 0;
          end
-         perception_range = round((perception_range * (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
-      end
-         //minimal range
-      if perception_range < min_perception_range andAlso watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
-         perception_range = min_perception_range;
+      if  using_skill(dude_obj,SKILL_SNEAK) then begin
+            perception_range = round((perception_range * (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
+            //minimal range
+         if perception_range < min_perception_range andAlso watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
+            perception_range = min_perception_range;
+         end
       end
          // perception penalty  if target in KO
       if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) then begin
@@ -239,34 +384,58 @@ procedure sneak_check begin
       end
       orig_dist = round(orig_dist);
       perception_range = round(perception_range);
-      if distance < perception_range then begin
-         set_sfall_return(1);
+      if distance < perception_range andAlso not(LOS_is_blocked(watcher, target)) then begin
+         set_sfall_return(2);
       end
-      if distance >= perception_range then begin
+      if distance >= perception_range or LOS_is_blocked(watcher, target) then begin
          set_sfall_return(0);
       end
       // outline for new sneak formula
-         distance_objs(distance, watcher, target);
-         watcher_pe = get_critter_stat(watcher,STAT_pe);
-         losblock = obj_blocking_line(target, tile_num(watcher), BLOCKING_TYPE_SHOOT);
-         losblock2 = obj_blocking_line(target, tile_num(watcher), BLOCKING_TYPE_SIGHT);
-      if SneakDetection == 1 andAlso target == dude_obj andAlso using_skill(dude_obj,SKILL_SNEAK) andAlso team != TEAM_PLAYER andAlso not(combat_is_initialized) andAlso distance <= orig_dist andAlso (losblock andAlso (watcher == losblock)  or  Not(losblock2) )  andAlso obj_on_screen(watcher)  then begin
-         if distance < orig_dist andAlso distance > orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_GREEN_GLOW then begin
-            set_outline(watcher, OUTLINE_GREEN_GLOW);
+      if SneakDetection == 1 andAlso obj_is_visible_flag(watcher) andAlso target == dude_obj  andAlso team != TEAM_PLAYER andAlso not(combat_is_initialized) andAlso obj_on_screen(watcher) then begin
+          if  using_skill(dude_obj,SKILL_SNEAK) then begin
+            if not(LOS_is_blocked(watcher, target)) then begin
+               if distance < orig_dist andAlso distance > orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_GREEN_GLOW then begin
+                  set_outline(watcher, OUTLINE_GREEN_GLOW);
+               end
+               if distance < orig_dist andAlso distance >= perception_range andAlso distance <= orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_YELLOW then begin
+                  set_outline(watcher, OUTLINE_YELLOW);
+               end
+               if distance < perception_range then begin
+                  if StealRebalance < 2 andAlso color != OUTLINE_RED then begin
+                     set_outline(watcher, OUTLINE_RED);
+                  end
+                  if StealRebalance == 2 then begin
+                     if color != OUTLINE_RED andAlso watcher_pe >= 3 andAlso ( watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
+                        set_outline(watcher, OUTLINE_RED);
+                     end
+                     if color != OUTLINE_PURPLE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
+                        set_outline(watcher, OUTLINE_PURPLE);
+                     end
+                  end
+               end
+            end
+            else if HR_fog_of_war == 0 then begin
+               if color != OUTLINE_GREY andAlso distance < perception_range then begin
+                  set_outline(watcher, OUTLINE_GREY);
+               end
+            end
+            call refresh_outlines();
          end
-         if distance < orig_dist andAlso distance >= perception_range andAlso distance <= orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_YELLOW then begin
-            set_outline(watcher, OUTLINE_YELLOW);
+
+         if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+            set_outline(watcher, OUTLINE_NONE);
          end
-         if distance < perception_range andAlso color != OUTLINE_RED then begin
-            set_outline(watcher, OUTLINE_RED);
-         end
-         tile_refresh_display;
+         //if HR_fog_of_war == 1 andAlso LOS_is_blocked(watcher, target) andAlso not(LOS_blocked_by_wall(watcher, target)) then begin
+            //if color != OUTLINE_GREY andAlso distance < perception_range then begin
+               //set_outline(watcher, OUTLINE_GREY);
+            //end
+         //end
       end
+
    end
    // outline off and refresh
-   if SneakDetection == 1 andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (losblock2 andAlso losblock andAlso (watcher != losblock)) or not(using_skill(dude_obj,SKILL_SNEAK)))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW)   then begin
-      set_outline(watcher, OUTLINE_NONE);
-      tile_refresh_display;
+   if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (LOS_is_blocked(watcher, target)) or not(using_skill(dude_obj,SKILL_SNEAK)))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY)   then begin
+      call refresh_outlines();
    end
 end
 
