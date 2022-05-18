@@ -2,6 +2,10 @@
 //#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (get_flags(obj) bwand FLAG_LIGHTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define is_wall(obj)   obj_type(obj) == OBJ_TYPE_WALL
+#define OUTLINE_CYAN   0x6900
+#define OUTLINE_GREEN_NEW   0xC500
+#define OUTLINE_NEW_RED  0x8500
+#define OUTLINE_ORANGE   0x9300
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -164,12 +168,12 @@ procedure disable_highlight begin
    variable color;
    variable obj_elevation;
    variable player_elevation = elevation(dude_obj);
-   if key == 2 andAlso get_game_mode == 0 then begin
+   if key == 2 andAlso get_game_mode == 0 or get_game_mode == COMBAT then begin
       foreach obj in list_as_array(LIST_CRITTERS) begin
       color = get_outline(obj);
       obj_elevation = elevation(obj);
       team = has_trait(TRAIT_OBJECT, obj, OBJECT_TEAM_NUM);
-         if team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW or color == OUTLINE_PURPLE or color == OUTLINE_GREY) andAlso obj_elevation == player_elevation then begin
+         if team != TEAM_PLAYER andAlso (color == OUTLINE_NEW_RED or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_NEW or color == OUTLINE_ORANGE or color == OUTLINE_GREY) andAlso obj_elevation == player_elevation then begin
          set_outline(obj, OUTLINE_NONE);
          end
       end
@@ -260,8 +264,8 @@ procedure sneak_check begin
       if using_skill(dude_obj,SKILL_SNEAK) then begin
          if not(LOS_is_blocked(watcher, target)) then begin
             if  distance < orig_dist andAlso distance >= ns_sneak_dist andAlso distance >= perception_range  then begin
-               if sneak_success andAlso color != OUTLINE_GREEN_GLOW then begin
-                  set_outline(watcher, OUTLINE_GREEN_GLOW);
+               if sneak_success andAlso color != OUTLINE_GREEN_NEW then begin
+                  set_outline(watcher, OUTLINE_GREEN_NEW);
                end
                if not(sneak_success) andAlso color != OUTLINE_YELLOW then begin
                   set_outline(watcher, OUTLINE_YELLOW);
@@ -271,8 +275,8 @@ procedure sneak_check begin
                set_outline(watcher, OUTLINE_YELLOW);
             end
             if distance < perception_range then begin
-               if StealRebalance < 2 andAlso color != OUTLINE_RED then begin
-                  set_outline(watcher, OUTLINE_RED);
+               if StealRebalance < 2 andAlso color != OUTLINE_NEW_RED then begin
+                  set_outline(watcher, OUTLINE_NEW_RED);
                end
                if StealRebalance == 2 then begin
                   if light_level < 41216 + (night_vision * 21504) andAlso watcher_kill_type != KILL_TYPE_alien_kills andAlso watcher_kill_type != KILL_TYPE_robot_kills andAlso watcher_kill_type != KILL_TYPE_floater_kills then begin
@@ -281,11 +285,11 @@ procedure sneak_check begin
                   end
                   target_pe_mult = target_pe_mult + 5;
                   watcher_rot_to_tar = real_rotation_to_tile(tile_num(watcher), tile_num(target));
-                  if color != OUTLINE_RED andAlso watcher_pe >= 3 andAlso (watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
-                     set_outline(watcher, OUTLINE_RED);
+                  if color != OUTLINE_NEW_RED andAlso watcher_pe >= 3 andAlso (watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
+                     set_outline(watcher, OUTLINE_NEW_RED);
                   end
-                  if color != OUTLINE_PURPLE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
-                     set_outline(watcher, OUTLINE_PURPLE);
+                  if color != OUTLINE_ORANGE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
+                     set_outline(watcher, OUTLINE_ORANGE);
                   end
                end
             end
@@ -297,7 +301,7 @@ procedure sneak_check begin
          end
          call refresh_outlines();
       end
-      if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+      if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
          set_outline(watcher, OUTLINE_NONE);
       end
    end
@@ -323,6 +327,7 @@ procedure sneak_check begin
          end
          //from sides
          if watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6 then begin
+            target_pe_mult = target_pe_mult - 1.3;
             orig_dist = (watcher_pe * target_pe_mult);
             perception_range = watcher_pe * target_pe_mult;
             if combat_is_initialized then begin
@@ -372,7 +377,7 @@ procedure sneak_check begin
             sneak = 0;
          end
       if  using_skill(dude_obj,SKILL_SNEAK) then begin
-            perception_range = round((perception_range * (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
+            perception_range = round((perception_range * (105.00000 - ((sneak - armor_weight) / 1.36000))) / 100.00000 - watcher_pe / 4);
             //minimal range
          if perception_range < min_perception_range andAlso watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin
             perception_range = min_perception_range;
@@ -394,22 +399,22 @@ procedure sneak_check begin
       if SneakDetection == 1 andAlso obj_is_visible_flag(watcher) andAlso target == dude_obj  andAlso team != TEAM_PLAYER andAlso not(combat_is_initialized) andAlso obj_on_screen(watcher) then begin
           if  using_skill(dude_obj,SKILL_SNEAK) then begin
             if not(LOS_is_blocked(watcher, target)) then begin
-               if distance < orig_dist andAlso distance > orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_GREEN_GLOW then begin
-                  set_outline(watcher, OUTLINE_GREEN_GLOW);
+               if distance < orig_dist andAlso distance > orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_GREEN_NEW then begin
+                  set_outline(watcher, OUTLINE_GREEN_NEW);
                end
                if distance < orig_dist andAlso distance >= perception_range andAlso distance <= orig_dist - (orig_dist - perception_range) + 2 andAlso color != OUTLINE_YELLOW then begin
                   set_outline(watcher, OUTLINE_YELLOW);
                end
                if distance < perception_range then begin
-                  if StealRebalance < 2 andAlso color != OUTLINE_RED then begin
-                     set_outline(watcher, OUTLINE_RED);
+                  if StealRebalance < 2 andAlso color != OUTLINE_NEW_RED then begin
+                     set_outline(watcher, OUTLINE_NEW_RED);
                   end
                   if StealRebalance == 2 then begin
-                     if color != OUTLINE_RED andAlso watcher_pe >= 3 andAlso ( watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
-                        set_outline(watcher, OUTLINE_RED);
+                     if color != OUTLINE_NEW_RED andAlso watcher_pe >= 3 andAlso ( watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
+                        set_outline(watcher, OUTLINE_NEW_RED);
                      end
-                     if color != OUTLINE_PURPLE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
-                        set_outline(watcher, OUTLINE_PURPLE);
+                     if color != OUTLINE_ORANGE andAlso (watcher_pe < 3 or ((watcher_rot != watcher_rot_to_tar andAlso watcher_rot != (watcher_rot_to_tar+1)%6 andAlso watcher_rot != (watcher_rot_to_tar+5)%6) or ((watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) andAlso  distance > watcher_pe*target_pe_mult/4))) then begin
+                        set_outline(watcher, OUTLINE_ORANGE);
                      end
                   end
                end
@@ -422,7 +427,7 @@ procedure sneak_check begin
             call refresh_outlines();
          end
 
-         if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+         if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso (color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or not(using_skill(dude_obj,SKILL_SNEAK)) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
             set_outline(watcher, OUTLINE_NONE);
          end
          //if HR_fog_of_war == 1 andAlso LOS_is_blocked(watcher, target) andAlso not(LOS_blocked_by_wall(watcher, target)) then begin
@@ -434,7 +439,7 @@ procedure sneak_check begin
 
    end
    // outline off and refresh
-   if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (LOS_is_blocked(watcher, target)) or not(using_skill(dude_obj,SKILL_SNEAK)))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_RED or color == OUTLINE_PURPLE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_GLOW  or color == OUTLINE_GREY)   then begin
+   if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (LOS_is_blocked(watcher, target)) or not(using_skill(dude_obj,SKILL_SNEAK)))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_GREY)   then begin
       call refresh_outlines();
    end
 end

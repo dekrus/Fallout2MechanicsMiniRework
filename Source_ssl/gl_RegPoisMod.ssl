@@ -231,7 +231,7 @@ procedure map_enter_p_proc_handler begin
          poison(critter, -999);
          set_proto_data(obj_pid(Critter), 244, 0);
          set_proto_data(obj_pid(Critter), 272, 0);
-         critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+         critter_dmg(critter, 8, DMG_normal_dam);
          set_proto_data(obj_pid(Critter), 244, tardt);
          set_proto_data(obj_pid(Critter), 272, tardr);
          critter_fid = obj_art_fid(Critter);
@@ -269,8 +269,9 @@ procedure death begin
     variable tardt = 0;
   variable tardr = 0;
   if poisondeath != 0 then begin
-         tardt = get_proto_data(obj_pid(Critter), 244);
-         tardr = get_proto_data(obj_pid(Critter), 272);
+      poison(target, - 999);
+      tardt = get_proto_data(obj_pid(Critter), 244);
+      tardr = get_proto_data(obj_pid(Critter), 272);
       // OUTLINE for fix death animation if fog of war is enabled
       set_outline(target, OUTLINE_RED_GLOW);
       if obj_art_fid(target) == FID_MAPLNT then begin
@@ -365,8 +366,8 @@ procedure COMBATDAMAGE begin
   variable pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
   variable wpnpid = obj_pid(weapon);
   variable wpndmgtype = 0;
-  variable tarhr = 0;
-  variable atkrhr = 0;
+  variable tarhr = get_critter_stat(target, STAT_heal_rate);
+  variable atkrhr = get_critter_stat(attacker, STAT_heal_rate);
   variable burncount = 0;
   variable burn = 0;
   variable Tox = has_fake_perk(perk_poison_mastery_name);
@@ -376,6 +377,9 @@ procedure COMBATDAMAGE begin
   variable rhpoison = has_fake_perk_npc(attacker, (envenomed_msg + rhname));
   variable acthnd = active_hand;
   variable caliber = get_proto_data(wpnpid, PROTO_WP_CALIBER);
+  if weapon > 0 then begin
+     wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
+  end
   if dmgtotar > 0 andAlso weapon != 0 then begin
    // needler poison dmg
    if Tox != 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
@@ -402,10 +406,6 @@ procedure COMBATDAMAGE begin
   end
   // scorch effect from fire dmg ( reduce healing rate )
   if RegenMod != 0 andAlso weapon != 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
-   wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
-   tarhr = get_critter_stat(target, STAT_heal_rate);
-   atkrhr = get_critter_stat(attacker, STAT_heal_rate);
-
      //scorch effect for target(s)
      if dmgtotar > 8 then begin
       for (burncount = 0; burncount < (dmgtotar / 8) ; burncount++) begin
@@ -417,14 +417,6 @@ procedure COMBATDAMAGE begin
          burn = create_object_sid(40, 0, 0, -1);
          add_mult_objs_to_inven(target, burn, 1);
          use_obj_on_obj(burn, target);
-         if target != dude_obj andAlso wpnpid == 159 andAlso tarhr > 5 then begin
-         set_self(target);
-         set_self(target);
-         burn = create_object_sid(40, 0, 0, -1);
-         add_mult_objs_to_inven(target, burn, 1);
-         use_obj_on_obj(burn, target);
-         use_obj_on_obj(burn, target);
-         end
          if pyromaniac > 0 andAlso attacker == dude_obj then begin
            set_self(target);
            set_self(target);
@@ -457,10 +449,9 @@ procedure COMBATDAMAGE begin
    call stimrestore();
   end
   // scorch effect from plasma dmg
-  if RegenMod != 0 andAlso weapon != 0 andAlso wpndmgtype == DMG_plasma then begin
-
+  if RegenMod != 0 andAlso wpndmgtype == DMG_plasma then begin
      //scorch effect for target(s)
-     if dmgtotar > 20 then begin
+     if dmgtotar > 20 andAlso tarhr > 5 then begin
       for (burncount = 0; burncount < (dmgtotar / 20) ; burncount++) begin
         if tarhr > 5 then begin
          stimburn = 1;
@@ -506,7 +497,7 @@ end
 
 procedure stimtoburn begin // turning stimpak to burn debuff
 variable rnd = 0;
-rnd = random(1, 4);
+rnd = random(1, 3);
    if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
      rnd = rnd + 2;
    set_proto_data(40, PROTO_DR_STAT_A, 0);
@@ -1209,7 +1200,7 @@ procedure rest begin
                   //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
                   set_proto_data(obj_pid(Critter), 244, 0);
                   set_proto_data(obj_pid(Critter), 272, 0);
-                  critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+                  critter_dmg(critter, 8, DMG_normal_dam);
                   set_proto_data(obj_pid(Critter), 244, tardt);
                   set_proto_data(obj_pid(Critter), 272, tardr);
                   critter_fid = obj_art_fid(Critter);
@@ -1539,7 +1530,7 @@ procedure poisonInRealTime begin
            poison(critter, -999);
            set_proto_data(crit_pid, 244, 0);
            set_proto_data(crit_pid, 272, 0);
-           critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+           critter_dmg(critter, 8, DMG_normal_dam);
            set_proto_data(crit_pid, 244, tardt);
            set_proto_data(crit_pid, 272, tardr);
            if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
@@ -1615,7 +1606,7 @@ procedure ModInTurnBased begin
   variable tardr = 0;
   variable tar_name = obj_name(critter);
   variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
-  if RegenMod != 0  then begin
+  if RegenMod != 0 andAlso critcurhp > 0 then begin
    if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
      RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
      if RegenTickHP < 1 then begin RegenTickHP = 1; end
@@ -1680,7 +1671,7 @@ procedure ModInTurnBased begin
             set_proto_data(obj_pid(Critter), 244, 0);
             set_proto_data(obj_pid(Critter), 272, 0);
             set_outline(Critter, OUTLINE_RED_GLOW);
-            critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+            critter_dmg(critter, 8, DMG_normal_dam);
             set_proto_data(obj_pid(Critter), 244, tardt);
             set_proto_data(obj_pid(Critter), 272, tardr);
             end
@@ -1774,7 +1765,7 @@ procedure ADJUSTPOISON begin
    critter_heal(Critter, - (pseudoCurrentHP - 1));
    set_proto_data(obj_pid(Critter), 244, 0);
    set_proto_data(obj_pid(Critter), 272, 0);
-   critter_dmg(critter, 1, DMG_normal_dam);
+   critter_dmg(critter, 8, DMG_normal_dam);
    set_proto_data(obj_pid(Critter), 244, tardt);
    set_proto_data(obj_pid(Critter), 272, tardr);
    end

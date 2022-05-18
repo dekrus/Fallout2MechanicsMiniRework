@@ -41,8 +41,8 @@ procedure start begin
       BodyRndHit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|BodyRndHit");
       CrippleMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|CripplingExplosions");
       SwingThrustTweak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SwingThrust");
-      WpnDropCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDrop");
-      WpnDropNonCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropChance");
+      WpnDropCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChance");
+      WpnDropNonCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropNonCriticalChance");
       register_hook_proc_spec(HOOK_COMBATDAMAGE, explosiveinjures);
       register_hook_proc_spec(HOOK_AFTERHITROLL, misstohit);
       register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
@@ -1006,24 +1006,24 @@ procedure misstohit begin
                   end
             end
             if rnd > 3 andAlso rnd <= 12 then begin // 9 %
-                  rnd2 = random(0, 20);
-                  if rnd2 <= 10 then begin // 10 % bonus crit chance
-                  set_sfall_return(CRITICAL_HIT); // crit hit
-                  set_sfall_arg(0, CRITICAL_HIT);
+                  rnd2 = random(0, 100);
+                  if rnd2 <= 15 then begin // 15 % bonus crit chance
                      //Weapon drop on crit
                      rnd3 = random(0, 100);
                      if rnd < WpnDropCrit then begin
                         call Drop_Weapons(target);
                      end
+                     set_sfall_return(CRITICAL_HIT); // crit hit
+                     set_sfall_arg(0, CRITICAL_HIT);
                   end
-                  if rnd2 > 10 then begin
-                  set_sfall_return(hitmiss); // hit or miss not changed
-                  set_sfall_arg(0, hitmiss);
+                  if rnd2 > 15 then begin
                      //Weapon drop on crit
                      rnd3 = random(0, 100);
                      if rnd < WpnDropNonCrit then begin
                         call Drop_Weapons(target);
                      end
+                     set_sfall_return(hitmiss); // hit or miss not changed
+                     set_sfall_arg(0, hitmiss);
                   end
                set_sfall_return(rndarm); // new bodypart 1, 2 - arms
                set_sfall_arg(3, rndarm);
@@ -1032,11 +1032,11 @@ procedure misstohit begin
             end
             if rnd > 12 andAlso rnd <= 23 then begin // 11 %
                   rnd2 = random(0, 100);
-                  if rnd2 <= 10 then begin // 10 % bonus crit chance
+                  if rnd2 <= 12 then begin // 10 % bonus crit chance
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
                   end
-                  if rnd2 > 10 then begin
+                  if rnd2 > 12 then begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
                   end
@@ -1048,7 +1048,7 @@ procedure misstohit begin
             if rnd > 23 andAlso rnd <= 30 andAlso (tar_cur_frm == 10 or (not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)) )
             or (tar_cur_frm == 6 andAlso (rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)))) then begin // 7 %
                   rnd2 = random(0, 100);
-                  if rnd2 <= 15 then begin // 10 % bonus crit chance
+                  if rnd2 <= 15 then begin // 15 % bonus crit chance
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
                   end
