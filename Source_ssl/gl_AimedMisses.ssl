@@ -303,11 +303,13 @@ procedure explosiveinjures begin
                rnd = random(0, (60 + target_st * 3) );
                if rnd < RAcrip then begin
                critter_injure(target, DAM_CRIP_ARM_RIGHT);
+               call Drop_Weapons(target);
                end
 
                rnd = random(0, (60 + target_st * 4) );
                if rnd < LAcrip then begin
                critter_injure(target, DAM_CRIP_ARM_LEFT);
+               call Drop_Weapons(target);
                end
 
                rnd = random(0, (60 + target_pe * 4) );
