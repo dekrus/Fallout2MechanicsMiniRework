@@ -17,6 +17,7 @@
 ## Mods
 - [Poison](#poison)
 - [Healing](#healing)
+- [Explosion injury](#EXPLinjury)
 - [Misses](#misses)
   - [Random bodypart hit](#random-bodypart-hit)
 - [Sneak](#sneak)
@@ -56,7 +57,7 @@ Changes how misses work in a more "logical" way.
 - The position of body parts (and accordingly, the possibility of hit them) changes depending on the animation of the target (if target lies face up or down, lies on its side, etc.)
 - Misses of aimed attacks now have a small chance to hit an adjacent body part.
 
-Purple highlights new possible targets if shot misses initial target(crosshair).
+Example: Purple highlights new possible targets if shot misses initial target(crosshair).
 ![Misses](images/Misstohit.jpg)
 
 #### Random bodypart hit
