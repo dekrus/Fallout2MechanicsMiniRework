@@ -31,6 +31,7 @@
 #define msg_player_after_poison_effect 27
 #define msg_UnsafeScripting 28
 #define modmsg(x) message_str_game(new_regpois_msg, x)
+#define Poison_amt 50
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -761,9 +762,11 @@ procedure USEOBJON begin
      set_sfall_return(0);
      end
      else begin
-     set_self(target);
-     attack(user);
-     set_self(0);
+        if get_poison(target) + Poison_amt * get_critter_stat(target, STAT_poison_resist) / 100 < 99 then begin
+        set_self(target);
+        attack(user);
+        set_self(0);
+        end
      end
    end
   end
@@ -1091,6 +1094,7 @@ procedure rest begin
      poisondeath = 0;
      tar_name = obj_name(critter);
      team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+     crit_pid = obj_pid(critter);
            // regen while resting/time skipping
               if RegenMod != 0 andAlso ((critter != dude_obj andAlso get_poison(Critter) < 1) or critter == dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 then begin
                if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
@@ -1178,7 +1182,7 @@ procedure rest begin
                end
                poison(critter, - (1 + (round (get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
                if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-                 if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+                 if (get_critter_stat(critter, STAT_current_hp) - PoisonTickDmg) < 1 then begin
                   if critter == healfromskill then begin
                   deadtarget += 1;
                   end
@@ -1192,21 +1196,19 @@ procedure rest begin
                   else begin
                   poison(critter, - 999);
                   reg_anim_clear(critter);
-                  // display_msg(obj_name(Critter) + " получает " + PoisonTickDmg + " ед. урона от яда и умирает от отравления.");
-                  tardt = get_proto_data(obj_pid(Critter), 244);
-                  tardr = get_proto_data(obj_pid(Critter), 272);
+                  tardt = get_proto_data(crit_pid, 244);
+                  tardr = get_proto_data(crit_pid, 272);
                   poisondeath = 1;
                   poison(critter, - 999);
-                  //critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
-                  set_proto_data(obj_pid(Critter), 244, 0);
-                  set_proto_data(obj_pid(Critter), 272, 0);
+                  critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp) - 1));
+                  set_proto_data(crit_pid, 244, 0);
+                  set_proto_data(crit_pid, 272, 0);
                   critter_dmg(critter, 8, DMG_normal_dam);
-                  set_proto_data(obj_pid(Critter), 244, tardt);
-                  set_proto_data(obj_pid(Critter), 272, tardr);
+                  set_proto_data(crit_pid, 244, tardt);
+                  set_proto_data(crit_pid, 272, tardr);
                   critter_fid = obj_art_fid(Critter);
-                  crit_pid = obj_pid(critter);
                   if critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
-                  give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+                  give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
                   end
                   end
                  end
@@ -1598,7 +1600,7 @@ procedure ModInTurnBased begin
   variable CritterTurnStatus = get_sfall_arg;
   variable Critter = get_sfall_arg;
   variable critmaxhp = get_critter_stat(critter, STAT_max_hp);
-  variable critcurhp = get_critter_stat(Critter, STAT_current_hp );
+  variable critcurhp = get_critter_stat(Critter, STAT_current_hp);
   variable crithr = get_critter_stat(critter, STAT_heal_rate);
   variable critcurpoison = get_poison(Critter);
   variable losblock = 0;
@@ -1654,7 +1656,7 @@ procedure ModInTurnBased begin
         display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
       end
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-           if (critcurhp - PoisonTickDmg) < 1 then begin
+           if (get_critter_stat(Critter, STAT_current_hp) - PoisonTickDmg) < 1 then begin
             if team == TEAM_PLAYER then begin
               critter_heal(Critter, - PoisonTickDmg * 2);
               if ShowModMSG != 0 then begin
@@ -1667,7 +1669,7 @@ procedure ModInTurnBased begin
             poisondeath = 1;
             party_remove(critter);
             poison(critter, - 999);
-            critter_heal(Critter, - (critcurhp - 1));
+            critter_heal(Critter, - (get_critter_stat(Critter, STAT_current_hp) - 1));
             set_proto_data(obj_pid(Critter), 244, 0);
             set_proto_data(obj_pid(Critter), 272, 0);
             set_outline(Critter, OUTLINE_RED_GLOW);
@@ -1732,6 +1734,7 @@ procedure ADJUSTPOISON begin
   variable pseudoCurrentHP = 0;
   variable poisonres = 0;
   variable repeat = 0;
+  variable crit_pid= 0;
   variable tardt = 0;
   variable tardr = 0;
   variable tar_name = 0;
@@ -1748,26 +1751,27 @@ procedure ADJUSTPOISON begin
   team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
   tar_name = obj_name(Critter);
   kill_type = critter_kill_type(critter);
+  crit_pid = obj_pid(Critter);
   // preventing robots from getting poison level
   if kill_type == KILL_TYPE_robot_kills then begin
       set_sfall_return(0);
   end
-  if get_critter_stat(critter, STAT_max_hp ) < 400 andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == dude_obj) or ((get_poison(critter) + originalPoisonDecay) >= 100 andAlso critter != dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) then begin
+  if get_critter_stat(critter, STAT_max_hp ) < 400 andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == dude_obj) or ((get_poison(critter) + originalPoisonDecay * poisonres / 100) >= 100 andAlso critter != dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) then begin
    if team == TEAM_PLAYER then begin
       critter_heal(Critter, - pseudoCurrentHP * 2);
    end
    else begin
-   tardt = get_proto_data(obj_pid(Critter), 244);
-   tardr = get_proto_data(obj_pid(Critter), 272);
+   tardt = get_proto_data(crit_pid, 244);
+   tardr = get_proto_data(crit_pid, 272);
    poisondeath = 1;
    party_remove(critter);
    poison(critter, - 999);
    critter_heal(Critter, - (pseudoCurrentHP - 1));
-   set_proto_data(obj_pid(Critter), 244, 0);
-   set_proto_data(obj_pid(Critter), 272, 0);
+   set_proto_data(crit_pid, 244, 0);
+   set_proto_data(crit_pid, 272, 0);
    critter_dmg(critter, 8, DMG_normal_dam);
-   set_proto_data(obj_pid(Critter), 244, tardt);
-   set_proto_data(obj_pid(Critter), 272, tardr);
+   set_proto_data(crit_pid, 244, tardt);
+   set_proto_data(crit_pid, 272, tardr);
    end
    display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), tar_name, pseudoPoisonLevel));
   end
@@ -1899,7 +1903,7 @@ procedure map_enter_p_proc begin
    set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, STAT_current_poison);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, STAT_ag);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, 50);
+   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, Poison_amt);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, -2);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 30);
    set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_A, 0);

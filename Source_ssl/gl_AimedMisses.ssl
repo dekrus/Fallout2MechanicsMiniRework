@@ -30,8 +30,6 @@ variable tardt;
 variable tardr;
 variable thrusthit;
 variable weapon;
-variable dropped_hex;
-variable critter_flags;
 variable WpnDropCrit;
 variable WpnDropNonCrit;
 
@@ -52,14 +50,17 @@ procedure start begin
 end
 
 //by Nirran http://www.nirran.com/Fallout2Scripts.php
+//Slightly changed. Unarmed combat weapons and if the target is knocked out no wpn_drop
 procedure Drop_Weapons(variable arg0)
 begin
    variable weapon_anim;
-   critter_flags = get_proto_data(obj_pid(arg0), 32);
+   variable tar_cur_frm = get_object_data(arg0, OBJ_DATA_CUR_FRM);
+   variable critter_flags = get_proto_data(obj_pid(arg0), 32);
+   variable dropped_hex;
    if (critter_inven_obj(arg0, 1)) then begin
       weapon = critter_inven_obj(arg0, 1);
-      weapon_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM); // added a check to see if a weapon belongs to unarmed combat
-      if (not(critter_flags bwand 64)) andAlso weapon_anim != 0 then begin
+      weapon_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM); // to not drop unarmed combat weapons (wpn anim = punch)
+      if (not(critter_flags bwand 64)) andAlso tar_cur_frm == 0 andAlso weapon_anim != 0 then begin
          rm_obj_from_inven(arg0, weapon);
          dropped_hex = tile_num_in_direction(tile_num(arg0), random(0, 5), random(1, 2));
          while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) do begin
@@ -70,8 +71,8 @@ begin
    end
    if (critter_inven_obj(arg0, 2)) then begin
       weapon = critter_inven_obj(arg0, 2);
-      weapon_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM); // added a check to see if a weapon belongs to unarmed combat
-      if (not(critter_flags bwand 64)) andAlso weapon_anim != 0 then begin
+      weapon_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM); // to not drop unarmed combat weapons (wpn anim = punch)
+      if (not(critter_flags bwand 64)) andAlso tar_cur_frm == 0 andAlso weapon_anim != 0 then begin
          rm_obj_from_inven(arg0, weapon);
          dropped_hex = tile_num_in_direction(tile_num(arg0), random(0, 5), random(1, 2));
          while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) do begin
@@ -475,7 +476,6 @@ procedure misstohit begin
       critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
       tar_fid = obj_art_fid(target);
-
    //determining the type of attack
       if get_object_data(combat_data, C_ATTACK_HIT_MODE) == ATKTYPE_LWEP1 then begin // left first attack mode range
       wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_1);

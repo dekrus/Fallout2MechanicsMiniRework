@@ -1,3 +1,12 @@
+### Version 1.4
+##### Regen & Poison mod
+- Fixed regeneration penalty if the target takes fire or plasma damage.
+- Lethal poison damage should no longer knock back the target.
+##### Miss mod
+- Restored weapon drop chance when receiving a critical hit in arm.
+##### Sneak Detection mod
+- Fixed outline during combat if the player was in stealth mode before.
+
 ### Version 1.3
 ##### Regen & Poison mod
 - Pop-up damage numbers are displayed adjusted for line-of-sight blocking in combat depending on the fog of war option enabled.
