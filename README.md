@@ -43,6 +43,11 @@ Replaces the instant stimpak heal with a regeneration over time.
 - Fire and plasma damage temporarily reduces the target's regeneration.
 - New bonus perk "Regeneration", which is automatically added if the base "Healing rate" is more than 5, adding a chance to heal injured limbs while regenerating HP.
 
+### Explosion injury
+Received damage from grenades (including plasma grenade, as well as EMP for robots), grenade launchers and other explosive weapons if it exceeds 10% of the !current! health points can cause damage to the arms/legs/eyes.  
+(The probability is configured in the ini file and also depends on some S.P.E.C.I.A.L. of the target).
+- Explosive hand injury can cause weapons to fall out of hand.
+
 ### Misses
 Changes how misses work in a more "logical" way.
 

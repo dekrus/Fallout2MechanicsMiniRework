@@ -5,7 +5,9 @@
 ##### Miss mod
 - Restored weapon drop chance when receiving a critical hit in arm.
 ##### Sneak Detection mod
-- Fixed outline during combat if the player was in stealth mode before.
+- Fixed outline during combat if the player was in stealth mode before it starts.
+##### Explosion injury mod
+- Added: Explosive hand injury can cause weapons to fall out of hand.
 
 ### Version 1.3
 ##### Regen & Poison mod
