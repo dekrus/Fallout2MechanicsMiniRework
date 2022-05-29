@@ -510,11 +510,11 @@ procedure steal_skill_use begin
                end
             end
             if tar_fid != FID_NACHLD andAlso tar_fid != 16777336 andAlso tar_fid != FID_NMLOSR andAlso tar_fid != FID_NFTRMP andAlso tar_fid != 16777325 then begin
-               if rnd < 4 andAlso rnd > 0 then begin
+               if rnd > 0 then begin
                float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
                end
-               if rnd < 1 then begin
-               float_msg(target, "?", FLOAT_MSG_YELLOW);
+               if rnd == 0 then begin
+               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_NORMAL);
                end
             end
       end
