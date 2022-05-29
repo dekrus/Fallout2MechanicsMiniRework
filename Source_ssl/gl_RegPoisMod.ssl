@@ -30,6 +30,10 @@
 #define msg_npc_reach_poison_lethal_value 26
 #define msg_player_after_poison_effect 27
 #define msg_UnsafeScripting 28
+#define msg_failedPoisoning1 29
+#define msg_failedPoisoning2 30
+#define msg_failedPoisoning3 31
+#define msg_failedPoisoning4 32
 #define modmsg(x) message_str_game(new_regpois_msg, x)
 #define Poison_amt 50
 #define OUTLINE_NEW_RED  0x8500
@@ -763,7 +767,7 @@ procedure USEOBJON begin
      display_msg(failed_sneak_use_msg);
      end
      if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 andAlso obj_art_fid(target) != 16777325 then begin
-     float_msg(target, g_mstr(random(3054, 3058)), FLOAT_COLOR_BAD);
+     float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_BAD);
      set_sfall_return(0);
      end
      else begin

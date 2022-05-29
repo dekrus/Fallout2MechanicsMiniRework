@@ -26,3 +26,7 @@
 {26}{}{%1%: Poison level has reached a lethal value!}
 {27}{}{You feel the aftereffect of poisoning.}
 {28}{}{Regeneration: To enable alternative stimpack mechanics in ddraw.ini the "AllowUnsafeScripting" option must be enabled.}
+{29}{}{I don't think we know each other *that* well.}
+{30}{}{Get it away from me!}
+{31}{}{Hands off!}
+{32}{}{Hey! Back off.}

@@ -7,3 +7,10 @@
 {7}{}{?} // weak NPC response on failed pickpocket
 {8}{}{!} // weak NPC response on failed pickpocket
 {9}{}{You are not skilled enough to peek into your target's pocket.} // response on failed pickpocket
+{10}{}{I don't have anything to steal, you idiot.}
+{11}{}{I don't think we know each other *that* well.}
+{12}{}{Get your hands off of me.}
+{13}{}{Hands off!}
+{14}{}{Hey! Back off.}
+{15}{}{!}
+{16}{}{That's mine; hands off!}

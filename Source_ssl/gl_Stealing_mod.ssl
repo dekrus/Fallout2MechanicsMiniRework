@@ -9,9 +9,13 @@
 #define msg_weak1 7
 #define msg_weak2 8
 #define msg_cant_pickpocket 9
-#define msg_got_xp 10
-#define msg_healed_for 11
-#define msg_dead 12
+#define msg_caught1 10
+#define msg_caught2 11
+#define msg_caught3 12
+#define msg_caught4 13
+#define msg_caught5 14
+#define msg_caught6 15
+#define msg_caught7 16
 #define modmsg(x) message_str_game(new_steal_msg, x)
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define NO_STEAL(obj)    (get_proto_data(obj_pid(obj), PROTO_CR_FLAGS) bwand CFLG_NOSTEAL)
@@ -502,15 +506,15 @@ procedure steal_skill_use begin
                float_msg(target, modmsg(msg_weak1), FLOAT_MSG_YELLOW);
                end
                if rnd == 3 or pickpocket_count > 2 then begin
-               float_msg(target, modmsg(msg_weak2), FLOAT_MSG_RED);
+               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
                end
             end
             if tar_fid != FID_NACHLD andAlso tar_fid != 16777336 andAlso tar_fid != FID_NMLOSR andAlso tar_fid != FID_NFTRMP andAlso tar_fid != 16777325 then begin
                if rnd < 4 andAlso rnd > 0 then begin
-               float_msg(target, g_mstr(random(3054, 3064)), FLOAT_COLOR_BAD);
+               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
                end
                if rnd < 1 then begin
-               float_msg(target, g_mstr(random(3050, 3052)), FLOAT_COLOR_BAD);
+               float_msg(target, "?", FLOAT_MSG_YELLOW);
                end
             end
       end
