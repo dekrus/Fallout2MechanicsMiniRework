@@ -14,7 +14,8 @@
 
 variable SneakDetection;
 variable SneakRework;
-variable armor_penalty;
+variable SneakArmorPenalty;
+variable SneakCombatPenalty;
 variable Critter = 0;
 variable highlight_key = -1;
 variable fo2tweaks_highlighting = 0;
@@ -34,7 +35,8 @@ procedure start begin
    if game_loaded then begin
       SneakDetection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakDetection");
       SneakRework = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
-      armor_penalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
+      SneakArmorPenalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
+      SneakCombatPenalty = atof(get_ini_string ("mods\\F2MechanicsMiniRework.ini|Sneak|SneakCombatPenalty"));
       min_perception_range_ini = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|MinDetectionRange");
       if SneakDetection != 0 or SneakRework != 0 then begin
          StealRebalance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
@@ -370,13 +372,17 @@ procedure sneak_check begin
             end
          end
       //new sneak formula
-         if armor_penalty != 0 then begin
+         if SneakArmorPenalty  != 0 then begin
             armor_weight = (get_proto_data(obj_pid(critter_inven_obj(target, INVEN_TYPE_WORN)),PROTO_IT_WEIGHT) * 2 / 3) - 5;
          end
          if sneak < 0 then begin
             sneak = 0;
          end
       if  using_skill(dude_obj,SKILL_SNEAK) then begin
+         //Combat penalty to sneak skill
+         if SneakCombatPenalty != 0 andAlso SneakCombatPenalty != 1 andAlso combat_is_initialized then begin
+            sneak = round(sneak * SneakCombatPenalty);
+         end
             perception_range = round((perception_range * (105.00000 - ((sneak - armor_weight) / 1.36000))) / 100.00000 - watcher_pe / 4);
             //minimal range
          if perception_range < min_perception_range andAlso watcher_rot != (watcher_rot_to_tar + 3)%6 andAlso watcher_rot != (watcher_rot_to_tar + 2)%6 andAlso watcher_rot != (watcher_rot_to_tar + 4)%6 then begin

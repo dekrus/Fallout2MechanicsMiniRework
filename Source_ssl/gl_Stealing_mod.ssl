@@ -36,6 +36,7 @@ variable MinStealReq;
 variable new_steal_msg;
 //variable SneakDetection;
 variable SneakRework;
+variable MinWpnStealReq;
 
 procedure start;
 procedure steal_handler;
@@ -49,6 +50,7 @@ procedure start begin
       StealRebalance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
       if StealRebalance != 0 then begin
          MinStealReq = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Steal|MinStealReq");
+         MinWpnStealReq = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Steal|MinWpnStealReq");
          register_hook_proc_spec(HOOK_STEAL, steal_handler);
          register_hook_proc(HOOK_GAMEMODECHANGE, game_mode);
          register_hook_proc_spec(HOOK_USESKILL, steal_skill_use);
@@ -181,11 +183,13 @@ procedure steal_handler begin
    // Stealing weapons from hand.
    if item == right_hand_item andAlso stype == 0 then begin
       right_hand_item_target = target;
-      wpn_is_stolen = 1;
+      if who_carry_amount(thief) + obj_weight(right_hand_item) <= who_max_carry(thief) then begin
+         wpn_is_stolen = 1;
+      end
       // Penalty for stealing weapons from hand.
       steal_bonus = steal_bonus - 30 - (item_size) - (item_weight_lvar);
    end
-      // handler to steal from hands
+      // handler to return weapon to hands
    if item == right_hand_item andAlso stype == 1 then begin
       right_hand_item_target = target;
       wpn_is_stolen = 2;
@@ -400,7 +404,7 @@ procedure steal_skill_use begin
          pickpocket_count = 0;
       end
       //the ability to steal weapons from hands if the skill is high enough
-      if user_steal_skill > 160 + target_pe * 5 then begin
+      if user_steal_skill > MinWpnStealReq + target_pe * 5 then begin
       right_hand_item = critter_inven_obj2(target, INVEN_TYPE_RIGHT_HAND);
       right_hand_item_target = target;
       inven_unwield(target);

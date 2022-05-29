@@ -32,6 +32,7 @@
 #define msg_UnsafeScripting 28
 #define modmsg(x) message_str_game(new_regpois_msg, x)
 #define Poison_amt 50
+#define OUTLINE_NEW_RED  0x8500
 
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
 #include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
@@ -75,7 +76,6 @@
    variable RegenTickHP;
    variable RegenTickHP2;
    variable DudeRegenTickHP;
-   variable critter;
    variable PoisonTickDmg;
    variable Nevada;
    variable Sonora;
@@ -191,6 +191,7 @@ procedure map_enter_p_proc_handler begin
   variable team = -1;
   variable critter_fid = 0;
   variable crit_pid = 0;
+  variable critter;
   if stdnum == map_enter_proc then begin
    //game_time_advance(ONE_GAME_SECOND * 5);
    dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
@@ -226,19 +227,21 @@ procedure map_enter_p_proc_handler begin
       end
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
-         tardt = get_proto_data(obj_pid(Critter), 244);
-         tardr = get_proto_data(obj_pid(Critter), 272);
-         poisondeath = 1;
-         poison(critter, -999);
-         set_proto_data(obj_pid(Critter), 244, 0);
-         set_proto_data(obj_pid(Critter), 272, 0);
-         critter_dmg(critter, 8, DMG_normal_dam);
-         set_proto_data(obj_pid(Critter), 244, tardt);
-         set_proto_data(obj_pid(Critter), 272, tardr);
          critter_fid = obj_art_fid(Critter);
          crit_pid = obj_pid(critter);
+         tardt = get_proto_data(crit_pid, 244);
+         tardr = get_proto_data(crit_pid, 272);
+         poisondeath = 1;
+         set_target_knockback(critter, 0, 0);
+         set_outline(critter, OUTLINE_NEW_RED);
+         //poison(critter, -999);
+         set_proto_data(crit_pid, 244, 0);
+         set_proto_data(crit_pid, 272, 0);
+         critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+         set_proto_data(crit_pid, 244, tardt);
+         set_proto_data(crit_pid, 272, tardr);
          if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
-         give_xp((get_proto_data(Obj_pid(critter), PROTO_CR_KILL_EXP)));
+         give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
          end
         end
       end
@@ -267,14 +270,16 @@ procedure death begin
   variable target = get_sfall_arg;
   variable dmgtotar = get_sfall_arg;
   variable deathanim = get_sfall_arg;
-    variable tardt = 0;
+  variable tardt = 0;
   variable tardr = 0;
+  variable crit_pid = obj_pid(target);
+  variable crit_fid = obj_art_fid(target);
   if poisondeath != 0 then begin
-      poison(target, - 999);
-      tardt = get_proto_data(obj_pid(Critter), 244);
-      tardr = get_proto_data(obj_pid(Critter), 272);
       // OUTLINE for fix death animation if fog of war is enabled
-      set_outline(target, OUTLINE_RED_GLOW);
+      set_outline(target, OUTLINE_NEW_RED);
+      //poison(target, - 999);
+      tardt = get_proto_data(crit_pid, 244);
+      tardr = get_proto_data(crit_pid, 272);
       if obj_art_fid(target) == FID_MAPLNT then begin
       reg_anim_animate_reverse(target, ANIM_fall_back, -1);
       end
@@ -992,6 +997,7 @@ procedure map_exit_p_proc begin
   variable critwaspoisoned = 0;
   variable tardt = 0;
   variable team = -1;
+  variable critter;
   dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
   if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
   RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
@@ -1086,6 +1092,7 @@ procedure rest begin
   variable team = -1;
   variable critter_fid = 0;
   variable crit_pid = 0;
+  variable critter;
   RegenTickHP2 = 0;
   gameticks = get_sfall_arg;
   eventtype = get_sfall_arg;
@@ -1096,7 +1103,7 @@ procedure rest begin
      team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
      crit_pid = obj_pid(critter);
            // regen while resting/time skipping
-              if RegenMod != 0 andAlso ((critter != dude_obj andAlso get_poison(Critter) < 1) or critter == dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 then begin
+              if RegenMod != 0 andAlso ((critter != dude_obj andAlso get_poison(Critter) < 1) or critter == dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp)) or (critcrippled(dude_obj) andAlso critter == dude_obj andAlso has_fake_perk(regen_perk_name) != 0) then begin
                if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
                RegenTickHP = ( round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
                if (RegenTickHP < 1) then begin RegenTickHP = 1; end
@@ -1199,11 +1206,13 @@ procedure rest begin
                   tardt = get_proto_data(crit_pid, 244);
                   tardr = get_proto_data(crit_pid, 272);
                   poisondeath = 1;
-                  poison(critter, - 999);
+                  set_outline(critter, OUTLINE_NEW_RED);
+                  set_target_knockback(critter, 0, 0);
+                  //poison(critter, - 999);
                   critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp) - 1));
                   set_proto_data(crit_pid, 244, 0);
                   set_proto_data(crit_pid, 272, 0);
-                  critter_dmg(critter, 8, DMG_normal_dam);
+                  critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
                   set_proto_data(crit_pid, 244, tardt);
                   set_proto_data(crit_pid, 272, tardr);
                   critter_fid = obj_art_fid(Critter);
@@ -1241,6 +1250,7 @@ procedure worldMapTravel begin
   variable poisonedcrit = 0;
   variable tar_name = 0;
   variable team = -1;
+  variable critter;
   gamemode = get_game_mode;
   RegenTickHP2 = 0;
   dudehrcount2 = 0;
@@ -1380,6 +1390,7 @@ procedure poisonInRealTime begin
   variable critter_fid = 0;
   variable game_mode = get_game_mode;
   variable crit_pid = 0;
+  variable critter;
   // weapon poisonBuff deacay for dude & party members
    foreach (critter in party_member_list(0)) begin
    tar_name = obj_name(Critter);
@@ -1528,11 +1539,13 @@ procedure poisonInRealTime begin
            tardt = get_proto_data(crit_pid, 244);
            tardr = get_proto_data(crit_pid, 272);
            poisondeath = 1;
+           set_target_knockback(critter, 0, 0);
+           set_outline(critter, OUTLINE_NEW_RED);
            critter_heal(Critter, - (get_critter_stat(critter, STAT_current_hp ) - 1));
-           poison(critter, -999);
+           //poison(critter, -999);
            set_proto_data(crit_pid, 244, 0);
            set_proto_data(crit_pid, 272, 0);
-           critter_dmg(critter, 8, DMG_normal_dam);
+           critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
            set_proto_data(crit_pid, 244, tardt);
            set_proto_data(crit_pid, 272, tardr);
            if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
@@ -1556,6 +1569,7 @@ procedure regenInRealTime begin
   variable losblock = 0;
   variable game_mode = get_game_mode;
   variable tar_name = 0;
+  variable critter;
   if RegenMod != 0 andAlso game_time > combatendtime + 20 then begin
    foreach (critter in list_as_array(0)) begin
      tar_name = obj_name(critter);
@@ -1608,6 +1622,7 @@ procedure ModInTurnBased begin
   variable tardr = 0;
   variable tar_name = obj_name(critter);
   variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
+  variable crit_pid = obj_pid(Critter);
   if RegenMod != 0 andAlso critcurhp > 0 then begin
    if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
      RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
@@ -1664,18 +1679,19 @@ procedure ModInTurnBased begin
               end
             end
             else begin
-            tardt = get_proto_data(obj_pid(Critter), 244);
-            tardr = get_proto_data(obj_pid(Critter), 272);
+            set_outline(critter, OUTLINE_NEW_RED);
+            tardt = get_proto_data(crit_pid, 244);
+            tardr = get_proto_data(crit_pid, 272);
             poisondeath = 1;
+            set_target_knockback(critter, 0, 0);
             party_remove(critter);
-            poison(critter, - 999);
+            //poison(critter, - 999);
             critter_heal(Critter, - (get_critter_stat(Critter, STAT_current_hp) - 1));
-            set_proto_data(obj_pid(Critter), 244, 0);
-            set_proto_data(obj_pid(Critter), 272, 0);
-            set_outline(Critter, OUTLINE_RED_GLOW);
-            critter_dmg(critter, 8, DMG_normal_dam);
-            set_proto_data(obj_pid(Critter), 244, tardt);
-            set_proto_data(obj_pid(Critter), 272, tardr);
+            set_proto_data(crit_pid, 244, 0);
+            set_proto_data(crit_pid, 272, 0);
+            critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+            set_proto_data(crit_pid, 244, tardt);
+            set_proto_data(crit_pid, 272, tardr);
             end
            end
            else begin
@@ -1764,12 +1780,14 @@ procedure ADJUSTPOISON begin
    tardt = get_proto_data(crit_pid, 244);
    tardr = get_proto_data(crit_pid, 272);
    poisondeath = 1;
+   set_outline(critter, OUTLINE_NEW_RED);
+   set_target_knockback(critter, 0, 0);
    party_remove(critter);
-   poison(critter, - 999);
+   //poison(critter, - 999);
    critter_heal(Critter, - (pseudoCurrentHP - 1));
    set_proto_data(crit_pid, 244, 0);
    set_proto_data(crit_pid, 272, 0);
-   critter_dmg(critter, 8, DMG_normal_dam);
+   critter_dmg(critter, pseudoCurrentHP, DMG_normal_dam);
    set_proto_data(crit_pid, 244, tardt);
    set_proto_data(crit_pid, 272, tardr);
    end
