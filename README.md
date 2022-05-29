@@ -10,14 +10,14 @@
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable or fine tune components as you desire.
 
 ## Сontents
-- [Mods](#Meckanics-mods)
+- [Mods](#mods)
 - [Compatibility](#compatibility)
 - [Unistallation](#uninstallation)
 
 ## Mods
-- [Poison](#poison)
-- [Healing](#healing)
-- [Explosion injury](#EXPLinjury)
+- [Poison](#Poison-(Requires-SpeedInterfaceCounterAnims-=-2"-in-ddraw.ini))
+- [Healing](#healing-(Requires-SpeedInterfaceCounterAnims-=-2"-in-ddraw.ini))
+- [Explosion injury](#explosion-injury)
 - [Misses](#misses)
   - [Random bodypart hit](#random-bodypart-hit)
 - [Sneak](#sneak)
@@ -66,11 +66,11 @@ Also can be enabled for player.
 
 ### Sneak
 Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map.  
-Low illumination penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).  
-Detection range = round((perception_range x (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
+Low light condition penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).  
+Detection range formula = round((perception_range x (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
 
 #### Sneak detection
-Color indication of sneak detection works for original and new sneak mechanics.
+Color indication of sneak detection, that works for original and new sneak mechanics.
 As long as sneaking player is within the detection range of an watching NPC, that NPC will be outlined:
 
 - Red    - Player has been detected.
