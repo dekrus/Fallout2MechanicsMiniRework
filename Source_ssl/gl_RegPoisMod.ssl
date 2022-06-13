@@ -162,6 +162,7 @@ procedure start begin
    failed_sneak_use_msg = modmsg(msg_failed_poison_sneak);
    sfall_unsafescripting_msg = modmsg(msg_UnsafeScripting);
    call map_enter_p_proc();
+   intface_redraw;
    stimtimer = (game_time + 500);
    gamemode = get_game_mode;
    combatendtime = game_time;
@@ -175,8 +176,8 @@ procedure start begin
       end
    end
    //regenperk activation
-   if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
-		call newperks();
+      if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
+		   call newperks();
 		end
   end
   else begin
@@ -704,11 +705,11 @@ procedure USEOBJ begin
    end
   end
   if PoisonMod != 0 andAlso (obj_pid(obj) == 591 or obj_pid(obj) == 92) then begin
-   if has_fake_perk_npc(user, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
+   if acthnd == 1 andAlso has_fake_perk_npc(user, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
      set_fake_perk_npc(user, (envenomed_msg + rhname), 10 + (5 * tox), 23, envenomed_description_msg);
      display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,rhname));
    end
-   if has_fake_perk_npc(user, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
+   if acthnd == 0 andAlso has_fake_perk_npc(user, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
      set_fake_perk_npc(user, (envenomed_msg + lhname), 10 + (5 * tox), 23, envenomed_description_msg);
      display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,lhname));
    end
@@ -745,6 +746,7 @@ procedure USEOBJON begin
    variable tar_name = obj_name(target);
    variable user_team = has_trait(TRAIT_OBJECT, user, OBJECT_TEAM_NUM);
    variable tar_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+   variable tar_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
    //divides the duration of drug by 4 (examle: from 1 min to 15 sec)
    if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
       // return memory to normal if was modified
@@ -766,7 +768,7 @@ procedure USEOBJON begin
      if using_skill(dude_obj, SKILL_SNEAK) then begin
      display_msg(failed_sneak_use_msg);
      end
-     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 andAlso obj_art_fid(target) != 16777325 then begin
+     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso tar_type != KILL_TYPE_children_kills andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 andAlso obj_art_fid(target) != 16777325 then begin
      float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_BAD);
      set_sfall_return(0);
      end

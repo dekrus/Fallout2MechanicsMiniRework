@@ -16,6 +16,10 @@
 #define msg_caught5 14
 #define msg_caught6 15
 #define msg_caught7 16
+#define msg_steal_caught_original 17
+#define msg_steal_succes 18
+#define msg_plant_caught_original 19
+#define msg_plant_succes 20
 #define modmsg(x) message_str_game(new_steal_msg, x)
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define NO_STEAL(obj)    (get_proto_data(obj_pid(obj), PROTO_CR_FLAGS) bwand CFLG_NOSTEAL)
@@ -135,6 +139,7 @@ procedure steal_handler begin
    variable user_steal_skill_mult = 1.50000;
    variable tar_pid = obj_pid(target);
    variable item_pid = obj_pid(item);
+   variable item_name = obj_name(item);
    variable item_cost = 0;
    variable target_pe = get_critter_stat(target, STAT_pe);
    variable target_base_pe = get_critter_base_stat(target, STAT_pe);
@@ -335,24 +340,25 @@ procedure steal_handler begin
       isSuccess = 1;
    end
    if team != TEAM_PLAYER then begin
-      if StealRebalance == 2 andAlso steal_count == 0 andAlso stype == 0 andAlso isSuccess < 1 then begin
-      display_msg(sprintf(mstr_skill(570 + (isSuccess != false) + stype * 2), obj_name(item)) + parse_str_2(modmsg(msg_cant_steal2), min_skill_needed, 0));
+      if StealRebalance == 2 andAlso steal_count == 0 andAlso isSuccess < 1 then begin
+      //if StealRebalance == 2 andAlso steal_count == 0 andAlso stype == 0 andAlso isSuccess < 1 then begin
+      display_msg(parse_str_2(modmsg(msg_steal_caught_original+stype*2), item_name, 0) + parse_str_2(modmsg(msg_cant_steal2+stype), min_skill_needed, 0));
       steal_count = 0;
       end
-      if StealRebalance == 2 andAlso steal_count == 0 andAlso stype == 1 andAlso isSuccess < 1 then begin
-      display_msg(sprintf(mstr_skill(570 + (isSuccess != false) + stype * 2), obj_name(item)) + parse_str_2(modmsg(msg_cant_plant2), min_skill_needed, 0));
-      steal_count = 0;
-      end
+      //if StealRebalance == 2 andAlso steal_count == 0 andAlso stype == 1 andAlso isSuccess < 1 then begin
+      //display_msg(parse_str_2(modmsg(msg_plant_caught_original), item_name, 0) + parse_str_2(modmsg(msg_cant_plant2), min_skill_needed, 0));
+      //steal_count = 0;
+      //end
       if StealRebalance == 1 or steal_count > 0 or isSuccess > 0 then begin
-      display_msg(sprintf(mstr_skill(570 + (isSuccess != false) + stype * 2), obj_name(item)));
+      display_msg(parse_str_2(modmsg(msg_steal_caught_original + (isSuccess) + stype * 2), item_name, 0));
       end
       if StealRebalance == 1 andAlso chance_to_steal < 1 then begin
-         if stype == 0 then begin
-            display_msg(parse_str_2(modmsg(msg_cant_steal1), obj_name(item), 0));
-         end
-         if stype == 1 then begin
-            display_msg(parse_str_2(modmsg(msg_cant_plant1), obj_name(item), 0));
-         end
+         //if stype == 0 then begin
+            display_msg(parse_str_2(modmsg(msg_cant_steal1+stype), obj_name(item), 0));
+         //end
+         //if stype == 1 then begin
+            //display_msg(parse_str_2(modmsg(msg_cant_plant1), obj_name(item), 0));
+         //end
       end
    end
 end
@@ -441,6 +447,10 @@ procedure steal_skill_use begin
             ally_pe = get_critter_stat(ally, STAT_pe);
             ally_state = critter_state(ally);
             ally_cur_frm = get_object_data(ally, OBJ_DATA_CUR_FRM);
+            //from sides penalty
+            if ally_rot == (ally_rot_to_tar+1)%6 or ally_rot == (ally_rot_to_tar+5)%6 then begin
+               target_pe_mult = target_pe_mult - 1.3;
+            end
             if ally_pe >= 3 andAlso ally_cur_frm == 0 andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/4)) then begin
                if obj_can_see_obj(ally, dude_obj) then begin
                   float_msg(ally, "?", FLOAT_MSG_YELLOW);

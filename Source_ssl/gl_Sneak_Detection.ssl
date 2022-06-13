@@ -2,6 +2,7 @@
 //#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (get_flags(obj) bwand FLAG_LIGHTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define is_wall(obj)   obj_type(obj) == OBJ_TYPE_WALL
+#define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define OUTLINE_CYAN   0x6900
 #define OUTLINE_GREEN_NEW   0xC500
 #define OUTLINE_NEW_RED  0x8500
@@ -412,10 +413,10 @@ procedure sneak_check begin
                   set_outline(watcher, OUTLINE_YELLOW);
                end
                if distance < perception_range then begin
-                  if StealRebalance < 2 andAlso color != OUTLINE_NEW_RED then begin
+                  if (StealRebalance < 2 or not(is_sentient(watcher)))  andAlso color != OUTLINE_NEW_RED then begin
                      set_outline(watcher, OUTLINE_NEW_RED);
                   end
-                  if StealRebalance == 2 then begin
+                  if StealRebalance == 2 andAlso is_sentient(watcher) then begin
                      if color != OUTLINE_NEW_RED andAlso watcher_pe >= 3 andAlso ( watcher_rot == watcher_rot_to_tar or (distance <= watcher_pe*target_pe_mult/4 andAlso (watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6) )) then begin
                         set_outline(watcher, OUTLINE_NEW_RED);
                      end
