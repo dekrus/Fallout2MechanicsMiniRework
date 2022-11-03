@@ -5,7 +5,7 @@
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
-- Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+. it's shipped with the mod. If you have a newer version, you don't need to overwite the dll when extracting the archive. [SFALL]https://sourceforge.net/projects/sfall/files/ 
+- Unzip the archive into main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+. it's shipped with the mod. If you have a newer version, you don't need to overwite the dll when extracting the archive. [SFALL latest release](https://sourceforge.net/projects/sfall/files/) 
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable or fine tune components as you desire.
 
 ## Сontents
@@ -27,7 +27,7 @@
 
 
 ### Poison 
-**(Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)**
+**(Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)**  
 This is a rework of the original poison mechanics, designed to make it more dangerous for both the player and NPCs.
 
 - Now not only the player takes poison damage, but all creatures without poison immunity.
@@ -38,7 +38,7 @@ This is a rework of the original poison mechanics, designed to make it more dang
 - Added new perk "Poison Mastery", available from level 6 and requiring science above 50 or naturalist skill above 70. This perk adds poison dmg when using Needler ammo and also increases the effectiveness of all poisoned weapons.
 
 ### Healing 
-**(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**
+**(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 Replaces instant stimpak healing with healing over time.
 
 - Using a stimpack increases "healing rate" for 3 rounds. To start healing, the "healing rate" must be greater than 5.
