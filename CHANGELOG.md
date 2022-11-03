@@ -1,3 +1,10 @@
+### Version 1.5
+- Added new module for medical tool usage.
+##### Regen & Poison mod
+- Added ability to use Radscorpion Tails for NPCs on their own.
+- Added option in .ini to enable limb healing when using a super stipack.
+- Fixed typos.
+
 ### Version 1.4
 ##### Regen & Poison mod
 - Fixed regeneration penalty if the target takes fire or plasma damage.

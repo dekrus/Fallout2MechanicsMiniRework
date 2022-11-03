@@ -1,6 +1,9 @@
 #define SFALL_SC_EVALUATION  (true) // short - circuit evaluation
 #define critcrippled(crit)          (critter_state(crit) BWAND (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND))
 #define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
+#define critter_art_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),PROTO_FID))
+#define military_fid(critter_obj)   (critter_art_fid(critter_obj) == 16777217 or critter_art_fid(critter_obj) == 16777226 or critter_art_fid(critter_obj) == 16777219 or critter_art_fid(critter_obj) == 16777309 or critter_art_fid(critter_obj) == 16777287)
+#define high_tec_fid(critter_obj)   (critter_art_fid(critter_obj) == 16777287 or critter_art_fid(critter_obj) == 16777301 or critter_art_fid(critter_obj) == 16777217)
 #define msg_file "gl_RegPoisMod.msg"
 #define msg_perk_regen 1
 #define msg_perk_poison_mastery_name 2
@@ -38,12 +41,12 @@
 #define Poison_amt 50
 #define OUTLINE_NEW_RED  0x8500
 
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\define_extra.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.math.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.strings.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\COMMAND.H"
+#include "sfall.h"
+#include "DEFINE.H"
+#include "define_extra.h"
+#include "lib.math.h"
+#include "lib.strings.h"
+#include "COMMAND.H"
 
    procedure start;
    procedure poisonInRealTime;
@@ -114,90 +117,104 @@
    variable sfall_unsafescripting;
    variable sfall_unsafescripting_msg;
    variable HR_fog_of_war;
+   variable StimUninjure;
+   variable NPCsUsePoisonTails;
+
+   export variable tail_used;
+
+   import variable combat_med_tool_used;
 
 procedure start begin
-  if (game_loaded) then begin
-   register_hook_proc(HOOK_COMBATTURN, ModInTurnBased);
-   register_hook_proc_spec(HOOK_ADJUSTPOISON, ADJUSTPOISON);
-   register_hook_proc(HOOK_RESTTIMER, rest);
-   register_hook_proc(HOOK_USESKILL, USESKIL);
-   register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);
-   register_hook_proc(HOOK_USEOBJ, USEOBJ);
-   register_hook_proc(HOOK_USEOBJON, USEOBJON);
-   register_hook_proc(HOOK_GAMEMODECHANGE, worldMapTravel);
-   register_hook_proc(HOOK_DEATHANIM2, death);
-   register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
-   set_global_script_type(3);
-   set_global_script_repeat(250);
-   new_regpois_msg = add_extra_msg_file(msg_file);
-   sfall_unsafescripting = get_ini_setting ("ddraw.ini|Debugging|AllowUnsafeScripting");
-   Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
-   Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
-   RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
-   RegenMaxHPpercentMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|RegenMaxHPpercentMult");
-   HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
-   HealingRateDiv = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateDiv");
-   UnsafeRegenModScripting = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|UnsafeRegenModScripting");
-   PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
-   ShowModMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowMSG");
-   ShowFloatMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowFloatMSG");
-   PoisonMaxHPpercentMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonMaxHPpercentMult");
-   PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
-   PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
-   PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
-   HR_fog_of_war = get_ini_setting("f2_res.ini|MAPS|FOG_OF_WAR");
-   regen_perk_name = modmsg(msg_perk_regen);
-   perk_poison_mastery_name = modmsg(msg_perk_poison_mastery_name);
-   perk_poison_mastery_description = modmsg(msg_perk_poison_mastery_description);
-   regen_perk_acquired_msg = modmsg(msg_perk_regen_acquired);
-   regen_perk_description = modmsg(msg_perk_regen_description);
-   right_hand_healed_msg = modmsg(msg_right_hand_healed);
-   right_leg_healed_msg = modmsg(msg_right_leg_healed);
-   left_hand_healed_msg = modmsg(msg_left_hand_healed);
-   left_leg_healed_msg = modmsg(msg_left_leg_healed);
-   eyes_healed_msg = modmsg(msg_eyes_healed);
-   envenomed_msg = modmsg(msg_envenomed);
-   envenomed_description_msg = modmsg(msg_envenomed_description);
-   gland_gone_msg = modmsg(msg_gland_gone);
-   failed_sneak_use_msg = modmsg(msg_failed_poison_sneak);
-   sfall_unsafescripting_msg = modmsg(msg_UnsafeScripting);
-   call map_enter_p_proc();
-   intface_redraw;
-   stimtimer = (game_time + 500);
-   gamemode = get_game_mode;
-   combatendtime = game_time;
-   if UnsafeRegenModScripting == 1 then begin
-      //warning if sfall_unsafescripting is disabled while UnsafeRegenModScripting enabled
-      if sfall_unsafescripting != 1 then begin
-         display_msg(sfall_unsafescripting_msg);
-      end
-      else begin
-         set_stat_max(STAT_heal_rate, 50);
+   if (game_loaded) then begin
+      RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+      PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
+      if RegenMod != 0 or PoisonMod != 0 then begin
+         register_hook_proc(HOOK_COMBATTURN, ModInTurnBased);
+         register_hook_proc_spec(HOOK_ADJUSTPOISON, ADJUSTPOISON);
+         register_hook_proc(HOOK_RESTTIMER, rest);
+         register_hook_proc(HOOK_USESKILL, USESKIL);
+         register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+         register_hook_proc(HOOK_USEOBJ, USEOBJ);
+         register_hook_proc(HOOK_USEOBJON, USEOBJON);
+         register_hook_proc(HOOK_GAMEMODECHANGE, worldMapTravel);
+         register_hook_proc(HOOK_DEATHANIM2, death);
+         register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
+         set_global_script_type(3);
+         set_global_script_repeat(250);
+         new_regpois_msg = add_extra_msg_file(msg_file);
+         sfall_unsafescripting = get_ini_setting ("ddraw.ini|Debugging|AllowUnsafeScripting");
+         Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
+         Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+         RegenMaxHPpercentMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|RegenMaxHPpercentMult");
+         HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
+         HealingRateDiv = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateDiv");
+         StimUninjure = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|StimUninjure");
+         //UnsafeRegenModScripting = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|UnsafeRegenModScripting");
+         UnsafeRegenModScripting = 1;
+         PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
+         ShowModMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowMSG");
+         ShowFloatMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowFloatMSG");
+         PoisonMaxHPpercentMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonMaxHPpercentMult");
+         PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
+         PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
+         PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
+         NPCsUsePoisonTails = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|NPCsUsePoisonTails");
+         HR_fog_of_war = get_ini_setting("f2_res.ini|MAPS|FOG_OF_WAR");
+         regen_perk_name = modmsg(msg_perk_regen);
+         perk_poison_mastery_name = modmsg(msg_perk_poison_mastery_name);
+         perk_poison_mastery_description = modmsg(msg_perk_poison_mastery_description);
+         regen_perk_acquired_msg = modmsg(msg_perk_regen_acquired);
+         regen_perk_description = modmsg(msg_perk_regen_description);
+         right_hand_healed_msg = modmsg(msg_right_hand_healed);
+         right_leg_healed_msg = modmsg(msg_right_leg_healed);
+         left_hand_healed_msg = modmsg(msg_left_hand_healed);
+         left_leg_healed_msg = modmsg(msg_left_leg_healed);
+         eyes_healed_msg = modmsg(msg_eyes_healed);
+         envenomed_msg = modmsg(msg_envenomed);
+         envenomed_description_msg = modmsg(msg_envenomed_description);
+         gland_gone_msg = modmsg(msg_gland_gone);
+         failed_sneak_use_msg = modmsg(msg_failed_poison_sneak);
+         sfall_unsafescripting_msg = modmsg(msg_UnsafeScripting);
+         call map_enter_p_proc();
+         intface_redraw;
+         stimtimer = (game_time + 500);
+         gamemode = get_game_mode;
+         combatendtime = game_time;
+         if UnsafeRegenModScripting != 0 andAlso RegenMod != 0 then begin
+         //warning if sfall_unsafescripting is disabled while UnsafeRegenModScripting enabled
+            if sfall_unsafescripting < 1 then begin
+               display_msg(sfall_unsafescripting_msg);
+            end
+            else begin
+               set_stat_max(STAT_heal_rate, 40);
+            end
+         end
+         //regenperk activation
+            if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
+               call newperks();
+            end
       end
    end
-   //regenperk activation
-      if RegenMod != 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)) >= 6 then begin
-		   call newperks();
-		end
-  end
-  else begin
-   call regenInRealTime();
-   call poisonInRealTime();
-  end
+      //after load
+   else begin
+      call regenInRealTime();
+      call poisonInRealTime();
+   end
 end
 
 procedure map_enter_p_proc_handler begin
-  variable stdnum = get_sfall_arg;
-  variable self = get_sfall_arg;
-  variable source = get_sfall_arg;
-  variable critwaspoisoned = 0;
-  variable tardt = 0;
-  variable tardr = 0;
-  variable team = -1;
-  variable critter_fid = 0;
-  variable crit_pid = 0;
-  variable critter;
-  if stdnum == map_enter_proc then begin
+   variable stdnum = get_sfall_arg;
+   variable self = get_sfall_arg;
+   variable source = get_sfall_arg;
+   variable critwaspoisoned = 0;
+   variable tardt = 0;
+   variable tardr = 0;
+   variable team = -1;
+   variable critter_fid = 0;
+   variable crit_pid = 0;
+   variable critter;
+   if stdnum == map_enter_proc then begin
    //game_time_advance(ONE_GAME_SECOND * 5);
    dudehrexitmap = get_critter_stat(dude_obj, STAT_heal_rate);
    if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
@@ -231,42 +248,42 @@ procedure map_enter_p_proc_handler begin
         PoisonTickDmg = random(random(0, 1), 1);
       end
       if PoisonTickDmg > 0 andAlso Critter != dude_obj then begin
-        if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
-         critter_fid = obj_art_fid(Critter);
-         crit_pid = obj_pid(critter);
-         tardt = get_proto_data(crit_pid, 244);
-         tardr = get_proto_data(crit_pid, 272);
-         poisondeath = 1;
-         set_target_knockback(critter, 0, 0);
-         set_outline(critter, OUTLINE_NEW_RED);
-         //poison(critter, -999);
-         set_proto_data(crit_pid, 244, 0);
-         set_proto_data(crit_pid, 272, 0);
-         critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
-         set_proto_data(crit_pid, 244, tardt);
-         set_proto_data(crit_pid, 272, tardr);
-         if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
-         give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
+         if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) < 1 then begin
+            critter_fid = critter_art_fid(Critter);
+            crit_pid = obj_pid(critter);
+            tardt = get_proto_data(crit_pid, 244);
+            tardr = get_proto_data(crit_pid, 272);
+            poisondeath = 1;
+            set_target_knockback(critter, 0, 0);
+            set_outline(critter, OUTLINE_NEW_RED);
+            //poison(critter, -999);
+            set_proto_data(crit_pid, 244, 0);
+            set_proto_data(crit_pid, 272, 0);
+            critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
+            set_proto_data(crit_pid, 244, tardt);
+            set_proto_data(crit_pid, 272, tardr);
+            if team != TEAM_PLAYER andAlso critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
+            give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
+            end
          end
-        end
       end
-     end
-     // heal after poison is cleared (exept dude and party)
-     if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
-      if (RegenMaxHPpercentMult < 1) then begin
-      RegenMaxHPpercentMult = 1;
-      end
-      RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
-      if (RegenTickHP < 1) then begin
-      RegenTickHP = 1;
-      end
-      critter_heal(critter, RegenTickHP);
-     end
    end
-  end
-  if poisondeath != 0 andAlso critwaspoisoned != 0 then begin
-   call map_enter_p_proc_handler();
-  end
+     // heal after poison is cleared (exept dude and party)
+      if RegenMod != 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != dude_obj andAlso team != TEAM_PLAYER then begin
+         if (RegenMaxHPpercentMult < 1) then begin
+         RegenMaxHPpercentMult = 1;
+         end
+         RegenTickHP = (round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * random(4, 8) * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
+         if (RegenTickHP < 1) then begin
+         RegenTickHP = 1;
+         end
+         critter_heal(critter, RegenTickHP);
+         end
+      end
+   end
+   if poisondeath != 0 andAlso critwaspoisoned != 0 then begin
+      call map_enter_p_proc_handler();
+   end
 end
 
 procedure death begin
@@ -278,17 +295,17 @@ procedure death begin
   variable tardt = 0;
   variable tardr = 0;
   variable crit_pid = obj_pid(target);
-  variable crit_fid = obj_art_fid(target);
+  variable crit_fid = critter_art_fid(target);
   if poisondeath != 0 then begin
       // OUTLINE for fix death animation if fog of war is enabled
       set_outline(target, OUTLINE_NEW_RED);
       //poison(target, - 999);
       tardt = get_proto_data(crit_pid, 244);
       tardr = get_proto_data(crit_pid, 272);
-      if obj_art_fid(target) == FID_MAPLNT then begin
+      if crit_fid(target) == FID_MAPLNT then begin
       reg_anim_animate_reverse(target, ANIM_fall_back, -1);
       end
-      if obj_art_fid(target) != FID_MAPLNT then begin
+      if crit_fid(target) != FID_MAPLNT then begin
       reg_anim_animate_reverse(target, ANIM_fall_back_sf, -1);
       end
       set_sfall_return(ANIM_fall_back);
@@ -373,7 +390,7 @@ procedure COMBATDAMAGE begin
   variable weapon = get_sfall_arg;
   variable leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
   variable rightHand = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND));
-  variable wpnanim = get_proto_data(obj_pid(weapon), 36);
+  variable wpnanim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
   variable pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
   variable wpnpid = obj_pid(weapon);
   variable wpndmgtype = 0;
@@ -381,39 +398,64 @@ procedure COMBATDAMAGE begin
   variable atkrhr = get_critter_stat(attacker, STAT_heal_rate);
   variable burncount = 0;
   variable burn = 0;
-  variable Tox = has_fake_perk(perk_poison_mastery_name);
+  variable Tox = has_fake_perk_npc(attacker, perk_poison_mastery_name);
   variable lhname = proto_data(leftHand, 1);
   variable rhname = proto_data(rightHand, 1);
   variable lhpoison = has_fake_perk_npc(attacker, (envenomed_msg + lhname));
   variable rhpoison = has_fake_perk_npc(attacker, (envenomed_msg + rhname));
   variable acthnd = active_hand;
   variable caliber = get_proto_data(wpnpid, PROTO_WP_CALIBER);
+  variable atkr_body_type = get_proto_data(obj_pid(attacker), PROTO_CR_BODY_TYPE);
+  variable has_small_scorp_tail = obj_is_carrying_obj_pid(attacker, 591);
+  variable has_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SCORPION_TAIL);
+  variable player_level = get_pc_stat(PCSTAT_level);
+  variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+  variable atkr_fid = critter_art_fid(attacker);
+  variable tar_kill_type = critter_kill_type(target);
+  if player_level > 30 then  player_level = 30;
   if weapon > 0 then begin
      wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
   end
-  if dmgtotar > 0 andAlso weapon != 0 then begin
+  // poison atk for centaurs npc-attacker
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso atkr_fid == 16777241 then poison(target, random(1,5) + player_level / 3);
+   // poison atk for plant npc-attacker
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso atkr_fid == 16777281 then poison(target, random(0,1) * 3);
+   if dmgtotar > 0 andAlso weapon != 0 then begin
    // needler poison dmg
-   if Tox != 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
-     poison(target, 10);
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso Tox != 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
+      poison(target, 10);
    end
-   // needler poison dmg for npc-attacker
-   if attacker != dude_obj andAlso caliber == CALIBER_HN_NEEDLER then begin
-     poison(target, 6);
+   // poison atk for npc-attacker
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso attacker != dude_obj then begin
+      if caliber == CALIBER_HN_NEEDLER andAlso attacker_team != TEAM_PLAYER then begin
+         poison(target, 7 + player_level / 3);
+      end
+      if (has_scorp_tail > 0 or has_small_scorp_tail > 0) andAlso attacker_team != TEAM_PLAYER andAlso atkr_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso wpndmgtype == DMG_normal_dam then begin
+         poison(target, random(1,5) + player_level / 3);
+      end
+      // poison atk for companion npc-attacker
+      if rhpoison > 0 then begin
+        poison(target, (rhpoison + random(1, 3)));
+        if random(0, 4) == 0 then begin
+           set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
+        end
+      end
    end
-   // melee poison dmg
-   if acthnd == 0 andAlso lhpoison > 0 then begin
-     poison(target, ((lhpoison / 3) + random(2, 5) + (Tox * 2)));
+
+   // poison atk for player
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso attacker == dude_obj andAlso acthnd == 0 andAlso lhpoison > 0 then begin
+      poison(target, ((lhpoison / 2) + random(2, 6) + (Tox * 4)));
      if random(0, 2 + (5 * Tox)) == 0 then begin
-     set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
+         set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
+     end
+   end
+   if tar_kill_type != KILL_TYPE_robot_kills andAlso attacker == dude_obj andAlso acthnd == 1 andAlso rhpoison > 0 then begin
+     poison(target, ((rhpoison / 2) + random(2, 6) + (Tox * 4)));
+     if random(0, 2 + (5 * Tox)) == 0 then begin
+         set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
      end
    end
 
-   if acthnd == 1 andAlso rhpoison > 0 then begin
-     poison(target, ((rhpoison / 3) + random(2, 5) + (Tox * 2)));
-     if random(0, 2 + (5 * Tox)) == 0 then begin
-     set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
-     end
-   end
   end
   // scorch effect from fire dmg ( reduce healing rate )
   if RegenMod != 0 andAlso weapon != 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
@@ -509,7 +551,7 @@ end
 procedure stimtoburn begin // turning stimpak to burn debuff
 variable rnd = 0;
 rnd = random(1, 3);
-   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+   if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
      rnd = rnd + 2;
    set_proto_data(40, PROTO_DR_STAT_A, 0);
    set_proto_data(40, PROTO_DR_STAT_B, 0);
@@ -517,7 +559,7 @@ rnd = random(1, 3);
    set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
-   set_proto_data(40, PROTO_DR_DURATION_1, 2);
+   set_proto_data(40, PROTO_DR_DURATION_1, 4);
    set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
@@ -526,7 +568,7 @@ rnd = random(1, 3);
    set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
    end
-   if UnsafeRegenModScripting != 1 then begin
+   if UnsafeRegenModScripting <= 0 then begin
    set_proto_data(40, PROTO_DR_STAT_A, 0);
    set_proto_data(40, PROTO_DR_STAT_B, 0);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -545,7 +587,7 @@ rnd = random(1, 3);
 end
 
 procedure stimrestore begin
-  if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+  if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
    set_proto_data(40, PROTO_DR_STAT_A, -2);
    set_proto_data(40, PROTO_DR_STAT_B, 35);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -561,7 +603,7 @@ procedure stimrestore begin
    set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
    set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
   end
-  if UnsafeRegenModScripting != 1 then begin
+  if UnsafeRegenModScripting <= 0 then begin
    set_proto_data(40, PROTO_DR_STAT_A, -2);
    set_proto_data(40, PROTO_DR_STAT_B, 35);
    set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -596,57 +638,58 @@ procedure USEOBJ begin
   variable rhname = proto_data(rightHand, 1);
   variable lhpoison = has_fake_perk_npc(user, (envenomed_msg + lhname));
   variable rhpoison = has_fake_perk_npc(user, (envenomed_msg + rhname));
+  variable user_name = obj_name(user);
   // small radscorp tail
   if obj_pid(obj) == 591 andAlso PoisonMod != 0 then begin
    //left hand act and wpn
    if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
    end
    end
    //left hand act and right hand wpn
    if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
    end
    end
    //right hand act and wpn
    if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
    end
    end
    //right hand act and left hand wpn
    if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
    end
    end
-   if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
-     display_msg(gland_gone_msg);
+   if random(0, 6) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
+     if user == dude_obj then display_msg(gland_gone_msg);
    end
    else begin set_sfall_return(0);
      if LHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,lhname));
      end
      if RHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,rhname));
      end
    end
   end
@@ -654,64 +697,64 @@ procedure USEOBJ begin
   if obj_pid(obj) == 92 andAlso PoisonMod != 0 then begin
    //left hand act and wpn
    if acthnd == 0 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
    end
    end
    //left hand act and right hand wpn
    if acthnd == 0 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (leftHandanim != 1 or leftHanddmgtype != DMG_normal_dam) andAlso (leftHandanim != 4 or leftHand == 180 or leftHanddmgtype != DMG_normal_dam) andAlso leftHand != 522 andAlso leftHand != 234 andAlso leftHand != 190 andAlso leftHand != 128 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
    end
    end
    //right hand act and wpn
    if acthnd == 1 andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + rhname), (rhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    RHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,rhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
    end
    end
    //right hand act and left hand wpn
    if acthnd == 1 andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+   set_fake_perk_npc(user, (envenomed_msg + lhname), (lhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
    if user == dude_obj then begin
    LHpois = 1;
    end
    else begin
-   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user,lhname));
+   display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
    end
    end
-   if random(0, 22) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
-     display_msg(gland_gone_msg);
+   if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin set_sfall_return(1);
+      if user == dude_obj then display_msg(gland_gone_msg);
    end
    else begin set_sfall_return(0);
      if LHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,lhname));
      end
      if RHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,rhname));
      end
    end
   end
   if PoisonMod != 0 andAlso (obj_pid(obj) == 591 or obj_pid(obj) == 92) then begin
-   if acthnd == 1 andAlso has_fake_perk_npc(user, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
+   if has_fake_perk_npc(user, (envenomed_msg + rhname)) > (10 + (5 * tox)) then begin
      set_fake_perk_npc(user, (envenomed_msg + rhname), 10 + (5 * tox), 23, envenomed_description_msg);
-     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,rhname));
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user_name,rhname));
    end
-   if acthnd == 0 andAlso has_fake_perk_npc(user, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
+   if has_fake_perk_npc(user, (envenomed_msg + lhname)) > (10 + (5 * tox)) then begin
      set_fake_perk_npc(user, (envenomed_msg + lhname), 10 + (5 * tox), 23, envenomed_description_msg);
-     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,lhname));
+     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user_name,lhname));
    end
   end
 end
@@ -744,11 +787,13 @@ procedure USEOBJON begin
    variable lhpoison = has_fake_perk_npc(target, (envenomed_msg + lhname));
    variable rhpoison = has_fake_perk_npc(target, (envenomed_msg + rhname));
    variable tar_name = obj_name(target);
+   variable user_name = obj_name(user);
    variable user_team = has_trait(TRAIT_OBJECT, user, OBJECT_TEAM_NUM);
    variable tar_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
    variable tar_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   variable tar_fid;
    //divides the duration of drug by 4 (examle: from 1 min to 15 sec)
-   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+   if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
       // return memory to normal if was modified
       if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
       write_int(0x479BD4, 280509755);
@@ -762,13 +807,23 @@ procedure USEOBJON begin
       write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹2
       end
    end
+   if UnsafeRegenModScripting == 0 andAlso sfall_unsafescripting < 1 then begin
+      // return memory to normal if was modified
+      if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
+      write_int(0x479BD4, 280509755);
+      end
+      if objpid == PID_STIMPAK or objpid == PID_HEALING_POWDER then begin// only for stimpak and healing powder, other drugs unaffected (can be used for any drug item if needed)
+      write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹1 (duration divided by 2)
+      end
+   end
    //
   if objpid == PID_HYPO_POISON andAlso user_team == TEAM_PLAYER andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso tar_team != TEAM_PLAYER then begin
     if obj_can_see_obj(target, dude_obj) andAlso (random(target_pe, target_pe * 10) > random(0, (has_skill(user, SKILL_DOCTOR) + has_skill(user, SKILL_SNEAK)))) andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) != CR_BODY_ROBOTIC then begin
+     tar_fid = critter_art_fid(target);
      if using_skill(dude_obj, SKILL_SNEAK) then begin
      display_msg(failed_sneak_use_msg);
      end
-     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso tar_type != KILL_TYPE_children_kills andAlso obj_art_fid(target) != FID_NACHLD andAlso obj_art_fid(target) != FID_NFBRLP andAlso obj_art_fid(target) != 16777336 andAlso obj_art_fid(target) != 16777325 then begin
+     if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso tar_type != KILL_TYPE_children_kills andAlso tar_fid != FID_NACHLD andAlso tar_fid != FID_NFBRLP andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
      float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_BAD);
      set_sfall_return(0);
      end
@@ -788,7 +843,7 @@ procedure USEOBJON begin
   // modified stimpak if dude hase fast_metabolism
   if RegenMod != 0 andAlso stimburn == 0 andAlso fast_meta then begin
    if target == dude_obj then begin
-     if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+     if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, 35);
       set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -804,7 +859,7 @@ procedure USEOBJON begin
       set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
       set_proto_data(40, PROTO_DR_AMOUNT_3_C, 10);
      end
-     if UnsafeRegenModScripting != 1 then begin
+     if UnsafeRegenModScripting <= 0 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, 35);
       set_proto_data(40, PROTO_DR_STAT_C, 14);
@@ -826,26 +881,24 @@ procedure USEOBJON begin
    end
   end
   // superstimpak usage mechanics
-  if RegenMod != 0 andAlso objpid == 144 then begin
-   if critter_state(target) BWAND DAM_CRIP_LEG_LEFT then begin
-   critter_uninjure(target, DAM_CRIP_LEG_LEFT);
-   injuryhealed += 10;
-   end
-   if critter_state(target) BWAND DAM_CRIP_LEG_RIGHT then begin
-   critter_uninjure(target, DAM_CRIP_LEG_RIGHT);
-   injuryhealed += 10;
-   end
-   if critter_state(target) BWAND DAM_CRIP_ARM_LEFT then begin
-   critter_uninjure(target, DAM_CRIP_ARM_LEFT);
-   injuryhealed += 6;
-   end
-   if critter_state(target) BWAND DAM_CRIP_ARM_RIGHT then begin
-   critter_uninjure(target, DAM_CRIP_ARM_RIGHT);
-   injuryhealed += 6;
-   end
-   if critter_state(target) BWAND DAM_BLIND then begin
-   critter_uninjure(target, DAM_BLIND);
-   injuryhealed += 4;
+  if  RegenMod != 0 andAlso objpid == 144 then begin
+   if StimUninjure == 1 then begin
+      if critter_state(target) BWAND DAM_CRIP_LEG_LEFT then begin
+         injuryhealed += 5;
+      end
+      if critter_state(target) BWAND DAM_CRIP_LEG_RIGHT then begin
+         injuryhealed += 5;
+      end
+      if critter_state(target) BWAND DAM_CRIP_ARM_LEFT then begin
+         injuryhealed += 4;
+      end
+      if critter_state(target) BWAND DAM_CRIP_ARM_RIGHT then begin
+         injuryhealed += 4;
+      end
+      if critter_state(target) BWAND DAM_BLIND then begin
+         injuryhealed += 3;
+      end
+      critter_uninjure(target, (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND));
    end
    if SShphealed > 60 then begin
      SShphealed = 60;
@@ -903,73 +956,81 @@ procedure USEOBJON begin
    end
   end
   // small radscorp tail
-  if PoisonMod != 0 andAlso obj_pid(obj) == 591 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team != TEAM_PLAYER then begin
+  if PoisonMod != 0 andAlso obj_pid(obj) == 591 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
    //right hand act and wpn
    if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-   set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
-   RHpois = 1;
+   if user == dude_obj then set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
+   if user != dude_obj then set_fake_perk_npc(target, (envenomed_msg + proto_data(rightHand, 1)), (rhpoison + 4 + (6 * tox)), 23, envenomed_description_msg);
+      RHpois = 1;
    end
    //right hand act and left hand wpn
    if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam)  andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-   set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 2 + (6 * tox)), 23, envenomed_description_msg);
+   if user == dude_obj then set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 3 + (6 * tox)), 23, envenomed_description_msg);
+   if user != dude_obj then  set_fake_perk_npc(target, (envenomed_msg + proto_data(leftHand, 1)), (lhpoison + 4 + (6 * tox)), 23, envenomed_description_msg);
    LHpois = 1;
    end
-   if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
+   if random(0, 6) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
      set_sfall_return(1);
-     if target != dude_obj then begin
-     display_msg(parse_str_2(modmsg(msg_gland_gone_npc), tar_name,0));
+     if target != dude_obj andAlso user == dude_obj then begin
+         display_msg(parse_str_2(modmsg(msg_gland_gone_npc), tar_name,0));
      end
      else begin
-     display_msg(gland_gone_msg);
+      if user == dude_obj then display_msg(gland_gone_msg);
      end
    end
    else begin set_sfall_return(0);
      if LHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,lhname));
+         if user != dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
      end
      if RHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,rhname));
+         if user != dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
      end
    end
   end
   // original radscorp tail
-  if obj_pid(obj) == 92 andAlso PoisonMod != 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
+  if PoisonMod != 0 andAlso obj_pid(obj) == 92 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
    //right hand act and wpn
    if rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 andAlso (rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128) then begin
-     set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+     if user == dude_obj then set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
+     if user != dude_obj then set_fake_perk_npc(target, (envenomed_msg + rhname), (rhpoison + 6 + (20 * tox)), 23, envenomed_description_msg);
      RHpois = 1;
      end
      //right hand act and left hand wpn
      if leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 andAlso (rightHandanim != 1 or rightHanddmgtype != DMG_normal_dam )andAlso (rightHandanim != 4 or rightHand == 180 or rightHanddmgtype != DMG_normal_dam) andAlso rightHand != 522 andAlso rightHand != 234 andAlso rightHand != 190 andAlso rightHand != 128 andAlso (leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) then begin
-     set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 2 + (20 * tox)), 23, envenomed_description_msg);
+     if user == dude_obj then set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 4 + (20 * tox)), 23, envenomed_description_msg);
+     if user != dude_obj then set_fake_perk_npc(target, (envenomed_msg + lhname), (lhpoison + 6 + (20 * tox)), 23, envenomed_description_msg);
      LHpois = 1;
      end
-     if random(0, 22) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
+     if random(0, 12) == (0 - tox) andAlso (((leftHandanim == 1 or leftHandanim == 4 or leftHand == 522 or leftHand == 234 or leftHand == 190 or leftHand == 128) andAlso leftHanddmgtype == DMG_normal_dam andAlso leftHand != 180 )or ((rightHandanim == 1 or rightHandanim == 4 or rightHand == 522 or rightHand == 234 or rightHand == 190 or rightHand == 128 ) andAlso rightHanddmgtype == DMG_normal_dam andAlso rightHand != 180 ) )then begin
       set_sfall_return(1);
-     if target != dude_obj then begin
+     if target != dude_obj andAlso user == dude_obj  then begin
      display_msg(parse_str_2(modmsg(msg_gland_gone_npc), tar_name,0));
      end
      else begin
-     display_msg(gland_gone_msg);
+      if user == dude_obj then display_msg(gland_gone_msg);
      end
    end
    else begin set_sfall_return(0);
      if LHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,lhname));
+         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,lhname));
+         if user != dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,lhname));
      end
      if RHpois != 0 then begin
-      display_msg(parse_str_2(modmsg(msg_pois_appl_player), user,rhname));
+         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_player), user_name,rhname));
+         if user != dude_obj then display_msg(parse_str_2(modmsg(msg_pois_appl_npc), user_name,rhname));
      end
    end
   end
   if PoisonMod != 0 andAlso (obj_pid(obj) == 591 or obj_pid(obj) == 92) andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso user_team == TEAM_PLAYER then begin
-   if has_fake_perk_npc(target, (envenomed_msg + rhname)) >= (10 + (5 * tox)) then begin
+   if has_fake_perk_npc(target, (envenomed_msg + rhname)) > (10 + (5 * tox)) then begin
      set_fake_perk_npc(target, (envenomed_msg + rhname), 10 + (5 * tox), 23, envenomed_description_msg);
-     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,rhname));
+     if user == dude_obj then display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user_name,rhname));
    end
-   if has_fake_perk_npc(target, (envenomed_msg + lhname)) >= (10 + (5 * tox)) then begin
+   if has_fake_perk_npc(target, (envenomed_msg + lhname)) > (10 + (5 * tox)) then begin
      set_fake_perk_npc(target, (envenomed_msg + lhname), 10 + (5 * tox), 23, envenomed_description_msg);
-     display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user,lhname));
+     if user == dude_obj then display_msg(parse_str_2(modmsg(msg_wpn_poison_full), user_name,lhname));
    end
   end
 end
@@ -1221,7 +1282,7 @@ procedure rest begin
                   critter_dmg(critter, PoisonTickDmg, DMG_normal_dam);
                   set_proto_data(crit_pid, 244, tardt);
                   set_proto_data(crit_pid, 272, tardr);
-                  critter_fid = obj_art_fid(Critter);
+                  critter_fid = critter_art_fid(Critter);
                   if critter_fid != 16777322 andAlso crit_pid != 16777508 then begin
                   give_xp((get_proto_data(crit_pid, PROTO_CR_KILL_EXP)));
                   end
@@ -1527,7 +1588,7 @@ procedure poisonInRealTime begin
    foreach (critter in list_as_array(0)) begin
      tar_name = obj_name(Critter);
      team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
-     critter_fid = obj_art_fid(Critter);
+     critter_fid = critter_art_fid(Critter);
      crit_pid = obj_pid(critter);
      if get_critter_stat(critter, STAT_current_hp ) > 0 andAlso game_mode == 0 andAlso get_poison(Critter) > 0 then begin
       if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
@@ -1617,19 +1678,36 @@ procedure regenInRealTime begin
 end
 
 procedure ModInTurnBased begin
-  variable CritterTurnStatus = get_sfall_arg;
-  variable Critter = get_sfall_arg;
-  variable critmaxhp = get_critter_stat(critter, STAT_max_hp);
-  variable critcurhp = get_critter_stat(Critter, STAT_current_hp);
-  variable crithr = get_critter_stat(critter, STAT_heal_rate);
-  variable critcurpoison = get_poison(Critter);
-  variable losblock = 0;
-  variable tardt = 0;
-  variable tardr = 0;
-  variable tar_name = obj_name(critter);
-  variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
-  variable crit_pid = obj_pid(Critter);
-  if RegenMod != 0 andAlso critcurhp > 0 then begin
+   variable CritterTurnStatus = get_sfall_arg;
+   variable Critter = get_sfall_arg;
+   variable critter_pid = obj_pid(critter);
+   variable critmaxhp = get_critter_stat(critter, STAT_max_hp);
+   variable critcurhp = get_critter_stat(Critter, STAT_current_hp);
+   variable crithr = get_critter_stat(critter, STAT_heal_rate);
+   variable critcurpoison = get_poison(Critter);
+   variable losblock = 0;
+   variable tardt = 0;
+   variable tardr = 0;
+   variable tar_name = obj_name(critter);
+   variable team = has_trait(TRAIT_OBJECT, Critter, OBJECT_TEAM_NUM);
+   variable crit_pid = obj_pid(Critter);
+   variable critter_int = get_critter_stat(critter, STAT_iq);
+   variable radscrop_tail;
+   variable tmp;
+   variable rnd;
+   variable has_scorp_tail;
+   variable has_small_scorp_tail;
+   variable critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+   variable wpn;
+   variable wpnpid;
+   variable wpnname;
+   variable wpnanim = 99990;
+   variable wpndmgtype = 99990;
+   variable lhpoison;
+   variable rhpoison;
+   variable critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+   tail_used = 0;
+   if RegenMod != 0 andAlso critcurhp > 0 then begin
    if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
      RegenTickHP = round(critmaxhp / 100.00000 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
      if RegenTickHP < 1 then begin RegenTickHP = 1; end
@@ -1665,8 +1743,57 @@ procedure ModInTurnBased begin
            end
       end
      end
-  end
-  if PoisonMod != 0 then begin
+   end
+   if PoisonMod != 0 then begin
+     wpn = critter_inven_obj2(critter, INVEN_TYPE_RIGHT_HAND);
+     wpnpid = obj_pid(wpn);
+     if wpnpid > 0 then wpnname = obj_name(wpn);
+     if wpnpid > 0 then wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+     if wpnpid > 0 then wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
+       // enemy npc radscorpion tail if not crippled and not fleeing
+     if NPCsUsePoisonTails != 0 andAlso combat_med_tool_used <= 0 andAlso team != TEAM_PLAYER  andAlso critter_cur_frm == 0 andAlso not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
+        has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
+        if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, 591);
+        if has_scorp_tail >= 2 then begin
+            tail_used = 1;
+            radscrop_tail = obj_carrying_pid_obj(critter, PID_SCORPION_TAIL);
+            anim(critter, 11, 1);
+            display_msg(parse_str_2(modmsg(msg_pois_appl_npc), tar_name,obj_name(wpn)));
+            tmp = rm_mult_objs_from_inven(critter, radscrop_tail, has_scorp_tail - 1);
+        end
+        if has_small_scorp_tail >= 2 andAlso has_scorp_tail <= 0 then begin
+            tail_used = 1;
+            radscrop_tail = obj_carrying_pid_obj(critter, 591);
+            anim(critter, 11, 1);
+            display_msg(parse_str_2(modmsg(msg_pois_appl_npc), tar_name,obj_name(wpn)));
+            tmp = rm_mult_objs_from_inven(critter, radscrop_tail, has_small_scorp_tail - 1);
+        end
+     end
+       // companion npc use radscorpion tail if not crippled and not fleeing
+     if NPCsUsePoisonTails >= 2 andAlso combat_med_tool_used <= 0 andAlso team == TEAM_PLAYER  andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
+        rhpoison = has_fake_perk_npc(Critter, (envenomed_msg + wpnname));
+        has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
+        if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, 591);
+        rnd = random (0, 100);
+        if has_scorp_tail > 0 andAlso has_small_scorp_tail < 1 andAlso rnd - (30 - critter_int * 3) * 4 > rhpoison * 14 then begin
+         tail_used = 1;
+         radscrop_tail = obj_carrying_pid_obj(critter, PID_SCORPION_TAIL);
+         set_self(critter);
+         set_self(critter);
+         anim(critter, 11, 1);
+         use_obj_on_obj(radscrop_tail, critter);
+         set_self(0);
+        end
+        if has_small_scorp_tail > 0 andAlso rnd - (30 - critter_int * 3) * 4 > rhpoison * 14 then begin
+         tail_used = 1;
+         radscrop_tail = obj_carrying_pid_obj(critter, 591);
+         set_self(critter);
+         set_self(critter);
+         anim(critter, 11, 1);
+         use_obj_on_obj(radscrop_tail, critter);
+         set_self(0);
+        end
+     end
    if CritterTurnStatus == 0 andAlso CritterTurnStatus != -2 andAlso CritterTurnStatus != -1 andAlso (critcurpoison > 0) andAlso critcurhp > 0 then begin
       if (PoisonMaxHPpercentMult < 1) then begin PoisonMaxHPpercentMult = 1; end
        PoisonTickDmg = round(critmaxhp / 100.00000 * PoisonMaxHPpercentMult * (critcurpoison * PoisonLevelMult / PoisonLevelDiv));
@@ -1734,14 +1861,14 @@ procedure ModInTurnBased begin
       critter_heal(Critter, - PoisonTickDmg);
       end
    end
-  end
-  if CritterTurnStatus == -2 then begin
-  combatendtime = game_time;
-  end
-  if (get_poison(dude_obj) > 0 andAlso CritterTurnStatus < 0) or (get_critter_stat(dude_obj, STAT_heal_rate) > 5 andAlso CritterTurnStatus < 0) then begin
-  float_msg(dude_obj, 0, 0);
-  end
-  poisondeath = 0;
+   end
+   if CritterTurnStatus == -2 then begin
+   combatendtime = game_time;
+   end
+   if (get_poison(dude_obj) > 0 andAlso CritterTurnStatus < 0) or (get_critter_stat(dude_obj, STAT_heal_rate) > 5 andAlso CritterTurnStatus < 0) then begin
+   float_msg(dude_obj, 0, 0);
+   end
+   poisondeath = 0;
 end
 
 procedure ADJUSTPOISON begin
@@ -1903,15 +2030,107 @@ procedure ADJUSTPOISON begin
 end
 
 procedure map_enter_p_proc begin
-  dudehrexitmap = 0;
-  dudehrcount = 0;
-  if PoisonMod != 0 then begin
+   variable critter;
+   variable critter_team;
+   variable critter_cur_hp;
+   variable critter_int;
+   variable critter_outdoorsman;
+   variable critter_type;
+   variable critter_body_type;
+   variable rnd;
+   variable critter_pid;
+   variable has_scorp_tail;
+   variable has_small_scorp_tail;
+   variable radscrop_tail;
+   variable wpn;
+   variable wpnpid;
+   variable wpnname;
+   variable wpnanim = 99990;
+   variable wpndmgtype = 99990;
+   variable has_stim;
+   variable stim;
+   variable invenArr;
+   variable count;
+   variable i;
+   variable item;
+   variable new_wpn = 1;
+   dudehrexitmap = 0;
+   dudehrcount = 0;
+   if PoisonMod != 0 then begin
+      //add radscorpion tail to npc at first map loading
+      if ((PoisonMod != 0 andAlso NPCsUsePoisonTails != 0) or RegenMod != 0) andAlso metarule(METARULE_TEST_FIRSTRUN,0) then begin
+         foreach (critter in list_as_array(LIST_CRITTERS)) begin
+               critter_team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+               critter_cur_hp = get_critter_stat(critter, STAT_current_hp );
+               critter_pid = obj_pid(critter);
+               critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
+               critter_type = critter_kill_type(critter);
+            if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != dude_obj andAlso critter_team != TEAM_PLAYER andAlso critter_body_type == CR_BODY_BIPED andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+               has_stim = obj_is_carrying_obj_pid(Critter, PID_STIMPAK);
+               if RegenMod != 0 andAlso has_stim <= 0 then begin
+                   rnd = random(0, 1000);
+                  if (rnd < critter_cur_hp - 50) or (military_fid(critter) andAlso rnd < 50) then begin
+                     stim = create_object_sid(PID_STIMPAK, 0, 0, -1);
+                     add_mult_objs_to_inven(critter, stim, 1);
+                  end
+               end
+
+               has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
+               if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, 591);
+               critter_int = get_critter_stat(critter, STAT_iq);
+               wpn = critter_inven_obj2(critter, INVEN_TYPE_RIGHT_HAND);
+               //if the weapon is not equipped, try to find it in the inventory
+               if wpn <= 0 then begin
+               count := inven_count(critter);
+               invenArr := temp_array_list(count);
+                  for (i := 0; i < count; i++) begin
+                     invenArr[i] := inven_ptr(critter, i);
+                  end
+                  foreach (item in invenArr) begin
+                     if obj_item_subtype(item) == item_type_weapon then begin
+                        wpnpid = obj_pid(item);
+                        wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+                        wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
+                        if (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam then begin
+                           wpn = item;
+                            new_wpn = 2;
+                           break;
+                        end
+                     end
+                  end
+               end
+               wpnpid = obj_pid(wpn);
+               wpnname = obj_name(wpn);
+               wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+               wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
+                // add npc radscorpion tail
+               if NPCsUsePoisonTails != 0 andAlso has_scorp_tail <= 1 andAlso has_small_scorp_tail <= 1 then begin
+                  critter_outdoorsman = has_skill(critter, SKILL_OUTDOORSMAN);
+                  if critter_outdoorsman < 40 then critter_outdoorsman = 40;
+                  critter_outdoorsman = critter_outdoorsman / new_wpn;
+                  rnd = random(0, 100);
+                  if (rnd <= critter_outdoorsman andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam) then begin
+                     if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 andAlso has_small_scorp_tail >= has_scorp_tail then begin
+                        radscrop_tail = create_object_sid(591, 0, 0, -1);
+                        add_mult_objs_to_inven(critter, radscrop_tail, random(2,3) - has_small_scorp_tail);
+                      end
+                     if get_proto_data (591, PROTO_IT_INV_FID) != 117440914 or has_small_scorp_tail < has_scorp_tail then begin
+                        radscrop_tail = create_object_sid(PID_SCORPION_TAIL, 0, 0, -1);
+                        add_mult_objs_to_inven(critter, radscrop_tail, random(2,3) - has_scorp_tail);
+                     end
+                  end
+               end
+            end
+         end
+      end
+
+
    //radscorpion tail add use ablility
-   if (get_proto_data(92, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
-   set_proto_data(92, PROTO_IT_FLAGS, (get_proto_data(92, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
+   if (get_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
+   set_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS, (get_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
    end
-   if (get_proto_data(92, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) != ITEM_ACTION_USE then begin
-   set_proto_data(92, PROTO_IT_FLAGS, (get_proto_data(92, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
+   if (get_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) != ITEM_ACTION_USE then begin
+   set_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS, (get_proto_data(PID_SCORPION_TAIL, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
    end
    if get_proto_data (591, PROTO_IT_INV_FID) == 117440914 andAlso (get_proto_data(591, PROTO_IT_FLAGS) bwand ITEM_ACTION_USEON) != ITEM_ACTION_USEON then begin
    set_proto_data(591, PROTO_IT_FLAGS, (get_proto_data(591, PROTO_IT_FLAGS) + ITEM_ACTION_USEON));
@@ -1920,7 +2139,7 @@ procedure map_enter_p_proc begin
    set_proto_data(591, PROTO_IT_FLAGS, (get_proto_data(591, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
    end
    //radscorpion tail weight modifying
-   set_proto_data(92, PROTO_IT_WEIGHT, 5);
+   set_proto_data(PID_SCORPION_TAIL, PROTO_IT_WEIGHT, 5);
    set_proto_data(591, PROTO_IT_WEIGHT, 2);
    // poison injection moddification
    set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_hp);
@@ -1962,7 +2181,7 @@ procedure map_enter_p_proc begin
    end
   end
   if RegenMod != 0  then begin
-   if UnsafeRegenModScripting == 1 andAlso sfall_unsafescripting == 1 then begin
+   if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
       set_proto_data(40, PROTO_DR_STAT_A, -2);
       set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
       set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
@@ -1978,7 +2197,7 @@ procedure map_enter_p_proc begin
       set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
       set_proto_data(40, PROTO_DR_AMOUNT_3_C, 6);
    end
-   if UnsafeRegenModScripting != 1 then begin
+   if UnsafeRegenModScripting <= 0 then begin
      set_proto_data(40, PROTO_DR_STAT_A, -2);
      set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
      set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);

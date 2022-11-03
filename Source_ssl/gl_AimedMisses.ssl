@@ -1,5 +1,5 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
-#define crit_fid(critter_obj)    obj_art_fid(critter_obj)
+#define crit_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),8))
 #define short_crit(critter_obj)  (crit_fid(critter_obj) == 16777313 or crit_fid(critter_obj) == 16777275 or crit_fid(critter_obj) == 16777271 or crit_fid(critter_obj) == 16777240 or crit_fid(critter_obj) == 16777268)
 #define medium_crit(critter_obj) (crit_fid(critter_obj) == 16777276 or crit_fid(critter_obj) == 16777232 or crit_fid(critter_obj) == 16777283 or crit_fid(critter_obj) == 16777291 or crit_fid(critter_obj) == 16777243 or crit_fid(critter_obj) == 16777336 or crit_fid(critter_obj) == 16777270)
 #define CRITICAL_MISS          0
@@ -7,12 +7,11 @@
 #define HIT                    2
 #define CRITICAL_HIT           3
 
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\COMMAND.H"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall\define_lite.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall\define_extra.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\SFALL_HEADERS\ARTFID.H"
+#include "define_extra.h"
+#include "DEFINE.H"
+#include "sfall.h"
+#include "ARTFID.H"
+
 
 procedure start;
 procedure misstohit;
@@ -477,7 +476,7 @@ procedure misstohit begin
       distance_objs(distance1, target, attacker);
       critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
-      tar_fid = obj_art_fid(target);
+      tar_fid = crit_fid(target);
    //determining the type of attack
       if get_object_data(combat_data, C_ATTACK_HIT_MODE) == ATKTYPE_LWEP1 then begin // left first attack mode range
       wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_1);

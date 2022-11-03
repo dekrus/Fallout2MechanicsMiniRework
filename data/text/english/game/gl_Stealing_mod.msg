@@ -13,7 +13,7 @@
 {13}{}{Hands off!}
 {14}{}{Hey! Back off.}
 {15}{}{!}
-{16}{}{That's mine; hands off!}
+{16}{}{That's mine, hands off!}
 {17}{}{You're caught stealing the %1%.}
 {18}{}{You steal the %1%.}
 {19}{}{You're caught planting the %1%.}
