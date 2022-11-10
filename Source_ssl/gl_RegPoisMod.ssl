@@ -119,6 +119,7 @@
    variable HR_fog_of_war;
    variable StimUninjure;
    variable NPCsUsePoisonTails;
+   variable scr_repeat;
 
    export variable tail_used;
 
@@ -140,7 +141,8 @@ procedure start begin
          register_hook_proc(HOOK_DEATHANIM2, death);
          register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
          set_global_script_type(3);
-         set_global_script_repeat(250);
+         set_global_script_repeat(120);
+         scr_repeat = game_time;
          new_regpois_msg = add_extra_msg_file(msg_file);
          sfall_unsafescripting = get_ini_setting ("ddraw.ini|Debugging|AllowUnsafeScripting");
          Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
@@ -198,8 +200,12 @@ procedure start begin
    end
       //after load
    else begin
-      call regenInRealTime();
-      call poisonInRealTime();
+      //(repeat ~50 game ticks with no FPS dependency)
+      if scr_repeat <= game_time - 50 then begin
+         scr_repeat = game_time;
+         call regenInRealTime();
+         call poisonInRealTime();
+      end
    end
 end
 
