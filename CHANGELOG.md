@@ -1,3 +1,16 @@
+### Version 1.6
+##### Regen & Poison mod
+-Poison damage now scales with combat difficulty settings.
+-Added a setting to increase poison damage for enemy NPCs.
+-Changed the balance of healing with stimpaks. Penalties last 1 minute, instead of 1 hour. Super Stim Penalty lasts 2 hours instead of 24.
+
+-Weapons now drop out of hand after damage animation instead of before.
+- Weapons no longer drop behind walls and objects.
+-Improved refresh rate and optimized CPU usage when highlighting NPCs during stealth detection.
+- Added mod to prevent status effects from a critical hit with 0 damage.
+-Added a mod that automatically turns on sneak mode when using Stealthboy
+- Changed the balance of healing with stimpaks. Penalties last 1 minute, instead of 1 hour. Super Stim Penalty lasts 2 hours instead of 24.
+
 ### Version 1.5
 - Added new module for medical tool usage.
 ##### Regen & Poison mod

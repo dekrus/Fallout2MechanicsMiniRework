@@ -26,6 +26,8 @@
   - [Sneak detection](#sneak-detection)
 - [Steal](#steal)
 - [Swing&Thrust](#swingthrust)
+- [AntiCritical](#anticritical)
+- [StealthBoy AutoSneak](#stealthboy-autosneak)
 
 
 ### Poison 
@@ -33,6 +35,7 @@
 This is a rework of the original poison mechanics, designed to make it more dangerous for both the player and NPCs.
 
 - Now not only the player takes poison damage, but all creatures without poison immunity.
+- Poison damage depends on combat difficulty settings.
 - Poison damage triggers at the end of each of the poisoned creature's turns in combat, or every 5 seconds when out of combat..
 - If you (or NPC) accumulate more than 100 units of poison, instant death occurs.
 - Now tails of radscorpions can be used to apply poison to the player’s(or Сompanions') piercing and cutting weapons.
@@ -43,8 +46,9 @@ This is a rework of the original poison mechanics, designed to make it more dang
 **(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 Replaces instant stimpak healing with healing over time.
 
-- Using a stimpack increases "healing rate" for 3 rounds. To start healing, the "healing rate" must be greater than 5.
+- Using a Stimpack increases "healing rate" for 3 rounds. To start healing, the "healing rate" must be greater than 5.
 - Super Stimpak instantly restores up to 60 hp, while temporarily reducing the "healing rate" based on the actual HP restored. Also Super Stimpak can heals broken limbs(if enabled in ini file).
+- Fast Metabolism (trait) enhances the effect of Stimpaks and Super Stimpaks;
 - Some monsters have passive health regeneration: wanamingos/centaurs(if enabled in ini file).
 - Fire and Plasma damage temporarily reduces the target's regeneration rate and may even stop it completely.
 - Added a new bonus perk "Regeneration", which is automatically added if the player's base "healing rate" is greater than 5. This perk adds a "healing rate" based chance to heal crippled limbs when HP is restored. 
@@ -90,24 +94,23 @@ Example: Purple highlights new possible targets if shot misses initial target(cr
 
 #### Random bodypart hit
 NPCs will now use aimed attacks targeting different parts of the body against the player and other NPCs.
-
+- NPC's aimed hit chance depends on combat difficulty settings.
 - Alternate mode for the player can also be enabled, adding a chance to hit a random body part with unaimed attacks.
 
 ### Sneak
 Removes randomness from the sneak skill, now the detection area gradually decreases with increasing skill level and the general illumination of map. 
- 
-Low light condition penalty to NPC perception range: From -8%(Basement light) to -40%(Complete darkness).  
-Detection range formula = round((perception_range x (105.00000 - ((sneak - armor_weight) / 1.50000))) / 100.00000 - watcher_pe / 4);
+ - Low light condition penalty to NPC perception range: From ~8%(Basement light) to ~30%(Complete darkness).  
 
 #### Sneak detection
-Color indication of sneak detection, that works for original and new sneak mechanics.
+Sneak detection color indication that works for the original and new stealth mechanics.
 As long as sneaking player is within the detection range of an watching NPC, that NPC will be outlined:
 
-- Red    - Player has been detected.
-- Orange - (Steal mod only) Player has been detected, but the NPC will not notice an attempt to steal from other NPCs.
+- Green - Player not detected, safe to approach.
+- Yellow - Player not detected, but will be detected if approaching 4 steps closer.
+- Orange - Player not detected, but will be detected if approaching 1 step closer.
+- Bright Red - Player has been detected.
+- Dark Red - (Steal mod only)Player has been detected, but the NPC will not notice an attempt to steal from other NPCs.
 - Gray   - (Fog of War disabled) Player not detected, but will be detected if line of sight becomes unblocked.
-- Yellow - Player not detected, but will be detected if approaching ~2-3 hexes closer.
-- Green  - Player not detected, safe to approach.
 ![Sneak](images/SneakDetection.jpg)
 
 ### Steal
@@ -149,6 +152,13 @@ With the setting enabled, swing attacks and thrusts with a knife will now have d
 2. Thrust attack:
 - Penetrates some of target DR and DT based on max knife dmg and attacker melee dmg stat.
 - Increases base chance of a critical hit by 1.5 times.
+
+### AntiCritical
+If enabled, prevents status effects (crippling, blind, knockout, instant death) when receiving/dealing 0 damage on a critical hit (player and NPCs).
+
+### StealthBoy AutoSneak
+If enabled, Sneaking Mode is automatically applied when using a charged Stealthboy.
+
 
 ## Compatibility
 * Most of the components are compatible with all Fallout 2 based games. Compatibility with Nevada, Sonora or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`

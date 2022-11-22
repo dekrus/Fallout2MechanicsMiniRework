@@ -1,4 +1,6 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+#define crit_fid(critter_obj)        (get_proto_data(obj_pid(critter_obj),PROTO_FID))
+#define crit_is_moving(critter_obj)  ( (art_anim(crit_fid(critter_obj)) == ANIM_walk) or (art_anim(crit_fid(critter_obj)) == ANIM_running) )
 #define msg_file "gl_Stealing_mod.msg"
 #define msg_cant_steal1 1
 #define msg_cant_plant1 2
@@ -23,18 +25,19 @@
 #define modmsg(x) message_str_game(new_steal_msg, x)
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define NO_STEAL(obj)    (get_proto_data(obj_pid(obj), PROTO_CR_FLAGS) bwand CFLG_NOSTEAL)
+#define pe_div 2.5
 
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\sfall.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\DEFINE.H"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\define_extra.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.math.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\lib.strings.h"
-#include "E:\Fallout Tools Pack\sFall_Script_Editor\scripts\HEADERS\COMMAND.H"
+#include "sfall.h"
+#include "DEFINE.H"
+#include "define_extra.h"
+#include "lib.strings.h"
+#include "COMMAND.H"
 
 variable pickpocket_count;
 variable last_pickpocket_target;
 variable steal_count;
 variable right_hand_item;
+variable left_hand_item;
 variable right_hand_item_target;
 variable wpn_is_stolen;
 variable steal_item_num;
@@ -65,7 +68,6 @@ procedure start begin
          register_hook_proc_spec(HOOK_ROLLCHECK, rollCheck);
          register_hook_proc_spec(HOOK_REMOVEINVENOBJ, rm_inv);
          new_steal_msg = add_extra_msg_file(msg_file);
-         //SneakDetection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakDetection");
          SneakRework = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
       end
       set_global_script_type(1);
@@ -136,7 +138,7 @@ procedure steal_handler begin
    variable user_sneak_skill = has_skill(thief, SKILL_SNEAK);
    variable target_steal_skill = has_skill(target, SKILL_STEAL);
    variable target_barter_skill = has_skill(target, SKILL_BARTER);
-   variable user_steal_skill_mult = 1.50000;
+   variable user_steal_skill_mult = 1.50;
    variable tar_pid = obj_pid(target);
    variable item_pid = obj_pid(item);
    variable item_name = obj_name(item);
@@ -174,10 +176,12 @@ procedure steal_handler begin
    variable ally_cur_frm = -1;
    variable darkness_penalty;
    variable target_kill_type = critter_kill_type(target);
+   variable party = party_member_list(0);
+   variable target_in_party = is_in_array(target, party);
          // 15-29% penalty to target pe if light lower 50%(or 70% if has night_vision)
       if light_level < 41216 + (night_vision * 21504) andAlso target_kill_type != KILL_TYPE_alien_kills andAlso target_kill_type != KILL_TYPE_robot_kills andAlso target_kill_type != KILL_TYPE_floater_kills then begin
          darkness_penalty = (light_level - (night_vision * 14336)) / 6000;
-         target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50000; // -2 if 0 light, -0,4 if 50% light
+         target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50; // -2 if 0 light, -0,4 if 50% light
       end
       target_pe_mult = target_pe_mult + 5;
 
@@ -203,11 +207,6 @@ procedure steal_handler begin
       right_hand_item_target = target;
       wpn_is_stolen = 2;
    end
-      // pe in formula cannot be lower then base_pe - base_pe / 3
-   //target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
-   //if target_pe < target_min_pe then begin
-      //target_pe = target_min_pe;
-   //end
       // stealing penalty if target's allies can see the thief
    if StealRebalance == 2 then begin
       foreach ally in list_as_array(LIST_CRITTERS) begin
@@ -216,13 +215,12 @@ procedure steal_handler begin
          if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) then begin
                ally_rot = has_trait(TRAIT_OBJECT, ally, OBJECT_CUR_ROT);
                ally_rot_to_tar = real_rotation_to_tile(tile_num(ally), tile_num(dude_obj));
-               //ally_rot_to_tar = rotation_to_tile(tile_num(ally), tile_num(dude_obj));
                ally_team := has_trait(TRAIT_OBJECT, ally, OBJECT_TEAM_NUM);
                distance_objs(distance, ally, dude_obj);
                ally_pe = get_critter_stat(ally, STAT_pe);
                ally_state = critter_state(ally);
                ally_cur_frm = get_object_data(ally, OBJ_DATA_CUR_FRM);
-               if ally_pe >= 3 andAlso ally_cur_frm == 0 andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/4)) then begin
+               if ally_pe >= 3 andAlso ( (ally_cur_frm == 0) or (crit_is_moving(ally)) ) andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/pe_div)) then begin
                   if obj_can_see_obj(ally, dude_obj) then begin
                   target_pe = target_pe + ally_pe - 2;
                end
@@ -268,7 +266,7 @@ procedure steal_handler begin
    steal_bonus = steal_bonus + sneak_bonus;
    rnd = random(1, 100);
       // force SUCCESS on party members
-   if team == TEAM_PLAYER then begin
+   if target_in_party then begin
       set_sfall_return(1);
       return;
    end
@@ -339,7 +337,7 @@ procedure steal_handler begin
       steal_count += 1 + (item_weight_lvar / 4) + ((item_size + 1) * 2);
       isSuccess = 1;
    end
-   if team != TEAM_PLAYER then begin
+   if team != TEAM_PLAYER andAlso not(target_in_party) then begin
       if StealRebalance == 2 andAlso steal_count == 0 andAlso isSuccess < 1 then begin
       //if StealRebalance == 2 andAlso steal_count == 0 andAlso stype == 0 andAlso isSuccess < 1 then begin
       display_msg(parse_str_2(modmsg(msg_steal_caught_original+stype*2), item_name, 0) + parse_str_2(modmsg(msg_cant_steal2+stype), min_skill_needed, 0));
@@ -370,42 +368,54 @@ procedure steal_skill_use begin
    variable skill_bonus = get_sfall_arg;
    variable user_steal_skill = has_skill(user, SKILL_STEAL);
    variable tar_pid = obj_pid(target);
-   variable target_pe = get_critter_stat(target, STAT_pe);
-   variable target_base_pe = get_critter_base_stat(target, STAT_pe);
+   variable target_pe;
    variable target_pe_mult = 0;
    variable target_min_pe = 0;
    variable min_steal_skill = 0;
-   variable critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target); // men = 0, women = 1, children = 2, super mutants = 3, ghouls = 4
-   variable target_steal_skill = has_skill(target, SKILL_STEAL);
-   variable target_barter_skill = has_skill(target, SKILL_BARTER);
+   variable critter_type;
+   variable target_steal_skill;
+   variable target_barter_skill;
    variable user_sneak_skill = has_skill(user, SKILL_SNEAK);
    variable pickpocket = has_trait(TRAIT_PERK, dude_obj, PERK_pickpocket);
    variable night_vision = has_trait(TRAIT_PERK, dude_obj, PERK_night_vision );
    variable harmless = has_trait(TRAIT_PERK, dude_obj, PERK_harmless_perk );
    variable light_level = get_light_level;
-   variable target_rot := has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
-   variable target_rot_to_tar := rotation_to_tile(tile_num(target), tile_num(dude_obj));
+   variable target_rot;
+   variable target_rot_to_tar;
    variable ally_rot = -6;
    variable ally_rot_to_tar = - 6;
-   variable team := has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+   variable team;
    variable ally = 0;
    variable ally_team = 0;
    variable ally_pe = 0;
-   variable tar_fid = obj_art_fid(target);
-   variable tar_int = get_critter_stat(target, STAT_iq);
+   variable tar_fid;
+   variable tar_int;
    variable ally_can_see = 0;
    variable rnd = 0;
    variable user_state = critter_state(dude_obj);
-   variable taget_state = critter_state(target);
+   variable taget_state;
    variable ally_state = -1;
    variable ally_cur_frm = -1;
    variable darkness_penalty = 0;
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
    variable obj;
    variable color;
    variable distance;
+   variable party = party_member_list(0);
+   variable target_in_party = is_in_array(target, party);
    //calculating the minimum skill to get into the target's pocket
-   if MinStealReq != 0 andAlso not(NO_STEAL(target)) andAlso skill == SKILL_STEAL andAlso critter_type < 5 andAlso not(team == TEAM_PLAYER) then begin
+   if MinStealReq != 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso skill == SKILL_STEAL andAlso not(target_in_party) then begin
+      target_pe = get_critter_stat(target, STAT_pe);
+      critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target); // men = 0, women = 1, children = 2, super mutants = 3, ghouls = 4
+      target_steal_skill = has_skill(target, SKILL_STEAL);
+      target_barter_skill = has_skill(target, SKILL_BARTER);
+      target_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
+      target_rot_to_tar = rotation_to_tile(tile_num(target), tile_num(dude_obj));
+      team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+      target_kill_type = critter_kill_type(target);
+      taget_state = critter_state(target);
+      tar_int = get_critter_stat(target, STAT_iq);
+      tar_fid = crit_fid(target);
       steal_count = 0;
       if last_pickpocket_target == target then begin
          pickpocket_count += 1;
@@ -423,12 +433,12 @@ procedure steal_skill_use begin
          // 8-40% penalty to target pe if light lower 50%(or 70% if has night_vision)
       if light_level < 41216 + (night_vision * 21504) andAlso target_kill_type != KILL_TYPE_alien_kills andAlso target_kill_type != KILL_TYPE_robot_kills andAlso target_kill_type != KILL_TYPE_floater_kills then begin
          darkness_penalty = (light_level - (night_vision * 14336)) / 6000;
-         target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50000; // -2 if 0 light, -0,4 if 50% light
+         target_pe_mult = -(7 / (darkness_penalty - 1)) / 3.50; // -2 if 0 light, -0,4 if 50% light
       end
       target_pe_mult = target_pe_mult + 5;
 
       //pe in formula cannot be lower then base_pe - base_pe / 3 Removed because "Too boring"
-      //target_min_pe = target_base_pe - round(target_base_pe / 3.00000);
+      //target_min_pe = target_base_pe - round(target_base_pe / 3.00);
       //if target_pe < target_min_pe then begin
          //target_pe = target_min_pe;
       //end
@@ -447,13 +457,14 @@ procedure steal_skill_use begin
             ally_pe = get_critter_stat(ally, STAT_pe);
             ally_state = critter_state(ally);
             ally_cur_frm = get_object_data(ally, OBJ_DATA_CUR_FRM);
-            //from sides penalty
-            if ally_rot == (ally_rot_to_tar+1)%6 or ally_rot == (ally_rot_to_tar+5)%6 then begin
-               target_pe_mult = target_pe_mult - 1.3;
-            end
-            if ally_pe >= 3 andAlso ally_cur_frm == 0 andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/4)) then begin
+            if ally_pe >= 3 andAlso ( (ally_cur_frm == 0) or (crit_is_moving(ally)) ) andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/pe_div)) then begin
                if obj_can_see_obj(ally, dude_obj) then begin
                   float_msg(ally, "?", FLOAT_MSG_YELLOW);
+                  //from sides penalty
+                  if ally_rot == (ally_rot_to_tar+1)%6 or ally_rot == (ally_rot_to_tar+5)%6 then begin
+                     ally_pe = ally_pe - 1;
+                  end
+                  if ally_pe < 3 then ally_pe = 3;
                   target_pe = target_pe + ally_pe - 2;
                   ally_can_see += 1;
                end

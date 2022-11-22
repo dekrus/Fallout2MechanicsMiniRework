@@ -1,0 +1,135 @@
+#define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+#define CRITICAL_MISS          0
+#define MISS                   1
+#define HIT                    2
+#define CRITICAL_HIT           3
+
+#include "define_extra.h"
+#include "DEFINE.H"
+#include "sfall.h"
+
+variable WpnDropCrit;
+variable WpnDropNonCrit;
+variable target_bodypart;
+variable atk_rslt;
+variable combat_dmg;
+variable target_who_can_drop;
+
+import variable  exp_drop_wpn;
+
+//by Nirran http://www.nirran.com/Fallout2Scripts.php
+//Slightly changed so that weapons do not fall out of the hands of prone opponents and opponents with unarmed weapons
+//Also modified to prevent weapons from dropping behind the wall
+procedure Drop_Weapons(variable target,variable hand) begin
+   variable weapon;
+   variable weapon_pid;
+   variable weapon_anim;
+   variable weapon_rh_flags_ext;
+   variable weapon_lh_flags_ext;
+   variable tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
+   variable critter_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
+   variable tar_hex = tile_num(target);
+   variable dropped_hex;
+   variable count = 0;
+   variable max_count = 5;
+   if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
+      weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
+      weapon_pid = obj_pid(weapon);
+      weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+      weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      if ((hand == BODY_HIT_RIGHT_ARM) or (weapon_rh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != WPN_ANIM_NONE then begin
+         rm_obj_from_inven(target, weapon);
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+            count += 1;
+            if count > max_count then begin
+               dropped_hex = tar_hex;
+               break;
+            end
+         end
+         move_to(weapon, dropped_hex, elevation(target));
+      end
+   end
+   //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
+   if critter_inven_obj(target, INVEN_TYPE_LEFT_HAND) then begin
+      weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
+      weapon_pid = obj_pid(weapon);
+      weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+      weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != 0 then begin
+         rm_obj_from_inven(target, weapon);
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+            count += 1;
+            if count > max_count then begin
+               dropped_hex = tar_hex;
+               break;
+            end
+         end
+         move_to(weapon, dropped_hex, elevation(target));
+      end
+   end
+   target_who_can_drop = -1;
+   target_bodypart = -1;
+   atk_rslt = -1;
+   combat_dmg = -1;
+end
+
+procedure COMBATDAMAGE begin
+   variable target = get_sfall_arg;
+   variable dmgtotar = get_sfall_arg_at(2);
+   if obj_type(target) == OBJ_TYPE_CRITTER then begin
+      target_who_can_drop = target;
+      combat_dmg = dmgtotar;
+   end
+end
+
+procedure STDPROCEDURE begin
+   variable rnd;
+   variable party;
+   variable target_in_party = 0;
+   variable party_bonus = 0;
+   if combat_is_initialized andAlso (exp_drop_wpn != 0 or ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0)) andAlso get_critter_stat(target_who_can_drop,STAT_current_hp) > 0 then begin
+      party = party_member_list(0);
+      target_in_party = is_in_array(target_who_can_drop, party);
+      if not(target_in_party) then party_bonus = 1;
+      rnd = random(0, 100);
+      if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso exp_drop_wpn != 0 then begin
+         call Drop_Weapons(target_who_can_drop,exp_drop_wpn);
+         exp_drop_wpn = 0;
+      end
+      if rnd < WpnDropNonCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == HIT then begin
+         call Drop_Weapons(target_who_can_drop,target_bodypart);
+      end
+      if rnd < WpnDropCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == CRITICAL_HIT then begin
+         call Drop_Weapons(target_who_can_drop,target_bodypart);
+      end
+   end
+   target_who_can_drop = -1;
+   target_bodypart = -1;
+   atk_rslt = -1;
+   combat_dmg = -1;
+end
+
+procedure AFTERHITROLL begin
+   atk_rslt = get_sfall_arg_at(0);
+   target_bodypart = get_sfall_arg_at(3);
+end
+
+
+procedure start begin
+   if game_loaded then begin
+      variable MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
+      if MissMod != 0 then begin
+         WpnDropCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChance");
+         WpnDropNonCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropNonCriticalChance");
+         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+         register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
+         register_hook_proc_spec(HOOK_STDPROCEDURE_END, STDPROCEDURE);
+         set_global_script_type(0);
+         set_global_script_repeat(0);
+      end
+   end
+end

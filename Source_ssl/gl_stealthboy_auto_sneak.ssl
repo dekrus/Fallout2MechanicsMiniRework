@@ -1,0 +1,29 @@
+#define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+#define PID_STEALTH_BOY                     (54)
+
+#include "sfall.h"
+#include "dik.h"
+#include "DEFINE.H"
+#include "define_extra.h"
+
+
+procedure USEOBJ begin
+   variable user = get_sfall_arg;
+   variable item = get_sfall_arg;
+   variable item_pid = obj_pid(item);
+   if item_pid == PID_STEALTH_BOY andAlso user == dude_obj andAlso not(using_skill(dude_obj,SKILL_SNEAK)) andAlso not(get_flags(dude_obj) bwand FLAG_TRANSGLASS) then begin
+      if get_object_data(item, OBJ_DATA_CUR_CHARGES) > 0 then tap_key(DIK_1);
+   end
+end
+
+procedure start begin
+   if game_loaded then begin
+      variable AutoSneak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|AutoSneak");
+      if AutoSneak != 0 then begin
+         register_hook_proc(HOOK_USEOBJ, USEOBJ);
+         set_global_script_type(0);
+         set_global_script_repeat(0);
+      end
+   end
+end
+
