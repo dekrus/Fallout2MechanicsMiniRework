@@ -200,7 +200,7 @@ procedure steal_handler begin
          wpn_is_stolen = 1;
       end
       // Penalty for stealing weapons from hand.
-      steal_bonus = steal_bonus - 30 - (item_size) - (item_weight_lvar);
+      steal_bonus = steal_bonus - 30 - (item_size) - (item_weight_lvar*2);
    end
       // handler to return weapon to hands
    if item == right_hand_item andAlso stype == 1 then begin
@@ -286,7 +286,8 @@ procedure steal_handler begin
       steal_bonus =  steal_bonus - 40;
    end
       //chance_to_steal formula
-   chance_to_steal = 40 - steal_count + steal_bonus + (user_steal_skill_mult * user_steal_skill) - ((item_size + 1) * 4) - (item_weight_lvar) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
+   target_pe_mult = target_pe_mult + 2;
+   chance_to_steal = 40 + steal_bonus + (user_steal_skill_mult * user_steal_skill)  - steal_count - ((item_size + 1) * 4) - (item_weight_lvar * 3) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
       // calculation of the required skill level
    if StealRebalance == 2 andAlso chance_to_steal < 40 andAlso steal_count == 0 then begin
       pseudo_chance_to_steal = 0;
@@ -301,7 +302,7 @@ procedure steal_handler begin
          if sneak_bonus > user_steal_skill / 2 then begin
             sneak_bonus = user_steal_skill / 2;
          end
-        pseudo_chance_to_steal = 40 - steal_count + sneak_bonus + steal_bonus + (user_steal_skill_mult * user_steal_skill) - ((item_size + 1) * 4) - (item_weight_lvar) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
+        pseudo_chance_to_steal = 40 + sneak_bonus + steal_bonus + (user_steal_skill_mult * user_steal_skill)  - steal_count - ((item_size + 1) * 4) - (item_weight_lvar * 3) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
       end
       min_skill_needed = user_steal_skill;
    end
@@ -334,7 +335,7 @@ procedure steal_handler begin
       set_sfall_return(1);
       steal_item_num = 0;
       //penalty for stealing multiple things in a row
-      steal_count += 1 + (item_weight_lvar / 4) + ((item_size + 1) * 2);
+      steal_count += 15 + (item_weight_lvar / 4) + ((item_size + 1) * 2);
       isSuccess = 1;
    end
    if team != TEAM_PLAYER andAlso not(target_in_party) then begin
@@ -437,12 +438,6 @@ procedure steal_skill_use begin
       end
       target_pe_mult = target_pe_mult + 5;
 
-      //pe in formula cannot be lower then base_pe - base_pe / 3 Removed because "Too boring"
-      //target_min_pe = target_base_pe - round(target_base_pe / 3.00);
-      //if target_pe < target_min_pe then begin
-         //target_pe = target_min_pe;
-      //end
-
       // Stealing penalty if target's allies can see the thief
    if StealRebalance == 2 then begin
      foreach ally in list_as_array(LIST_CRITTERS) begin
@@ -473,7 +468,8 @@ procedure steal_skill_use begin
       end
    end
          // Minimum required skill mult
-      target_pe_mult = target_pe_mult + 1;
+      target_pe_mult = target_pe_mult + 2;
+      target_pe_mult = target_pe_mult - (7 / (darkness_penalty - 1)) / 3.50;
          // Conversion of the total perception of all ally witnesses and target's perception into the minimum steal skill requirement
       min_steal_skill = (target_pe * target_pe_mult);
          // Stealing penalty if target facing the thief
@@ -498,7 +494,11 @@ procedure steal_skill_use begin
       end
       // Stealing bonus if critter can't see thief
       if not(obj_can_see_obj(target, dude_obj)) then begin
-         min_steal_skill = min_steal_skill - 8 - user_sneak_skill / 3;
+         min_steal_skill = min_steal_skill - 20;
+         // bonus for sneak
+         if using_skill(dude_obj, SKILL_SNEAK) then begin
+            min_steal_skill = min_steal_skill - user_sneak_skill / 4;
+         end
       end
       // bonus for sneak even if target can see thief
       if obj_can_see_obj(target, dude_obj) andAlso using_skill(dude_obj, SKILL_SNEAK) then begin
@@ -515,6 +515,7 @@ procedure steal_skill_use begin
          return;
       end
       min_steal_skill = round(min_steal_skill);
+      if min_steal_skill < 10 then min_steal_skill = 1;
          // Minimum skill level to open steal interface
       if  user_steal_skill < min_steal_skill then begin
          if ally_can_see != 0 then begin

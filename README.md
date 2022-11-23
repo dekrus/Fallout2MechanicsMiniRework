@@ -61,8 +61,8 @@ Replaces instant stimpak healing with healing over time.
 - Removed element of randomness in the number of uses of medical tools, now first aid kits and doctor's bag have an indicator of the remaining materials. First aid kit can be used 5 times until it is depleted, the doctor's bag 3 times. Upgraded versions (paramedic bag) can be used up to 10 times.
 - Removed daily limit on the use of medical tools. The number of uses is limited only by the remaining supplies in first aid kit/ Doctor's bag.
 - Each use of medical tools is guaranteed to restore a certain amount of health, ranging from the lowest possible (failed skill check) to the average and maximum values (successful skill check).
-- Healer perk adds extra 4-10(2-5 for et_tu) HP healed per level. 
-- Healing yield no XP points. +50 XP points per healed limb.
+- Healer perk adds extra 4-10(2-5 for et_tu) HP healed per perk level. 
+- Healing HP with a First Aid Kits or Doctor's Bag does not grant experience points, but healing a disability with a doctor's bag grants 50 experience points for each limb healed.
 - Healing effectiveness is capped at 300% for both medical tools types.
 
 FA tools:
@@ -77,7 +77,7 @@ DOC tools:
 - The chance to heal an injury is calculated for each limb separately and capped at 100% ( 80% Doctor skill + 20% bonus from Doctor's Bag or 60% Doctor skill + 40% bonus Paramedics Bag).
 
 ### Explosion injury
-Received damage from grenades (including plasma grenade, as well as EMP for robots), grenade launchers and other explosive weapons if it exceeds 10% of the !current! health points can cause damage to the arms/legs/eyes.  
+Received damage from grenades (including plasma grenade, as well as EMP for robots), grenade launchers and other explosive weapons if it exceeds 15%(35% for robots or 10% with EMP) of the !current! health points can cause damage to the arms/legs/eyes.  
 (The probability is configured in the ini file and also depends on some S.P.E.C.I.A.L. of the target).
 - Explosive hand injury can cause weapons to fall out of hand.
 

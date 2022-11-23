@@ -1288,7 +1288,6 @@ procedure rest begin
                if critter == dude_obj then begin
                  DudeRegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.0 * RegenMaxHPpercentMult * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
                  if get_poison(dude_obj) < 1 then begin
-                 critter_heal(dude_obj, RegenTickHP);
                   if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter == dude_obj AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                     if RegenTickHP == 1 then begin
                     display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,RegenTickHP));
@@ -1296,6 +1295,7 @@ procedure rest begin
                     else begin
                     display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,RegenTickHP));
                     end
+                    critter_heal(dude_obj, RegenTickHP);
                   end
                   if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
                     call cripheal();
@@ -1309,7 +1309,6 @@ procedure rest begin
                   if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
                     RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
                   end
-                 critter_heal(critter, RegenTickHP);
                  if ShowModMSG != 0 andAlso RegenTickHP > 0 andAlso critter != dude_obj andAlso not(is_dead(critter)) AndAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp ) then begin
                     if RegenTickHP == 1 then begin
                     display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,RegenTickHP));
@@ -1318,6 +1317,7 @@ procedure rest begin
                     display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
                     end
                  end
+                  critter_heal(critter, RegenTickHP);
                end
               end
              // poison dmg while resting/time skipping
@@ -1329,7 +1329,6 @@ procedure rest begin
                if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
                  RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
                end
-               critter_heal(critter, RegenTickHP);
                   if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
                     call cripheal();
                   end
@@ -1351,6 +1350,7 @@ procedure rest begin
                     display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
                     end
                end
+               critter_heal(critter, RegenTickHP);
                if get_critter_stat(dude_obj, STAT_heal_rate) > 5 then begin
                lastdudehr = get_critter_stat(dude_obj, STAT_heal_rate);
                end
@@ -1459,7 +1459,6 @@ procedure worldMapTravel begin
                   if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
                     RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
                   end
-                 critter_heal(critter, RegenTickHP);
                   if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
                     call cripheal();
                   end
@@ -1482,6 +1481,7 @@ procedure worldMapTravel begin
                     display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
                     end
                   end
+                  critter_heal(critter, RegenTickHP);
                end
                       // Poison dmg for party memebers and dude_obj if dude is regenerating
                      critter_in_party = is_in_array(critter, party);
@@ -1494,7 +1494,6 @@ procedure worldMapTravel begin
                         if get_critter_stat(critter, STAT_current_hp ) + RegenTickHP >= get_critter_stat(critter, STAT_max_hp ) then begin
                           RegenTickHP = get_critter_stat(critter, STAT_max_hp ) - get_critter_stat(critter, STAT_current_hp );
                         end
-                        critter_heal(critter, RegenTickHP);
                           if critter == dude_obj AndAlso has_fake_perk(regen_perk_name) != 0 andAlso critcrippled(dude_obj) then begin
                            call cripheal();
                           end
@@ -1517,6 +1516,7 @@ procedure worldMapTravel begin
                              display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,RegenTickHP));
                              end
                           end
+                           critter_heal(critter, RegenTickHP);
                         end
       if combat_diff <= 2 then PoisonMaxHPpercentMult = (0.5 * PoisonMaxHPpercentMult2) * combat_diff;
       if combat_diff > 2 then PoisonMaxHPpercentMult = (1.25 * PoisonMaxHPpercentMult2);
@@ -1553,7 +1553,7 @@ procedure worldMapTravel begin
                      end
            // time skip for heals
            if critterishealing != 0 andAlso poisonedcrit > 0 then begin
-           RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * 7 * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
+           RegenTickHP = round(get_critter_stat(dude_obj, STAT_max_hp) / 100.0 * RegenMaxHPpercentMult * (3 + 4 * not(UnsafeRegenModScripting)) * (get_critter_stat(dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
            game_time_advance(53);
            end
       end
@@ -1929,6 +1929,28 @@ procedure ModInTurnBased begin
          if PoisonTickDmg < min_poison_dmg then begin
            PoisonTickDmg = min_poison_dmg;
          end
+         losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+         if ShowFloatMSG != 0 andAlso (not(losblock) or HR_fog_of_war == 0) then begin
+           if PoisonTickDmg > 0 andAlso RegenMod != 0 then begin
+            if RegenMod != 0 andAlso PoisonTickDmg > 0 andAlso crithr > 5 then begin
+              if PoisonTickDmg > RegenTickHP then begin
+              float_msg(critter, "-" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
+              end
+              if PoisonTickDmg == RegenTickHP then begin
+              float_msg(critter, "" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
+              end
+              if PoisonTickDmg < RegenTickHP then begin
+              float_msg(critter, "+" + (RegenTickHP - PoisonTickDmg), FLOAT_MSG_BLUE);
+              end
+            end
+            if PoisonTickDmg > 0 andAlso crithr < 6 then begin
+            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+            end
+           end
+           if PoisonTickDmg > 0 andAlso RegenMod == 0 then begin
+            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+           end
+         end
          if PoisonTickDmg > 0 andAlso Critter == dude_obj then begin
            display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
          end
@@ -1961,28 +1983,6 @@ procedure ModInTurnBased begin
                display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
                end
               end
-         end
-         losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-         if ShowFloatMSG != 0 andAlso (not(losblock) or HR_fog_of_war == 0) then begin
-           if PoisonTickDmg > 0 andAlso RegenMod != 0 then begin
-            if RegenMod != 0 andAlso PoisonTickDmg > 0 andAlso crithr > 5 then begin
-              if PoisonTickDmg > RegenTickHP then begin
-              float_msg(critter, "-" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
-              end
-              if PoisonTickDmg == RegenTickHP then begin
-              float_msg(critter, "" + (PoisonTickDmg - RegenTickHP), FLOAT_MSG_BLUE);
-              end
-              if PoisonTickDmg < RegenTickHP then begin
-              float_msg(critter, "+" + (RegenTickHP - PoisonTickDmg), FLOAT_MSG_BLUE);
-              end
-            end
-            if PoisonTickDmg > 0 andAlso crithr < 6 then begin
-            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
-            end
-           end
-           if PoisonTickDmg > 0 andAlso RegenMod == 0 then begin
-            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
-           end
          end
 
          poison(critter, - (min_poison_decay + (round(critcurpoison * 0.10 ) * 10 / PoisonDecayDiv)));
@@ -2177,6 +2177,8 @@ procedure map_enter_p_proc begin
    variable critter_pid;
    variable has_scorp_tail;
    variable has_small_scorp_tail;
+   variable has_antidote;
+   variable antidote;
    variable radscrop_tail;
    variable wpn;
    variable wpnpid;
@@ -2212,7 +2214,16 @@ procedure map_enter_p_proc begin
                      add_mult_objs_to_inven(critter, stim, 1);
                   end
                end
-
+               if game_time > ONE_GAME_DAY * 19 then begin
+                  has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
+                  if PoisonMod != 0 andAlso has_antidote <= 0 then begin
+                      rnd = random(0, 200);
+                     if rnd < 1 then begin
+                        antidote = create_object_sid(PID_ANTIDOTE, 0, 0, -1);
+                        add_mult_objs_to_inven(critter, antidote, random(1,3));
+                     end
+                  end
+               end
                has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
                if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data (PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SMALL_SCORPION_TAIL);
                critter_int = get_critter_stat(critter, STAT_iq);

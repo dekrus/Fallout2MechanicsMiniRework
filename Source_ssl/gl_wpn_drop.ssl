@@ -27,16 +27,19 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable weapon_rh_flags_ext;
    variable weapon_lh_flags_ext;
    variable tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
-   variable critter_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
+   variable critter_flags;
    variable tar_hex = tile_num(target);
    variable dropped_hex;
    variable count = 0;
    variable max_count = 5;
+   if target != 0 then critter_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
    if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
-      weapon_pid = obj_pid(weapon);
-      weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
-      weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      if weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+         weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      end
       if ((hand == BODY_HIT_RIGHT_ARM) or (weapon_rh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != WPN_ANIM_NONE then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
@@ -54,9 +57,11 @@ procedure Drop_Weapons(variable target,variable hand) begin
    //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
    if critter_inven_obj(target, INVEN_TYPE_LEFT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
-      weapon_pid = obj_pid(weapon);
-      weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
-      weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      if weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+         weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      end
       if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != 0 then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
@@ -96,6 +101,10 @@ procedure STDPROCEDURE begin
       target_in_party = is_in_array(target_who_can_drop, party);
       if not(target_in_party) then party_bonus = 1;
       rnd = random(0, 100);
+      if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso exp_drop_wpn != 0 then begin
+         call Drop_Weapons(target_who_can_drop,exp_drop_wpn);
+         exp_drop_wpn = 0;
+      end
       if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso exp_drop_wpn != 0 then begin
          call Drop_Weapons(target_who_can_drop,exp_drop_wpn);
          exp_drop_wpn = 0;
