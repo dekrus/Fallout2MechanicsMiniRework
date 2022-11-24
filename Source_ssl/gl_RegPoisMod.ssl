@@ -452,10 +452,10 @@ procedure COMBATDAMAGE begin
   variable party = party_member_list(0);
   variable attacker_in_party = is_in_array(attacker, party);
   if PID_SMALL_SCORPION_TAIL > 0 then has_small_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SMALL_SCORPION_TAIL);
-  if obj_type(target) == OBJ_TYPE_CRITTER then begin
+  //if obj_type(target) == OBJ_TYPE_CRITTER then begin
      tarhr = get_critter_stat(target, STAT_heal_rate);
      tar_kill_type = critter_kill_type(target);
-  end
+  //end
   if critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND) then begin
      leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
      lhname = proto_data(leftHand, 1);

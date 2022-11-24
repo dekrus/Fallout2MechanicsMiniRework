@@ -1,15 +1,25 @@
-### Version 1.6
-##### Regen & Poison mod
--Poison damage now scales with combat difficulty settings.
--Added a setting to increase poison damage for enemy NPCs.
--Changed the balance of healing with stimpaks. Penalties last 1 minute, instead of 1 hour. Super Stim Penalty lasts 2 hours instead of 24.
+### Version 1.62
+##### Miss mod
+- Fixed bullets being able to shoot through impenetrable objects on misses.
 
--Weapons now drop out of hand after damage animation instead of before.
-- Weapons no longer drop behind walls and objects.
--Improved refresh rate and optimized CPU usage when highlighting NPCs during stealth detection.
-- Added mod to prevent status effects from a critical hit with 0 damage.
--Added a mod that automatically turns on sneak mode when using Stealthboy
+### Version 1.61
+- Fixed crashes when receiving damage on an unaccounted version of the sfall.
+
+### Version 1.6
+- Added new module that automatically turns on sneak mode when using Stealthboy.
+- Added new module that prevent status effects from a critical hit with 0 damage.
+##### Regen & Poison mod
+- Poison damage now scales with ingame combat difficulty settings.
+- Added a setting to increase poison damage to enemy NPCs.
 - Changed the balance of healing with stimpaks. Penalties last 1 minute, instead of 1 hour. Super Stim Penalty lasts 2 hours instead of 24.
+##### Miss mod
+- Weapons now drop out of hand after damage animation instead of before.
+- Dropped weapons no longer fall behind walls and objects.
+##### Sneak Detection mod
+- Speeded up the refresh rate and added the ability to set the refresh rate when highlighting NPCs during stealth detection.
+##### Explosion injury mod
+- Сhance of injury now depends on the ingame combat difficulty settings.
+- Added an injury rate setting separately for the player and companions.
 
 ### Version 1.5
 - Added new module for medical tool usage.

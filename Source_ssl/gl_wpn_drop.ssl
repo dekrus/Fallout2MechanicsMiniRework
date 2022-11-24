@@ -85,10 +85,8 @@ end
 procedure COMBATDAMAGE begin
    variable target = get_sfall_arg;
    variable dmgtotar = get_sfall_arg_at(2);
-   if obj_type(target) == OBJ_TYPE_CRITTER then begin
-      target_who_can_drop = target;
-      combat_dmg = dmgtotar;
-   end
+   target_who_can_drop = target;
+   combat_dmg = dmgtotar;
 end
 
 procedure STDPROCEDURE begin
