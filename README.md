@@ -35,22 +35,25 @@ This module adds an alternative fire mode to Laser, Plasma and Gauss weapons.
 - Alternate fire mode is activated with an Aimed Shot to the torso.
 - All animations depend on combat speed settings (and I advise you to set the maximum combat speed for better results)
 
-![Secondary-Attack](images/LASER_SLOW.gif)
 Laser weapons:
+![Secondary-Attack](images/LASER_SLOW.gif)  
+
 - Laser weapons deal weapon damage(+perks and critical effects) to all creatures in a line between the shooter and the target.
 - The alternate firing mode consumes (2 + 1 * number of additional targets) microfusion cells/small energy cells.
 - The maximum number of additional targets can be configured in the .ini file.
 - Alternate mode increases armor penetration.( All targets' laser defenses are multiplied by 0.5 )
 - Hit chance and critical hit chance are calculated separately for each target.
 
-![Secondary-Attack](images/GAUSS.gif)
 Gauss weapons:
+![Secondary-Attack](images/GAUSS.gif)  
+
 - Gauss weapons deal weapon damage (+ perks and critical effects) to all creatures in the line of fire.
 - The maximum number of additional targets depends on the attacker's damage, the amount of damage reduction for each target (configurable in the .ini file) and armor defenses of the targets on the line.
 - Hit chance and critical hit chance are calculated separately for each target.
 
-![Secondary-Attack](images/PLASMA.gif)
 PLASMA weapons:
+![Secondary-Attack](images/PLASMA.gif)  
+
 - Plasma weapons deal weapon damage (+perks and critical effects) to all creatures in a radius around the main target.
 - The radius of the plasma explosion is configured in the .ini file.
 - Damage depends on the distance to the main target. The greater the distance, the lower the damage (can be configured in the .ini file).
