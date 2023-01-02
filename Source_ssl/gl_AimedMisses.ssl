@@ -543,6 +543,15 @@ procedure misstohit begin
       target = get_sfall_arg;
       bpart = get_sfall_arg;
       hitch = get_sfall_arg;
+      if hitmiss == CRITICAL_MISS then begin
+         set_sfall_return(CRITICAL_MISS); //  CRITICAL_MISS
+         set_sfall_arg(0, CRITICAL_MISS);
+         return;
+      end
+      reg_anim_combat_check(0);
+      reg_anim_begin();
+      reg_anim_turn_towards(attacker, tile_num(target), 0);
+      reg_anim_end();
       leftHand_obj = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
       rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
       if leftHand_obj then leftHand = obj_pid(leftHand_obj);
@@ -677,6 +686,7 @@ procedure misstohit begin
                      set_sfall_arg(3, BODY_UNCALLED);
                      set_sfall_return(critter); // new target
                      set_sfall_arg(2, critter);
+                     //miss_mod_new_target = critter;
                      newtarget = 1;
                      return;
                      end
@@ -716,6 +726,7 @@ procedure misstohit begin
                      set_sfall_arg(3, BODY_UNCALLED);
                      set_sfall_return(critter); // new target
                      set_sfall_arg(2, critter);
+                     //miss_mod_new_target = critter;
                      newtarget = 1;
                      return;
                      end
@@ -732,6 +743,7 @@ procedure misstohit begin
                   set_sfall_return(losblock1); // new target == blocking critter1
                   set_sfall_arg(2, losblock1);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock1;
                   newtarget = 1;
                   return;
                   end
@@ -745,6 +757,7 @@ procedure misstohit begin
                   set_sfall_return(losblock2); // new target == blocking critter2
                   set_sfall_arg(2, losblock2);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock2;
                   newtarget = 1;
                   return;
                   end
@@ -758,6 +771,7 @@ procedure misstohit begin
                   set_sfall_return(losblock3); // new target == blocking critter3
                   set_sfall_arg(2, losblock3);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock3;
                   newtarget = 1;
                   return;
                   end
@@ -771,6 +785,7 @@ procedure misstohit begin
                   set_sfall_return(losblock4); // new target == blocking critter4
                   set_sfall_arg(2, losblock4);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock4;
                   newtarget = 1;
                   return;
                   end
@@ -784,6 +799,7 @@ procedure misstohit begin
                   set_sfall_return(losblock5); // new target == blocking critter5
                   set_sfall_arg(2, losblock5);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock5;
                   newtarget = 1;
                   return;
                   end
@@ -797,6 +813,7 @@ procedure misstohit begin
                   set_sfall_return(losblock6); // new target == blocking critter6
                   set_sfall_arg(2, losblock6);
                   losblockhit = 1;
+                  //miss_mod_new_target = losblock6;
                   newtarget = 1;
                   return;
                   end
@@ -830,6 +847,7 @@ procedure misstohit begin
                            set_sfall_arg(3, BODY_UNCALLED);
                            set_sfall_return(critter); // new target
                            set_sfall_arg(2, critter);
+                           //miss_mod_new_target = critter;
                            newtarget = 1;
                            return;
                         end

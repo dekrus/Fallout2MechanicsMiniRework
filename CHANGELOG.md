@@ -1,3 +1,12 @@
+-Fixed a bug that allowed enemies to make aimed shots when attacking with a Rocket launcher
+
+
+### Version 1.7
+##### SecondaryAttackMod
+- Added new module that allows to perform alternative attacks with Laser,Plasma and Gauss weapons.
+##### Miss mod
+- Fixed: critters could make aimed attacks with a rocket launcher.
+
 ### Version 1.62
 ##### Miss mod
 - Fixed bullets being able to shoot through impenetrable objects on misses.
