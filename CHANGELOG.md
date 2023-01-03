@@ -5,7 +5,7 @@
 - The presence of the "Finesse" trait now correctly affects the defense of targets.
 - The presence of the "Bloody Mess" trait now affects the death animation.
 - Added a setting that allows you to ignore the presence of the SNIPER perk when determining the probability of a critical hit on additional targets.
-
+- Fixes for some damage and animation mismatch.
 ##### Miss mod
 - Fixed: critters could make aimed attacks with a rocket launcher.
 

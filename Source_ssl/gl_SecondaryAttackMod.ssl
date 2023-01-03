@@ -2102,6 +2102,7 @@ procedure plasma_aoe_dmg(variable attacker,variable target) begin
    reg_anim_callback(plasma_alt_explosion);
    reg_anim_callback(restore_weapon_proj_pid);
    reg_anim_callback(destroy_placeholder);
+   reg_anim_callback(lvar_full_reset);
    reg_anim_end();
 end
 
@@ -2126,7 +2127,12 @@ procedure AFTERHITROLL begin
    new_main_target = 0;
    new_targets_count = 0;
    atk_rslt = attack_result;
-   missed_shot = 0;
+   if atk_rslt < HIT then begin
+      missed_shot = 1;
+   end
+   else begin
+      missed_shot = 0;
+   end
    if attacker == dude_obj then begin
       if active_hand == LEFT_HAND then begin
          weapon = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
@@ -2582,7 +2588,6 @@ procedure STDPROCEDURE begin
       reg_anim_end();
    call lvar_full_reset();
    end
-   one_time_call = 0;
 end
 
 procedure TOHIT begin
@@ -2658,6 +2663,7 @@ procedure start begin
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_STDPROCEDURE_END, STDPROCEDURE);
+         register_hook_proc_spec(HOOK_WITHINPERCEPTION, STDPROCEDURE);
          register_hook_proc_spec(HOOK_TARGETOBJECT, TARGETOBJECT);
          register_hook_proc_spec(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
          register_hook_proc_spec(HOOK_TOHIT, TOHIT);
