@@ -1,5 +1,13 @@
--Fixed a bug that allowed enemies to make aimed shots when attacking with a Rocket launcher
 
+### Version 1.71
+##### SecondaryAttackMod
+- Improved Compatibility with Fallout: Sonora.
+- The presence of the "Finesse" trait now correctly affects the defense of targets.
+- The presence of the "Bloody Mess" trait now affects the death animation.
+- Added a setting that allows you to ignore the presence of the SNIPER perk when determining the probability of a critical hit on additional targets.
+
+##### Miss mod
+- Fixed: critters could make aimed attacks with a rocket launcher.
 
 ### Version 1.7
 ##### SecondaryAttackMod

@@ -132,6 +132,7 @@ Removes randomness from the sneak skill, now the detection area gradually decrea
  - Low light condition penalty to NPC perception range: From ~8%(Basement light) to ~30%(Complete darkness).  
 
 #### Sneak detection
+![Sneak](images/SNEAK.gif)
 Sneak detection color indication that works for the original and new stealth mechanics.
 As long as sneaking player is within the detection range of an watching NPC, that NPC will be outlined:
 

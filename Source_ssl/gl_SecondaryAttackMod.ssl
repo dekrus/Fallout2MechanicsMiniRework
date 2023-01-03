@@ -31,6 +31,8 @@
 #define msg_hit_add_1_hp 20
 #define msg_critical_hit_1_hp 21
 #define msg_critical_hit_add_1_hp 22
+#define PID_SONORA_SMALL_ENERGY_CELL 1
+#define PID_SONORA_MICRO_FUSION_CELL 2
 #define pid_laser_projectile (0x05000009) // 6 frames
 #define pid_plasma_big_projectile  (0x500000A) // 6 frames
 #define pid_sonora_railgun 183
@@ -64,6 +66,7 @@ variable GaussDamageReductionPerTarget;
 variable PlasmaSecondaryAttackMod;
 variable PlasmaBlastRadius;
 variable PlasmaDamagePercentage;
+variable AllowSniperPerk;
 variable combat_speed;
 variable combat_diff;
 variable show_float_dmg;
@@ -97,10 +100,14 @@ variable point_anim_frames;
 variable bonus_crit_power_roll;
 variable bonus_ranged_damage;
 variable living_anatomy;
+variable night_vision;
+variable sniper;
 variable sharpshooter;
 variable weapon_handling;
+variable bloody_mess;
 variable one_hander;
 variable one_hander_bonus;
+variable finesse;
 variable weapon;
 variable weapon_pid;
 variable weapon_anim;
@@ -175,6 +182,11 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target) begin
    // bodypart_hit_modifier penalty
    if bodypart_hit_modifier then begin
       hit_chance = hit_chance + bodypart_hit_modifier;
+   end
+
+   // perk_night_vision  bonus to hit for Sonora
+   if Sonora andAlso night_vision then begin
+      hit_chance = hit_chance + 15;
    end
 
    //darkness to_hit penalty in low light(considering PERK_night_vision) without PERK_weapon_night_sight
@@ -335,6 +347,16 @@ procedure lvar_full_reset begin
    targets_array = 0;
    target_bodypart = -1;
    atk_rslt = -1;
+   finesse = 0;
+   bloody_mess = 0;
+   one_hander = 0;
+   weapon_handling = 0;
+   sharpshooter = 0;
+   bonus_crit_power_roll = 0;
+   bonus_ranged_damage = 0;
+   living_anatomy = 0;
+   night_vision = 0;
+   sniper = 0;
    one_hander_bonus = 0;
    combat_dmg = 0;
    weapon = 0;
@@ -414,6 +436,7 @@ end
 
 procedure calc_dmg_laser(variable attacker, variable target) begin
    variable target_pid = obj_pid(target);
+   variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
    variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
    variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
@@ -434,6 +457,10 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
       if target_dt < ammo_dr_mod then begin
          target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
       end
+   end
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse then begin
+      target_dr = target_dr + 30;
    end
    //guaranteed increase in laser armor-piercing when using an alternative firing mode
    if weapon_perk == PERK_weapon_penetrate then begin
@@ -465,7 +492,8 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    //if hit
    else begin
       crit_power_roll = 0;
-      if crit_roll <= critical_chance then begin
+      //PERK_sniper crit chance bonus
+      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
          if crit_mult < 2 then begin
@@ -495,6 +523,7 @@ end
 
 procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg) begin
    variable target_pid = obj_pid(target);
+   variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
    variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
    variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
@@ -517,6 +546,11 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
          target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
       end
    end
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse then begin
+      target_dr = target_dr + 30;
+   end
+
    if new_targets_count < 3 then target_dt = target_dt * 0.7 - 2;
    target_dr = target_dr - 10 + ammo_dr_mod;
 
@@ -544,7 +578,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
    //if hit
    else begin
       crit_power_roll = 0;
-      if crit_roll <= critical_chance then begin
+      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
          if crit_mult < 2 then begin
@@ -1693,7 +1727,7 @@ procedure laser_line_dmg(variable attacker,variable target) begin
                         //death animation start
                         else begin
                         //non gore death
-                             if dmg > 0 andAlso dmg < 30 then begin
+                             if dmg > 0 andAlso dmg < 30 andAlso not(bloody_mess) then begin
                                  if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
                                     if new_tar_fid == FID_MADEGG then begin
                                        //no anim for eggs
@@ -1710,7 +1744,7 @@ procedure laser_line_dmg(variable attacker,variable target) begin
                                     reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
                                  end
                               end
-                              if dmg >= 30 then begin
+                              if dmg >= 30 or bloody_mess then begin
                                     // if obj dont have ANIM_sliced_in_half death anim then
                                     if new_tar_fid == FID_NMBOXX or new_tar_fid == FID_NMOLDD or new_tar_fid == FID_MADEGG or new_tar_fid == FID_NFLYNN or new_tar_fid == FID_NFNICE or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills or (new_tar_critter_type == KILL_TYPE_robot_kills andAlso new_tar_fid != 16777282) or new_tar_critter_type == 18 then begin
                                        //critter is not the Horrigan
@@ -1839,7 +1873,7 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
                //death animation start
                else begin
                         //low dmg start
-                        if dmg <= 30 then begin
+                        if dmg <= 30 andAlso not(bloody_mess) then begin
                            if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
                               if new_tar_fid == FID_MADEGG then begin
                                  //no anim for eggs
@@ -1857,7 +1891,7 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
                         //low dmg end
 
                         //dmg > 30 and <= 60 start
-                        else if dmg <= 60 then begin
+                        else if dmg <= 60 or (bloody_mess andAlso dmg <= 50) then begin
                               // if obj dont have big_hole death anim then
                               if new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_NFLYNN or new_tar_fid == FID_NMBRSR or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_dog_kills or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_floater_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_giant_ant_kills or new_tar_critter_type == KILL_TYPE_brahmin_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills or new_tar_critter_type == KILL_TYPE_robot_kills or new_tar_critter_type == 18 then begin
                                  if obj_pid(new_tar) != PID_END_BOSS then begin
@@ -1877,7 +1911,7 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
                         //dmg > 30 and <= 60 end
 
                         //dmg > 60 start
-                        else if dmg > 60 then begin
+                        else if dmg > 60 or (bloody_mess andAlso dmg > 50) then begin
                            // if obj dont have explode death anim then
                            if (get_critter_stat(new_tar,STAT_current_hp) < (dmg / 2)) or new_tar_special_death or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MABRAN or new_tar_fid == FID_MAMURT or new_tar_fid == FID_MAMRAT or new_tar_fid == FID_NMDOCC or new_tar_fid == FID_NMDOCC or new_tar_fid == FID_NMVALT or new_tar_critter_type == KILL_TYPE_deathclaw_kills or new_tar_critter_type == KILL_TYPE_plant_kills or new_tar_critter_type == 18 then begin
                               // if obj dont have big_hole death anim then
@@ -1931,6 +1965,7 @@ procedure plasma_alt_explosion begin
    variable pid = 0x500001D;
    variable sfx = "WHS1FXX1";
    variable attacker = dude_obj;
+   variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
    variable crit_power_roll;
    variable crit_mult = 1;
@@ -1945,7 +1980,7 @@ procedure plasma_alt_explosion begin
    reg_anim_play_sfx(exlposion,sfx, 0);
    reg_anim_destroy(exlposion);
    reg_anim_end();
-   if show_float_dmg andAlso orig_target > 0 then begin
+   if show_float_dmg andAlso orig_target > 0 andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER then begin
       if combat_dmg > 0 then begin
          float_msg(orig_target,"-"+combat_dmg, 2);
       end
@@ -1958,8 +1993,14 @@ procedure plasma_alt_explosion begin
          new_tar_pid = obj_pid(new_tar);
          target_dt = get_proto_data(new_tar_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
          target_dr = get_proto_data(new_tar_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
+
+         //Increase target_dr if it attacker has TRAIT_finesse
+         if finesse then begin
+            target_dr = target_dr + 30;
+         end
+
          crit_roll = random(1, 100);
-         if crit_roll <= critical_chance then begin
+         if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
             crit_power_roll = random(1, (100 + bonus_crit_power_roll));
             crit_mult = get_crit_mult(crit_power_roll,new_tar);
             if crit_mult < 2 then begin
@@ -2070,6 +2111,7 @@ procedure AFTERHITROLL begin
    variable target = get_sfall_arg;
    variable bodypart = get_sfall_arg;
    variable hit_chance = get_sfall_arg;
+   variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
    variable target_pid = obj_pid(target);
    variable rnd;
@@ -2092,12 +2134,18 @@ procedure AFTERHITROLL begin
       else begin
          weapon = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
       end
+      finesse = has_trait(TRAIT_TRAIT, attacker, TRAIT_finesse);
+      bloody_mess = has_trait(TRAIT_TRAIT, attacker, TRAIT_bloody_mess);
       one_hander = has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander);
       weapon_handling = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
       sharpshooter = has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
       bonus_crit_power_roll = get_critter_stat(attacker, STAT_better_crit);
       bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
       living_anatomy = has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk);
+      night_vision = has_trait(TRAIT_PERK, attacker, PERK_night_vision);
+      if AllowSniperPerk then begin
+         sniper = has_trait(TRAIT_PERK, attacker, PERK_sniper);
+      end
    end
    else begin
       weapon = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
@@ -2150,10 +2198,19 @@ procedure AFTERHITROLL begin
          return;
       end
       laser_curr_ammo = weapon_cur_ammo;
-      if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
-      if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
-      if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
-      if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+      if Sonora then begin
+         if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+      end
+      else begin
+         if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+         if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+      end
+
 
       rnd = random(1, 100);
       if rnd > hit_chance then begin
@@ -2216,7 +2273,7 @@ procedure AFTERHITROLL begin
    end
    if new_main_target then begin
       rnd = random(1, 100);
-      if rnd <= critical_chance then begin
+      if rnd <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
          set_sfall_return(CRITICAL_HIT);
          set_sfall_arg(0, CRITICAL_HIT);
          set_sfall_return(bodypart);
@@ -2361,7 +2418,7 @@ procedure STDPROCEDURE begin
    variable tar_cur_hp;
    variable accumulated_experience;
    if combat_is_initialized andAlso target_bodypart == BODY_HIT_TORSO andAlso one_time_call == 1 andAlso targets_array != 0 then begin
-      if missed_shot andAlso show_float_dmg andAlso not(is_in_array(orig_target,targets_array)) then begin
+      if missed_shot andAlso show_float_dmg andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) then begin
          if combat_dmg <= 0 then begin
             float_msg(orig_target, "0", 2);
          end
@@ -2561,6 +2618,7 @@ procedure start begin
       if SecondaryAttackMod > 0 then begin
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
          //ProneTargetsSkip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ProneSkip");
+         AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
 
          LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
          LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
