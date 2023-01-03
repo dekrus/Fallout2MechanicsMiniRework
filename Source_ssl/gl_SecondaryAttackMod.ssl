@@ -1960,6 +1960,7 @@ procedure plasma_alt_explosion begin
    variable array_critters_in_radius = objects_in_radius(tar_tile,blast_radius, target_elevation, OBJ_TYPE_CRITTER);
    variable new_tar;
    variable new_tar_pid;
+   variable new_tar_cur_hp;
    variable distance;
    variable exlposion;
    variable pid = 0x500001D;
@@ -1971,6 +1972,7 @@ procedure plasma_alt_explosion begin
    variable crit_mult = 1;
    variable crit_roll;
    variable dmg;
+   variable accumulated_experience;
    one_time_call = 0;
    exlposion = create_object(pid, tar_tile, target_elevation);
    reg_anim_combat_check(0);
@@ -1989,7 +1991,8 @@ procedure plasma_alt_explosion begin
       end
    end
    foreach new_tar in array_critters_in_radius begin
-      if new_tar != orig_target andAlso get_critter_stat(new_tar,STAT_current_hp) > 0 andAlso not(is_dead(new_tar)) then begin
+      new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
+      if new_tar != orig_target andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) then begin
          new_tar_pid = obj_pid(new_tar);
          target_dt = get_proto_data(new_tar_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
          target_dr = get_proto_data(new_tar_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
@@ -2023,6 +2026,14 @@ procedure plasma_alt_explosion begin
          if dmg andAlso new_tar == attacker then critter_heal(new_tar, - dmg);
          if show_float_dmg andAlso new_tar != orig_target andAlso new_tar > 0 then begin
             if dmg > 0 then begin
+               if sonora then begin
+                  if new_tar_cur_hp > dmg then begin
+                     accumulated_experience += (dmg * 2.45);
+                  end
+                  else begin
+                     accumulated_experience += (new_tar_cur_hp * 2.45);
+                  end
+               end
                float_msg(new_tar,"-"+dmg, 2);
             end
             else begin
@@ -2031,6 +2042,11 @@ procedure plasma_alt_explosion begin
          end
          if new_tar != attacker andAlso new_tar != orig_target then critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
       end
+   end
+   if sonora andAlso accumulated_experience > 1 andAlso attacker == dude_obj then begin
+      accumulated_experience = round(accumulated_experience);
+      give_exp_points(accumulated_experience);
+      display_msg(modmsg(msg_gift_exp_start) + accumulated_experience + modmsg(msg_gift_exp_end));
    end
 end
 
@@ -2476,6 +2492,15 @@ procedure STDPROCEDURE begin
                            end
                         end
                         if dmg > 0 andAlso new_tar != orig_target then begin
+                           //exp for sonora
+                           if sonora then begin
+                              if tar_cur_hp > dmg then begin
+                                 accumulated_experience += (dmg * 2.45);
+                              end
+                              else begin
+                                 accumulated_experience += (tar_cur_hp * 2.45);
+                              end
+                           end
 
                            if crit_power_roll < 0 then begin
                               if show_float_dmg then float_msg(new_tar, "~", 2);
@@ -2530,7 +2555,7 @@ procedure STDPROCEDURE begin
                                  end
                                  //if new_target will die
                                  else begin
-                                    accumulated_experience += get_proto_data(new_tar_pid, PROTO_CR_EXP_VAL);
+                                    if not(sonora) then accumulated_experience += get_proto_data(new_tar_pid, PROTO_CR_EXP_VAL);
                                     set_outline(new_tar, OUTLINE_NONE);
                                     if new_tar != orig_target then critter_heal(new_tar, -tar_cur_hp);
                                     if new_tar_frame == ANIM_fall_back then begin
@@ -2582,6 +2607,7 @@ procedure STDPROCEDURE begin
                   end
       end
       if accumulated_experience > 1 andAlso attacker == dude_obj then begin
+         if sonora then accumulated_experience = round(accumulated_experience);
          give_exp_points(accumulated_experience);
          display_msg(modmsg(msg_gift_exp_start) + accumulated_experience + modmsg(msg_gift_exp_end));
       end
