@@ -2135,12 +2135,6 @@ procedure AFTERHITROLL begin
    variable Atktype = get_object_data(combat_data, C_ATTACK_HIT_MODE);
    variable ammo_cost = 0;
    variable same_target = 0;
-   if attacker == dude_obj then begin
-      reg_anim_combat_check(0);
-      reg_anim_begin();
-      reg_anim_turn_towards(attacker, tile_num(target), 0);
-      reg_anim_end();
-   end
    if target == orig_target then same_target = 1;
    new_main_target = 0;
    new_targets_count = 0;

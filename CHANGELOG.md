@@ -1,3 +1,8 @@
+### Lates version  v1.72
+##### SecondaryAttackMod
+- Further improved compatibility with Fallout: Sonora.
+- Small tweaks to script code.
+
 ### Version 1.71
 ##### SecondaryAttackMod
 - Improved Compatibility with Fallout: Sonora.

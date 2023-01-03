@@ -543,17 +543,6 @@ procedure misstohit begin
       target = get_sfall_arg;
       bpart = get_sfall_arg;
       hitch = get_sfall_arg;
-      if hitmiss == CRITICAL_MISS then begin
-         set_sfall_return(CRITICAL_MISS); //  CRITICAL_MISS
-         set_sfall_arg(0, CRITICAL_MISS);
-         return;
-      end
-      if attacker == dude_obj then begin
-         reg_anim_combat_check(0);
-         reg_anim_begin();
-         reg_anim_turn_towards(attacker, tile_num(target), 0);
-         reg_anim_end();
-      end
       leftHand_obj = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
       rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
       if leftHand_obj then leftHand = obj_pid(leftHand_obj);
