@@ -2588,6 +2588,7 @@ procedure STDPROCEDURE begin
       reg_anim_end();
    call lvar_full_reset();
    end
+   if combat_is_initialized andAlso one_time_call then one_time_call = 0;
 end
 
 procedure TOHIT begin
