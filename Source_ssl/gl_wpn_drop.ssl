@@ -113,11 +113,11 @@ procedure STDPROCEDURE begin
       if rnd < WpnDropCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == CRITICAL_HIT then begin
          call Drop_Weapons(target_who_can_drop,target_bodypart);
       end
+      target_who_can_drop = -1;
+      target_bodypart = -1;
+      atk_rslt = -1;
+      combat_dmg = -1;
    end
-   target_who_can_drop = -1;
-   target_bodypart = -1;
-   atk_rslt = -1;
-   combat_dmg = -1;
 end
 
 procedure AFTERHITROLL begin
@@ -135,6 +135,7 @@ procedure start begin
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_STDPROCEDURE_END, STDPROCEDURE);
+         register_hook_proc_spec(HOOK_WITHINPERCEPTION, STDPROCEDURE);
          set_global_script_type(0);
          set_global_script_repeat(0);
       end
