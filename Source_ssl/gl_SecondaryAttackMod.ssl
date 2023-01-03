@@ -2493,7 +2493,7 @@ procedure STDPROCEDURE begin
                         end
                         if dmg > 0 andAlso new_tar != orig_target then begin
                            //exp for sonora
-                           if sonora then begin
+                           if sonora andAlso crit_power_roll > 0 then begin
                               if tar_cur_hp > dmg then begin
                                  accumulated_experience += (dmg * 2.45);
                               end
