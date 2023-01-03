@@ -2029,7 +2029,7 @@ procedure plasma_alt_explosion begin
                float_msg(new_tar,"0", 2);
             end
          end
-         critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
+         if new_tar != attacker andAlso new_tar != orig_target then critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
       end
    end
 end
