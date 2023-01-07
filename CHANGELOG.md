@@ -8,7 +8,7 @@
 - Further improved compatibility with Fallout: Sonora(Now plasma aoe damage to player allies will not give experience points).
 - Plasma projectile appearance changes when fired in alternate attack mode. Now also in case of a miss.
 
-### Lates version  v1.72
+### Version  v1.72
 ##### SecondaryAttackMod
 - Further improved compatibility with Fallout: Sonora.
 - Small tweaks to script code.

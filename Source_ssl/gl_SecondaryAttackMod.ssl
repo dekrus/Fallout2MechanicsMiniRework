@@ -2685,7 +2685,7 @@ procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
-   if real_orig_target <= 0 andAlso is_critter(target) andAlso is_attacking andAlso can_be_attacked then begin
+   if is_critter(target) andAlso is_attacking andAlso can_be_attacked then begin
       orig_target = target;
       real_orig_target = target;
    end
