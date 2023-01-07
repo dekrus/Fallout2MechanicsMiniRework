@@ -1,5 +1,6 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
 #define msg_file "gl_SecondaryAttackMod.msg"
+#define is_critter(obj)   (obj_type(obj) == OBJ_TYPE_CRITTER)
 #define is_multihex(critter_obj)  (get_flags(critter_obj) bwand FLAG_MULTIHEX)
 #define is_prone(critter_obj)  (critter_state(critter_obj) == CRITTER_IS_PRONE)
 #define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
@@ -92,9 +93,10 @@ variable multihex_targets_count;
 variable laser_curr_ammo;
 variable new_main_target;
 variable last_target_on_a_line;
-variable last_missed_target;
+//variable last_missed_target;
 variable remainder;
 variable one_time_call;
+variable proj_pid_changed;
 variable placeholder;
 variable point_anim_frames;
 variable bonus_crit_power_roll;
@@ -135,8 +137,17 @@ procedure destroy_placeholder begin
    if placeholder then destroy_object(placeholder);
 end
 
+procedure disable_ui begin
+   game_ui_disable;
+end
+
+procedure enable_ui begin
+   game_ui_enable;
+end
+
 procedure restore_weapon_proj_pid begin
    set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, weapon_proj_pid);
+   proj_pid_changed = 0;
 end
 
 procedure get_one_hander_bonus(variable weapon_flags) begin
@@ -171,6 +182,8 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target) begin
    variable obj_visible_light = obj_get_visible_light(target);
    variable bodypart_hit_modifier = get_bodypart_hit_modifier(target_bodypart);
    variable darkness_penalty;
+   variable blocking_penalty = 5;//in Fallout 2 the default is 10
+   variable multihex_blocking_penalty = 10;//in Fallout 2 the default is 20
    variable targets_num_between = (new_targets_count - 1);
    variable multihex_targets_num_between = multihex_targets_count;
    variable weapon_skill;
@@ -255,21 +268,21 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target) begin
 
    // hit chance formula for weapons without perks
    if weapon_perk <= 0 or (weapon_perk != PERK_weapon_long_range andAlso weapon_perk != PERK_weapon_scope_range) then begin
-      hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 8) - darkness_penalty - target_ac - (4 * (distance + 1)) - (10 * targets_num_between) - (20 * multihex_targets_num_between);
+      hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 8) - darkness_penalty - target_ac - (4 * (distance + 1)) - (blocking_penalty * targets_num_between) - (multihex_blocking_penalty * multihex_targets_num_between);
    end
 
    //new hit chance formula for PERK_weapon_long_range
    if weapon_perk == PERK_weapon_long_range then begin
-      hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 16) - darkness_penalty - target_ac - (4 * (distance + 1)) - (10 * targets_num_between) - (20 * multihex_targets_num_between);
+      hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 16) - darkness_penalty - target_ac - (4 * (distance + 1)) - (blocking_penalty * targets_num_between) - (multihex_blocking_penalty * multihex_targets_num_between);
    end
 
    // new hit chance formula for PERK_weapon_scope_range
    if weapon_perk == PERK_weapon_scope_range then begin
       if distance < 7 then begin
-         hit_chance = hit_chance + weapon_skill - 32 - darkness_penalty - target_ac - (4 * (distance + 1)) - (10 * targets_num_between) - (20 * multihex_targets_num_between);
+         hit_chance = hit_chance + weapon_skill - 32 - darkness_penalty - target_ac - (4 * (distance + 1)) - (blocking_penalty * targets_num_between) - (multihex_blocking_penalty * multihex_targets_num_between);
       end
       else begin
-         hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 20) - darkness_penalty - target_ac - (4 * (distance + 1)) - (10 * targets_num_between) - (20 * multihex_targets_num_between);
+         hit_chance = hit_chance + weapon_skill + ((attacker_pe - 2) * 20) - darkness_penalty - target_ac - (4 * (distance + 1)) - (blocking_penalty * targets_num_between) - (multihex_blocking_penalty * multihex_targets_num_between);
       end
    end
 
@@ -281,7 +294,7 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target) begin
    // penalty if attacker is blind start
    if Is_Blind(attacker) then begin
       hit_chance = hit_chance - 25;
-      // penalty if attacker is blind and no perks
+      // penalty if attacker is blind and weapons without perks
       if weapon_perk <= 0 or (weapon_perk != PERK_weapon_long_range andAlso weapon_perk != PERK_weapon_scope_range) then begin
          distance_beyond_visibility = 2 * attacker_pe - 5;
          if distance > distance_beyond_visibility then begin
@@ -335,7 +348,8 @@ procedure lvar_full_reset begin
    if array_exists(crit_roll_array) then free_array(crit_roll_array);
    if array_exists(pre_targets_array) then free_array(pre_targets_array);
    if array_exists(targets_array) then free_array(targets_array);
-   last_missed_target = 0;
+   //last_missed_target = 0;
+   real_orig_target = 0;
    new_targets_count = 0;
    missed_targets_count = 0;
    multihex_targets_count = 0;
@@ -448,7 +462,7 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    variable hit_chance;
    variable miss;
    variable dmg;
-   last_target_on_a_line = target;
+   if is_critter(target) then last_target_on_a_line = target;
    if is_multihex(target) then multihex_targets_count += 1;
    // if YAAM ammo active
    if ammo_dr_mod > 0 then begin
@@ -536,7 +550,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
    variable hit_chance;
    variable miss;
    variable dmg;
-   last_target_on_a_line = target;
+   if is_critter(target) then last_target_on_a_line = target;
    if is_multihex(target) then multihex_targets_count += 1;
    // if YAAM ammo active
    if ammo_dr_mod > 0 then begin
@@ -572,7 +586,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
       crit_power_roll = -1;
       dmg = weapon_dmg;
       last_dmg = dmg;
-      last_missed_target = target;
+      //last_missed_target = target;
       return dmg;
    end
    //if hit
@@ -941,7 +955,7 @@ procedure get_targets_on_thin_line_gauss(variable attacker ,variable target) beg
       //skip knocked targets? better not :)
       //tar_cur_frm = get_object_data(new_target, OBJ_DATA_CUR_FRM);
       tar_cur_hp = get_critter_stat(new_target, STAT_current_hp);
-      if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso not(is_in_array(new_target,pre_targets_array)) then begin
+      if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(new_target) andAlso not(is_in_array(new_target,pre_targets_array)) then begin
          set_array(pre_targets_array, tile_count, new_target);
       end
       // break cycle if tile contain blocking obj
@@ -1280,7 +1294,7 @@ procedure get_targets_on_thin_line_laser(variable attacker ,variable target) beg
       //tar_cur_frm = get_object_data(new_target, OBJ_DATA_CUR_FRM);
 
       tar_cur_hp = get_critter_stat(new_target, STAT_current_hp);
-      if not(is_in_array(new_target,pre_targets_array)) andAlso tar_cur_frm == 0 andAlso tar_cur_hp > 0 then begin
+      if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(new_target) andAlso not(is_in_array(new_target,pre_targets_array)) then begin
          set_array(pre_targets_array, tile_count, new_target);
       end
       if check_tile == tar_tile then begin
@@ -1368,7 +1382,7 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
       //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
 
       tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
-      if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso not(is_in_array(blocking_obj,local_targets_array))then begin
+      if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,local_targets_array))then begin
          new_targets_count += 1;
          distance_objs(distance, pseudo_attacker, blocking_obj);
          set_array(local_targets_array, (distance + 1), blocking_obj);
@@ -1422,7 +1436,7 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
          //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
 
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
-         if not(is_in_array(blocking_obj,local_targets_array)) andAlso tar_cur_frm == 0 andAlso tar_cur_hp > 0 then begin
+         if not(is_in_array(blocking_obj,local_targets_array)) andAlso tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(blocking_obj) then begin
             new_targets_count += 1;
             distance_objs(distance, pseudo_attacker, blocking_obj);
             set_array(local_targets_array, (distance + 1), blocking_obj);
@@ -1475,7 +1489,7 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
          //skip knocked targets? better not :)
          //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
-         if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
+         if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
             new_targets_count += 1;
             //terminate procedure if there are not enough ammo to penetrate additional targets
 
@@ -1508,7 +1522,7 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
          //skip knocked targets? better not :)
          //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
-         if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
+         if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
             new_targets_count += 1;
             if blocking_obj == target then begin
                //new_main_target = blocking_obj;
@@ -1973,6 +1987,7 @@ procedure plasma_alt_explosion begin
    variable crit_roll;
    variable dmg;
    variable accumulated_experience;
+   variable party = party_member_list(0);
    one_time_call = 0;
    exlposion = create_object(pid, tar_tile, target_elevation);
    reg_anim_combat_check(0);
@@ -1992,11 +2007,11 @@ procedure plasma_alt_explosion begin
    end
    foreach new_tar in array_critters_in_radius begin
       new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
-      if new_tar != orig_target andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) then begin
+      if new_tar != orig_target andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) andAlso obj_is_visible_flag(new_tar) then begin
          new_tar_pid = obj_pid(new_tar);
          target_dt = get_proto_data(new_tar_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
          target_dr = get_proto_data(new_tar_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
-
+         critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
          //Increase target_dr if it attacker has TRAIT_finesse
          if finesse then begin
             target_dr = target_dr + 30;
@@ -2022,16 +2037,24 @@ procedure plasma_alt_explosion begin
          end
          dmg = 5 * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * PlasmaDamagePercentage * crit_mult);
          if dmg < 0 then dmg = 0;
-         if critter_team != TEAM_PLAYER then attack_setup(new_tar, attacker);
+         //on a successful hit, the target becomes hostile
+         if critter_team == TEAM_PLAYER then begin
+            //on a successful damaging hit, a friendly(non-campanion) target with low health has a 33% chance to become hostile
+            if dmg > 5 andAlso new_tar_cur_hp > dmg andAlso new_tar_cur_hp / 2 < dmg andAlso not(random(0,2)) andAlso not(is_in_array(new_tar, party)) then attack_setup(new_tar, attacker);
+         end
+         else begin
+            //on a successful hit, a non-friendly target has a 100% chance to become hostile
+            attack_setup(new_tar, attacker);
+         end
          if dmg andAlso new_tar == attacker then critter_heal(new_tar, - dmg);
          if show_float_dmg andAlso new_tar != orig_target andAlso new_tar > 0 then begin
             if dmg > 0 then begin
-               if sonora then begin
+               if sonora andAlso critter_team != TEAM_PLAYER andAlso new_tar != attacker then begin
                   if new_tar_cur_hp > dmg then begin
-                     accumulated_experience += (dmg * 2.45);
+                     accumulated_experience += (dmg * 2.5);
                   end
                   else begin
-                     accumulated_experience += (new_tar_cur_hp * 2.45);
+                     accumulated_experience += (new_tar_cur_hp * 2.5);
                   end
                end
                float_msg(new_tar,"-"+dmg, 2);
@@ -2117,8 +2140,14 @@ procedure plasma_aoe_dmg(variable attacker,variable target) begin
    end
    reg_anim_callback(plasma_alt_explosion);
    reg_anim_callback(restore_weapon_proj_pid);
-   reg_anim_callback(destroy_placeholder);
    reg_anim_callback(lvar_full_reset);
+   reg_anim_callback(disable_ui);
+   reg_anim_clear(placeholder);
+   reg_anim_animate(placeholder, 0, -1);
+   reg_anim_animate_reverse(placeholder, 0, -1);
+   reg_anim_animate(placeholder, 0, -1);
+   reg_anim_callback(enable_ui);
+   reg_anim_callback(destroy_placeholder);
    reg_anim_end();
 end
 
@@ -2138,6 +2167,7 @@ procedure AFTERHITROLL begin
    if target == orig_target then same_target = 1;
    new_main_target = 0;
    new_targets_count = 0;
+   proj_pid_changed = 0;
    atk_rslt = attack_result;
    if atk_rslt < HIT then begin
       missed_shot = 1;
@@ -2208,6 +2238,16 @@ procedure AFTERHITROLL begin
          one_hander_bonus = get_one_hander_bonus(weapon_flags);
       end
    end
+
+   // plasma set new proj_pid and weapon_cur_ammo
+   if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 then begin
+      proj_pid_changed = 1;
+      set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_plasma_big_projectile);
+      if weapon_cur_ammo >= 3 then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - 2);
+   end
+   // plasma set new proj_pid and weapon_cur_ammo end
+
+
       // laser get new targets
    if LaserSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
       if ((not(same_target) or atk_rslt == MISS) andAlso random(1,100) <= ammo_cost)  or hit_chance <= 0 or attack_result < MISS then begin
@@ -2230,7 +2270,7 @@ procedure AFTERHITROLL begin
       end
 
 
-      rnd = random(1, 100);
+      rnd = random(1, 96);
       if rnd > hit_chance then begin
          missed_shot = 1;
       end
@@ -2262,11 +2302,11 @@ procedure AFTERHITROLL begin
    end
    // gauss get new targets
    if GaussSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_range > 1 andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora andAlso weapon_pid == pid_sonora_railgun)) then begin
-      rnd = random(1, 100);
+      rnd = random(1, 96);
       if rnd > hit_chance then begin
          missed_shot = 1;
       end
-      last_missed_target = 0;
+      //last_missed_target = 0;
       if attack_result < MISS then begin
          set_sfall_return(CRITICAL_MISS);
          set_sfall_arg(0, CRITICAL_MISS);
@@ -2320,6 +2360,7 @@ procedure COMBATDAMAGE begin
    variable weapon = get_sfall_arg;
    variable dmg_mult = get_sfall_arg_at(8);
    variable atktype = get_sfall_arg_at(11);
+   combat_dmg = dmgtotar;
    if missed_shot andAlso target != real_orig_target then begin
       if weapon_damage_type == DMG_laser then begin
          combat_dmg = calc_dmg_laser(attacker,target);
@@ -2334,8 +2375,6 @@ procedure COMBATDAMAGE begin
       // plasma aoe dmg
       if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 then begin
          orig_target = target;
-         set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_plasma_big_projectile);
-         if weapon_cur_ammo >= 3 then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - 2);
          combat_dmg = round(combat_dmg * 1.15);
          set_sfall_return(combat_dmg);
          set_sfall_arg(2, combat_dmg);
@@ -2426,16 +2465,20 @@ end
 
 procedure STDPROCEDURE begin
    variable i;
-   variable attacker = dude_obj;
+   variable attacker;
    variable new_tar;
    variable new_tar_pid;
    variable new_tar_critter_flags;
    variable new_tar_frame;
-   variable crit_mult = 1;
+   variable crit_mult;
    variable dmg;
    variable tar_cur_hp;
    variable accumulated_experience;
+   variable critter_team;
+   variable party;
    if combat_is_initialized andAlso target_bodypart == BODY_HIT_TORSO andAlso one_time_call == 1 andAlso targets_array != 0 then begin
+      attacker = dude_obj;
+      party = party_member_list(0);
       if missed_shot andAlso show_float_dmg andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) then begin
          if combat_dmg <= 0 then begin
             float_msg(orig_target, "0", 2);
@@ -2450,10 +2493,21 @@ procedure STDPROCEDURE begin
                   if new_tar andAlso obj_type(new_tar) == OBJ_TYPE_CRITTER andAlso new_tar != attacker andAlso (not(is_dead(new_tar)) or new_tar == orig_target) then begin
                   tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
                   crit_power_roll = get_array(crit_roll_array, i);
+                  if new_tar == last_target_on_a_line then crit_power_roll = -1;
                   crit_mult = get_crit_mult(crit_power_roll,new_tar);
                   new_tar_pid = obj_pid(new_tar);
                   new_tar_critter_flags = get_proto_data(new_tar_pid, PROTO_CR_FLAGS);
                   new_tar_frame = art_anim(obj_art_fid(new_tar));
+                  critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
+                  //on a hit, the target becomes hostile
+                  if critter_team == TEAM_PLAYER then begin
+                     //on a hit, a friendly(non-companion) target with low health has a 33% chance to become hostile
+                     if (tar_cur_hp < 20 andAlso not(random(0,2))) andAlso not(is_in_array(new_tar, party)) then attack_setup(new_tar, attacker);
+                  end
+                  else begin
+                     //on a hit, a neutral target has a 100% chance to become hostile
+                     attack_setup(new_tar, attacker);
+                  end
                   if (new_tar_critter_flags bwand CFLG_INVULN) then begin
                      dmg = 0;
                   end
@@ -2464,7 +2518,7 @@ procedure STDPROCEDURE begin
                   i += 1;
                         if dmg <= 0 then begin
                            if show_float_dmg then begin
-                              if crit_power_roll < 0 then begin
+                              if crit_power_roll < 0 or (missed_shot andAlso new_tar == orig_target) then begin
                                  float_msg(new_tar,"~", 2);
                               end
                               else begin
@@ -2488,22 +2542,21 @@ procedure STDPROCEDURE begin
                            end
                         end
                         if dmg > 0 andAlso new_tar != orig_target then begin
-                           //exp for sonora
-                           if sonora andAlso crit_power_roll > 0 then begin
-                              if tar_cur_hp > dmg then begin
-                                 accumulated_experience += (dmg * 2.45);
-                              end
-                              else begin
-                                 accumulated_experience += (tar_cur_hp * 2.45);
-                              end
-                           end
-
                            if crit_power_roll < 0 then begin
                               if show_float_dmg then float_msg(new_tar, "~", 2);
                               display_msg(parse_str_2(modmsg(msg_hit_no_dmg), obj_name(new_tar), dmg));
                            end
                            else begin
                            if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
+                           //exp for sonora
+                           if sonora then begin
+                              if tar_cur_hp > dmg andAlso crit_power_roll <= 100 then begin
+                                 accumulated_experience += (dmg * 2.5);
+                              end
+                              else begin
+                                 accumulated_experience += (tar_cur_hp * 2.5);
+                              end
+                           end
                                  // new_target will take non lethal dmg
                                  if tar_cur_hp - dmg > 0 andAlso crit_power_roll <= 100 then begin
                                     if crit_mult == 2 then begin
@@ -2610,11 +2663,21 @@ procedure STDPROCEDURE begin
       reg_anim_end();
    call lvar_full_reset();
    end
-   if combat_is_initialized andAlso one_time_call then one_time_call = 0;
+   if one_time_call andAlso combat_is_initialized then begin
+      one_time_call = 0;
+      real_orig_target = 0;
+   end
+   if proj_pid_changed then begin
+      call restore_weapon_proj_pid();
+      real_orig_target = 0;
+   end
 end
 
 procedure TOHIT begin
-   target_bodypart = get_sfall_arg_at(3);
+   variable target = get_sfall_arg_at(2);
+   if is_critter(target) andAlso target == real_orig_target then begin
+      target_bodypart = get_sfall_arg_at(3);
+   end
 end
 
 
@@ -2622,7 +2685,7 @@ procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
-   if is_attacking andAlso can_be_attacked then begin
+   if real_orig_target <= 0 andAlso is_critter(target) andAlso is_attacking andAlso can_be_attacked then begin
       orig_target = target;
       real_orig_target = target;
    end
@@ -2638,6 +2701,11 @@ procedure GAMEMODECHANGE begin
       if combat_speed > 50 then combat_speed = 50;
    end
 end
+
+procedure COMBATTURN begin
+   if get_sfall_arg_at(1) == dude_obj then call lvar_full_reset();
+end
+
 
 procedure start begin
    if game_loaded then begin
@@ -2690,6 +2758,7 @@ procedure start begin
          register_hook_proc_spec(HOOK_TARGETOBJECT, TARGETOBJECT);
          register_hook_proc_spec(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
          register_hook_proc_spec(HOOK_TOHIT, TOHIT);
+         register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
          set_global_script_type(0);
          set_global_script_repeat(0);
       end

@@ -1,3 +1,13 @@
+### Lates version  v1.73
+##### SecondaryAttackMod
+- Disabled the ability to activate an alternative firing mode when shooting at scenery objects(doors, etc.).
+- Fixed display of damage numbers when laser and gauss weapons miss critters with subsequent hits on scenery objects.
+- Non-primary targets now become hostile towards the player after being hit in the alternate attack mode.(Excludes companions in player's party).
+- Invisible targets (hidden by game scripts) are ignored when selecting additional targets and will not take damage.
+- Decreased penalty to hit chance for each additional target on the line.
+- Further improved compatibility with Fallout: Sonora(Now plasma aoe damage to player allies will not give experience points).
+- Plasma projectile appearance changes when fired in alternate attack mode. Now also in case of a miss.
+
 ### Lates version  v1.72
 ##### SecondaryAttackMod
 - Further improved compatibility with Fallout: Sonora.
