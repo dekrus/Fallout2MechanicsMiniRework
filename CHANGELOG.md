@@ -1,3 +1,6 @@
+### Lates version  v1.74
+- Improved mod stability.
+
 ### Lates version  v1.73
 ##### SecondaryAttackMod
 - Disabled the ability to activate an alternative firing mode when shooting at scenery objects(doors, etc.).
