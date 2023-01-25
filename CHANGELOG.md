@@ -1,7 +1,14 @@
-### Lates version  v1.74
+### Lates version  v1.75
+##### SecondaryAttackMod
+- Fallout Nevada and Resurrection: damage animations now scale with in-game combat speed settings
+##### MedicalToolsMod
+- Fixed display of text when using any skills if the Doctor/First Aid skill cannot be applied to the target
+
+### Version  v1.74
+##### SecondaryAttackMod
 - Improved mod stability.
 
-### Lates version  v1.73
+### Version  v1.73
 ##### SecondaryAttackMod
 - Disabled the ability to activate an alternative firing mode when shooting at scenery objects(doors, etc.).
 - Fixed display of damage numbers when laser and gauss weapons miss critters with subsequent hits on scenery objects.
