@@ -74,6 +74,7 @@ variable show_float_dmg;
 variable Nevada;
 variable Sonora;
 variable ET_TU;
+variable config_file;
 variable target_bodypart;
 variable atk_rslt;
 variable missed_shot;
@@ -2720,8 +2721,8 @@ procedure GAMEMODECHANGE begin
    variable last_game_mode = get_sfall_arg_at(1);
    if last_game_mode bwand OPTIONS then begin
       combat_diff = (combat_difficulty + 1);
-      combat_speed = get_ini_setting("fallout2.cfg|preferences|combat_speed");
-      if combat_speed < 0 then combat_speed = 0;
+      combat_speed = get_ini_setting(config_file+"|preferences|combat_speed");
+      if combat_speed < 0 then combat_speed = 50;
       if combat_speed > 50 then combat_speed = 50;
    end
 end
@@ -2739,7 +2740,7 @@ procedure start begin
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
          //ProneTargetsSkip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ProneSkip");
          AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
-
+         config_file = get_ini_string("ddraw.ini|Misc|ConfigFile");
          LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
          LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
          //LaserHitChance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserHitChance");
@@ -2767,8 +2768,8 @@ procedure start begin
          if PlasmaDamagePercentage > 1 then PlasmaDamagePercentage = 1;
          if PlasmaDamagePercentage < 0 then PlasmaDamagePercentage = 0;
 
-         combat_speed = get_ini_setting("fallout2.cfg|preferences|combat_speed");
-         if combat_speed < 0 then combat_speed = 0;
+         combat_speed = get_ini_setting(config_file+"|preferences|combat_speed");
+         if combat_speed < 0 then combat_speed = 50;
          if combat_speed > 50 then combat_speed = 50;
 
          //Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");

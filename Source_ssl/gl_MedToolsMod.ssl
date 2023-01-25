@@ -611,15 +611,18 @@ end
 procedure use_skill_on_dead_handler begin
    variable user = get_sfall_arg;
    variable tar = get_sfall_arg;
-   if obj_type(tar) != OBJ_TYPE_CRITTER then begin
-      display_msg(modmsg(msg_useless_act));
-      set_sfall_return(0);
-      return false;
-   end
-   if obj_type(tar) == OBJ_TYPE_CRITTER andAlso is_critter_dead(tar) then begin
-      display_msg(modmsg(msg_target_is_dead));
-      set_sfall_return(0);
-      return false;
+   variable skill = get_sfall_arg;
+   if skill == SKILL_FIRST_AID or skill == SKILL_DOCTOR then begin
+      if obj_type(tar) != OBJ_TYPE_CRITTER then begin
+         display_msg(modmsg(msg_useless_act));
+         set_sfall_return(0);
+         return false;
+      end
+      if obj_type(tar) == OBJ_TYPE_CRITTER andAlso is_critter_dead(tar) then begin
+         display_msg(modmsg(msg_target_is_dead));
+         set_sfall_return(0);
+         return false;
+      end
    end
 end
 
