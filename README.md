@@ -29,6 +29,7 @@
 - [Swing&Thrust](#swingthrust)
 - [AntiCritical](#anticritical)
 - [StealthBoy AutoSneak](#stealthboy-autosneak)
+- [StatsRecalculation] (#stats-recalculation)
 
 ### Secondary Attack
 This module adds an alternative fire mode to Laser, Plasma and Gauss weapons.
@@ -190,6 +191,10 @@ If enabled, prevents status effects (crippling, blind, knockout, instant death) 
 ### StealthBoy AutoSneak
 If enabled, Sneaking Mode is automatically applied when using a charged Stealthboy.
 
+### Stats Recalculation (Disabled by default)
+When changing base Endurance(perks, implants, but not drugs) retroactively recalculates the maximum amount of health gained from previous levels, allowing you to start the game with an odd Endurance value and later make it even without losing the progress of maximum health.
+
+When base intelligence increases(perks, implants, but not drugs), the player is given skill points according to the formula (number of level ups) * (intelligence - initial intelligence) * 2.
 
 ## Compatibility
 * Most of the components are compatible with all Fallout 2 based games. Compatibility with Nevada, Sonora or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`

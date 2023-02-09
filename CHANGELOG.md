@@ -1,4 +1,7 @@
-### Lates version  v1.751
+### Lates version  v1.8
+- Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL
+
+### Version  v1.751
 ##### SecondaryAttackMod
 - Fixed game version recognition
 - Fallout Nevada and Resurrection: damage animations now scale with in-game combat speed settings
