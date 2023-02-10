@@ -1,4 +1,4 @@
-### Lates version  v1.8
+### Latest version  v1.8
 - Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL.
 
 ### Version  v1.751
