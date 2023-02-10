@@ -29,7 +29,7 @@
 - [Swing&Thrust](#swingthrust)
 - [AntiCritical](#anticritical)
 - [StealthBoy AutoSneak](#stealthboy-autosneak)
-- [StatsRecalculation] (#stats-recalculation)
+- [Stats Recalculation] (#stats-recalculation)
 
 ### Secondary Attack
 This module adds an alternative fire mode to Laser, Plasma and Gauss weapons.
