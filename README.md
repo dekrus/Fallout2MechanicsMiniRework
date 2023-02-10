@@ -191,7 +191,7 @@ If enabled, prevents status effects (crippling, blind, knockout, instant death) 
 ### StealthBoy AutoSneak
 If enabled, Sneaking Mode is automatically applied when using a charged Stealthboy.
 
-### Stats Recalculation (Disabled by default)
+### Stats Recalculation
 When changing base Endurance(perks, implants, but not drugs) retroactively recalculates the maximum amount of health gained from previous levels, allowing you to start the game with an odd Endurance value and later make it even without losing the progress of maximum health.
 
 When base intelligence increases(perks, implants, but not drugs), the player is given skill points according to the formula (number of level ups) * (intelligence - initial intelligence) * 2.
