@@ -16,9 +16,6 @@ procedure GAMEMODECHANGE begin
    variable player_level_ups;
    variable player_extra_max_hp;
    variable max_hp_limit;
-   //display_msg("max hp=" + get_critter_stat(dude_obj, STAT_max_hp));
-   //display_msg("max base hp=" + get_critter_base_stat(dude_obj, STAT_max_hp));
-   //display_msg("max extra hp=" + get_critter_extra_stat(dude_obj, STAT_max_hp));
    gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
    //en
    if en_recalculation > 0 then begin
@@ -80,6 +77,7 @@ procedure start begin
          en_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|en_recalculation");
          iq_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|iq_recalculation");
          gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
+
          if en_recalculation > 0 then begin
             initial_player_en = get_critter_base_stat(dude_obj, STAT_en) + gifted;
             if initial_player_en > 10 then initial_player_en = 10;
