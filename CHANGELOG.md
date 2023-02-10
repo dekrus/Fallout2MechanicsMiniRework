@@ -1,12 +1,12 @@
 ### Lates version  v1.8
-- Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL
+- Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL.
 
 ### Version  v1.751
 ##### SecondaryAttackMod
-- Fixed game version recognition
-- Fallout Nevada and Resurrection: damage animations now scale with in-game combat speed settings
+- Fixed game version recognition.
+- Fallout Nevada and Resurrection: damage animations now scale with in-game combat speed settings.
 ##### MedicalToolsMod
-- Fixed display of text when using any skills if the Doctor/First Aid skill cannot be applied to the target
+- Fixed display of text when using any skills if the Doctor/First Aid skill cannot be applied to the target.
 
 ### Version  v1.74
 ##### SecondaryAttackMod
