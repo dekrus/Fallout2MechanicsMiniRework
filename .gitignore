@@ -1,6 +1,5 @@
 *.tmp
 *.err
-*.int
 DAT_Packer/*
 release/*
 *.dat
