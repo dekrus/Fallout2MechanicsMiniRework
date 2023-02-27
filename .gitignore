@@ -8,4 +8,5 @@ release/*
 *.7z
 *.zip
 data/*
+!data/scripts
 !data/text
