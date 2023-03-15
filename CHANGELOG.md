@@ -1,3 +1,8 @@
+### Latest version  v1.81
+
+##### Sneak Detection mod
+- script optimization.
+
 ### Latest version  v1.8
 - Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL.
 

@@ -1,5 +1,4 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
-//#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (get_flags(obj) bwand FLAG_LIGHTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define is_wall(obj)   obj_type(obj) == OBJ_TYPE_WALL
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
@@ -7,8 +6,6 @@
 #define OUTLINE_NEW_YELLOW  0x3A98
 #define OUTLINE_GREEN_NEW   0xC500
 #define OUTLINE_NEW_GLOW_RED  0x8500
-//#define OUTLINE_NEW_GLOW_RED  0xF4EC
-//#define OUTLINE_NEW_RED  0x8500
 #define OUTLINE_NEW_RED  0xB3B0
 #define OUTLINE_ORANGE   0x9300
 #define OUTLINE_NEW_GREY   0x76C
@@ -27,7 +24,6 @@ variable SneakDetection;
 variable SneakRework;
 variable SneakArmorPenalty;
 variable SneakCombatPenalty;
-variable Critter = 0;
 variable highlight_key = -1;
 variable fo2tweaks_highlighting = 0;
 variable min_perception_range_ini;
@@ -39,7 +35,6 @@ variable refresh_count;
 variable sneak_success_in_script;
 variable sneak_refresh;
 variable last_sneak_success_refresh_time;
-variable withinperception_scr;
 variable refresh_in_ticks; //how often to update the outline color of watchers
 
 procedure start;
@@ -61,15 +56,17 @@ procedure start begin
          SneakArmorPenalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
          SneakCombatPenalty = atof(get_ini_string ("mods\\F2MechanicsMiniRework.ini|Sneak|SneakCombatPenalty"));
          min_perception_range_ini = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|MinDetectionRange");
-         call map_enter_p_proc;
          refresh_in_ticks = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|RefreshFreq");
          if refresh_in_ticks <= 0 then refresh_in_ticks = 1;
          StealRebalance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
-         register_hook_proc_spec(HOOK_SNEAK, sneak_handler);
-         register_hook_proc(HOOK_MOUSECLICK, mousepress_handler);
-         register_hook_proc(HOOK_WITHINPERCEPTION, perception_handler);
-         register_hook_proc(HOOK_COMBATTURN, sign_handler);
-         register_hook_proc(HOOK_KEYPRESS, keypress_handler);
+         if SneakDetection > 0 then begin
+            call map_enter_p_proc;
+            register_hook_proc_spec(HOOK_SNEAK, sneak_handler);
+            register_hook_proc(HOOK_MOUSECLICK, mousepress_handler);
+            register_hook_proc(HOOK_COMBATTURN, sign_handler);
+            register_hook_proc(HOOK_KEYPRESS, keypress_handler);
+         end
+         if SneakRework > 0 then register_hook_proc(HOOK_WITHINPERCEPTION, perception_handler);
          ddraw_ShootThru_Fix = get_ini_setting("ddraw.ini|Misc|ObjCanSeeObj_ShootThru_Fix");
          fo2tweaks_highlighting = get_ini_setting("mods\\fo2tweaks.ini|main|highlighting");
          HR_fog_of_war = get_ini_setting("f2_res.ini|MAPS|FOG_OF_WAR");
@@ -84,8 +81,7 @@ end
 
 procedure sneak_handler begin
    variable sneak_result = get_sfall_arg;
-   variable duration = get_sfall_arg;
-   variable sneaker = get_sfall_arg;
+   variable sneaker = get_sfall_arg_at(2);
    variable sneak = has_skill(dude_obj, SKILL_SNEAK);
    variable target_tile = tile_num(dude_obj);
    variable light_level = get_light_level;
@@ -105,9 +101,9 @@ procedure sneak_handler begin
    set_sfall_arg(0, sneak_success_in_script);
    set_sfall_return(refresh_in_ticks);
    set_sfall_arg(1, refresh_in_ticks);
-  //outline for new sneak formula
+   //outline sneak detection
    refresh_count = 0;
-   if SneakDetection != 0 andAlso withinperception_scr == 0 andAlso not(combat_is_initialized) then begin
+   if not(combat_is_initialized) then begin
       if (get_flags(dude_obj) bwand FLAG_TRANSGLASS) then begin
          stealthboy = 1;
       end
@@ -126,8 +122,6 @@ procedure refresh_outlines begin
       last_refresh_time = time + refresh_in_ticks - 1;
    end
 end
-
-
 
 //by JimTheDinosaur https://nma-fallout.com/threads/stuff-for-define_extra-h.202989/page-2
 procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
@@ -192,7 +186,7 @@ procedure LOS_is_blocked(variable watcher_obj ,variable target_obj1 ) begin
                end
             end
             count += 1;
-            if count > 24 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs stand in the same tile
+            if count > 20 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs stand in the same tile
                return true;
             end
          end
@@ -206,22 +200,18 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
    variable sneakbonus = 0;
    variable watcher_rot = has_trait(TRAIT_OBJECT, watcher, OBJECT_CUR_ROT);
    variable watcher_rot_to_tar;
-   variable misc_flags = 0;
    variable perception_range = 0;
    variable orig_dist = 0;
    variable ns_sneak_dist = 0;
    variable team = has_trait(TRAIT_OBJECT, watcher, OBJECT_TEAM_NUM);
    variable color = get_outline(watcher);
-   variable new_SneakDetection = 0;
    variable watcher_state = critter_state(watcher);
    variable target_pe_mult = 0;
    variable darkness_penalty = 0;
-   variable sneak_div = 0;
    variable armor_weight = 0;
    variable min_perception_range = min_perception_range_ini;
    variable watcher_kill_type;
-   variable watcher_elevation = elevation(watcher);
-   // reproduction of the original fallout 2 NPC perception formula
+   // reproduction of the original fallout 2 NPC perception formula + detecion outline
    if SneakRework <= 0 then begin
    watcher_rot_to_tar = rotation_to_tile(tile_num(watcher), target_tile);
    distance_objs(distance, watcher, target);
@@ -444,13 +434,10 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
             end
             call refresh_outlines();
          end
-
          if (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_NEW_GREY) andAlso not(key_pressed(highlight_key))  andAlso (distance >= orig_dist or team == TEAM_PLAYER or not(sneaking) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
             set_outline(watcher, OUTLINE_NONE);
          end
-
       end
-
    end
    // outline off and refresh
    if SneakDetection == 1 andAlso team != TEAM_PLAYER andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or (LOS_is_blocked(watcher, target)) or not(sneaking))  andAlso not(combat_is_initialized) andAlso watcher != outlined_object andAlso (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_NEW_GREY)   then begin
@@ -471,13 +458,7 @@ procedure disable_highlight begin
 end
 
 procedure keypress_handler begin
-   variable event = get_sfall_arg;
-   variable key = get_sfall_arg;
-   variable team = -1;
-   variable obj;
-   variable color;
-   variable obj_elevation;
-   variable player_elevation = elevation(dude_obj);
+   variable key = get_sfall_arg_at(1);
    if sneak_refresh == 0 andAlso not(using_skill(dude_obj,SKILL_SNEAK)) andAlso key == 2 andAlso get_game_mode == 0 then begin
       sneak_refresh = 1;
       call disable_highlight;
@@ -493,7 +474,6 @@ end
 
 procedure map_enter_p_proc begin
    if SneakDetection != 0 then begin
-      withinperception_scr = 0;
       if (not(using_skill(dude_obj,SKILL_SNEAK))) then begin
          call disable_highlight;
       end
@@ -503,40 +483,25 @@ end
 procedure perception_handler begin
    variable watcher = get_sfall_arg; // Watcher object
    variable target = get_sfall_arg; //  Target object
-   variable inrange = get_sfall_arg; // Result of vanilla function: 1 - within perception range, 0 - otherwise
-   variable hktype = get_sfall_arg; //  1 - when being called from obj_can_see_obj script function
-                                     //2 - when being called from obj_can_hear_obj script function (need to set ObjCanHearObjFix=1 in ddraw.ini)
-                                     //3 - when AI determines whether it sees a potential target when selecting attack targets
-                                     //0 - all other cases
    variable distance = 0;
-   variable target_tile;
    variable watcher_pe = get_critter_stat(watcher,STAT_pe);
    variable sneak = has_skill(target, SKILL_SNEAK);
-   variable sneakbonus = 0;
    variable watcher_rot = has_trait(TRAIT_OBJECT, watcher, OBJECT_CUR_ROT);
    variable watcher_rot_to_tar;
-   variable misc_flags = 0;
    variable perception_range = 0;
    variable stealthboy = 0;
-   variable ns_sneak_dist = 0;
-   variable team = has_trait(TRAIT_OBJECT, watcher, OBJECT_TEAM_NUM);
-   variable color = get_outline(watcher);
-   variable new_SneakDetection = 0;
    variable watcher_state = critter_state(watcher);
    variable light_level = get_light_level;
    variable night_vision = has_trait(TRAIT_PERK, dude_obj, PERK_night_vision );
    variable target_pe_mult = 0;
    variable darkness_penalty = 0;
-   variable sneak_div = 0;
    variable armor_weight = 0;
    variable min_perception_range = min_perception_range_ini;
    variable watcher_kill_type = critter_kill_type(watcher);
    variable watcher_elevation = elevation(watcher);
    variable target_elevation = elevation(target);
-   variable new_watcher;
    variable combat_started = combat_is_initialized;
    variable sneaking = using_skill(dude_obj, SKILL_SNEAK);
-   //withinperception_scr = 1;
    // new sneak & perception mechanics
    if target == dude_obj andAlso obj_type(watcher) == OBJ_TYPE_CRITTER andAlso get_critter_stat(watcher,STAT_current_hp) > 0 andAlso get_critter_stat(target,STAT_current_hp) > 0 then begin
       if SneakRework == 1 andAlso target_elevation == watcher_elevation then begin
@@ -556,44 +521,35 @@ procedure perception_handler begin
             target_pe_mult = target_pe_mult + 5;
             //facing
             if watcher_rot == watcher_rot_to_tar then begin
-               //orig_dist = (watcher_pe * target_pe_mult);
                perception_range = watcher_pe * target_pe_mult;
                if combat_started then begin
                   perception_range = combat_mult * perception_range;
-                  //orig_dist = combat_mult * orig_dist;
                end
             end
             //from sides
             if watcher_rot == (watcher_rot_to_tar+1)%6 or watcher_rot == (watcher_rot_to_tar+5)%6 then begin
-               //orig_dist = (watcher_pe * target_pe_mult);
                perception_range = watcher_pe * target_pe_mult;
                if combat_started then begin
                   perception_range = combat_mult * perception_range;
-                  //orig_dist = combat_mult * orig_dist;
                end
             end
             //from rears
             if watcher_rot == (watcher_rot_to_tar+2)%6 or watcher_rot == (watcher_rot_to_tar+4)%6 then begin
-               //orig_dist = 1.2 * watcher_pe;
                perception_range = 1.2 * watcher_pe;
                if combat_started then begin
                   perception_range = 2.4 * watcher_pe;
-                  //orig_dist = 2.4 * watcher_pe;
                end
             end
             // from back
             if watcher_rot == (watcher_rot_to_tar+3)%6 then begin
-               //orig_dist = 1.2 * watcher_pe;
                perception_range = 1.2 * watcher_pe;
                if combat_started then begin
                   perception_range = 2.4 * watcher_pe;
-                  //orig_dist = 2.4 * watcher_pe;
                end
             end
             // perception penalty if target is blind
          if (watcher_state BWAND DAM_BLIND) andAlso not(watcher_rot == (watcher_rot_to_tar+2)%6 or watcher_rot == (watcher_rot_to_tar+3)%6 or watcher_rot == (watcher_rot_to_tar+4)%6) then begin
             perception_range = watcher_pe * 3;
-            //orig_dist = 3 * watcher_pe;
             min_perception_range = min_perception_range / 2;
             if combat_started then begin
                perception_range = -1;
@@ -637,12 +593,10 @@ procedure perception_handler begin
                else perception_range = perception_range - ceil(watcher_pe / 3);
             end
          end
-            // perception penalty  if target in KO
+         // perception penalty  if target in KO
          if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) then begin
-            //orig_dist = -1;
             perception_range = -2;
          end
-         //orig_dist = round(orig_dist);
          perception_range = round(perception_range);
          if distance >= perception_range or (LOS_is_blocked(watcher, target) andAlso not(combat_started)) then begin
             set_sfall_return(0);
@@ -653,33 +607,10 @@ procedure perception_handler begin
             set_sfall_arg(2, 2);
          end
       end
-      //if SneakDetection != 0 andAlso not(combat_started) andAlso (sneaking or refresh_count <= MAX_REFRESH_COUNT) then begin
-          //outline for original sneak formula
-         //if sneaking then begin
-            //refresh_count = 0;
-         //end
-         //refresh_count += 1;
-         //if refresh_count >= MAX_REFRESH_COUNT then call disable_highlight;
-         //else begin
-            //target_tile = tile_num(dude_obj);
-            //foreach new_watcher in list_as_array(LIST_CRITTERS) begin
-               //if new_watcher != dude_obj andAlso obj_on_screen(new_watcher) andAlso critter_state(new_watcher) != CRITTER_IS_DEAD andAlso obj_is_visible_flag(new_watcher) andAlso elevation(new_watcher) == elevation(dude_obj) andAlso get_critter_stat(new_watcher,STAT_current_hp) > 0 then begin
-                  //call critter_ountline(new_watcher,dude_obj,target_tile,sneak,light_level,night_vision,target_elevation, combat_started, sneaking,stealthboy);
-               //end
-            //end
-         //end
-      //end
    end
 end
 
 procedure sign_handler begin
-   variable evtp = get_sfall_arg;
-   variable watcher = get_sfall_arg;
-   variable color = 0;
-   variable team = 0;
-   if evtp < 0 then begin
-      withinperception_scr = 0;
-   end
    if not(key_pressed(highlight_key)) then begin
       tile_refresh_display;
    end

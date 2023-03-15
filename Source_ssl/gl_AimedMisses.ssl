@@ -660,15 +660,13 @@ procedure misstohit begin
 
    if MissMod != 0 then begin
 // new targets for missed attacks
-      //if hitmiss == MISS andAlso wpnrng > 1 andalso burst == 0 andAlso grenade == 0 then begin
       if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 then begin
          //new targets for miss on low range with spear-like weapons
          if distance1 < 2 and wpnrng < 3 then begin
-            foreach (critter in list_as_array(0)) begin
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target  then begin
-               distance_objs(distance2, critter, target);
+            foreach (critter in objects_in_radius(tile_num(target),1,elevation(target),OBJ_TYPE_CRITTER)) begin
+               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target then begin
                distance_objs(distance3, critter, attacker);
-                  if (oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter))) andAlso distance2 < 1 andalso distance3 < 2 andAlso (tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 2)) andAlso ( tile_num(critter) == tile_num_in_direction(tile_num(target), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(target), ((rotationatkr + 3) % 6), 1) ) andAlso not(LOS_is_blocked(attacker,critter)) then begin
+                  if (oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter))) andalso distance3 < 2 andAlso (tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 2)) andAlso ( tile_num(critter) == tile_num_in_direction(tile_num(target), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(target), ((rotationatkr + 3) % 6), 1) ) andAlso not(LOS_is_blocked(attacker,critter)) then begin
                      rnd = random(0, 100);
                      if rnd < 20 then begin
                      set_sfall_return(HIT); //  hit
