@@ -219,7 +219,6 @@ end
 
 //Changes AP cost of FA and DOC items
 procedure apcost_handler begin
-   variable user := get_sfall_args;
    variable item_pid;
    variable dude_FA = has_skill(dude_obj, SKILL_FIRST_AID);
    variable dude_DOC = has_skill(dude_obj, SKILL_DOCTOR);

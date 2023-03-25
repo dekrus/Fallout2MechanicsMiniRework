@@ -1,9 +1,12 @@
 ### Latest version  v1.81
-
+##### SecondaryAttackMod
+- Added double tap ability for single fire of pistols and submachine guns.
+- Added knockback ability for single fire of shotguns.
 ##### Sneak Detection mod
-- script optimization.
+- Script optimization.
 
-### Latest version  v1.8
+
+### Version  v1.8
 - Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL.
 
 ### Version  v1.751

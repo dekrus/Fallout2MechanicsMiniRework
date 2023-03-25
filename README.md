@@ -61,6 +61,21 @@ PLASMA weapons:
 - The alternate firing mode consumes 3 microfusion cells/small energy cells.
 - Critical hit chance are calculated separately for each target.
 
+Pistols & SMGs:
+![Secondary-Attack](images/PISTOLS_SMGS.gif)  
+
+- Non-energy Pistols and SMGs allow you to fire two single shots to the body of the same target for the cost of one aimed shot.
+- First shot (aimed body shot) requires the standard AP cost, but consumes 1 less AP, allowing you to fire a second (non-aimed) shot at the same target for 1 AP.
+- Second shot hit chance reduced by (15 + Wpn STR req * 3), but cannot be lower than 1/3 of the initial hit chance.
+- Using inventory/changing weapons/using items/moving/reloading/shooting a different target interrupts the Double Tap.
+
+Shotguns:
+![Secondary-Attack](images/SHOTGUN.gif)  
+
+- Aimed shot to the body knocks back enemies and can knock them down.
+- Affects targets closer than 10 hexes / half the weapon's maximum range.
+- Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
+
 ### Poison 
 **(Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)**  
 This is a rework of the original poison mechanics, designed to make it more dangerous for both the player and NPCs.
