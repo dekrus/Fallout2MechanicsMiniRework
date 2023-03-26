@@ -143,6 +143,7 @@ variable pistol_double_tap_weapon;
 variable pistol_double_tap_weapon_last_ammo;
 variable pistol_double_tap_activated;
 variable pistol_double_tap_in_process;
+variable pistol_double_tap_in_process_missed;
 variable pistol_double_tap_visual;
 variable pistol_double_tap_target;
 variable pistol_double_tap_current_target;
@@ -151,6 +152,7 @@ variable pistol_double_tap_attacker_tile;
 variable pistol_double_tap_taps;
 variable pistol_double_tap_max_taps;
 variable pistol_double_tap_ap_cost;
+variable pistol_double_tap_miss;
 variable pistol_double_tap_to_hit_penalty;
 variable alt_fire_used;
 
@@ -2410,6 +2412,11 @@ procedure MOVECOST begin
       pistol_double_tap_activated = 0;
       pistol_double_tap_in_process = 0;
       pistol_double_tap_visual = 0;
+      pistol_double_tap_taps = 0;
+      pistol_double_tap_target_selected = 0;
+      pistol_double_tap_target = -1;
+      pistol_double_tap_weapon_last_ammo = 0;
+      pistol_double_tap_in_process_missed = 0;
       intface_redraw;
    end
 end
@@ -2424,6 +2431,7 @@ procedure DEATHANIM2 begin
       pistol_double_tap_target_selected = 0;
       pistol_double_tap_target = -1;
       pistol_double_tap_weapon_last_ammo = 0;
+      pistol_double_tap_in_process_missed = 0;
       intface_redraw;
    end
 end
@@ -2447,13 +2455,14 @@ procedure CALCAPCOST begin
          pistol_double_tap_target_selected = 0;
          pistol_double_tap_target = -1;
          pistol_double_tap_weapon_last_ammo = 0;
+         pistol_double_tap_in_process_missed = 0;
          intface_redraw;
       end
       if pistol_double_tap_weapon_last_ammo > cur_ammo then pistol_double_tap_weapon_last_ammo = cur_ammo;
    end
    if pistol_double_tap_target_selected andAlso (atk_type == ATKTYPE_LWEP1 or atk_type == ATKTYPE_RWEP1)  then begin
       if pistol_double_tap_in_process andAlso pistol_double_tap_target_selected andAlso not(is_aimed) then begin
-         if pistol_double_tap_current_target == pistol_double_tap_target andAlso critter_inven_obj(dude_obj, 2 - active_hand) == pistol_double_tap_weapon then begin
+         if critter_inven_obj(dude_obj, 2 - active_hand) == pistol_double_tap_weapon then begin
             set_sfall_return(pistol_double_tap_ap_cost);
             set_sfall_arg(default_ap_cost, pistol_double_tap_ap_cost);
          end
@@ -2469,6 +2478,10 @@ procedure CALCAPCOST begin
       end
       if pistol_double_tap_visual andAlso pistol_double_tap_target_selected andAlso pistol_double_tap_taps < pistol_double_tap_max_taps andAlso not(is_aimed) then begin
          if critter_inven_obj(dude_obj, 2 - active_hand) == pistol_double_tap_weapon then begin
+            if pistol_double_tap_miss == 1 then begin
+               set_critter_current_ap(dude_obj, get_critter_current_ap(dude_obj) - default_ap_cost + 1);
+               pistol_double_tap_miss = 0;
+            end
             set_sfall_return(pistol_double_tap_ap_cost);
             set_sfall_arg(default_ap_cost, pistol_double_tap_ap_cost);
          end
@@ -2486,6 +2499,8 @@ procedure CALCAPCOST begin
       pistol_double_tap_taps = 0;
       pistol_double_tap_target_selected = 0;
       pistol_double_tap_target = -1;
+      pistol_double_tap_weapon_last_ammo = 0;
+      pistol_double_tap_in_process_missed = 0;
    end
 
 end
@@ -2597,8 +2612,9 @@ procedure AFTERHITROLL begin
       if PistolSecondaryAttackMod andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
          alt_fire_used = 1;
          pistol_double_tap_target = real_orig_target;
-         if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO andAlso attack_result <= 1  then begin
-            pistol_double_tap_current_target = target;
+         if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO andAlso attack_result <= 1 then begin
+            pistol_double_tap_in_process_missed = 1;
+            pistol_double_tap_current_target = real_orig_target;
             pistol_double_tap_taps += 1;
             if target_bodypart == BODY_UNCALLED then pistol_double_tap_in_process = 1;
             if pistol_double_tap_taps > pistol_double_tap_max_taps then begin
@@ -2606,19 +2622,23 @@ procedure AFTERHITROLL begin
                pistol_double_tap_target = -1;
             end
          end
-         if weapon_cur_ammo >= 2 andAlso target_bodypart == BODY_HIT_TORSO andAlso attack_result <= 1  then begin
+         if (attack_result == 1 or target != real_orig_target) andAlso weapon_cur_ammo <= 1 then set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
+         if target_bodypart == BODY_HIT_TORSO andAlso (attack_result == 1 or target != real_orig_target) then begin
+            pistol_double_tap_in_process = 0;
+            pistol_double_tap_taps = 0;
             pistol_double_tap_weapon_last_ammo = 0;
+            pistol_double_tap_miss = 1;
             pistol_double_tap_attacker_tile = tile_num(dude_obj);
             pistol_double_tap_weapon = weapon;
             pistol_double_tap_activated = 1;
             pistol_double_tap_target_selected = 1;
-            if pistol_double_tap_activated == 1 then begin
+            if pistol_double_tap_activated == 1 andAlso weapon_cur_ammo >=2 then begin
                unwield_slot(dude_obj, (2 - active_hand));
                wield_obj_critter(dude_obj, weapon);
                pistol_double_tap_visual = 1;
                intface_redraw;
             end
-            set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
+            //set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
          end
       end
       // pistols double tap end
@@ -2798,25 +2818,30 @@ procedure COMBATDAMAGE begin
             // pistols double tap
       if PistolSecondaryAttackMod andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
          alt_fire_used = 1;
-         if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO  then begin
-            pistol_double_tap_current_target = target;
-            pistol_double_tap_taps += 1;
+         if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO then begin
+            pistol_double_tap_current_target = real_orig_target;
+            if pistol_double_tap_in_process_missed == 0 then begin
+               if pistol_double_tap_taps <= 0 then pistol_double_tap_taps = 0;
+               pistol_double_tap_taps += 1;
+            end
+            pistol_double_tap_in_process_missed = 0;
             if target_bodypart == BODY_UNCALLED then pistol_double_tap_in_process = 1;
             if pistol_double_tap_taps > pistol_double_tap_max_taps then begin
                pistol_double_tap_activated = 0;
                pistol_double_tap_target = -1;
             end
          end
-         if weapon_cur_ammo >= 2 andAlso target_bodypart == BODY_HIT_TORSO then begin
+         if target_bodypart == BODY_HIT_TORSO then begin
             pistol_double_tap_taps = 0;
-            set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
-            if dmgtotar < get_critter_stat(target,STAT_current_hp) then begin
+            pistol_double_tap_in_process = 0;
+            if target == real_orig_target then set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
+            if is_critter(target) andAlso target == real_orig_target andAlso dmgtotar < get_critter_stat(target,STAT_current_hp) then begin
                pistol_double_tap_weapon_last_ammo = 0;
                pistol_double_tap_attacker_tile = tile_num(dude_obj);
                pistol_double_tap_weapon = weapon;
                pistol_double_tap_activated = 1;
                pistol_double_tap_target_selected = 1;
-               if pistol_double_tap_activated == 1 then begin
+               if pistol_double_tap_activated == 1 andAlso weapon_cur_ammo >=2 then begin
                   unwield_slot(dude_obj, (2 - active_hand));
                   wield_obj_critter(dude_obj, weapon);
                   pistol_double_tap_visual = 1;
@@ -2989,6 +3014,7 @@ procedure COMBATTURN begin
          pistol_double_tap_target_selected = 0;
          pistol_double_tap_target = -1;
          pistol_double_tap_weapon_last_ammo = 0;
+         pistol_double_tap_in_process_missed = 0;
          intface_redraw;
       end
       if alt_fire_used then call lvar_full_reset();
