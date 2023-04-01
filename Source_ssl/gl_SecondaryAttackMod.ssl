@@ -2791,7 +2791,7 @@ procedure COMBATDAMAGE begin
          target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
          if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills then begin
             knockback_distance = knockback_distance * 2 / 3;
-            rnd = random(0, 2);
+            rnd = random(0, 3);
          end
          if knockback_distance < 1 then knockback_distance = 1;
          if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
@@ -2804,8 +2804,8 @@ procedure COMBATDAMAGE begin
                set_sfall_arg(4, tar_flags bwor DAM_KNOCKED_DOWN);
             end
             else begin
-               set_sfall_return(tar_flags bwor DAM_KNOCKED_DOWN);
-               set_sfall_arg(4, tar_flags bwor DAM_KNOCKED_DOWN);
+               set_sfall_return(tar_flags);
+               set_sfall_arg(4, tar_flags);
             end
             set_sfall_return(atk_falgs);
             set_sfall_arg(5, atk_falgs);
