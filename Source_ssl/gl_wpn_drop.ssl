@@ -78,6 +78,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
       end
    end
    target_who_can_drop = -1;
+   PID_target_who_can_drop = -1;
    target_bodypart = -1;
    atk_rslt = -1;
    combat_dmg = -1;
