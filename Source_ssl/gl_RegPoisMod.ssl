@@ -331,9 +331,13 @@ procedure death begin
    variable deathanim = get_sfall_arg;
    variable tardt = 0;
    variable tardr = 0;
-   variable crit_pid = obj_pid(target);
-   variable crit_fid = critter_art_fid(target);
+   variable crit_pid;
+   variable crit_fid;
    if poisondeath then begin
+      if target > 0 then begin
+         crit_pid = obj_pid(target);
+         crit_fid = critter_art_fid(target);
+      end
       set_sfall_return(ANIM_fall_back);
       // OUTLINE for fix death animation if fog of war is enabled
       if HR_fog_of_war then set_outline(target, OUTLINE_NEW_RED);
@@ -2024,14 +2028,16 @@ procedure ADJUSTPOISON begin
   Critter = get_sfall_arg;
   originalPoisonDecay = get_sfall_arg;
   originalPoisonDMG = get_sfall_arg;
-  poisonres = get_critter_stat(critter, STAT_poison_resist );
-  pseudoPoisonLevel = get_poison(critter);
-  pseudoCurrentHP = get_critter_stat(critter, STAT_current_hp );
-  party = party_member_list(0);
-  critter_in_party = is_in_array(critter, party);
-  tar_name = obj_name(Critter);
-  kill_type = critter_kill_type(critter);
-  crit_pid = obj_pid(Critter);
+  if Critter > 0 then begin
+     poisonres = get_critter_stat(critter, STAT_poison_resist );
+     pseudoPoisonLevel = get_poison(critter);
+     pseudoCurrentHP = get_critter_stat(critter, STAT_current_hp );
+     party = party_member_list(0);
+     critter_in_party = is_in_array(critter, party);
+     tar_name = obj_name(Critter);
+     kill_type = critter_kill_type(critter);
+     crit_pid = obj_pid(Critter);
+  end
   // preventing robots from getting poison level
   if kill_type == KILL_TYPE_robot_kills then begin
       set_sfall_return(0);

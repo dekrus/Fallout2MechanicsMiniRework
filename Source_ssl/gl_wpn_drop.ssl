@@ -14,6 +14,7 @@ variable target_bodypart;
 variable atk_rslt;
 variable combat_dmg;
 variable target_who_can_drop;
+variable PID_target_who_can_drop;
 
 import variable  exp_drop_wpn;
 
@@ -32,7 +33,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable dropped_hex;
    variable count = 0;
    variable max_count = 5;
-   if target != 0 then critter_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
+   if target > 0 then critter_flags = get_proto_data(PID_target_who_can_drop, PROTO_CR_FLAGS);
    if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
       if weapon > 0 then begin
@@ -83,10 +84,16 @@ procedure Drop_Weapons(variable target,variable hand) begin
 end
 
 procedure COMBATDAMAGE begin
-   variable target = get_sfall_arg;
-   variable dmgtotar = get_sfall_arg_at(2);
-   target_who_can_drop = target;
-   combat_dmg = dmgtotar;
+   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == get_sfall_arg_at(0) then begin
+      combat_dmg = get_sfall_arg_at(2);
+      if combat_dmg >= get_critter_stat(target_who_can_drop,STAT_current_hp) then begin
+         target_who_can_drop = -1;
+         PID_target_who_can_drop = -1;
+         target_bodypart = -1;
+         atk_rslt = -1;
+         combat_dmg = -1;
+      end
+   end
 end
 
 procedure STDPROCEDURE begin
@@ -94,7 +101,7 @@ procedure STDPROCEDURE begin
    variable party;
    variable target_in_party = 0;
    variable party_bonus = 0;
-   if combat_is_initialized andAlso (exp_drop_wpn != 0 or ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0)) andAlso get_critter_stat(target_who_can_drop,STAT_current_hp) > 0 then begin
+   if combat_is_initialized andAlso target_who_can_drop andAlso (exp_drop_wpn != 0 or ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0)) then begin
       party = party_member_list(0);
       target_in_party = is_in_array(target_who_can_drop, party);
       if not(target_in_party) then party_bonus = 1;
@@ -114,6 +121,7 @@ procedure STDPROCEDURE begin
          call Drop_Weapons(target_who_can_drop,target_bodypart);
       end
       target_who_can_drop = -1;
+      PID_target_who_can_drop = -1;
       target_bodypart = -1;
       atk_rslt = -1;
       combat_dmg = -1;
@@ -121,8 +129,12 @@ procedure STDPROCEDURE begin
 end
 
 procedure AFTERHITROLL begin
-   atk_rslt = get_sfall_arg_at(0);
    target_bodypart = get_sfall_arg_at(3);
+   if target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM then begin
+      atk_rslt = get_sfall_arg_at(0);
+      target_who_can_drop = get_sfall_arg_at(2);
+      PID_target_who_can_drop = obj_pid(target_who_can_drop);
+   end
 end
 
 

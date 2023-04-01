@@ -28,7 +28,7 @@ variable SwingThrustTweak;
 variable tardt;
 variable tardr;
 variable thrusthit;
-variable weapon;
+//variable weapon;
 variable RLcrip;
 variable LLcrip;
 variable RAcrip;
@@ -138,108 +138,145 @@ procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
 end
 
 procedure SwingThrust begin
-   variable hitcap = get_sfall_arg;
-   variable atkr = get_sfall_arg;
-   variable tar = get_sfall_arg;
-   variable bpart = get_sfall_arg;
-   variable Sourcetile = get_sfall_arg;
-   variable Atktype = get_sfall_arg;
-   variable rngflag = get_sfall_arg;
-   variable hitch = get_sfall_arg;
+   //variable hitch_capped = get_sfall_arg;
+   variable atkr = get_sfall_arg_at(1);
+   variable tar = get_sfall_arg_at(2);
+   //variable bpart = get_sfall_arg;
+   //variable Sourcetile = get_sfall_arg;
+   variable Atktype = get_sfall_arg_at(5);
+   //variable rngflag = get_sfall_arg;
+   variable hitch = get_sfall_arg_at(7);
    variable wpn_flags;
-   variable leftHand_obj = critter_inven_obj(atkr, INVEN_TYPE_LEFT_HAND);
-   variable rightHand_obj = critter_inven_obj(atkr, INVEN_TYPE_RIGHT_HAND);
+   variable leftHand_obj;
+   variable rightHand_obj;
    variable leftHand;
    variable rightHand;
-   variable wpn = 0;
-   variable wpnanim = 0;
+   variable wpn;
+   variable wpnanim;
    variable swing = 0;
-   variable thrust = 0;
-   variable atkrskill = has_skill(atkr, SKILL_MELEE);
+   //variable thrust = 0;
+   variable atkrskill;
    variable tarAg;
-   variable Newhitch = 0;
-   //if obj_type(tar) == OBJ_TYPE_CRITTER then begin
-      tarAg = get_critter_stat(tar, STAT_ag);
-   //end
-   if leftHand_obj then begin
-      leftHand = obj_pid(leftHand_obj);
-   end
-   if rightHand_obj then begin
-      rightHand = obj_pid(rightHand_obj);
-   end
-   if SwingThrustTweak != 0 andAlso (leftHand_obj or rightHand_obj) then begin
-         if Atktype == ATKTYPE_LWEP1 andAlso leftHand_obj then begin // left hand first attack mode
-         wpn = leftHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
-               swing = 1;
-            end
-            if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
-               thrust = 1;
+   variable Newhitch;
+   if SwingThrustTweak != 0 andAlso atkr != tar then begin
+      // player attacker
+      if atkr == dude_obj then begin
+         if active_hand then begin
+            rightHand_obj = critter_inven_obj(atkr, INVEN_TYPE_RIGHT_HAND);
+            if rightHand_obj then begin
+               rightHand = obj_pid(rightHand_obj);
             end
          end
-         if Atktype ==  ATKTYPE_LWEP2 andAlso leftHand_obj  then begin // left hand second attack mode
-         wpn = leftHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
-               swing = 1;
-            end
-            if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
-               thrust = 1;
+         else begin
+            leftHand_obj = critter_inven_obj(atkr, INVEN_TYPE_LEFT_HAND);
+            if leftHand_obj then begin
+               leftHand = obj_pid(leftHand_obj);
             end
          end
-         if Atktype ==  ATKTYPE_RWEP1 andAlso rightHand_obj then begin // right hand first attack mode
-         wpn = rightHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
-               swing = 1;
-            end
-            if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
-               thrust = 1;
-            end
-         end
-         if Atktype ==  ATKTYPE_RWEP2 andAlso rightHand_obj  then begin // right hand second attack mode
-         wpn = rightHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
-               swing = 1;
-            end
-            if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
-               thrust = 1;
-            end
-         end
-         if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
-      //New effect for swing and thust attacks
-      if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522)  then begin // Wakizashi use unique animation so "wpn == 522"
-      Newhitch = hitch + tarAg + (atkrskill / 15); // increas hit chance
-      if Newhitch > 95 then begin
-         Newhitch = 95;
       end
+      // non player attacker
+      else begin
+         rightHand_obj = critter_inven_obj(atkr, INVEN_TYPE_RIGHT_HAND);
+         if rightHand_obj then begin
+            rightHand = obj_pid(rightHand_obj);
+         end
+      end
+      // left hand attack
+      if leftHand_obj then begin
+         //if left hand first attack mode
+         if Atktype == ATKTYPE_LWEP1 then begin
+            wpn = leftHand;
+            if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
+            wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+               if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
+                  swing = 1;
+               end
+               //if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
+                  //thrust = 1;
+               //end
+            end
+         end
+         //if left hand second attack mode
+         if Atktype == ATKTYPE_LWEP2 then begin
+            wpn = leftHand;
+            if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
+            wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+               if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
+                  swing = 1;
+               end
+               //if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
+                  //thrust = 1;
+               //end
+            end
+         end
+      end
+      // right hand attack
+      if rightHand_obj then begin
+          //if right hand first attack mode
+         if Atktype ==  ATKTYPE_RWEP1 then begin
+            wpn = rightHand;
+            if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
+            wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+               if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
+                  swing = 1;
+               end
+               //if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
+                  //thrust = 1;
+               //end
+            end
+         end
+         //if right hand second attack mode
+         if Atktype ==  ATKTYPE_RWEP2 then begin
+            wpn = rightHand;
+            if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
+            wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+               if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
+                  swing = 1;
+               end
+               //if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
+                  //thrust = 1;
+               //end
+            end
+         end
+      end
+
+      //New effect for swing and thust attacks
+      if tar andAlso swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522)  then begin // Wakizashi use unique animation so "wpn == 522"
+         atkrskill = has_skill(atkr, SKILL_MELEE);
+         tarAg = get_critter_stat(tar, STAT_ag);
+         Newhitch = hitch + tarAg + (atkrskill / 15); // increas hit chance
+         if Newhitch > 95 then begin
+            Newhitch = 95;
+         end
          set_sfall_return(Newhitch);
          set_sfall_arg(0, Newhitch);
       end
-      if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
-      end
+      //if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
+      //end
    end
-end
+ end
 
 procedure explosiveinjures begin
    variable target = get_sfall_arg;
    variable attacker = get_sfall_arg;
    variable dmgtotar = get_sfall_arg;
    variable dmgtoatkr = get_sfall_arg;
-   variable flagfortar = get_sfall_arg;
-   variable flagforatkr = get_sfall_arg;
-   variable weapon = get_sfall_arg;
-   variable bpart = get_sfall_arg;
-   variable dmgmult = get_sfall_arg;
-   variable bullets = get_sfall_arg;
-   variable knockback = get_sfall_arg;
-   variable atktype = get_sfall_arg;
-   variable c_atk = get_sfall_arg;
+   //variable flagfortar = get_sfall_arg;
+   //variable flagforatkr = get_sfall_arg;
+   variable weapon = get_sfall_arg_at(6);
+   //variable bpart = get_sfall_arg;
+   //variable dmgmult = get_sfall_arg;
+   //variable bullets = get_sfall_arg;
+   //variable knockback = get_sfall_arg;
+   variable atktype = get_sfall_arg_at(11);
+   //variable c_atk = get_sfall_arg;
    variable wpn_flags;
    variable attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
-   variable target_type = OBJ_TYPE_CRITTER;
+   variable target_type;
    variable target_pid;
    variable expldmg = 0;
    variable rnd = 0;
@@ -273,7 +310,7 @@ procedure explosiveinjures begin
    end
    if MissMod != 0 then begin
       distance_objs(new_target_dist, target, attacker);
-      //disable the original miss mechanic
+      //disable the original 100% hit next target after miss mechanic
       rnd = random(0, 5);
       if rnd != 0 andAlso newtarget == 0 andAlso burst == 0 andAlso grenade == 0 andAlso first_target_dist <= new_target_dist andAlso wpn_dmg_type == DMG_normal_dam andAlso missed == MISS then begin
          set_sfall_return(0);
@@ -287,9 +324,12 @@ procedure explosiveinjures begin
          missed = -1;
       end
    end
-   if target_type == OBJ_TYPE_CRITTER then begin
-      critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-      target_pid = obj_pid(target);
+   if target then begin
+      target_type = obj_type(target);
+      if target_type == OBJ_TYPE_CRITTER then begin
+         critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+         target_pid = obj_pid(target);
+      end
    end
     //swingThrust
    if SwingThrustTweak != 0 andAlso wpnpid != 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
@@ -530,6 +570,7 @@ procedure misstohit begin
    variable tar_cur_frm = 0;
    variable attacker_meleedmg = 0;
    variable wpn_maxdmg = 0;
+   variable tar_pid;
    variable tar_fid = 0;
    variable atk_mode;
    variable combat_diff = combat_difficulty;
@@ -642,13 +683,14 @@ procedure misstohit begin
          if hitmiss > MISS then begin
          wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
          thrusthit = 1;
-         tardt = get_proto_data(obj_pid(target), 244);
-         tardr = get_proto_data(obj_pid(target), 272);
+         tar_pid = obj_pid(target);
+         tardt = get_proto_data(tar_pid, 244);
+         tardr = get_proto_data(tar_pid, 272);
          attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
-         newtardt = tardt - ceil((wpn_maxdmg + attacker_meleedmg) / 8);
-         newtardr = tardr - 2 - ceil((wpn_maxdmg + attacker_meleedmg) / 3);
-         set_proto_data(obj_pid(target), 244, newtardt);
-         set_proto_data(obj_pid(target), 272, newtardr);
+         newtardt = tardt - ceil((wpn_maxdmg + attacker_meleedmg) / 8.0);
+         newtardr = tardr - 2 - ceil((wpn_maxdmg + attacker_meleedmg) / 3.0);
+         set_proto_data(tar_pid, 244, newtardt);
+         set_proto_data(tar_pid, 272, newtardr);
             if hitmiss == CRITICAL_HIT andAlso random (0, 98) < (get_critter_stat(attacker, STAT_crit_chance) / 2) then begin
             set_sfall_return(CRITICAL_HIT); //  critical hit
             set_sfall_arg(0, CRITICAL_HIT);
