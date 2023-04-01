@@ -2035,8 +2035,7 @@ procedure ADJUSTPOISON begin
      party = party_member_list(0);
      critter_in_party = is_in_array(critter, party);
      tar_name = obj_name(Critter);
-     kill_type = critter_kill_type(critter);
-     crit_pid = obj_pid(Critter);
+     kill_type = critter_kill_type(critter);     
   end
   // preventing robots from getting poison level
   if kill_type == KILL_TYPE_robot_kills then begin
@@ -2049,6 +2048,7 @@ procedure ADJUSTPOISON begin
       critter_heal(Critter, - pseudoCurrentHP * 2);
    end
    else begin
+   crit_pid = obj_pid(Critter);
    tardt = get_proto_data(crit_pid, CRITTER_PROTO_DT);
    tardr = get_proto_data(crit_pid, CRITTER_PROTO_DR);
    poisondeath = 1;
