@@ -201,7 +201,7 @@ With the setting enabled, swing attacks and thrusts with a knife will now have d
 - Increases the base chance of a critical hit by 1.5 times.
 
 ### AntiCritical
-If enabled, prevents status effects (crippling, blindness, knockout, and instant death) when receiving/dealing 0 damage on a critical hit (player and NPCs).
+If enabled, prevents status effects (crippling, blindness, knockout, and instant death) when receiving/dealing 0 damage on a critical hit (player and/or NPCs).
 
 ### StealthBoy AutoSneak
 If enabled, Sneaking Mode is automatically applied when using a charged Stealthboy.
