@@ -528,6 +528,7 @@ procedure misstohit begin
    variable rotationatkr = -1;
    variable oldrotationatkr = -1;
    variable rotationtar = -1;
+   //variable rotationatk = -1;
    variable rotationnewtar = -1;
    variable critter = 0;
    variable distance1 = 0;
@@ -574,6 +575,9 @@ procedure misstohit begin
    variable tar_fid = 0;
    variable atk_mode;
    variable combat_diff = combat_difficulty;
+   variable tar_tile;
+   variable atk_tile;
+   variable critter_tile;
    burst = 0;
    grenade = 0;
    if MissMod != 0 or SwingThrustTweak != 0 then begin
@@ -588,8 +592,11 @@ procedure misstohit begin
       rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
       if leftHand_obj then leftHand = obj_pid(leftHand_obj);
       if rightHand_obj then rightHand = obj_pid(rightHand_obj);
-      rotationatkr = real_rotation_to_tile(tile_num(attacker), tile_num(target));
-      oldrotationatkr = rotation_to_tile(tile_num(attacker), tile_num(target));
+      tar_tile = tile_num(target);
+      atk_tile = tile_num(attacker);
+      rotationatkr = real_rotation_to_tile(atk_tile, tar_tile);
+      oldrotationatkr = rotation_to_tile(atk_tile, tar_tile);
+      //rotationatk = has_trait(TRAIT_OBJECT, attacker, OBJECT_CUR_ROT);
       rotationtar = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
       rndarm = random(BODY_HIT_LEFT_ARM, BODY_HIT_RIGHT_ARM);
       rndleg = random(BODY_HIT_RIGHT_LEG, BODY_HIT_LEFT_LEG);
@@ -704,11 +711,12 @@ procedure misstohit begin
 // new targets for missed attacks
       if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 then begin
          //new targets for miss on low range with spear-like weapons
-         if distance1 < 2 and wpnrng < 3 then begin
-            foreach (critter in objects_in_radius(tile_num(target),1,elevation(target),OBJ_TYPE_CRITTER)) begin
+          if distance1 < 2 and wpnrng < 3 then begin
+            foreach (critter in objects_in_radius(tar_tile,1,elevation(target),OBJ_TYPE_CRITTER)) begin
                if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target then begin
                distance_objs(distance3, critter, attacker);
-                  if (oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter))) andalso distance3 < 2 andAlso (tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(attacker), rotationatkr, 2)) andAlso ( tile_num(critter) == tile_num_in_direction(tile_num(target), rotationatkr, 1) or tile_num(critter) == tile_num_in_direction(tile_num(target), ((rotationatkr + 3) % 6), 1) ) andAlso not(LOS_is_blocked(attacker,critter)) then begin
+               critter_tile = tile_num(critter);
+                  if (oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)) andalso distance3 < 2 andAlso (critter_tile == tile_num_in_direction(atk_tile, rotationatkr, 1) or critter_tile == tile_num_in_direction(atk_tile, rotationatkr, 2)) andAlso ( critter_tile == tile_num_in_direction(tar_tile, rotationatkr, 1) or critter_tile == tile_num_in_direction(tar_tile, ((rotationatkr + 3) % 6), 1) ) andAlso not(LOS_is_blocked(attacker,critter)) then begin
                      rnd = random(0, 100);
                      if rnd < 20 then begin
                      set_sfall_return(HIT); //  hit
@@ -727,29 +735,30 @@ procedure misstohit begin
          //new targets for miss with medium and low range
          if wpnrng > 2 then begin
             foreach (critter in list_as_array(0)) begin
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter))  andAlso not(LOS_is_blocked(attacker,critter))  then begin
+               critter_tile = tile_num(critter);
+               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)  andAlso not(LOS_is_blocked(attacker,critter))  then begin
                distance_objs(distance2, critter, target);
                distance_objs(distance3, critter, attacker);
-               distance4 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 2)));
-               distance5 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 4)));
-               distance6 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 6)));
-               distance7 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 8)));
-               distance8 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 10)));
-               distance9 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 12)));
-               distance10 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 14)));
-               distance11 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 16)));
-               distance12 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 18)));
-               rotationnewtar = real_rotation_to_tile(tile_num(attacker), tile_num(critter));
-               losblock1 = obj_blocking_line(attacker, tile_num(target), BLOCKING_TYPE_SHOOT);
-               if losblock1 then losblock2 = obj_blocking_line(losblock1, tile_num(target), BLOCKING_TYPE_SHOOT);
-               if losblock2 then losblock3 = obj_blocking_line(losblock2, tile_num(target), BLOCKING_TYPE_SHOOT);
-               if losblock3 then losblock4 = obj_blocking_line(losblock3, tile_num(target), BLOCKING_TYPE_SHOOT);
-               if losblock4 then losblock5 = obj_blocking_line(losblock4, tile_num(target), BLOCKING_TYPE_SHOOT);
-               if losblock5 then losblock6 = obj_blocking_line(losblock5, tile_num(target), BLOCKING_TYPE_SHOOT);
+               distance4 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 2)));
+               distance5 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 4)));
+               distance6 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 6)));
+               distance7 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 8)));
+               distance8 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 10)));
+               distance9 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 12)));
+               distance10 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 14)));
+               distance11 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 16)));
+               distance12 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 18)));
+               rotationnewtar = real_rotation_to_tile(atk_tile, tile_num(critter));
+               losblock1 = obj_blocking_line(attacker, tar_tile, BLOCKING_TYPE_SHOOT);
+               if losblock1 then losblock2 = obj_blocking_line(losblock1, tar_tile, BLOCKING_TYPE_SHOOT);
+               if losblock2 then losblock3 = obj_blocking_line(losblock2, tar_tile, BLOCKING_TYPE_SHOOT);
+               if losblock3 then losblock4 = obj_blocking_line(losblock3, tar_tile, BLOCKING_TYPE_SHOOT);
+               if losblock4 then losblock5 = obj_blocking_line(losblock4, tar_tile, BLOCKING_TYPE_SHOOT);
+               if losblock5 then losblock6 = obj_blocking_line(losblock5, tar_tile, BLOCKING_TYPE_SHOOT);
                if distance3 > 1 andAlso distance3 < wpnrng + 2 then begin
                      if tile_distance_objs(critter, target) == 1 then begin
                      rnd = random(0, 100);
-                     if ((hitch > 4 andAlso rnd < 20) or (hitch < 5 andAlso rnd < 2)) andAlso distance2 < 1  then begin
+                     if ((hitch > 4 andAlso rnd < 20) or (hitch < 5 andAlso rnd < 2)) andAlso distance2 < 1 then begin
                      set_sfall_return(HIT); //  hit
                      set_sfall_arg(0, HIT);
                      set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
@@ -816,7 +825,7 @@ procedure misstohit begin
                   end
 
                   rnd = random(0, 100);
-                  if losblock5 == critter andAlso losblock4 != losblock5 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 10) or (hitch < 17 andAlso rnd < 2)) andAlso losblockhit != 1 then begin
+                  if losblock5 == critter andAlso losblock4 != losblock5 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 10) or (hitch < 17 andAlso rnd < 2)) andAlso losblockhit != 1  then begin
                   set_sfall_return(HIT); //  hit
                   set_sfall_arg(0, HIT);
                   set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
@@ -847,23 +856,24 @@ procedure misstohit begin
          //new targets for missed hit on medium and long range
          if wpnrng > 2 andAlso newtarget == 0 then begin
             foreach (critter in list_as_array(0)) begin
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter)) andAlso not(LOS_is_blocked(attacker,critter)) then begin
+               critter_tile = tile_num(critter);
+               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile) andAlso not(LOS_is_blocked(attacker,critter)) then begin
                distance_objs(distance2, critter, target);
                distance_objs(distance3, critter, attacker);
-               distance4 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 2)));
-               distance5 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 4)));
-               distance6 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 6)));
-               distance7 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 8)));
-               distance8 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 10)));
-               distance9 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 12)));
-               distance10 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 14)));
-               distance11 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 16)));
-               distance12 = tile_distance(tile_num(critter), (tile_num_in_direction(tile_num(target), rotationatkr, 18)));
-               rotationnewtar = real_rotation_to_tile(tile_num(attacker), tile_num(critter));
+               distance4 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 2)));
+               distance5 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 4)));
+               distance6 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 6)));
+               distance7 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 8)));
+               distance8 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 10)));
+               distance9 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 12)));
+               distance10 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 14)));
+               distance11 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 16)));
+               distance12 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 18)));
+               rotationnewtar = real_rotation_to_tile(atk_tile, tile_num(critter));
                   if distance1 > 5 andAlso distance3 < wpnrng + 2 then begin
-                     if  oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter))  andAlso (distance3 < wpnrng + 1) andAlso ( ( distance2 > 0 andAlso (distance4 < 3 or distance5 < 3 or distance5 < 3 or distance7 < 3 or distance8 < 4 or distance9 < 4 or distance10 < 5 or distance11 < 5 or distance12 < 5)) )  then begin
+                     if  oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)  andAlso (distance3 < wpnrng + 1) andAlso ( ( distance2 > 0 andAlso (distance4 < 3 or distance5 < 3 or distance5 < 3 or distance7 < 3 or distance8 < 4 or distance9 < 4 or distance10 < 5 or distance11 < 5 or distance12 < 5)) )  then begin
                      rnd = random(0, 100);
-                        if rnd < 19 andAlso oldrotationatkr == rotation_to_tile(tile_num(attacker), tile_num(critter)) then begin
+                        if rnd < 19 andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile) then begin
                            set_sfall_return(HIT); //  hit
                            set_sfall_arg(0, HIT);
                            set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled

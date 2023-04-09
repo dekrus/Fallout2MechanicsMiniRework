@@ -6,10 +6,10 @@
 {6}{}{ and fell to the ground in pain.}
 {7}{}{ with no armor defenses and fell to the ground in pain.}
 {8}{}{. The impact knocks your target down.}
-{9}{}{. The attack to a vital organs knocks the loser over.}
+{9}{}{. A hit to a vital organ sends the opponent to a knockout..}
 {10}{}{ and dies.}
 {11}{}{ and passes away.}
-{12}{}{ and finaly gave up the ghost.}
+{12}{}{ and finally gave up the ghost.}
 {13}{}{ and ceases to exist.}
 {14}{}{ and dies instantly.}
 {15}{}{ and instantly stops living.}

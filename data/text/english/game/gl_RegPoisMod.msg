@@ -13,7 +13,7 @@
 {13}{}{%1% applies poison to %2%.} //%1% = npc_name, %2% - weapon name
 {14}{}{You apply poison to %2%.}
 {15}{}{You apply the last drops of poison to your weapon and discard the useless remnants of the poison gland.}
-{16}{}{Poison from the weapon starts to drip on the ground, apply even more poison to the %2% isn't possible.}
+{16}{}{Poison from the weapon starts to drip on the ground, applying even more poison to the %2% isn't possible.}
 {17}{}{You apply the last drops of poison to the weapon %1% holds, and discard the useless remnants of the poison gland.}
 {18}{}{You failed to poison your target undetected.}
 {19}{}{You heal %2% hit point.} //player if 1 hp
@@ -24,7 +24,7 @@
 {24}{}{%1% takes %2% damage from poison.}
 {25}{}{%1% takes %2% damage from poison and dies.}
 {26}{}{%1%: Poison level has reached a lethal value!}
-{27}{}{You feel the aftereffect of poisoning.}
+{27}{}{You feel the aftereffects of poisoning.}
 {28}{}{Regeneration mod: You need to enable the "AllowUnsafeScripting" setting in ddraw.ini for the mod to work correctly.}
 {29}{}{I don't think we know each other *that* well.}
 {30}{}{Get it away from me!}

@@ -2225,7 +2225,7 @@ procedure plasma_alt_explosion begin
    variable tar_tile = tile_num(orig_target);
    variable critter_team = -5;
    variable blast_radius = PlasmaBlastRadius;
-   variable new_tar_dmg_mult = PlasmaDamagePercentage;
+   variable new_tar_dmg_mult;
    variable array_critters_in_radius = objects_in_radius(tar_tile,blast_radius, target_elevation, OBJ_TYPE_CRITTER);
    variable new_tar;
    variable new_tar_pid;
@@ -2263,22 +2263,26 @@ procedure plasma_alt_explosion begin
    foreach new_tar in array_critters_in_radius begin
       new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
       if new_tar != orig_target andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) andAlso obj_is_visible_flag(new_tar) then begin
+         new_tar_dmg_mult = PlasmaDamagePercentage + 0.1;
+         distance = 0;
          new_tar_pid = obj_pid(new_tar);
          target_dt = get_proto_data(new_tar_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
          target_dr = get_proto_data(new_tar_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
          critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
+
          //Increase target_dr if it attacker has TRAIT_finesse
          if finesse then begin
             target_dr = target_dr + 30;
          end
+         if target_dr > 90 then target_dr = 90;
 
          crit_roll = random(1, 100);
          if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
             crit_power_roll = random(1, (100 + bonus_crit_power_roll));
             crit_mult = get_crit_mult(crit_power_roll,new_tar);
             if crit_mult < 2 then begin
-               target_dt = target_dt * 0.8;
-               target_dr = target_dr * 0.8;
+               target_dt = target_dt * 0.75;
+               target_dr = target_dr * 0.75;
             end
             else begin
                target_dt = target_dt * 0.4;
@@ -2286,11 +2290,12 @@ procedure plasma_alt_explosion begin
             end
          end
          if crit_mult > 2 then crit_mult = 2;
-         if new_tar_dmg_mult andAlso new_tar_dmg_mult != 1 then begin
+         if new_tar_dmg_mult andAlso new_tar_dmg_mult < 1 then begin
             distance_objs(distance, orig_target, new_tar);
-            if distance > 0 then new_tar_dmg_mult = (new_tar_dmg_mult ^ (new_tar_dmg_mult + 1));
+            if distance > 1 then new_tar_dmg_mult = (PlasmaDamagePercentage ^ (distance));
+            if new_tar_dmg_mult < 0 then new_tar_dmg_mult = 0;
          end
-         dmg = 5 * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * PlasmaDamagePercentage * crit_mult);
+         dmg = 5 * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * new_tar_dmg_mult * crit_mult);
          if dmg < 0 then dmg = 0;
          //on a successful hit, the target becomes hostile
          if critter_team == TEAM_PLAYER then begin
@@ -2776,7 +2781,9 @@ procedure COMBATDAMAGE begin
       // plasma aoe dmg
       if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 then begin
          orig_target = target;
-         combat_dmg = round(combat_dmg * 1.15);
+         if combat_dmg > 0 then begin
+            combat_dmg = 5 + ceil(combat_dmg * 1.3);
+         end
          set_sfall_return(combat_dmg);
          set_sfall_arg(2, combat_dmg);
          call plasma_aoe_dmg(attacker,target);
@@ -2791,7 +2798,7 @@ procedure COMBATDAMAGE begin
          target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
          if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills then begin
             knockback_distance = knockback_distance * 2 / 3;
-            rnd = random(0, 3);
+            rnd = random(0, 4);
          end
          if knockback_distance < 1 then knockback_distance = 1;
          if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
@@ -3025,51 +3032,66 @@ end
 procedure start begin
    if game_loaded then begin
       variable SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
-
       if SecondaryAttackMod > 0 then begin
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
          //ProneTargetsSkip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ProneSkip");
          AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
          config_file = get_ini_string("ddraw.ini|Misc|ConfigFile");
          if config_file == "" then config_file = "fallout2.cfg";
+
          LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
-         LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
-         //LaserHitChance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserHitChance");
-         LaserHitChance = 1;
-         laser_max_targets_two_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWMFC");
-         if laser_max_targets_two_handed_micro_fusion < 0 then laser_max_targets_two_handed_micro_fusion = 0;
-         laser_max_targets_one_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWMFC");
-         if laser_max_targets_one_handed_micro_fusion < 0 then laser_max_targets_one_handed_micro_fusion = 0;
-         laser_max_targets_two_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWSEC");
-         if laser_max_targets_two_handed_small_cell < 0 then laser_max_targets_two_handed_small_cell = 0;
-         laser_max_targets_one_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWSEC");
-         if laser_max_targets_one_handed_small_cell < 0 then laser_max_targets_one_handed_small_cell = 0;
+         if LaserSecondaryAttackMod > 0 then begin
+            LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
+            if LaserLineWidth < 0 then LaserLineWidth = 0;
+            if LaserLineWidth > 1 then LaserLineWidth = 1;
+            //LaserHitChance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserHitChance");
+            LaserHitChance = 1;
+            laser_max_targets_two_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWMFC");
+            if laser_max_targets_two_handed_micro_fusion < 0 then laser_max_targets_two_handed_micro_fusion = 4;
+            laser_max_targets_one_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWMFC");
+            if laser_max_targets_one_handed_micro_fusion < 0 then laser_max_targets_one_handed_micro_fusion = 2;
+            laser_max_targets_two_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWSEC");
+            if laser_max_targets_two_handed_small_cell < 0 then laser_max_targets_two_handed_small_cell = 3;
+            laser_max_targets_one_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWSEC");
+            if laser_max_targets_one_handed_small_cell < 0 then laser_max_targets_one_handed_small_cell = 1;
+         end
 
          GaussSecondaryAttackMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
-         GaussLineWidth = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussLineWidth");
-         //GaussHitChance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussHitChance");
-         GaussHitChance = 1;
-         GaussDamageReductionPerTarget = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussDamageReductionPerTarget"));
-         if GaussDamageReductionPerTarget < 0 then GaussDamageReductionPerTarget = 0.01;
+         if GaussSecondaryAttackMod > 0 then begin
+            GaussLineWidth = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussLineWidth");
+            if GaussLineWidth < 0 then GaussLineWidth = 0;
+            if GaussLineWidth > 1 then GaussLineWidth = 1;
+            //GaussHitChance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussHitChance");
+            GaussHitChance = 1;
+            GaussDamageReductionPerTarget = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussDamageReductionPerTarget"));
+            if GaussDamageReductionPerTarget <= 0 then GaussDamageReductionPerTarget = 0.17;
+         end
 
          PlasmaSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
-         PlasmaBlastRadius = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaBlastRadius");
-         if PlasmaBlastRadius < 1 then PlasmaBlastRadius = 1;
-         PlasmaDamagePercentage = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaDamagePercentage"));
-         if PlasmaDamagePercentage > 1 then PlasmaDamagePercentage = 1;
-         if PlasmaDamagePercentage < 0 then PlasmaDamagePercentage = 0;
+         if PlasmaSecondaryAttackMod > 0 then begin
+            PlasmaBlastRadius = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaBlastRadius");
+            if PlasmaBlastRadius < 1 then PlasmaBlastRadius = 2;
+            PlasmaDamagePercentage = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaDamagePercentage"));
+            if PlasmaDamagePercentage > 1 then PlasmaDamagePercentage = 1;
+            if PlasmaDamagePercentage <= 0 then PlasmaDamagePercentage = 0.65;
+         end
 
          ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
-         ShotgunKnockbackMin = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMin");
-         if ShotgunKnockbackMin < 1 then ShotgunKnockbackMin = 1;
-         ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
-         if ShotgunKnockbackMax < 1 then ShotgunKnockbackMax = 1;
+         if ShotgunSecondaryAttackMod > 0 then begin
+            ShotgunKnockbackMin = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMin");
+            if ShotgunKnockbackMin < 1 then ShotgunKnockbackMin = 1;
+            ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
+            if ShotgunKnockbackMax < 1 then ShotgunKnockbackMax = 5;
+         end
 
          PistolSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolSecondaryAttackMod");
          if PistolSecondaryAttackMod > 0 then begin
             pistol_double_tap_max_taps = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolMaxBonusShots");
+            if pistol_double_tap_max_taps <= 0 then pistol_double_tap_max_taps = 1;
             pistol_double_tap_ap_cost = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolSecondShotApCost");
+            if pistol_double_tap_ap_cost < 1 then pistol_double_tap_ap_cost = 1;
             pistol_double_tap_to_hit_penalty = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenalty");
+            if pistol_double_tap_to_hit_penalty < 0 then pistol_double_tap_to_hit_penalty = 15;
          end
 
 
@@ -3091,8 +3113,8 @@ procedure start begin
             register_hook_proc_spec(HOOK_MOVECOST, MOVECOST);
             register_hook_proc_spec(HOOK_DEATHANIM2, DEATHANIM2);
             register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+            register_hook_proc_spec(HOOK_USEOBJON, COMBATTURN);
          end
-         register_hook_proc_spec(HOOK_USEOBJON, COMBATTURN);
          register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
          set_global_script_type(0);
          set_global_script_repeat(0);
