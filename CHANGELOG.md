@@ -1,10 +1,20 @@
-### Latest version  v1.81
-##### SecondaryAttackMod
+### Latest version  v1.82 (on development stage)
+- Fixed: game crash caused by executing "obj_pid" code during COMBATDAMAGE script hook in some scripts.
+- Correction of errors and typos in the English version of the modification.
+##### Miss Mod
+- Fixed: potential game crash when weapons fall out of the hands of some NPCs while taking damage from a knife.
+##### SecondaryAttack Mod
+- Reduced the chance of knocking down the enemy with an alternative shotgun attack.
+##### Sneak Detection Mod
+- Fixed: display of dark red color on Hi-Res patch (Mash) when Fog Of War is enabled.
+
+
+### Version  v1.81
+##### SecondaryAttack Mod
 - Added double tap ability for single fire of pistols and submachine guns.
 - Added knockback ability for single fire of shotguns.
-##### Sneak Detection mod
+##### Sneak Detection Mod
 - Script optimization.
-
 
 ### Version  v1.8
 - Added a new module that retroactively recalculates maximum health and skill points when changing SPECIAL.
