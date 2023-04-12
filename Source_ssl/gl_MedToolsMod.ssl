@@ -255,6 +255,12 @@ procedure map_enter_p_proc begin
    variable fa_kit2_count;
    variable critter_pid;
    if MedToolsMod != 0 then begin
+      //weight ajustment
+      //set_proto_data(PID_FIRST_AID_KIT, PROTO_IT_WEIGHT, max_charges);
+      //set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_IT_WEIGHT, max_charges_t2);
+      set_proto_data(PID_DOCTORS_BAG, PROTO_IT_WEIGHT, 3);
+      set_proto_data(PID_PARAMEDICS_BAG, PROTO_IT_WEIGHT, 4);
+      //add charges
       set_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES, max_charges);
       set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, max_charges_t2);
       set_proto_data(PID_DOCTORS_BAG, PROTO_MI_CHARGES, doc_max_charges);

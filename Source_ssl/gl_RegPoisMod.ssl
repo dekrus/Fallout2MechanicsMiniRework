@@ -2035,7 +2035,7 @@ procedure ADJUSTPOISON begin
      party = party_member_list(0);
      critter_in_party = is_in_array(critter, party);
      tar_name = obj_name(Critter);
-     kill_type = critter_kill_type(critter);     
+     kill_type = critter_kill_type(critter);
   end
   // preventing robots from getting poison level
   if kill_type == KILL_TYPE_robot_kills then begin
@@ -2298,7 +2298,7 @@ procedure map_enter_p_proc begin
    set_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_FLAGS, (get_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_FLAGS) + ITEM_ACTION_USE));
    end
    //radscorpion tail weight modifying
-   set_proto_data(PID_SCORPION_TAIL, PROTO_IT_WEIGHT, 5);
+   set_proto_data(PID_SCORPION_TAIL, PROTO_IT_WEIGHT, 4);
    if PID_SMALL_SCORPION_TAIL > 0 then set_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_WEIGHT, 2);
    // poison injection moddification
    set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_hp);
