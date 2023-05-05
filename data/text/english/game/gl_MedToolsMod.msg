@@ -7,7 +7,7 @@
 {7}{}{damaged eye.}
 {8}{}{You look healthy already.}
 {9}{}{%1% looks healthy already.}
-{10}{}{%1% uses %2%}
+{10}{}{%1% uses %2%.}
 {11}{}{Failed to heal disabilities.}
 {12}{}{You healed %1% hit points.}
 {13}{}{You aren't skilled enough to use %1%.} 

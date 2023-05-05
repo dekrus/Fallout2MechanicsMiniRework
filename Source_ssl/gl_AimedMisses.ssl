@@ -16,49 +16,33 @@
 
 procedure start;
 procedure misstohit;
-procedure explosiveinjures;
+procedure COMBATDAMAGE;
 procedure SwingThrust;
 procedure LOS_is_blocked(variable watcher_obj , variable target_obj1 );
 procedure real_rotation_to_tile(variable begin_tile, variable dest_tile);
 
 variable MissMod;
 variable BodyRndHit;
-variable CrippleMod;
 variable SwingThrustTweak;
 variable tardt;
 variable tardr;
 variable thrusthit;
 //variable weapon;
-variable RLcrip;
-variable LLcrip;
-variable RAcrip;
-variable LAcrip;
-variable Icrip;
-variable CripDiv;
 variable missed;
 variable newtarget;
 variable first_target_dist;
 variable burst;
 variable grenade;
 
-export variable exp_drop_wpn;
-
 procedure start begin
    if game_loaded then begin
       MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
       BodyRndHit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|BodyRndHit");
-      CrippleMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|CripplingExplosions");
       SwingThrustTweak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SwingThrust");
-      if MissMod != 0 or BodyRndHit != 0 or CrippleMod != 0 or SwingThrustTweak != 0 then begin
-         RLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|RLcrip");
-         LLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LLcrip");
-         RAcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|RLcrip");
-         LAcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LLcrip");
-         Icrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LLcrip");
-         CripDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|CripDiv");
-         register_hook_proc_spec(HOOK_COMBATDAMAGE, explosiveinjures);
+      if MissMod > 0 or BodyRndHit > 0 or SwingThrustTweak > 0 then begin
+         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, misstohit);
-         if SwingThrustTweak then register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
+         if SwingThrustTweak > 0 then register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
       end
       set_global_script_type(0);
       set_global_script_repeat(0);
@@ -158,7 +142,7 @@ procedure SwingThrust begin
    variable atkrskill;
    variable tarAg;
    variable Newhitch;
-   if SwingThrustTweak != 0 andAlso atkr != tar then begin
+   if SwingThrustTweak > 0 andAlso atkr != tar then begin
       // player attacker
       if atkr == dude_obj then begin
          if active_hand then begin
@@ -260,59 +244,35 @@ procedure SwingThrust begin
    end
  end
 
-procedure explosiveinjures begin
+procedure COMBATDAMAGE begin
    variable target = get_sfall_arg;
    variable attacker = get_sfall_arg;
    variable dmgtotar = get_sfall_arg;
-   variable dmgtoatkr = get_sfall_arg;
-   //variable flagfortar = get_sfall_arg;
-   //variable flagforatkr = get_sfall_arg;
    variable weapon = get_sfall_arg_at(6);
-   //variable bpart = get_sfall_arg;
-   //variable dmgmult = get_sfall_arg;
-   //variable bullets = get_sfall_arg;
-   //variable knockback = get_sfall_arg;
    variable atktype = get_sfall_arg_at(11);
-   //variable c_atk = get_sfall_arg;
    variable wpn_flags;
-   variable attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
+   variable attacker_melee_dmg;
    variable target_type;
    variable target_pid;
-   variable expldmg = 0;
-   variable rnd = 0;
+   variable rnd;
    variable wpnpid;
-   variable wpnanim = 0;
+   variable wpnanim;
    variable wpnmaxdmg;
-   variable bonusdmg = 0;
-   variable newdmg = 0;
-   variable swing = 0;
-   variable thrust = 0;
-   variable wpn_dmg_type = 0;
-   variable critter_type;
-   variable attaker_type = metarule(METARULE_CRITTER_KILL_TYPE, attacker);
-   variable target_curhp = 1;
-   variable attacker_curhp = 1;
-   variable attacker_en = 0;
-   variable attacker_st = 0;
-   variable attacker_pe = 0;
-   variable target_en = 0;
-   variable target_st = 0;
-   variable target_pe = 0;
-   variable party = party_member_list(0);
-   variable target_in_party = is_in_array(target, party);
-   variable attacker_in_party = is_in_array(attacker, party);
-   variable player_mult = 1;
-   variable combat_diff = combat_difficulty;
+   variable bonusdmg;
+   variable newdmg;
+   variable swing;
+   variable thrust;
+   variable wpn_dmg_type;
    variable new_target_dist = -2;
    if weapon > 0 then begin
       wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
       wpnpid = obj_pid(weapon);
    end
-   if MissMod != 0 then begin
+   if MissMod > 0 then begin
       distance_objs(new_target_dist, target, attacker);
       //disable the original 100% hit next target after miss mechanic
       rnd = random(0, 5);
-      if rnd != 0 andAlso newtarget == 0 andAlso burst == 0 andAlso grenade == 0 andAlso first_target_dist <= new_target_dist andAlso wpn_dmg_type == DMG_normal_dam andAlso missed == MISS then begin
+      if rnd > 0 andAlso newtarget == 0 andAlso burst == 0 andAlso grenade == 0 andAlso first_target_dist <= new_target_dist andAlso wpn_dmg_type == DMG_normal_dam andAlso missed == MISS then begin
          set_sfall_return(0);
          set_sfall_arg(2, 0);
          set_sfall_return(0);
@@ -327,13 +287,11 @@ procedure explosiveinjures begin
    if target then begin
       target_type = obj_type(target);
       if target_type == OBJ_TYPE_CRITTER then begin
-         critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
          target_pid = obj_pid(target);
       end
    end
-    //swingThrust
-   if SwingThrustTweak != 0 andAlso wpnpid != 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
-      wpnmaxdmg = get_proto_data(wpnpid, PROTO_WP_DMG_MAX);
+   //swingThrust
+   if SwingThrustTweak > 0 andAlso wpnpid > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
       wpn_flags = get_proto_data(wpnpid, PROTO_FLAG_EXT);
       wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
       if Atktype == ATKTYPE_LWEP1 then begin // left first attack mode
@@ -371,146 +329,23 @@ procedure explosiveinjures begin
 
       //New effect for swing and thust attacks
       if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-      tardt = get_proto_data(target_pid, 244);
+         tardt = get_proto_data(target_pid, 244);
          if tardt < 2 then begin // more likely to deal maximum damage when attacking lowarmored target
-            bonusdmg = (random(23, 30) * 4.0 / 100);
+            wpnmaxdmg = get_proto_data(wpnpid, PROTO_WP_DMG_MAX);
+            attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
+            bonusdmg = (random(23, 38) * 4.0 / 100.0);
             newdmg = ceil(dmgtotar * bonusdmg + 1);
             if newdmg > (wpnmaxdmg + attacker_melee_dmg) then begin
                newdmg = (wpnmaxdmg + attacker_melee_dmg);
             end
             set_sfall_return(newdmg);
-            set_sfall_arg(0, newdmg);
+            set_sfall_arg(2, newdmg);
          end
       end
       if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
          if thrusthit == 1 then begin // return norman dr|dt values
             set_proto_data(target_pid, 244, tardt);
             set_proto_data(target_pid, 272, tardr);
-         end
-      end
-   end
-
-//chance to cripple limbs with explosion
-   if CrippleMod != 0 then begin // mod activation
-   if target_type == OBJ_TYPE_CRITTER then begin
-      target_curhp = get_critter_stat(target, STAT_current_hp);
-      target_en = get_critter_stat(target, STAT_en);
-      target_st = get_critter_stat(target, STAT_st);
-      target_pe = get_critter_stat(target, STAT_pe);
-   end
-   if target_in_party or target == dude_obj then begin
-      player_mult = CripDiv;
-   if combat_diff == 0 then player_mult = CripDiv * 3;
-   end
-      attacker_curhp = get_critter_stat(attacker, STAT_current_hp);
-      attacker_en = get_critter_stat(attacker, STAT_en);
-      attacker_st = get_critter_stat(attacker, STAT_st);
-      attacker_pe = get_critter_stat(attacker, STAT_pe);
-      exp_drop_wpn = 0;
-      if weapon != 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
-         // cripple for non robot target
-
-         if player_mult > 0 andAlso dmgtotar > (target_curhp / 6) andAlso (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso wpnpid != 159  andAlso critter_type != 10 then begin
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd < RLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd < LLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + target_st * 3) * player_mult ));
-            if rnd < RAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_RIGHT);
-            exp_drop_wpn = BODY_HIT_RIGHT_ARM;
-            end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd < LAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_LEFT);
-            exp_drop_wpn = BODY_HIT_LEFT_ARM;
-            end
-            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
-            if rnd < Icrip then begin
-               critter_injure(target, DAM_BLIND);
-            end
-         end
-         // criple for robot target
-         if ((dmgtotar > (target_curhp / 10) andAlso wpn_dmg_type == DMG_emp) or (dmgtotar > (target_curhp / 3) andAlso (wpn_dmg_type == DMG_explosion))) andAlso critter_type == 10 then begin
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd < RLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd < LLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd < RAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_RIGHT);
-               exp_drop_wpn = BODY_HIT_RIGHT_ARM;
-            end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd < LAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_LEFT);
-               exp_drop_wpn = BODY_HIT_LEFT_ARM;
-            end
-            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
-            if rnd < (1 + Icrip)  then begin
-               critter_injure(target, DAM_BLIND);
-            end
-         end
-      end
-   player_mult = 1;
-   if attacker_in_party or attacker == dude_obj then begin
-      player_mult = CripDiv;
-   if combat_diff == 0 then player_mult = CripDiv * 3;
-   end
-   // criple for non robot attacker
-      if player_mult > 0 andAlso weapon != 0 andAlso (not(attacker_in_party) andAlso attacker != dude_obj or combat_diff > 0 ) then begin
-         if dmgtoatkr > (attacker_curhp / 6) andAlso (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso wpnpid != 159 andAlso attaker_type != 10 then begin
-            rnd = random(0, ((60 + attacker_en * 4) * player_mult ));
-            if rnd < RLcrip then begin
-               critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + attacker_en * 4) * player_mult ));
-            if rnd < LLcrip then begin
-               critter_injure(attacker, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + attacker_st * 4) * player_mult ));
-            if rnd < RAcrip then begin
-               critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
-            end
-            rnd = random(0, ((60 + attacker_st * 4) * player_mult ));
-            if rnd < LAcrip then begin
-               critter_injure(attacker, DAM_CRIP_ARM_LEFT);
-            end
-            rnd = random(0, ((60 + attacker_pe * 4) * player_mult ));
-            if rnd < Icrip then begin
-               critter_injure(attacker, DAM_BLIND);
-            end
-         end
-   // criple for robot attacker
-         if ((dmgtoatkr > (attacker_curhp / 10) andAlso wpn_dmg_type == DMG_emp) or (dmgtoatkr > (attacker_curhp / 3) andAlso (wpn_dmg_type == DMG_explosion))) andAlso attaker_type == 10 then begin
-            rnd = random(0, ((60 + attacker_en * 4) * player_mult ));
-            if rnd < RLcrip then begin
-            critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + attacker_en * 4) * player_mult ));
-            if rnd < LLcrip then begin
-            critter_injure(attacker, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + attacker_st * 4) * player_mult ));
-            if rnd < RAcrip then begin
-            critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
-            end
-            rnd = random(0, ((60 + attacker_st * 4) * player_mult ));
-            if rnd < LAcrip then begin
-            critter_injure(attacker, DAM_CRIP_ARM_LEFT);
-            end
-            rnd = random(0, ((60 + attacker_pe * 4) * player_mult ));
-            if rnd < (1 + Icrip) then begin
-            critter_injure(attacker, DAM_BLIND);
-            end
          end
       end
    end
@@ -557,6 +392,7 @@ procedure misstohit begin
    variable wpn = 0;
    variable wpnanim = 0;
    variable wpn_flags = 0;
+   variable wpn_dmg_type;
    variable wpnrng = 0;
    //variable burst = 0;
    //variable grenade = 0;
@@ -574,13 +410,13 @@ procedure misstohit begin
    variable tar_pid;
    variable tar_fid = 0;
    variable atk_mode;
-   variable combat_diff = combat_difficulty;
+   variable combat_diff;
    variable tar_tile;
    variable atk_tile;
    variable critter_tile;
    burst = 0;
    grenade = 0;
-   if MissMod != 0 or SwingThrustTweak != 0 then begin
+   if MissMod > 0 or SwingThrustTweak > 0 then begin
       newtarget = 0;
       missed = -1;
       hitmiss = get_sfall_arg;
@@ -588,6 +424,7 @@ procedure misstohit begin
       target = get_sfall_arg;
       bpart = get_sfall_arg;
       hitch = get_sfall_arg;
+      combat_diff = combat_difficulty;
       leftHand_obj = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
       rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
       if leftHand_obj then leftHand = obj_pid(leftHand_obj);
@@ -678,11 +515,14 @@ procedure misstohit begin
             thrust = 1;
          end
       end
-      if wpn != 0 then wpnanim = get_proto_data(wpn, PROTO_WP_ANIM);
+      if wpn > 0 then begin
+         wpnanim = get_proto_data(wpn, PROTO_WP_ANIM);
+         wpn_dmg_type = get_proto_data(wpn, PROTO_WP_DMG_TYPE);
+      end
    end
 
       //New effect for swing and thust attacks
-   if SwingThrustTweak != 0 andAlso wpn != 0 then begin
+   if SwingThrustTweak > 0 andAlso wpn > 0 then begin
       if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
       end
       if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
@@ -707,7 +547,7 @@ procedure misstohit begin
       end
    end
 
-   if MissMod != 0 then begin
+   if MissMod > 0 then begin
 // new targets for missed attacks
       if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 then begin
          //new targets for miss on low range with spear-like weapons
@@ -893,7 +733,7 @@ procedure misstohit begin
 
 // humans,ghouls,supermutants/radscop/ Horrigan  conversion of aimed hits in eye/groin in critter's back into head/ torso+legs hits
       if critter_type < 5 or critter_type == 6 or critter_type > 17 then begin // (kill type 0 - 4) = humans, ghouls, supermutants / 6=radscop / > 18= Horrigan and maybe player(38 or 38)
-            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0 andAlso ((tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)  or  tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
+            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0 andAlso ((tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)  or  tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
                  if bpart == BODY_HIT_EYES andAlso (tar_cur_frm != 10 or (tar_cur_frm != 4 andAlso tar_fid == 16777311)) then begin
                      set_sfall_return(hitmiss); // hit or miss
                      set_sfall_arg(0, hitmiss);
@@ -955,7 +795,7 @@ procedure misstohit begin
    end
    // brahmins/centaurs/robots/dogs conversion of aimed hits in eye/sensors in critter's back into head/cpu hits // regulator from face into /torso+legs hits
    if critter_type == 5  or critter_type == 7 or critter_type == 9 or critter_type == 10 or critter_type == 11  then begin // 5 = brahmin, 7=rats, 9 == centaurs 10= robots 11= dogs
-            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0   andAlso ( tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) ) then begin
+            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0   andAlso ( tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) ) then begin
                  // eye(sensor) to head(cpu)
                  if bpart == 6 andAlso tar_cur_frm != 10  then begin
                      set_sfall_return(hitmiss); // hit or miss
@@ -966,7 +806,7 @@ procedure misstohit begin
                   end
              end
          // groin(regulator) from face and anterior rears convertion to torso or random leg(motivators)
-         if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0   andAlso  ( rotationatkr == ((rotationtar + 2) % 6) or rotationatkr == ((rotationtar + 3) % 6) or rotationatkr == ((rotationtar + 4) % 6) )  then begin
+         if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0   andAlso  ( rotationatkr == ((rotationtar + 2) % 6) or rotationatkr == ((rotationtar + 3) % 6) or rotationatkr == ((rotationtar + 4) % 6) )  then begin
               if bpart == 7  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6  or (bpart == 7 andAlso tar_cur_frm == 6 andAlso not( rotationatkr == rotationtar))  then begin
                         rnd = random(1, 100);
                         if rnd <= 60 then begin
@@ -991,7 +831,7 @@ procedure misstohit begin
    // Aliens conversion of aimed hits in eyes(?) in critter's back into head hits
    if critter_type == 16 then begin // 16 == aliens
             // aliens' eyes(?) to head
-            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0   andAlso ( tar_cur_frm == 6  or  rotationatkr == rotationtar ) then begin
+            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0   andAlso ( tar_cur_frm == 6  or  rotationatkr == rotationtar ) then begin
                 if bpart == BODY_HIT_EYES andAlso tar_cur_frm != 10  then begin
                         rnd = random(1, 100);
                         if rnd <= 60 then begin
@@ -1012,7 +852,7 @@ procedure misstohit begin
              end
 
          // aliens' groin hit if facing the attacker to head or torso hit
-         if hitmiss > MISS andAlso tile_distance_objs(target, attacker) != 0   andAlso  rotationatkr == ((rotationtar + 3) % 6)  then begin
+         if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0   andAlso  rotationatkr == ((rotationtar + 3) % 6)  then begin
               if bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 then begin
                   rnd = random(1, 100);
                   if rnd <= 60 then begin
@@ -1035,10 +875,11 @@ procedure misstohit begin
 
 // All critters types
        // chance to convert uncalled_body hit to random aimed hit for all critters if mod is activated
-      if (BodyRndHit == 1 or (attacker != dude_obj andAlso BodyRndHit == 2)) andAlso bpart == BODY_UNCALLED andAlso burst == 0 andAlso grenade == 0 andAlso hitmiss > MISS then begin
+      if (BodyRndHit == 1 or (attacker != dude_obj andAlso BodyRndHit == 2)) andAlso wpn_dmg_type != DMG_explosion andAlso bpart == BODY_UNCALLED andAlso burst == 0 andAlso grenade == 0 andAlso hitmiss > MISS then begin
          //for attackers with small FRM (ant,mantis,small radscorp e.t.) lower chance to hit head/eyes, more chance to hit legs
          if short_crit(attacker) then begin
-            rnd = random(0, (1000 - 380 * combat_diff)) ;
+            rnd = random(0, (700 - 280 * combat_diff));
+            rnd2 = random(0,100);
             if attacker == dude_obj then rnd = random(0, 100);
             if rnd > 55 then begin // old bodypart 8 - torso uncalled
                set_sfall_return(hitmiss); // hit or miss not changed
@@ -1048,7 +889,6 @@ procedure misstohit begin
             // ~1% can hit head/eyes only if target is lying on the floor
             if (rnd <= 10 andAlso tar_cur_frm == 10 andAlso ( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6)) )
                or (rnd <= 10 andAlso tar_cur_frm == 6 andAlso not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6)) ) then begin // ~1 % can hit head / eyes only if target is lying on the floor
-               rnd2 = random(0, 100);
                   if rnd2 <= 94 then begin // ~9, 5 % to hit head
                      rnd3 = random(2, 3);
                      set_sfall_return(rnd3); // 50 % critical hit chance
@@ -1067,13 +907,12 @@ procedure misstohit begin
                      return;
                   end
             end
-            if rnd > 10 andAlso rnd <= 19 then begin // 9 %
-                  rnd2 = random(0, (1000 - 400 * combat_diff));
-                  if rnd2 <= 10 then begin // 1 -  %
+            if rnd > 10 andAlso rnd <= 15 then begin // 9 %
+                  if rnd2 <= 3 + 3 * combat_diff then begin // 1 -  %
                   set_sfall_return(CRITICAL_HIT); // critical hit
                   set_sfall_arg(0, CRITICAL_HIT);
                   end
-                  if rnd2 > 10 then begin
+                  if rnd2 > 3 + 3 * combat_diff then begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
                   end
@@ -1082,13 +921,12 @@ procedure misstohit begin
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
                return;
             end
-            if rnd > 19 andAlso rnd <= 45 then begin // 25 %
-                  rnd2 = random(0, (1000 - 400 * combat_diff));
-                  if rnd2 <= 10 then begin // 10 %
+            if rnd > 15 andAlso rnd <= 45 then begin // 25 %
+                  if rnd2 <= 1 + 3 * combat_diff then begin // 10 %
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
                   end
-                  if rnd2 > 10 then begin
+                  if rnd2 > 1 + 3 * combat_diff then begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
                   end
@@ -1098,12 +936,11 @@ procedure misstohit begin
                return;
             end
             if rnd > 45 andAlso rnd <= 55 then begin // 14 %
-                  rnd2 = random(0, (1000 - 400 * combat_diff));
-                  if rnd2 <= 10 then begin // 10 %
+                  if rnd2 <= 3 + 3 * combat_diff then begin // 10 %
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
                   end
-                  if rnd2 > 10 then begin
+                  if rnd2 > 3 + 3 * combat_diff then begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
                   end
@@ -1116,77 +953,81 @@ procedure misstohit begin
 
          // for attackers with medium FRM or normal human FRM or big FRM
          if not(short_crit(attacker)) then begin
-            rnd = random(0, (580 - 215 * combat_diff)) ;
+            rnd = random(0, (400 - 150 * combat_diff));
+            rnd2 = random(0, 100);
             if attacker == dude_obj then rnd = random(0, 100);
-            if rnd > 29 then begin // old bodypart 8 - torso uncalled
-               set_sfall_return(hitmiss); // hit or miss not changed
-               set_sfall_arg(0, hitmiss);
-               return;
+            if rnd > 29 then begin // old bodypart 8 - torso uncalled or 10% right arm
+               if rnd <= 40 then begin
+                  set_sfall_return(hitmiss); // hit or miss not changed
+                  set_sfall_arg(0, hitmiss);
+                  set_sfall_return(BODY_HIT_RIGHT_ARM); // new bodypart - right arm
+                  set_sfall_arg(3, BODY_HIT_RIGHT_ARM);
+                  set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
+                  return;
+               end
+               else begin
+                  set_sfall_return(hitmiss); // hit or miss not changed
+                  set_sfall_arg(0, hitmiss);
+                  return;
+               end
             end
             if rnd <= 3 then begin // 3 %
-               rnd2 = random(0, 100);
                rnd3 = random(2, 3);
-                  if rnd2 <= 95 then begin // ~2, 85 % to hit head
+               if rnd2 <= 95 then begin // ~2, 85 % to hit head
                   set_sfall_return(rnd3); // 50 % critical hit chance
                   set_sfall_arg(0, rnd3);
                   set_sfall_return(BODY_HIT_HEAD); // new bodypart 0 - head
                   set_sfall_arg(3, BODY_HIT_HEAD);
                   set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1)); // return 1 action point because a new attack costs 1 more
                   return;
-                  end
-                  if (rnd2 > 95 andAlso tar_cur_frm == 10) or
-                  (rnd2 > 95 andAlso not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) )) then begin // ~0,15 % to hit eyes
+               end
+               if (rnd2 > 95 andAlso tar_cur_frm == 10) or
+               (rnd2 > 95 andAlso not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6) )) then begin // ~0,15 % to hit eyes
                   set_sfall_return(CRITICAL_HIT); // always critical hit chance
                   set_sfall_arg(0, CRITICAL_HIT);
                   set_sfall_return(BODY_HIT_EYES); // new bodypart 6 - eyes
                   set_sfall_arg(3, BODY_HIT_EYES);
                   set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
                   return;
-                  end
+               end
             end
             if rnd > 3 andAlso rnd <= 12 then begin // 9 %
-                  rnd2 = random(0, (1000 - 350 * combat_diff));
-                  if rnd2 <= 15 then begin // 15 % bonus crit chance
-                     rnd3 = random(0, 100);
-                     set_sfall_return(CRITICAL_HIT); // crit hit
-                     set_sfall_arg(0, CRITICAL_HIT);
-                  end
-                  if rnd2 > 15 then begin
-                     rnd3 = random(0, 100);
-                     set_sfall_return(hitmiss); // hit or miss not changed
-                     set_sfall_arg(0, hitmiss);
-                  end
+               if rnd2 <= 3 + 4 * combat_diff then begin // 10 % bonus crit chance
+                  set_sfall_return(CRITICAL_HIT); // crit hit
+                  set_sfall_arg(0, CRITICAL_HIT);
+               end
+               else begin
+                  set_sfall_return(hitmiss); // hit or miss not changed
+                  set_sfall_arg(0, hitmiss);
+               end
                set_sfall_return(rndarm); // new bodypart 1, 2 - arms
                set_sfall_arg(3, rndarm);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
                return;
             end
             if rnd > 12 andAlso rnd <= 23 then begin // 11 %
-                  rnd2 = random(0, (1000 - 380 * combat_diff));
-                  if rnd2 <= 12 then begin // 10 % bonus crit chance
+               if rnd2 <= 3 + 4 * combat_diff then begin // 10 % bonus crit chance
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
-                  end
-                  if rnd2 > 12 then begin
+               end
+               else begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
-                  end
+               end
                set_sfall_return(rndleg); // new bodypart 4, 5 - legs
                set_sfall_arg(3, rndleg);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
                return;
             end
-            if rnd > 23 andAlso rnd <= 30 andAlso (tar_cur_frm == 10 or (not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)) )
-            or (tar_cur_frm == 6 andAlso (rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)))) then begin // 7 %
-                  rnd2 = random(0, (1000 - 380 * combat_diff));
-                  if rnd2 <= 15 then begin // 15 % bonus crit chance
+            if rnd > 23 andAlso rnd <= 30 andAlso (tar_cur_frm == 10 or (not( rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)) ) or (tar_cur_frm == 6 andAlso (rotationatkr == rotationtar or rotationatkr == ((rotationtar + 1) % 6)  or rotationatkr == ((rotationtar + 5) % 6)))) then begin // 7 %
+               if rnd2 <= 3 + 4 * combat_diff then begin // 15 % bonus crit chance
                   set_sfall_return(CRITICAL_HIT); // crit hit
                   set_sfall_arg(0, CRITICAL_HIT);
-                  end
-                  if rnd2 > 15 then begin
+               end
+               else begin
                   set_sfall_return(hitmiss); // hit or miss not changed
                   set_sfall_arg(0, hitmiss);
-                  end
+               end
                set_sfall_return(BODY_HIT_GROIN); // new bodypart 7 - groin
                set_sfall_arg(3, BODY_HIT_GROIN);
                set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + 1));
@@ -1245,9 +1086,10 @@ procedure misstohit begin
       //eye miss to 1% + (1-5)% head or 3% body hit
       if bpart == BODY_HIT_EYES andAlso hitch > 19 andAlso hitmiss == MISS then begin
          rnd = random(0, 100);
+         rnd2 = random(2, 3);
          if rnd < (2 + hitch / 19) then begin
-            set_sfall_return(HIT); // hit or miss
-            set_sfall_arg(0, HIT);
+            set_sfall_return(rnd2); // hit or miss
+            set_sfall_arg(0, rnd2);
             set_sfall_return(BODY_HIT_HEAD); // new bodypart
             set_sfall_arg(3, BODY_HIT_HEAD);
             return;

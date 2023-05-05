@@ -59,13 +59,13 @@ procedure rm_inv;
 procedure start begin
    if game_loaded then begin
       StealRebalance = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
-      if StealRebalance != 0 then begin
+      if StealRebalance > 0 then begin
          MinStealReq = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Steal|MinStealReq");
          MinWpnStealReq = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Steal|MinWpnStealReq");
          register_hook_proc_spec(HOOK_STEAL, steal_handler);
          register_hook_proc(HOOK_GAMEMODECHANGE, game_mode);
          register_hook_proc_spec(HOOK_USESKILL, steal_skill_use);
-         register_hook_proc_spec(HOOK_ROLLCHECK, rollCheck);
+         //register_hook_proc_spec(HOOK_ROLLCHECK, rollCheck);
          register_hook_proc_spec(HOOK_REMOVEINVENOBJ, rm_inv);
          new_steal_msg = add_extra_msg_file(msg_file);
          SneakRework = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
@@ -94,17 +94,17 @@ procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
   	return temp_rot;
 end
 
-procedure rollCheck begin
-   variable roll_type = get_sfall_arg;
-   variable roll_result = get_sfall_arg;
-   variable roll_chance = get_sfall_arg;
-   variable roll_bonus = get_sfall_arg;
-   variable rnd_chahce = get_sfall_arg;
+//procedure rollCheck begin
+   //variable roll_type = get_sfall_arg;
+   //variable roll_result = get_sfall_arg;
+   //variable roll_chance = get_sfall_arg;
+   //variable roll_bonus = get_sfall_arg;
+   //variable rnd_chahce = get_sfall_arg;
    //disabling the 2nd check for successful stealing
-   if roll_type == 7 then begin
-      set_sfall_return(0);
-   end
-end
+   //if roll_type == 7 then begin
+      //set_sfall_return(0);
+   //end
+//end
 
 procedure rm_inv begin
    variable rm_owner = get_sfall_arg;
@@ -367,45 +367,53 @@ procedure steal_skill_use begin
    variable target = get_sfall_arg;
    variable skill = get_sfall_arg;
    variable skill_bonus = get_sfall_arg;
-   variable user_steal_skill = has_skill(user, SKILL_STEAL);
-   variable tar_pid = obj_pid(target);
+   variable user_steal_skill;
+   variable tar_pid;
    variable target_pe;
-   variable target_pe_mult = 0;
-   variable target_min_pe = 0;
-   variable min_steal_skill = 0;
+   variable target_pe_mult;
+   variable target_min_pe;
+   variable min_steal_skill;
    variable critter_type;
    variable target_steal_skill;
    variable target_barter_skill;
-   variable user_sneak_skill = has_skill(user, SKILL_SNEAK);
-   variable pickpocket = has_trait(TRAIT_PERK, dude_obj, PERK_pickpocket);
-   variable night_vision = has_trait(TRAIT_PERK, dude_obj, PERK_night_vision );
-   variable harmless = has_trait(TRAIT_PERK, dude_obj, PERK_harmless_perk );
-   variable light_level = get_light_level;
+   variable user_sneak_skill;
+   variable pickpocket;
+   variable night_vision;
+   variable harmless;
+   variable light_level;
    variable target_rot;
    variable target_rot_to_tar;
    variable ally_rot = -6;
    variable ally_rot_to_tar = - 6;
    variable team;
-   variable ally = 0;
-   variable ally_team = 0;
-   variable ally_pe = 0;
+   variable ally;
+   variable ally_team;
+   variable ally_pe;
    variable tar_fid;
    variable tar_int;
-   variable ally_can_see = 0;
-   variable rnd = 0;
-   variable user_state = critter_state(dude_obj);
+   variable ally_can_see;
+   variable rnd;
+   variable user_state = -1;
    variable taget_state;
    variable ally_state = -1;
    variable ally_cur_frm = -1;
-   variable darkness_penalty = 0;
+   variable darkness_penalty;
    variable target_kill_type;
    variable obj;
    variable color;
    variable distance;
-   variable party = party_member_list(0);
-   variable target_in_party = is_in_array(target, party);
+   //variable party = party_member_list(0);
+   //variable target_in_party = is_in_array(target, party);
    //calculating the minimum skill to get into the target's pocket
-   if MinStealReq != 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso skill == SKILL_STEAL andAlso not(target_in_party) then begin
+   if MinStealReq > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso skill == SKILL_STEAL andAlso not(is_in_array(target, party_member_list(0))) then begin
+      user_steal_skill = has_skill(user, SKILL_STEAL) + skill_bonus;
+      tar_pid = obj_pid(target);
+      user_sneak_skill = has_skill(user, SKILL_SNEAK);
+      pickpocket = has_trait(TRAIT_PERK, dude_obj, PERK_pickpocket);
+      night_vision = has_trait(TRAIT_PERK, dude_obj, PERK_night_vision );
+      harmless = has_trait(TRAIT_PERK, dude_obj, PERK_harmless_perk );
+      light_level = get_light_level;
+      user_state = critter_state(dude_obj);
       target_pe = get_critter_stat(target, STAT_pe);
       critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target); // men = 0, women = 1, children = 2, super mutants = 3, ghouls = 4
       target_steal_skill = has_skill(target, SKILL_STEAL);
@@ -518,40 +526,37 @@ procedure steal_skill_use begin
       if min_steal_skill < 10 then min_steal_skill = 1;
          // Minimum skill level to open steal interface
       if  user_steal_skill < min_steal_skill then begin
-         if ally_can_see != 0 then begin
+         if ally_can_see > 0 then begin
             display_msg(modmsg(msg_witnesses));
          end
          rnd = random(0 + pickpocket_count, 4 + (2 * pickpocket_count));
          if rnd < 4 andAlso not(combat_is_initialized) andAlso obj_can_see_obj(target, user) andAlso not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
             if tar_fid == FID_NACHLD or tar_fid == 16777336 or tar_fid == FID_NMLOSR or tar_fid == FID_NFTRMP or tar_fid == 16777325 then begin
                if rnd < 3 then begin
-               float_msg(target, modmsg(msg_weak1), FLOAT_MSG_YELLOW);
+                  float_msg(target, modmsg(msg_weak1), FLOAT_MSG_YELLOW);
                end
                if rnd == 3 or pickpocket_count > 2 then begin
-               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
+                  float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
                end
             end
             if tar_fid != FID_NACHLD andAlso tar_fid != 16777336 andAlso tar_fid != FID_NMLOSR andAlso tar_fid != FID_NFTRMP andAlso tar_fid != 16777325 then begin
                if rnd > 0 then begin
-               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
+                  float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
                end
                if rnd == 0 then begin
-               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_NORMAL);
+                  float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_NORMAL);
                end
             end
-      end
-      if rnd > (4 + random(0, harmless * 5)) then begin
-         set_self(target);
-         if tar_fid == FID_NACHLD or tar_fid == 16777336 or tar_fid == 16777325 then begin
-            critter_set_flee_state(target, 1);
-            set_self(0);
          end
-         if tar_fid != FID_NACHLD andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
-            attack(user);
-            set_self(0);
+         if rnd > (4 + random(0, harmless * 5)) then begin
+            if tar_fid == FID_NACHLD or tar_fid == 16777336 or tar_fid == 16777325 then begin
+               animate_move_obj_to_tile(target, (tile_num_in_direction(tile_num(target), random(0, 5), random(3, 7))), (ANIMATE_RUN bwor ANIMATE_INTERRUPT));
+               float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_BAD);
+            end
+            if tar_fid != FID_NACHLD andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
+               attack_setup(target, user);
+            end
          end
-         set_self(0);
-      end
       set_sfall_return(0);
       display_msg(modmsg(msg_cant_pickpocket) + parse_str_2(modmsg(msg_cant_plant2), min_steal_skill, 0));
       end

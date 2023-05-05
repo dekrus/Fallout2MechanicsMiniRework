@@ -51,7 +51,7 @@ procedure start begin
    if game_loaded then begin
       SneakDetection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakDetection");
       SneakRework = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
-      if SneakDetection != 0 or SneakRework != 0 then begin
+      if SneakDetection > 0 or SneakRework > 0 then begin
          SneakArmorPenalty = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|ArmorPenalty");
          SneakCombatPenalty = atof(get_ini_string ("mods\\F2MechanicsMiniRework.ini|Sneak|SneakCombatPenalty"));
          min_perception_range_ini = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Sneak|MinDetectionRange");
@@ -315,7 +315,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
          end
          //call refresh_outlines();
       end
-      if (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_NEW_GREY) andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or team == TEAM_PLAYER or not(sneaking) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+      if (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW  or color == OUTLINE_NEW_GREY) andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or team == TEAM_PLAYER or not(sneaking) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war > 0) ) then begin
          set_outline(watcher, OUTLINE_NONE);
       end
    end
@@ -400,7 +400,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
             end
             if watcher_pe <= 0 then watcher_pe = 1;
             if sneak > 0 then begin
-               if SneakArmorPenalty != 0 then begin
+               if SneakArmorPenalty > 0 then begin
                   armor_weight = ((-10 + get_proto_data(obj_pid(critter_inven_obj(target, INVEN_TYPE_WORN)),PROTO_IT_WEIGHT)) * 2 / 3);
                   sneak = sneak - armor_weight;
                end
@@ -427,7 +427,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
       orig_dist = round(orig_dist);
       perception_range = round(perception_range);
       // outline for new sneak formula
-      if SneakDetection != 0 andAlso not(combat_started) then begin
+      if SneakDetection > 0 andAlso not(combat_started) then begin
           if sneaking then begin
             if not(LOS_is_blocked(watcher, target)) then begin
                if color != OUTLINE_GREEN_NEW andAlso distance < orig_dist andAlso distance > perception_range + YELLOW_ZONE_HEXES then begin
@@ -465,7 +465,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
             end
             //call refresh_outlines();
          end
-         if (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW or color == OUTLINE_NEW_GREY) andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or team == TEAM_PLAYER or not(sneaking) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war != 0) ) then begin
+         if (color == OUTLINE_NEW_GLOW_RED or color == OUTLINE_NEW_RED or color == OUTLINE_ORANGE or color == OUTLINE_NEW_YELLOW or color == OUTLINE_GREEN_NEW or color == OUTLINE_NEW_GREY) andAlso not(key_pressed(highlight_key)) andAlso (distance >= orig_dist or team == TEAM_PLAYER or not(sneaking) or (LOS_is_blocked(watcher, target) andAlso distance >= perception_range andAlso HR_fog_of_war == 0) or (LOS_is_blocked(watcher, target) andAlso HR_fog_of_war > 0) ) then begin
             set_outline(watcher, OUTLINE_NONE);
          end
       end
@@ -504,7 +504,7 @@ procedure mousepress_handler begin
 end
 
 procedure map_enter_p_proc begin
-   if SneakDetection != 0 then begin
+   if SneakDetection > 0 then begin
       if (not(using_skill(dude_obj,SKILL_SNEAK))) then begin
          call disable_highlight;
       end
@@ -627,7 +627,7 @@ procedure perception_handler begin
                if SneakCombatPenalty > 0 andAlso SneakCombatPenalty < 1 andAlso combat_started then begin
                   sneak = round(sneak * SneakCombatPenalty);
                end
-               if SneakArmorPenalty != 0 then begin
+               if SneakArmorPenalty > 0 then begin
                   armor_weight = ((-10 + get_proto_data(obj_pid(critter_inven_obj(target, INVEN_TYPE_WORN)),PROTO_IT_WEIGHT)) * 2 / 3);
                   sneak = sneak - armor_weight;
                end

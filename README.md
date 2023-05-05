@@ -147,7 +147,7 @@ NPCs will now use aimed attacks targeting different parts of the body against th
 Removes randomness from the sneak skill. Now the detection area does not depend on random dice rolls and gradually decreases with increasing skill level and the general illumination of the map.
  - Added a low light condition penalty to the NPC perception range: from 8% (basement light) to 40% (darkness).
 
-#### Sneak detection
+#### Sneak detection (It is recommended to switch graphics to DirectX 9 for best performance, and also set "DontTurnOffSneakIfYouRun=1" in ddraw.ini for convenience)
 ![Sneak](images/SNEAK.gif)
 Sneak detection color indication that works for the original and new stealth mechanics.
 As long as the sneaking player is within the detection range of an NPC watching him, that NPC will be outlined:

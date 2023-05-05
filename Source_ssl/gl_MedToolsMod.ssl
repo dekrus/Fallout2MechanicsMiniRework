@@ -148,7 +148,7 @@ procedure uninjure(variable user,variable target, variable item_pid) begin
    end
    if user == dude_obj andAlso healed_limbs < 1 then begin
       rnd = random(0, user_luck);
-      if jinxed != 0 then rnd = random(0, 1);
+      if jinxed > 0 then rnd = random(0, 1);
       if user_DOC < 50 andAlso rnd < 1 then begin
          dmg = random(1, ceil(tar_cur_hp / 20.0));
          if target == dude_obj then display_msg(parse_str_2(modmsg(msg_critical_miss_dude), obj_name(target), dmg ));
@@ -167,7 +167,7 @@ procedure med_item_charges_restore begin
    variable rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
    variable leftHand_pid;
    variable rightHand_pid;
-   if MedToolsMod != 0 then begin
+   if MedToolsMod > 0 then begin
       if critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND) then begin
          leftHand_pid = obj_pid(leftHand);
          if leftHand_pid == PID_FIRST_AID_KIT then begin
@@ -254,21 +254,15 @@ procedure map_enter_p_proc begin
    variable fa_kit_count;
    variable fa_kit2_count;
    variable critter_pid;
-   if MedToolsMod != 0 then begin
-      //weight ajustment
-      //set_proto_data(PID_FIRST_AID_KIT, PROTO_IT_WEIGHT, max_charges);
-      //set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_IT_WEIGHT, max_charges_t2);
-      set_proto_data(PID_DOCTORS_BAG, PROTO_IT_WEIGHT, 3);
-      set_proto_data(PID_PARAMEDICS_BAG, PROTO_IT_WEIGHT, 4);
-      //add charges
+   if MedToolsMod > 0 then begin
       set_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES, max_charges);
       set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, max_charges_t2);
       set_proto_data(PID_DOCTORS_BAG, PROTO_MI_CHARGES, doc_max_charges);
       set_proto_data(PID_PARAMEDICS_BAG, PROTO_MI_CHARGES, doc_max_charges_t2);
-      if not(get_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) + HEALING_ITEM));
-      if not(get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) + HEALING_ITEM));
-      if not(get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) + HEALING_ITEM));
-      if not(get_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) + HEALING_ITEM));
+      if not(get_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
 
       //add fa and doc item at first map loading
       if metarule(METARULE_TEST_FIRSTRUN,0) andAlso game_time > ONE_GAME_WEEK * 2 then begin
@@ -372,7 +366,7 @@ procedure npc_combat_doc_use begin
    combat_med_tool_used = 0;
    doc_used = 0;
    // npc use doctor's bag if cripled
-   if ((NPCsUseMedTools != 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_frm == 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso is_disabled(critter) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_frm == 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso is_disabled(critter) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       doc_bag_count = obj_is_carrying_obj_pid(critter, PID_DOCTORS_BAG);
       paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
       rnd = random(0, 100);
@@ -382,12 +376,12 @@ procedure npc_combat_doc_use begin
          combat_med_tool_used = doc_used;
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
          doc_item = obj_carrying_pid_obj(critter, PID_DOCTORS_BAG);
-         set_self(critter);
-         set_self(critter);
          anim(critter, 11, 1);
+         set_self(critter);
+         set_self(critter);
          use_obj_on_obj(doc_item, critter);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(obj_pid(doc_item), 1)) + ".");
          set_self(0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(obj_pid(doc_item), 1)));
       end
       // use paramedic bag if in inventory
       if paramedic_bag_count > 0 andAlso rnd  < critter_int * 10 then begin
@@ -395,16 +389,16 @@ procedure npc_combat_doc_use begin
          combat_med_tool_used = doc_used;
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
          doc_item = obj_carrying_pid_obj(critter, PID_PARAMEDICS_BAG);
-         set_self(critter);
-         set_self(critter);
          anim(critter, 11, 1);
+         set_self(critter);
+         set_self(critter);
          use_obj_on_obj(doc_item, critter);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(obj_pid(doc_item), 1)) + ".");
          set_self(0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(obj_pid(doc_item), 1)));
       end
    end
    // npc uses fa item if wounded
-   if ((NPCsUseMedTools != 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_frm == 0 andAlso doc_used <= 0 andAlso critter_cur_hp < critter_max_hp - 10 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_frm == 0 andAlso doc_used <= 0 andAlso critter_cur_hp < critter_max_hp - 10 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
       fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
       stim_count = obj_is_carrying_obj_pid(critter, PID_STIMPAK);
@@ -414,35 +408,35 @@ procedure npc_combat_doc_use begin
          combat_med_tool_used = 1;
          stim_used = 1;
          fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
-         set_self(critter);
-         set_self(critter);
          anim(critter, 11, 1);
+         set_self(critter);
+         set_self(critter);
          use_obj_on_obj(fa_item, critter);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_STIMPAK, 1)) + ".");
          set_self(0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_STIMPAK, 1)));
       end
       rnd = random(0, 100);
        // npc can use fa kit if it is in inventory
       if stim_used != 1 andAlso fa_kit_count > 0 andAlso fa_kit2_count <= 0 andAlso rnd < (3.5  * critter_int * critter_max_hp / critter_cur_hp) andAlso doc_used <= 0 then begin
          combat_med_tool_used = 1;
          fa_item = obj_carrying_pid_obj(critter, PID_FIRST_AID_KIT);
-         set_self(critter);
-         set_self(critter);
          anim(critter, 11, 1);
+         set_self(critter);
+         set_self(critter);
          use_obj_on_obj(fa_item, critter);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIRST_AID_KIT, 1)) + ".");
          set_self(0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIRST_AID_KIT, 1)));
       end
       // use can field medic kit if it is in inventory
       if stim_used != 1 andAlso fa_kit2_count > 0 andAlso rnd < (3.5  * critter_int * critter_max_hp / critter_cur_hp)  andAlso doc_used <= 0  then begin
          combat_med_tool_used = 1;
          fa_item = obj_carrying_pid_obj(critter, PID_FIELD_MEDIC_KIT);
-         set_self(critter);
-         set_self(critter);
          anim(critter, 11, 1);
+         set_self(critter);
+         set_self(critter);
          use_obj_on_obj(fa_item, critter);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIELD_MEDIC_KIT, 1)) + ".");
          set_self(0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIELD_MEDIC_KIT, 1)));
       end
    end
 end
@@ -634,7 +628,7 @@ end
 procedure start begin
    if game_loaded then begin
       MedToolsMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
-      if MedToolsMod != 0 then begin
+      if MedToolsMod > 0 then begin
          set_global_script_type(0);
          set_global_script_repeat(0);
          NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");

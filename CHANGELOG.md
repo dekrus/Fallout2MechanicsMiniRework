@@ -1,4 +1,14 @@
-### Latest version  v1.82 (on development stage)
+### Latest version  v1.83 
+- Added separate Fallout 1.5: Resurrection compatibility option.
+- Correction of typos in the ".ini" file.
+- Some scripts renamed to change the load order.
+##### Explosion injury mod
+- Fixed: weapon drop chance when NPC hands are crippled by explosive weapons.
+##### Stats Recalculation Mod
+- Added an option to change the formula for max health gain per level for ODD endurance values.
+
+
+### Version  v1.82
 - Fixed: game crash caused by executing "obj_pid" code during COMBATDAMAGE script hook in some scripts.
 - Correction of errors and typos in the English version of the modification.
 ##### Miss Mod
@@ -7,7 +17,6 @@
 - Reduced the chance of knocking down the enemy with an alternative shotgun attack.
 ##### Sneak Detection Mod
 - Fixed: display of dark red color on Hi-Res patch (Mash) when Fog Of War is enabled.
-
 
 ### Version  v1.81
 ##### SecondaryAttack Mod

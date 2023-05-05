@@ -7,43 +7,67 @@ variable StatsRecalculation
 variable en_recalculation
 variable iq_recalculation
 variable gifted
+variable initial_player_lvl
 variable initial_player_en
 variable initial_player_iq
 
 procedure GAMEMODECHANGE begin
    variable player_en;
    variable player_iq;
+   variable player_level;
    variable player_level_ups;
    variable player_extra_max_hp;
    variable max_hp_limit;
    gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
    //en
    if en_recalculation > 0 then begin
-      player_en = get_critter_base_stat(dude_obj,STAT_en) + gifted;
+      player_en = get_pc_base_stat(STAT_en) + gifted;
       if player_en > 10 then player_en = 10;
+      player_level = get_pc_stat(PCSTAT_level);
+      if en_recalculation > 2 andAlso initial_player_lvl != player_level andAlso (player_level % 2) == 0 andAlso (player_en % 2) != 0 then begin
+         player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
+         set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + 1);
+         initial_player_lvl = player_level;
+      end
       //en changed during the current game session
       if player_en != initial_player_en then begin
-         player_level_ups = get_pc_stat(PCSTAT_level) - 1;
-         player_extra_max_hp = get_critter_extra_stat(dude_obj, STAT_max_hp);
+         player_level_ups = player_level - 1;
+         player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
          //en increased
          if player_en > initial_player_en then begin
             max_hp_limit = 7 * player_level_ups;//fallout 2 max hp per level (initial en is 10)
             //+max hp if hp is not maxed out and also en became even or increased by 2 or more
-            if player_extra_max_hp < max_hp_limit andAlso ((player_en % 2 == 0) or (player_en - initial_player_en >= 2)) then begin
-               set_critter_extra_stat(dude_obj, STAT_max_hp, player_extra_max_hp + (player_level_ups * ((1 + player_en - initial_player_en) / 2)));
+            //standardt F2 formula(even en)
+            if en_recalculation <= 2 then begin
+               if player_extra_max_hp < max_hp_limit andAlso ((player_en % 2 == 0) or (player_en - initial_player_en >= 2)) then begin
+                  set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + (player_level_ups * ((1 + player_en - initial_player_en) / 2)));
+               end
+            end
+            //new formula (odd and even en)
+            else begin
+               if player_extra_max_hp < max_hp_limit then begin
+                  set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + (player_level_ups * ((player_en - initial_player_en) / 2)) + ((player_level_ups / 2) * ((player_en - initial_player_en) % 2)));
+               end
             end
             initial_player_en = player_en;
          end
          //en decreased
          else begin
             if en_recalculation > 1 then begin
-               //if max hp more then
+               //if max hp more then minimum max hp possible
                max_hp_limit = 2 * player_level_ups;
-               if player_extra_max_hp > max_hp_limit andAlso (player_en % 2 == 1 or (initial_player_en - player_en >= 2)) then begin
-                  set_critter_extra_stat(dude_obj, STAT_max_hp, player_extra_max_hp - (player_level_ups * ((1 + initial_player_en - player_en) / 2)));
+               if en_recalculation <= 2 then begin
+                  if player_extra_max_hp > max_hp_limit andAlso (player_en % 2 == 1 or (initial_player_en - player_en >= 2)) then begin
+                     set_pc_extra_stat(STAT_max_hp, player_extra_max_hp - (player_level_ups * ((1 + initial_player_en - player_en) / 2)));
+                  end
                end
-               if get_critter_stat(dude_obj, STAT_current_hp) > get_critter_stat(dude_obj, STAT_max_hp) then begin
-                  set_critter_stat(dude_obj, STAT_current_hp, get_critter_stat(dude_obj, STAT_max_hp));
+               else begin
+                  if player_extra_max_hp > max_hp_limit then begin
+                     set_pc_extra_stat(STAT_max_hp, player_extra_max_hp - (player_level_ups * ((player_en - initial_player_en) / 2)) - ((player_level_ups / 2) * ((player_en - initial_player_en) % 2)));
+                  end
+               end
+               if get_pc_stat(STAT_current_hp) > get_pc_stat(STAT_max_hp) then begin
+                  set_critter_stat(dude_obj, STAT_current_hp, get_pc_stat(STAT_max_hp));
                   intface_redraw;
                end
                initial_player_en = player_en;
@@ -77,25 +101,51 @@ procedure start begin
          en_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|en_recalculation");
          iq_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|iq_recalculation");
          gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
-
          if en_recalculation > 0 then begin
-            initial_player_en = get_critter_base_stat(dude_obj, STAT_en) + gifted;
-            if initial_player_en > 10 then initial_player_en = 10;
+            initial_player_en = get_pc_base_stat(STAT_en) + gifted;
+            if initial_player_en >= 10 then initial_player_en = 10;
             //check extra max hp
-            player_level_ups = (get_pc_stat(PCSTAT_level) - 1);
-            player_extra_max_hp = get_critter_extra_stat(dude_obj, STAT_max_hp);
-            player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2));
-            if player_extra_max_hp < player_extra_max_hp_by_en then begin
-               extra_hp_remainder = player_extra_max_hp % player_level_ups;
-               set_critter_extra_stat(dude_obj, STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+            initial_player_lvl = get_pc_stat(PCSTAT_level);
+            player_level_ups = (initial_player_lvl - 1);
+            player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
+            if en_recalculation <= 2 then begin
+               player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2));
+               if player_extra_max_hp < player_extra_max_hp_by_en andAlso player_level_ups > 0 then begin
+                  extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                  set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+               end
+            end
+            //HP increase for odd endurance
+            else if en_recalculation > 2 then begin
+               player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2)) + ((player_level_ups / 2) * (initial_player_en % 2));
+               if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                  if initial_player_en % 2 == 0 andAlso player_level_ups > 0 then begin
+                     extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                  end
+                  else begin
+                     if player_level_ups > 0 then extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                     extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
+                     if extra_hp_remainder < 0 then extra_hp_remainder = 1;
+                  end
+                  set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+               end
+               else begin
+                  if initial_player_en % 2 == 0 andAlso player_level_ups > 0  then begin
+                     extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                  end
+                  else begin
+                     if player_level_ups > 0 then extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                     extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
+                     if extra_hp_remainder < 0 then extra_hp_remainder = 1;
+                  end
+                  set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+               end
             end
          end
-
          if iq_recalculation > 0 then begin
-            initial_player_iq = get_critter_base_stat(dude_obj, STAT_iq) + gifted;
-            if initial_player_iq > 10 then initial_player_iq = 10;
+            initial_player_iq = get_pc_base_stat(STAT_iq) + gifted;
+            if initial_player_iq >= 10 then initial_player_iq = 10;
          end
-
          if (initial_player_en andAlso initial_player_en < 10) or (initial_player_iq andAlso initial_player_iq < 10) then begin
             register_hook_proc_spec(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
          end

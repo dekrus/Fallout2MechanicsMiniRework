@@ -19,7 +19,7 @@ end
 procedure start begin
    if game_loaded then begin
       variable AutoSneak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|AutoSneak");
-      if AutoSneak != 0 then begin
+      if AutoSneak > 0 then begin
          register_hook_proc(HOOK_USEOBJ, USEOBJ);
          set_global_script_type(0);
          set_global_script_repeat(0);

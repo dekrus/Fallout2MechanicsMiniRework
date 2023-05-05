@@ -8,17 +8,32 @@
 #include "DEFINE.H"
 #include "sfall.h"
 
+variable CrippleMod;
+variable RLcrip;
+variable LLcrip;
+variable RAcrip;
+variable LAcrip;
+variable Icrip;
+variable CripDiv;
 variable WpnDropCrit;
 variable WpnDropNonCrit;
 variable target_bodypart;
 variable atk_rslt;
 variable combat_dmg;
+variable dropping;
 variable target_who_can_drop;
-variable PID_target_who_can_drop;
+variable exp_rh_wpn_drop_critters_array;
+variable exp_lh_wpn_drop_critters_array;
 
-import variable  exp_drop_wpn;
+procedure clear_lvars begin
+   target_who_can_drop = -1;
+   target_bodypart = -1;
+   atk_rslt = -1;
+   combat_dmg = -1;
+   dropping = 0;
+end
 
-//by Nirran http://www.nirran.com/Fallout2Scripts.php
+//original procedure by Nirran http://www.nirran.com/Fallout2Scripts.php
 //Slightly changed so that weapons do not fall out of the hands of prone opponents and opponents with unarmed weapons
 //Also modified to prevent weapons from dropping behind the wall
 procedure Drop_Weapons(variable target,variable hand) begin
@@ -27,13 +42,15 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable weapon_anim;
    variable weapon_rh_flags_ext;
    variable weapon_lh_flags_ext;
-   variable tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
-   variable critter_flags;
+   variable tar_pid = obj_pid(target);
    variable tar_hex = tile_num(target);
+   variable tar_state = critter_state(target);
+   variable tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   variable tar_critter_flags;
    variable dropped_hex;
    variable count = 0;
    variable max_count = 5;
-   if target > 0 then critter_flags = get_proto_data(PID_target_who_can_drop, PROTO_CR_FLAGS);
+   if target > 0 then tar_critter_flags = get_proto_data(tar_pid, PROTO_CR_FLAGS);
    if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
       if weapon > 0 then begin
@@ -41,7 +58,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
          weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
       end
-      if ((hand == BODY_HIT_RIGHT_ARM) or (weapon_rh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != WPN_ANIM_NONE then begin
+      if ((hand == BODY_HIT_RIGHT_ARM) or ((weapon_rh_flags_ext bwand 512) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN or weapon_anim == WPN_ANIM_ROCKET_LAUNCHER))))) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso not((tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > WPN_ANIM_NONE then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
@@ -60,10 +77,10 @@ procedure Drop_Weapons(variable target,variable hand) begin
       weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
       if weapon > 0 then begin
          weapon_pid = obj_pid(weapon);
-         weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+         weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
       end
-      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(critter_flags bwand CFLG_NODROP)) andAlso tar_cur_frm == 0 andAlso weapon_anim != 0 then begin
+      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso (not(tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > 0 then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
@@ -77,74 +94,246 @@ procedure Drop_Weapons(variable target,variable hand) begin
          move_to(weapon, dropped_hex, elevation(target));
       end
    end
-   target_who_can_drop = -1;
-   PID_target_who_can_drop = -1;
-   target_bodypart = -1;
-   atk_rslt = -1;
-   combat_dmg = -1;
+   call clear_lvars();
 end
 
-procedure COMBATDAMAGE begin
-   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == get_sfall_arg_at(0) then begin
-      combat_dmg = get_sfall_arg_at(2);
-      if combat_dmg >= get_critter_stat(target_who_can_drop,STAT_current_hp) then begin
-         target_who_can_drop = -1;
-         PID_target_who_can_drop = -1;
-         target_bodypart = -1;
-         atk_rslt = -1;
-         combat_dmg = -1;
-      end
-   end
-end
 
 procedure STDPROCEDURE begin
    variable rnd;
    variable party;
-   variable target_in_party = 0;
-   variable party_bonus = 0;
-   if combat_is_initialized andAlso target_who_can_drop andAlso (exp_drop_wpn != 0 or ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0)) then begin
-      party = party_member_list(0);
-      target_in_party = is_in_array(target_who_can_drop, party);
-      if not(target_in_party) then party_bonus = 1;
-      rnd = random(0, 100);
-      if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso exp_drop_wpn != 0 then begin
-         call Drop_Weapons(target_who_can_drop,exp_drop_wpn);
-         exp_drop_wpn = 0;
+   variable target_in_party;
+   variable party_bonus;
+   variable exp_target;
+   if combat_is_initialized then begin
+      if target_who_can_drop andAlso ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0) then begin
+         party = party_member_list(0);
+         target_in_party = is_in_array(target_who_can_drop, party);
+         if not(target_in_party) then party_bonus = 1;
+         rnd = random(0, 100);
+         if rnd < WpnDropNonCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == HIT then begin
+            call Drop_Weapons(target_who_can_drop,target_bodypart);
+         end
+         if rnd < WpnDropCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == CRITICAL_HIT then begin
+            call Drop_Weapons(target_who_can_drop,target_bodypart);
+         end
+         call clear_lvars();
       end
-      if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso exp_drop_wpn != 0 then begin
-         call Drop_Weapons(target_who_can_drop,exp_drop_wpn);
-         exp_drop_wpn = 0;
+      if dropping > 0 then begin
+         if len_array(exp_rh_wpn_drop_critters_array) > 0 then begin
+            foreach exp_target in exp_rh_wpn_drop_critters_array begin
+               call Drop_Weapons(exp_target,BODY_HIT_RIGHT_ARM);
+            end
+            clear_array(exp_rh_wpn_drop_critters_array);
+            exp_target = 0;
+         end
+         if len_array(exp_lh_wpn_drop_critters_array) > 0 then begin
+            foreach exp_target in exp_rh_wpn_drop_critters_array begin
+               call Drop_Weapons(exp_target,BODY_HIT_LEFT_ARM);
+            end
+            clear_array(exp_lh_wpn_drop_critters_array);
+            exp_target = 0;
+         end
       end
-      if rnd < WpnDropNonCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == HIT then begin
-         call Drop_Weapons(target_who_can_drop,target_bodypart);
-      end
-      if rnd < WpnDropCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == CRITICAL_HIT then begin
-         call Drop_Weapons(target_who_can_drop,target_bodypart);
-      end
-      target_who_can_drop = -1;
-      PID_target_who_can_drop = -1;
-      target_bodypart = -1;
-      atk_rslt = -1;
-      combat_dmg = -1;
    end
 end
+
+procedure COMBATDAMAGE begin
+   variable target = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable dmgtotar = get_sfall_arg;
+   variable dmgtoatkr = get_sfall_arg;
+   variable weapon = get_sfall_arg_at(6);
+   variable target_type;
+   variable rnd;
+   variable wpnpid;
+   variable wpn_dmg_type;
+   variable critter_type;
+   variable attaker_type;
+   variable target_curhp = 1;
+   variable attacker_curhp = 1;
+   variable target_en;
+   variable target_st;
+   variable target_pe;
+   variable party = party_member_list(0);
+   variable target_in_party = is_in_array(target, party);
+   variable attacker_in_party = is_in_array(attacker, party);
+   variable player_mult = 1;
+   variable combat_diff = combat_difficulty;
+   dropping = 0;
+   if weapon > 0 then begin
+      wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
+      wpnpid = obj_pid(weapon);
+   end
+   if target then begin
+      target_type = obj_type(target);
+      if target_type == OBJ_TYPE_CRITTER then begin
+         critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+      end
+   end
+//chance to cripple limbs with explosion
+   if CrippleMod > 0 then begin // mod activation
+      if target_in_party or target == dude_obj then begin
+         player_mult = CripDiv;
+         if combat_diff == 0 then player_mult = CripDiv * 3;
+      end
+      if weapon > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
+            target_curhp = get_critter_stat(target, STAT_current_hp);
+         // cripple for non robot target
+         if player_mult > 0 andAlso (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso critter_type != 10 andAlso ((dmgtotar > (target_curhp / 7)) or (dmgtotar > 0 andAlso not(random(0,200)))) then begin
+            target_en = get_critter_stat(target, STAT_en);
+            target_st = get_critter_stat(target, STAT_st);
+            target_pe = get_critter_stat(target, STAT_pe);
+            rnd = random(0, ((60 + target_en * 4) * player_mult ));
+            if rnd <= RLcrip then begin
+               critter_injure(target, DAM_CRIP_LEG_RIGHT);
+            end
+            rnd = random(0, ((60 + target_en * 4) * player_mult ));
+            if rnd <= LLcrip then begin
+               critter_injure(target, DAM_CRIP_LEG_LEFT);
+            end
+            rnd = random(0, ((60 + target_st * 3) * player_mult ));
+            if rnd <= RAcrip then begin
+               critter_injure(target, DAM_CRIP_ARM_RIGHT);
+               if random(0,4) andAlso dmgtotar < target_curhp then begin
+                  dropping = 1;
+                  if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
+               end
+            end
+            rnd = random(0, ((60 + target_st * 4) * player_mult ));
+            if rnd <= LAcrip then begin
+               critter_injure(target, DAM_CRIP_ARM_LEFT);
+                if random(0,4) andAlso dmgtotar < target_curhp then begin
+                  dropping = 1;
+                  if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
+               end
+            end
+            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
+            if rnd <= Icrip then begin
+               critter_injure(target, DAM_BLIND);
+            end
+         end
+         // criple for robot target
+         if ((dmgtotar > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtotar > (target_curhp / 4) andAlso (wpn_dmg_type == DMG_explosion))) andAlso critter_type == 10 then begin
+            rnd = random(0, ((60 + target_en * 4) * player_mult ));
+            if rnd <= RLcrip then begin
+               critter_injure(target, DAM_CRIP_LEG_RIGHT);
+            end
+            rnd = random(0, ((60 + target_en * 4) * player_mult ));
+            if rnd <= LLcrip then begin
+               critter_injure(target, DAM_CRIP_LEG_LEFT);
+            end
+            rnd = random(0, ((60 + target_st * 4) * player_mult ));
+            if rnd <= RAcrip then begin
+               critter_injure(target, DAM_CRIP_ARM_RIGHT);
+               if random(0,1) andAlso dmgtotar < target_curhp then begin
+                  dropping = 1;
+                  if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
+               end
+            end
+            rnd = random(0, ((60 + target_st * 4) * player_mult ));
+            if rnd <= LAcrip then begin
+               critter_injure(target, DAM_CRIP_ARM_LEFT);
+               if random(0,1) andAlso dmgtotar < target_curhp then begin
+                  dropping = 1;
+                  if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
+               end
+            end
+            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
+            if rnd < (1 + Icrip)  then begin
+               critter_injure(target, DAM_BLIND);
+            end
+         end
+      end
+      attacker_curhp = get_critter_stat(attacker, STAT_current_hp);
+      player_mult = 1;
+      if attacker_in_party or attacker == dude_obj then begin
+         player_mult = CripDiv;
+      if combat_diff == 0 then player_mult = CripDiv * 3;
+      end
+   // criple for non robot attacker
+      if player_mult > 0 andAlso weapon > 0 andAlso (not(attacker_in_party) or (attacker_in_party andAlso combat_diff > 0)) then begin
+         attaker_type = metarule(METARULE_CRITTER_KILL_TYPE, attacker);
+         if (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso dmgtoatkr > (attacker_curhp / 6) andAlso wpnpid != 159 andAlso attaker_type != 10 then begin
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < RLcrip then begin
+               critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < LLcrip then begin
+               critter_injure(attacker, DAM_CRIP_LEG_LEFT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < RAcrip then begin
+               critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < LAcrip then begin
+               critter_injure(attacker, DAM_CRIP_ARM_LEFT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < Icrip then begin
+               critter_injure(attacker, DAM_BLIND);
+            end
+         end
+   // criple for robot attacker
+         if ((dmgtoatkr > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtoatkr > (attacker_curhp / 3) andAlso (wpn_dmg_type == DMG_explosion))) andAlso attaker_type == 10 then begin
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < RLcrip then begin
+            critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < LLcrip then begin
+            critter_injure(attacker, DAM_CRIP_LEG_LEFT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < RAcrip then begin
+            critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < LAcrip then begin
+            critter_injure(attacker, DAM_CRIP_ARM_LEFT);
+            end
+            rnd = random(0, ((80) * player_mult ));
+            if rnd < (1 + Icrip) then begin
+            critter_injure(attacker, DAM_BLIND);
+            end
+         end
+      end
+   end
+   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == get_sfall_arg_at(0) then begin
+      combat_dmg = get_sfall_arg_at(2);
+      if combat_dmg >= get_critter_stat(target_who_can_drop,STAT_current_hp) then begin
+         call clear_lvars();
+      end
+   end
+end
+
 
 procedure AFTERHITROLL begin
    target_bodypart = get_sfall_arg_at(3);
    if target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM then begin
       atk_rslt = get_sfall_arg_at(0);
       target_who_can_drop = get_sfall_arg_at(2);
-      PID_target_who_can_drop = obj_pid(target_who_can_drop);
    end
 end
-
 
 procedure start begin
    if game_loaded then begin
       variable MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
-      if MissMod != 0 then begin
+      if MissMod > 0 then begin
          WpnDropCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChance");
          WpnDropNonCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropNonCriticalChance");
+         CrippleMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|CripplingExplosions");
+         if CrippleMod > 0 then begin
+            RLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|RLcrip");
+            LLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LLcrip");
+            RAcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|RAcrip");
+            LAcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LAcrip");
+            Icrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|ICrip");
+            CripDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|CripDiv");
+            if not(array_exists(exp_rh_wpn_drop_critters_array)) then exp_rh_wpn_drop_critters_array = create_array_map;
+            if not(array_exists(exp_lh_wpn_drop_critters_array)) then exp_lh_wpn_drop_critters_array = create_array_map;
+         end
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_STDPROCEDURE_END, STDPROCEDURE);
