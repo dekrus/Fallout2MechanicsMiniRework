@@ -209,6 +209,9 @@ If enabled, Sneaking Mode is automatically applied when using a charged Stealthb
 ### Stats Recalculation
 When changing the base Endurance value to a new even value (through perks and implants but not drugs), it retroactively recalculates the maximum amount of health gained from previous levels, allowing you to start the game with an odd Endurance value and later make it even without losing the progress of maximum health.
 
+An additional option for ODD Endurance value that changes the formula for increasing health points per level.
+Each point of Endurance now increases maximum health by +0.5 HP per level, rounded up every even level, instead of +1 HP per 2 points of Endurance.
+
 When base intelligence increases (through perks and implants but not drugs), the player is given skill points according to the formula: (number of level-ups) * (intelligence - initial intelligence) * 2.
 
 ## Compatibility
