@@ -1,4 +1,15 @@
-### Latest version  v1.83 
+### Latest version  v1.84 
+##### Regen & Poison mod
+- Poisoned companions and other NPCs will use the antidote more often if they have it in their inventory.
+##### SecondaryAttack Mod
+- Improved compatibility with new weapons in Fallout 1.5: Resurrection.
+##### Explosion injury mod
+- Dropped weapons can fall on a tile occupied by another creature.
+##### Stats Recalculation Mod
+- Fixed incorrect recalculation of statistics when used in combination with the Direct Party Control mod.
+
+
+### Version  v1.83 
 - Added separate Fallout 1.5: Resurrection compatibility option.
 - Correction of typos in the ".ini" file.
 - Some scripts renamed to change the load order.
@@ -6,7 +17,6 @@
 - Fixed: weapon drop chance when NPC hands are crippled by explosive weapons.
 ##### Stats Recalculation Mod
 - Added an option to change the formula for max health gain per level for ODD endurance values.
-
 
 ### Version  v1.82
 - Fixed: game crash caused by executing "obj_pid" code during COMBATDAMAGE script hook in some scripts.

@@ -48,8 +48,9 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
    variable tar_critter_flags;
    variable dropped_hex;
+   variable blocking_obj;
    variable count = 0;
-   variable max_count = 5;
+   variable max_count = 6;
    if target > 0 then tar_critter_flags = get_proto_data(tar_pid, PROTO_CR_FLAGS);
    if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
@@ -61,9 +62,13 @@ procedure Drop_Weapons(variable target,variable hand) begin
       if ((hand == BODY_HIT_RIGHT_ARM) or ((weapon_rh_flags_ext bwand 512) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN or weapon_anim == WPN_ANIM_ROCKET_LAUNCHER))))) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso not((tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > WPN_ANIM_NONE then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
-         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
+         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+         if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or blocking_obj do begin
             dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
+            blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+            if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
             if count > max_count then begin
                dropped_hex = tar_hex;
                break;
@@ -83,9 +88,13 @@ procedure Drop_Weapons(variable target,variable hand) begin
       if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso (not(tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > 0 then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
-         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or (obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK)) do begin
+         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
+         if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or blocking_obj do begin
             dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
+            blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+            if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
             if count > max_count then begin
                dropped_hex = tar_hex;
                break;

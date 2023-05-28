@@ -30,3 +30,4 @@
 {30}{}{Get it away from me!}
 {31}{}{Hands off!}
 {32}{}{Hey! Back off.}
+{33}{}{%1% uses %2%.}

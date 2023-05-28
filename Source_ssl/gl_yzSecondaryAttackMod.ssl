@@ -169,7 +169,12 @@ procedure enable_ui begin
 end
 
 procedure restore_weapon_proj_pid begin
-   set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, weapon_proj_pid);
+   if weapon_proj_pid then begin
+      set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, weapon_proj_pid);
+   end
+   else begin
+      set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
+   end
    proj_pid_changed = 0;
 end
 
@@ -2053,6 +2058,7 @@ procedure laser_line_dmg(variable attacker,variable target) begin
                                        reg_anim_clear(placeholder);
                                        reg_anim_animate(placeholder, ANIM_sliced_in_half, -1);
 
+      reg_anim_callback(restore_weapon_proj_pid);
       reg_anim_callback(STDPROCEDURE);
       reg_anim_callback(destroy_placeholder);
       reg_anim_end();
@@ -2213,7 +2219,8 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
                                        reg_anim_clear(placeholder);
                                        reg_anim_animate(placeholder, ANIM_sliced_in_half, -1);
 
-      reg_anim_callback(STDPROCEDURE);
+   reg_anim_callback(restore_weapon_proj_pid);
+   reg_anim_callback(STDPROCEDURE);
    reg_anim_callback(destroy_placeholder);
    reg_anim_end();
 end
@@ -2602,7 +2609,7 @@ procedure AFTERHITROLL begin
             one_hander_bonus = get_one_hander_bonus(weapon_flags);
          end
       end
-      if attacker == dude_obj andAlso weapon_damage_type == DMG_plasma andAlso target_bodypart != BODY_HIT_TORSO then set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0x05000002);
+      //if attacker == dude_obj andAlso weapon_damage_type == DMG_plasma andAlso target_bodypart != BODY_HIT_TORSO then set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0x05000002);
       // plasma set new proj_pid and weapon_cur_ammo
       if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 then begin
          alt_fire_used = 1;
@@ -2652,6 +2659,10 @@ procedure AFTERHITROLL begin
       // laser get new targets
       if LaserSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
          alt_fire_used = 1;
+         if weapon_proj_pid != pid_laser_projectile then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_laser_projectile);
+         end
          if ((not(same_target) or atk_rslt == MISS) andAlso random(1,100) <= ammo_cost)  or hit_chance <= 0 or attack_result < MISS then begin
             set_sfall_return(CRITICAL_MISS);
             set_sfall_arg(0, CRITICAL_MISS);
@@ -2705,6 +2716,10 @@ procedure AFTERHITROLL begin
       // gauss get new targets
       if GaussSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_range > 1 andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora andAlso weapon_pid == pid_sonora_railgun)) then begin
          alt_fire_used = 1;
+         if weapon_proj_pid > 0 then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
+         end
          rnd = random(1, 96);
          if rnd > hit_chance then begin
             missed_shot = 1;
