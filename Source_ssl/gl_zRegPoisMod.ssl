@@ -456,21 +456,20 @@ procedure COMBATDAMAGE begin
    variable pyromaniac;
    variable wpnpid;
    variable wpnanim;
-   variable wpndmgtype = 0;
+   variable wpndmgtype;
    variable tarhr;
-   variable atkrhr = get_critter_stat(attacker, STAT_heal_rate);
-   variable burncount = 0;
-   variable burn = 0;
+   variable atkrhr;
+   variable burncount;
+   variable burn;
    variable Tox;
    variable lhname;
    variable rhname;
    variable lhpoison;
    variable rhpoison;
-   variable acthnd = active_hand;
+   variable acthnd;
    variable caliber;
-   variable atkr_body_type = get_proto_data(obj_pid(attacker), PROTO_CR_BODY_TYPE);
    variable has_small_scorp_tail;
-   variable has_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SCORPION_TAIL);
+   variable has_scorp_tail;
    variable player_level = get_pc_stat(PCSTAT_level);
    variable atkr_fid = critter_art_fid(attacker);
    variable tar_kill_type;
@@ -478,7 +477,6 @@ procedure COMBATDAMAGE begin
    variable party = party_member_list(0);
    variable attacker_in_party = is_in_array(attacker, party);
    if PID_SMALL_SCORPION_TAIL > 0 then has_small_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SMALL_SCORPION_TAIL);
-   tarhr = get_critter_stat(target, STAT_heal_rate);
    tar_kill_type = critter_kill_type(target);
    if critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND) then begin
       leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
@@ -527,12 +525,13 @@ procedure COMBATDAMAGE begin
             poison(target, 2 + player_level / 3);
          end
          // all non-companion npc attackers who carry radscorp tails
-         if (has_scorp_tail > 0 or has_small_scorp_tail > 0) andAlso not(attacker_in_party) andAlso atkr_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso wpndmgtype == DMG_normal_dam then begin
+         has_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SCORPION_TAIL);
+         if (has_scorp_tail > 0 or has_small_scorp_tail > 0) andAlso not(attacker_in_party) andAlso (wpnanim == 1 or wpnanim == 4) andAlso wpndmgtype == DMG_normal_dam then begin
             poison(target, random(1,5) + player_level / 3);
          end
          // poison atk for companion npc-attacker
          if rhpoison > 0 then begin
-         poison(target, (rhpoison + random(1, 3)));
+         poison(target, (rhpoison + random(1, 4)));
             if random(0, 4) == 0 then begin
                set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
             end
@@ -540,14 +539,15 @@ procedure COMBATDAMAGE begin
       end
       // poison atk for player
       if attacker == dude_obj then begin
+         acthnd = active_hand;
          if acthnd == 0 andAlso lhpoison > 0 then begin
-         poison(target, ((lhpoison / 3) + random(1, 5) + (Tox * 4)));
+         poison(target, ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
             if random(0, 2 + (5 * Tox)) == 0 then begin
                set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
             end
          end
          else if acthnd == 1 andAlso rhpoison > 0 then begin
-         poison(target, ((rhpoison / 3) + random(1, 5) + (Tox * 4)));
+         poison(target, ((rhpoison / 3) + random(2, 5) + (Tox * 4)));
             if random(0, 2 + (5 * Tox)) == 0 then begin
                set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
             end
@@ -555,7 +555,9 @@ procedure COMBATDAMAGE begin
       end
    end
    // scorch effect from fire dmg ( reduce healing rate )
-   if RegenMod > 0  andAlso weapon > 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
+   if RegenMod > 0 andAlso weapon > 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
+     tarhr = get_critter_stat(target, STAT_heal_rate);
+     atkrhr = get_critter_stat(attacker, STAT_heal_rate);
      //scorch effect for target(s)
      if dmgtotar > 2 then begin
       for (burncount = -1; burncount < (dmgtotar / 8) ; burncount++) begin
@@ -598,7 +600,9 @@ procedure COMBATDAMAGE begin
    call stimrestore();
    end
    // scorch effect from plasma dmg
-   if RegenMod > 0  andAlso wpndmgtype == DMG_plasma then begin
+   if RegenMod > 0 andAlso wpndmgtype == DMG_plasma then begin
+     tarhr = get_critter_stat(target, STAT_heal_rate);
+     atkrhr = get_critter_stat(attacker, STAT_heal_rate);
      //scorch effect for target(s)
      if dmgtotar > 16 andAlso tarhr > 5 then begin
       for (burncount = 0; burncount < (dmgtotar / 16) ; burncount++) begin
@@ -1978,7 +1982,6 @@ procedure ModInTurnBased begin
    variable Critter = get_sfall_arg;
    variable party = party_member_list(0);
    variable critter_in_party = is_in_array(critter, party);
-   variable critter_pid = obj_pid(critter);
    variable critmaxhp = get_critter_stat(critter, STAT_max_hp);
    variable critcurhp = get_critter_stat(Critter, STAT_current_hp);
    variable crithr = get_critter_stat(critter, STAT_heal_rate);
@@ -1988,7 +1991,7 @@ procedure ModInTurnBased begin
    variable tardr = 0;
    variable tar_name = obj_name(critter);
    variable crit_pid = obj_pid(Critter);
-   variable critter_int = get_critter_stat(critter, STAT_iq);
+   variable critter_int;
    variable radscrop_tail;
    variable antidote;
    variable tmp;
@@ -1997,7 +2000,7 @@ procedure ModInTurnBased begin
    variable has_small_scorp_tail;
    variable has_antidote;
    variable has_super_antidote;
-   variable critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+   variable critter_body_type;
    variable wpn;
    variable wpnpid;
    variable wpnname;
@@ -2005,7 +2008,7 @@ procedure ModInTurnBased begin
    variable wpndmgtype = -5;
    variable lhpoison;
    variable rhpoison;
-   variable critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+   variable critter_cur_frm;
    variable dude_hp = get_critter_stat(dude_obj, STAT_current_hp);
    tail_used = 0;
    if RegenMod > 0  andAlso critcurhp > 0 andAlso dude_hp > 0 then begin
@@ -2051,7 +2054,10 @@ procedure ModInTurnBased begin
      if wpnpid > 0 then wpnname = obj_name(wpn);
      if wpnpid > 0 then wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
      if wpnpid > 0 then wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
-       //npc use antidote if poisoned
+     critter_int = get_critter_stat(critter, STAT_iq);
+     critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+     critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+     //npc use antidote if poisoned
      if PoisonMod > 0 andAlso critcurpoison > 5 andAlso tail_used <= 0 andAlso critcurhp > 0 andAlso combat_med_tool_used <= 0 andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso critter_body_type == CR_BODY_BIPED andAlso CritterTurnStatus == 1 then begin
          has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
          if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);

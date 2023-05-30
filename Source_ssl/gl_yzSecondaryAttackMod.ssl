@@ -813,8 +813,8 @@ procedure get_targets_on_thin_line_gauss_reversed(variable first_tile,variable l
 end
 
 //get targets on a thin line using the draw_line algorithm from the attacker(through the target) to a tile at a distance of 50 from the attacker
-procedure get_targets_on_thin_line_gauss(variable attacker ,variable target) begin
-   variable line_length = 50;
+procedure get_targets_on_thin_line_gauss(variable attacker ,variable target, variable line_length) begin
+   //variable line_length = 50;
    variable line_elevation = elevation(attacker);
    variable first_tile = tile_num(attacker);
    variable second_tile = tile_num(target);
@@ -2529,6 +2529,7 @@ procedure AFTERHITROLL begin
    variable Atktype;
    variable ammo_cost;
    variable same_target;
+   variable line_length;
    if attacker == dude_obj then begin
       attacker_lu = get_critter_stat(attacker, STAT_lu);
       critical_chance = get_critter_stat(attacker, STAT_crit_chance);
@@ -2730,7 +2731,7 @@ procedure AFTERHITROLL begin
             return;
          end
          new_main_target = 0;
-
+         line_length = 50;
          if GaussLineWidth then begin
             call get_targets_on_wide_line_gauss(attacker, orig_target);
             if not(same_target) andAlso atk_rslt != MISS then begin
@@ -2739,10 +2740,18 @@ procedure AFTERHITROLL begin
             end
          end
          else begin
-            call get_targets_on_thin_line_gauss(attacker, orig_target);
-            if not(same_target) andAlso atk_rslt != MISS  then begin
+            call get_targets_on_thin_line_gauss(attacker, orig_target,line_length);
+               while not(is_in_array(orig_target,targets_array)) andAlso line_length > 45 do begin
+                  line_length -= 1;
+                  call get_targets_on_thin_line_gauss(attacker, orig_target,line_length);
+               end
+            if not(same_target) andAlso atk_rslt != MISS then begin
                targets_array = 0;
-               call get_targets_on_thin_line_gauss(attacker, target);
+               call get_targets_on_thin_line_gauss(attacker, target,line_length);
+               while not(is_in_array(target,targets_array)) andAlso line_length > 45 do begin
+                  line_length -= 1;
+                  call get_targets_on_thin_line_gauss(attacker, target,line_length);
+               end
             end
          end
       end
@@ -2782,6 +2791,7 @@ procedure COMBATDAMAGE begin
    variable knockback_distance;
    variable attacker_target_distance;
    variable rnd;
+   variable line_length;
    combat_dmg = dmgtotar;
    if missed_shot andAlso target != real_orig_target then begin
       if weapon_damage_type == DMG_laser then begin
@@ -2923,11 +2933,16 @@ procedure COMBATDAMAGE begin
          one_time_call = 1;
          // get new targets if missed;
          if atk_rslt == MISS then begin
+            line_length = 50;
             if GaussLineWidth then begin
                call get_targets_on_wide_line_gauss(attacker, target);
             end
             else begin
-               call get_targets_on_thin_line_gauss(attacker, target);
+               call get_targets_on_thin_line_gauss(attacker, target,line_length);
+               while not(is_in_array(target,targets_array)) andAlso line_length > 45 do begin
+                  line_length -= 1;
+                  call get_targets_on_thin_line_gauss(attacker, target,line_length);
+               end
             end
          end
 
