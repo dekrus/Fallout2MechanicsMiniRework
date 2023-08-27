@@ -1,5 +1,5 @@
 ### Latest version  v1.90 
-- Added a new mod that allows you to apply skill books on party members.
+- A new mod has been added that allows you to apply skill books to party members, as well as change the amount of bonus skill points when reading books.
 
 ### Latest version  v1.84 
 ##### Regen & Poison mod
