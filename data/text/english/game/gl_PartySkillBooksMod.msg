@@ -14,6 +14,7 @@
 {14}{}{ has learned some valuable tips on how to use energy weapons.}
 {15}{}{Perfection.}
 {16}{}{The book contains TONS of inside information on Fallout 2, more than enough to modify your friends for the better.}
+{17}{}{You have improved your skills by reading this book.}
 {18}{}{After reading the book, }
 {19}{}{ now looks at the phenomenon of the game and the fate of mankind differently.}
 {20}{}{ has already learned everything in this book.}
@@ -26,14 +27,29 @@
 {27}{}{ learns nothing new about medical practice.}
 {28}{}{ learns a lot about medical practice.}
 {29}{}{ learns a lot about practical human and animal anatomy.}
+{802}{}{You learn new scientific knowledge.}
+{803}{}{You learn new repair knowledge.}
+{804}{}{You learn how best to treat various injuries.}
+{805}{}{You learn a lot about the practical use of firearms.}
+{806}{}{You gain new knowledge about survival in the wasteland.}
 {807}{}{You learn how to plant and disarm traps better.}
 {808}{}{You learn a lot about economics.}
 {809}{}{You learn a lot about medicine and biology.}
+{810}{}{You learn how to use energy weapons better.}
+{811}{}{You gain new knowledge about stealth.}
+{812}{}{You learn a lot about the practical application of hand-to-hand combat.}
+{813}{}{You gain new knowledge about lock design and intricacies.}
+{814}{}{You gain new knowledge about traps and stealth.}
 {902}{}{ learns new science information.}
 {903}{}{ learns a lot about repairing broken electronics.}
 {904}{}{ learns new ways to heal injuries.}
-{905}{}{ learns how to handle your guns better.}
-{906}{}{ learns a lot about wilderness survival.}
+{905}{}{ learns how to handle guns better.}
+{906}{}{ learns a lot about survival in the wasteland.}
 {907}{}{ learns how to plant and disarm traps better.}
 {908}{}{ learns a lot about economics.}
 {909}{}{ learns a lot about medicine and biology.}
+{910}{}{ learns a lot about how to use energy weapons.}
+{911}{}{ learns to move more imperceptibly.}
+{912}{}{ learns about the practical application of hand-to-hand combat techniques.}
+{913}{}{ gains new knowledge about the design and intricacies of locks.}
+{914}{}{ gains new knowledge about traps and stealth.}

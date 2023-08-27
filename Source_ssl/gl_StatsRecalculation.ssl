@@ -99,7 +99,6 @@ procedure start begin
    if game_loaded then begin
       StatsRecalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|StatsRecalculation");
       if StatsRecalculation > 0 then begin
-         real_dude_obj;
          if dude_obj > 0 then dude_obj_pid = obj_pid(dude_obj);
          en_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|en_recalculation");
          iq_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|iq_recalculation");

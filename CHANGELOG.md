@@ -1,3 +1,6 @@
+### Latest version  v1.90 
+- Added a new mod that allows you to apply skill books on party members.
+
 ### Latest version  v1.84 
 ##### Regen & Poison mod
 - Poisoned companions and other NPCs will use the antidote more often if they have it in their inventory.

@@ -187,11 +187,15 @@ procedure steal_handler begin
 
    // PERK_pickpocket check for add|remove item size, cost and weight penalty
    if pickpocket < 1 then begin
-      if StealRebalance == 2 then begin
-         item_cost = get_proto_data(item_pid, PROTO_IT_COST);
+      if MinStealReq < 2 then begin
+         item_cost = 0;
       end
       item_size = get_proto_data(item_pid, PROTO_IT_SIZE);
       item_weight_lvar = item_weight(item);
+      //Penalty for the item price if option is enabled
+      item_cost = get_proto_data(item_pid, PROTO_IT_COST);
+      //Penalty for the number of stolen sizeless items in the stack if there is no PERK_pickpocket only for sfall 4.4
+      //if item_size <= 0 then steal_bonus -= floor2(item_cost * 0.02);
    end
    // Stealing weapons from hand.
    if item == right_hand_item andAlso stype == 0 then begin
@@ -287,6 +291,7 @@ procedure steal_handler begin
    end
       //chance_to_steal formula
    target_pe_mult = target_pe_mult + 2;
+   if user_steal_skill == 0 then user_steal_skill = 1;
    chance_to_steal = 40 + steal_bonus + (user_steal_skill_mult * user_steal_skill)  - steal_count - ((item_size + 1) * 4) - (item_weight_lvar * 3) - (item_cost / (user_steal_skill_mult * user_steal_skill)) - (target_pe * target_pe_mult);
       // calculation of the required skill level
    if StealRebalance == 2 andAlso chance_to_steal < 40 andAlso steal_count == 0 then begin

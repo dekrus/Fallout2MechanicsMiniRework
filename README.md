@@ -1,11 +1,11 @@
 # Fallout2MechanicsMiniRework
 [__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases)
 
- This is a small rework of some gameplay mechanics of Fallout 2 and games based on it.  
+ This is a rework of some gameplay mechanics of Fallout 2 and games based on it.  
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
-- Unzip the archive into the main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.1.3+. it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
+- Unzip the archive into the main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.3.3+. it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
 - [SFALL v4 latest release](https://sourceforge.net/projects/sfall/files/)
 - [RUS SFALL v5 latest release](https://gitflic.ru/project/fakelshub/sfall/release/c5683b53-0234-4c12-b5ae-c03b299b373a)
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable, or fine-tune components as you desire.
@@ -17,6 +17,7 @@
 
 ## Mods
 - [SecondaryAttack](#secondary-attack)
+- [SkillBooks](#Skill-Books)
 - [Poison](#poison)
 - [Healing](#healing)
 - [MedToolsMod](#medical-tools)
@@ -75,6 +76,44 @@ Shotguns:
 - Aimed shots to the body knock back enemies and can knock them down.
 - Affects targets closer than 10 hexes / half the weapon's maximum range.
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
+
+### Skill Books
+This mod allows you to use skill books on companions to increase their skills, and also allows you to change the amount of bonus skill points and the number of skills that increase when reading books.
+(Compatible with F2, F2 EcCo, F1.5: Resurrection, Nevada, Sonora: Bookseller Ashley mod, Et_Tu)
+
+- Skill books can now be applied to sentient companions to improve their skills. The bonus from reading books is retained as the companion levels up.
+- The original amount of skill gain (and its maximum value) from reading books can either be increased or changed to a fixed value.
+- Books can now increase up to 2 skills at the same time if you add a new skill to the "books.ini" file. All base books, and any books registered in "books.ini", will work with the mod.
+- The "Comprehension" perk now increases not only the number of points received when reading, but also the skill increase limit.
+- The mod also works with unique books (Fallout 2 Hintbook, Cat's Paw issue no.5, Nevada: "Homo Ludens", Neurosurgery Manual)
+
+Additional settings that can be enabled:
+- Books can be read aloud, then the skill will increase for the player and the companion to whom the player reads the book, or for the whole group at once, depending on the option chosen.
+- The presence of the "Comprehension" perk for the player also works for companions.
+- You can allow non sentient companions like dogs and brahmins to read books and receive a bonus from them.
+
+<details> 
+  <summary> An example of how to modify the "GUN AND BULLETS" skill book to increase the "Small guns" and "Big guns" skills. </summary>
+#if the "books.ini" file is not present in your "..\Fallout 2 (or other game)\sfall\" folder, then you can take it from (https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini) 
+# place "books.ini" along the path "..\Fallout 2 (or other game)\sfall\books.ini"
+# Now look at the example below. For changing original books "overrideVanilla=" in "books.ini" can be anything if my mod is installed.
+# "count" in "books.ini" should be equal to the number of changed and/or added books
+# in square brackets indicate [1] the sequence number of the new/modified book starting from the number "1", the order of changing/adding the book does not matter.
+
+#------- Beginning of the example---------
+[1]
+; book item PID ("GUNS AND BULLETS" PID = 102, Big Book of Science  = 73, First Aid Book = 80, Scout Handbook = 86, Dean's Electronics = 76, Chemistry journals (F2 and 1.5 only) = 237), for other books will have to google
+PID=102
+; textID from proto.msg which displayed when reading book("GUNS AND BULLETS" TextID = 805, Big Book of Science = 802, First Aid Book = 804, Scout Handbook=806, Dean's Electronics=803, Chemistry journals (F2 and 1.5 only)=802)
+TextID=807
+; corresponding skill (skill number in order from top to bottom starting with Small guns = 0, Big guns = 1, Energy weapons = 2, ending with "outdoorsman" skill = 17)
+#Skill=0 will increase "Small guns" by the amount set in "FixedSkillInc"
+Skill=0
+#Skill2 Added only by this mod, and only works with it.
+#Skill2=1 will increase "Big guns" by the amount set in "FixedSkill2Inc"
+Skill2=1
+#------- End of the example---------
+</details>
 
 ### Poison 
 **(Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)**  
