@@ -84,6 +84,7 @@ variable book_pid;
 variable books_pids;
 variable books_pids_proto_msg;
 variable NonSentientBooks;
+variable lvl_up;
 
 procedure map_enter_p_proc begin
    //Change use to useon
@@ -109,7 +110,7 @@ procedure CATS_PAW_ISSUE_5_useon(variable critter_obj) begin
       perk_level = has_fake_perk_npc(critter_obj, perk_name);
       set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), (28 + SKILL_ENERGY_WEAPONS), (modmsg(msg_energy_weapons_perk_desc)));
       set_critter_skill_points(critter_obj, SKILL_ENERGY_WEAPONS, (get_critter_skill_points(critter_obj, SKILL_ENERGY_WEAPONS) + cats_paw_5_bonus));
-      display_msg(obj_name(critter_obj)+modmsg(msg_energy_weapons_npc));
+      if lvl_up <= 0 then display_msg(obj_name(critter_obj)+modmsg(msg_energy_weapons_npc));
    end
    else begin
       critter_mod_skill(dude_obj, 2, 10);
@@ -130,7 +131,7 @@ procedure FALLOUT_2_HINTBOOK_useon(variable critter_obj) begin
       book_name = proto_data(PID_FALLOUT_2_HINTBOOK, 1);
       perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
       perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), 155, (modmsg(msg_f2_hint_perk_desc)));
+      set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), 154, (modmsg(msg_f2_hint_perk_desc)));
    end
    else begin
       give_exp_points(10000);
@@ -180,10 +181,10 @@ procedure NEVADA_HOMO_LUDENS_useon(variable critter_obj) begin
          set_critter_skill_points(critter_obj, SKILL_BARTER, (get_critter_skill_points(critter_obj, SKILL_BARTER) + 2));
          set_critter_skill_points(critter_obj, SKILL_GAMBLING, (get_critter_skill_points(critter_obj, SKILL_GAMBLING) + 2));
          set_critter_skill_points(critter_obj, SKILL_OUTDOORSMAN, (get_critter_skill_points(critter_obj, SKILL_OUTDOORSMAN) + 2));
-         display_msg(modmsg(msg_nevada_homo_ludens_learn_npc_start) + obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_learn_npc_end));
+         if lvl_up <= 0 then display_msg(modmsg(msg_nevada_homo_ludens_learn_npc_start) + obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_learn_npc_end));
       end
       else begin
-         display_msg(obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_readed_npc));
+         if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_readed_npc));
       end
    end
    else begin
@@ -211,7 +212,7 @@ procedure NEVADA_neurosurgery_useon(variable critter_obj) begin
       perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
       perk_level = has_fake_perk_npc(critter_obj, perk_name);
       if (perk_level > 0) then begin
-         display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_readed_npc));
+         if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_readed_npc));
          return;
       end
       else begin
@@ -219,13 +220,13 @@ procedure NEVADA_neurosurgery_useon(variable critter_obj) begin
          if (has_trait(TRAIT_PERK, critter_obj, PERK_living_anatomy_perk) > 0) then begin
             set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
             set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
-            display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc));
+            if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc));
          end
          else begin
             set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
             set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
             critter_add_trait(critter_obj, TRAIT_PERK, PERK_living_anatomy_perk, 1);
-            display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc_anatomy));
+            if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc_anatomy));
          end
       end
    end
@@ -324,7 +325,7 @@ procedure set_books_pid begin
          books_pids[len_array(books_pids)-1] = NEVADA_PID_HOMO_LUDENS;//Homo Ludens
       end
       //Fallout 2 unique non common skill books(et_tu,Resurrection)
-      else if Nevada <= 0 andAlso ET_TU <= 0 andAlso Resurrection <= 0 then begin
+      else if Nevada <= 0 then begin
          books_pids[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = PID_CATS_PAW_ISSUE_5;
          books_pids[len_array(books_pids)-1] = PID_FALLOUT_2_HINTBOOK;
       end
@@ -606,16 +607,51 @@ procedure nonparty_npc_skill_up begin
                   if perk_level > 0 then begin
                      if Nevada <= 0 then begin
                         if book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                           call CATS_PAW_ISSUE_5_useon(party_member);
+                           set_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS, (get_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS) + cats_paw_5_bonus));
                            continue;
                         end
                         else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
-                           call FALLOUT_2_HINTBOOK_useon(party_member);
+                           set_critter_extra_stat(party_member, STAT_max_hp, (999 - get_critter_base_stat(party_member, STAT_max_hp)));
+                           set_critter_extra_stat(party_member, STAT_st, 10);
+                           set_critter_extra_stat(party_member, STAT_pe, 10);
+                           set_critter_extra_stat(party_member, STAT_en, 10);
+                           set_critter_extra_stat(party_member, STAT_ch, 10);
+                           set_critter_extra_stat(party_member, STAT_iq, 10);
+                           set_critter_extra_stat(party_member, STAT_ag, 10);
+                           set_critter_extra_stat(party_member, STAT_lu, 10);
+                           set_critter_skill_points(party_member, SKILL_SMALL_GUNS, 300);
+                           set_critter_skill_points(party_member, SKILL_BIG_GUNS, 300);
+                           set_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS, 300);
+                           set_critter_skill_points(party_member, SKILL_UNARMED_COMBAT, 300);
+                           set_critter_skill_points(party_member, SKILL_MELEE, 300);
+                           set_critter_skill_points(party_member, SKILL_THROWING, 300);
+                           set_critter_skill_points(party_member, SKILL_FIRST_AID, 300);
+                           set_critter_skill_points(party_member, SKILL_DOCTOR, 300);
+                           set_critter_skill_points(party_member, SKILL_SNEAK, 300);
+                           set_critter_skill_points(party_member, SKILL_LOCKPICK, 300);
+                           set_critter_skill_points(party_member, SKILL_STEAL, 300);
+                           set_critter_skill_points(party_member, SKILL_TRAPS, 300);
+                           set_critter_skill_points(party_member, SKILL_SCIENCE, 300);
+                           set_critter_skill_points(party_member, SKILL_REPAIR, 300);
+                           set_critter_skill_points(party_member, SKILL_CONVERSANT, 300);
+                           set_critter_skill_points(party_member, SKILL_BARTER, 300);
+                           set_critter_skill_points(party_member, SKILL_GAMBLING, 300);
+                           set_critter_skill_points(party_member, SKILL_OUTDOORSMAN, 300);
                            continue;
                         end
                      end
-                     if Nevada > 0 andAlso book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                        call NEVADA_HOMO_LUDENS_useon(party_member);
+                     if Nevada > 0 andAlso book_pid == NEVADA_PID_HOMO_LUDENS then begin
+                        set_critter_skill_points(party_member, SKILL_SCIENCE, (get_critter_skill_points(party_member, SKILL_SCIENCE) + 2));
+                        set_critter_skill_points(party_member, SKILL_CONVERSANT, (get_critter_skill_points(party_member, SKILL_CONVERSANT) + 2));
+                        set_critter_skill_points(party_member, SKILL_BARTER, (get_critter_skill_points(party_member, SKILL_BARTER) + 2));
+                        set_critter_skill_points(party_member, SKILL_GAMBLING, (get_critter_skill_points(party_member, SKILL_GAMBLING) + 2));
+                        set_critter_skill_points(party_member, SKILL_OUTDOORSMAN, (get_critter_skill_points(party_member, SKILL_OUTDOORSMAN) + 2));
+                        continue;
+                     end
+                     if Nevada > 0 andAlso book_pid == NEVADA_PID_NEUROSURGERY then begin
+                        set_critter_skill_points(party_member, SKILL_DOCTOR, (get_critter_skill_points(party_member, SKILL_DOCTOR) + 10));
+                        set_critter_skill_points(party_member, SKILL_FIRST_AID, (get_critter_skill_points(party_member, SKILL_FIRST_AID) + 10));
+                        if has_trait(TRAIT_PERK,party_member,PERK_living_anatomy_perk) <= 0 then critter_add_trait(party_member, TRAIT_PERK, PERK_living_anatomy_perk, 1);
                         continue;
                      end
                      skill = get_skill_F2(book_pid);
@@ -681,13 +717,32 @@ procedure skills_on_lvlup begin
                   perk_level = has_fake_perk_npc(party_member, perk_name);
                   if perk_level > 0 then begin
                      set_fake_perk_npc(party_member, (perk_name), 0, 0,""); // remove old fake perks
-                     if Nevada <= 0 andAlso book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                        call CATS_PAW_ISSUE_5_useon(party_member);
-                        continue;
+                     if Nevada <= 0 andAlso Sonora <= 0 then begin
+                        if book_pid == PID_CATS_PAW_ISSUE_5 then begin
+                           lvl_up = 1;
+                           for (counter2 = 0; counter2 < perk_level; counter2++) begin
+                              call CATS_PAW_ISSUE_5_useon(party_member);
+                           end
+                           continue;
+                        end
+                        else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
+                           lvl_up = 1;
+                           perk_name = ("'"+book_name + "'");
+                           set_fake_perk_npc(party_member, perk_name, (perk_level), 153, (modmsg(msg_f2_hint_perk_desc)));
+                           continue;
+                        end
                      end
-                     if Nevada > 0 andAlso book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                        call NEVADA_HOMO_LUDENS_useon(party_member);
-                        continue;
+                     if Nevada > 0 then begin
+                        if book_pid == NEVADA_PID_HOMO_LUDENS then begin
+                           lvl_up = 1;
+                           call NEVADA_HOMO_LUDENS_useon(party_member);
+                           continue;
+                        end
+                        else if book_pid == NEVADA_PID_NEUROSURGERY then begin
+                           lvl_up = 1;
+                           call NEVADA_neurosurgery_useon(party_member);
+                           continue;
+                        end
                      end
                      skill = get_skill_F2(book_pid);
                      skill2 = second_skill_array[book_pid] - 1;
@@ -720,6 +775,7 @@ procedure skills_on_lvlup begin
          end
       end
    end
+   lvl_up = 0;
 end
 
 procedure party_skills_on_lvlup begin

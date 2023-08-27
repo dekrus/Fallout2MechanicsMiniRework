@@ -237,7 +237,7 @@ procedure start begin
             end
          end
          //regenperk activation
-            if RegenMod > 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * (has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing) - ET_TU)) >= 6 then begin
+            if RegenMod > 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) + (2 * (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) - ET_TU)) >= 6 then begin
                call newperks();
             end
       end
@@ -377,12 +377,12 @@ end
 
 procedure newperks begin
   variable Tox = has_fake_perk(perk_poison_mastery_name);
-  if RegenMod > 0  andAlso has_fake_perk(regen_perk_name) == 0 andAlso ((get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) + (2 * (has_trait(TRAIT_PERK, dude_obj, PERK_faster_healing)  - ET_TU)) > 5) or (get_critter_stat(dude_obj, STAT_heal_rate) > 5 andAlso stimtimer < game_time - 800) )then begin
+  if RegenMod > 0 andAlso has_fake_perk(regen_perk_name) == 0 andAlso ((get_pc_base_stat(STAT_heal_rate) + (2 * has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) + (2 * (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)  - ET_TU)) > 5) or (get_critter_stat(real_dude_obj, STAT_heal_rate) > 5 andAlso stimtimer < game_time - 800) )then begin
 		display_msg(regen_perk_acquired_msg);
 		set_fake_perk(regen_perk_name, 1, 79, regen_perk_description);
 	end
   if get_game_mode bwor CHARSCREEN then begin
-  	if PoisonMod > 0 andAlso get_pc_stat(PCSTAT_level) >= 6 andAlso Tox == 0 andAlso (has_skill(dude_obj, SKILL_SCIENCE) > 49 or has_skill(dude_obj, SKILL_OUTDOORSMAN) > 69) then begin
+  	if PoisonMod > 0 andAlso get_pc_stat(PCSTAT_level) >= 6 andAlso Tox == 0 andAlso (has_skill(real_dude_obj, SKILL_SCIENCE) > 49 or has_skill(real_dude_obj, SKILL_OUTDOORSMAN) > 69) then begin
   		set_selectable_perk(perk_poison_mastery_name, 1, 102, perk_poison_mastery_description);
   	end
   	if Tox > 0 then begin
@@ -1555,7 +1555,7 @@ procedure worldMapTravel begin
   DudeRegenTickHP = 0;
   dudeishealing = 0;
   //regenperk activation
-  if lastgamemode bwor CHARSCREEN or gamemode bwor CHARSCREEN then begin
+  if (lastgamemode bwor CHARSCREEN) or (gamemode bwor CHARSCREEN) then begin
    call newperks;
   end
   if (lastgamemode == PCOMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == DIALOG andAlso gamemode == WORLDMAP) orElse (lastgamemode == LOADGAME andAlso gamemode == WORLDMAP) orElse (lastgamemode == COMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == 0 andAlso gamemode == WORLDMAP) then begin
