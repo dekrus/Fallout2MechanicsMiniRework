@@ -94,25 +94,25 @@ Additional settings that can be enabled:
 
 <details> 
   <summary> An example of how to modify the "GUN AND BULLETS" skill book to increase the "Small guns" and "Big guns" skills. </summary>
-#if the "books.ini" file is not present in your "..\Fallout 2 (or other game)\sfall\" folder, then you can take it from (https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini) 
-# place "books.ini" along the path "..\Fallout 2 (or other game)\sfall\books.ini"
-# Now look at the example below. For changing original books "overrideVanilla=" in "books.ini" can be anything if my mod is installed.
-# "count" in "books.ini" should be equal to the number of changed and/or added books
-# in square brackets indicate [1] the sequence number of the new/modified book starting from the number "1", the order of changing/adding the book does not matter.
+- if the "books.ini" file is not present in your "..\Fallout 2 (or other game)\sfall\" folder, then you can take it from (https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini)
+- place "books.ini" along the path "..\Fallout 2 (or other game)\sfall\books.ini"
+-Now look at the example below. For changing original books "overrideVanilla=" in "books.ini" can be anything if my mod is installed.
+-"count" in "books.ini" should be equal to the number of changed and/or added books
+-in square brackets indicate [1] the sequence number of the new/modified book starting from the number "1", the order of changing/adding the book does not matter.
 
-#------- Beginning of the example---------
+### Beginning of the example
 [1]
 ; book item PID ("GUNS AND BULLETS" PID = 102, Big Book of Science  = 73, First Aid Book = 80, Scout Handbook = 86, Dean's Electronics = 76, Chemistry journals (F2 and 1.5 only) = 237), for other books will have to google
 PID=102
 ; textID from proto.msg which displayed when reading book("GUNS AND BULLETS" TextID = 805, Big Book of Science = 802, First Aid Book = 804, Scout Handbook=806, Dean's Electronics=803, Chemistry journals (F2 and 1.5 only)=802)
 TextID=807
 ; corresponding skill (skill number in order from top to bottom starting with Small guns = 0, Big guns = 1, Energy weapons = 2, ending with "outdoorsman" skill = 17)
-#Skill=0 will increase "Small guns" by the amount set in "FixedSkillInc"
+; Skill=0 will increase "Small guns" by the amount set in "FixedSkillInc"
 Skill=0
-#Skill2 Added only by this mod, and only works with it.
-#Skill2=1 will increase "Big guns" by the amount set in "FixedSkill2Inc"
+; Skill2 Added only by this mod, and only works with it.
+; Skill2=1 will increase "Big guns" by the amount set in "FixedSkill2Inc"
 Skill2=1
-#------- End of the example---------
+### End of the example
 </details>
 
 ### Poison 
