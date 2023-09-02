@@ -206,7 +206,7 @@ Skill2=1
 
 ## Совместимость
 - Совместим со всеми играми на основе Fallout 2. Совместимость с Nevada, Sonora или Fallout et tu можно включить в `mods/F2MechanicsMiniRework.ini`
-- Совместим с "ECCO" и "FO2tweaks"
+- Совместим с "FO2tweaks" и "EcCo 0.9+" (с EcCo не совместим мод на кражи, нужно выключить один из них)
 
 ## Удаление
 Удалите оба файла `mods/F2MechanicsMiniRework.*` .
