@@ -255,9 +255,9 @@ Each point of Endurance now increases maximum health by +0.5 HP per level, round
 When base intelligence increases (through perks and implants but not drugs), the player is given skill points according to the formula: (number of level-ups) * (intelligence - initial intelligence) * 2.
 
 ## Compatibility
-* All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
-Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
-All components except for the [Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+- All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
+- Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
+- All components except for the [Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
 ## Uninstallation
 Delete `mods/F2MechanicsMiniRework.*` files.
