@@ -88,6 +88,8 @@ variable books_pids_proto_msg;
 variable NonSentientBooks;
 variable lvl_up;
 variable BooksFile_location;
+variable skill1_ini_value;
+variable skill2_ini_value;
 
 procedure map_enter_p_proc begin
    //Change use to useon
@@ -368,9 +370,9 @@ procedure set_books_pid begin
          books_pids[1 + SKILL_LOCKPICK * books_dup_num] = SONORA_PID_LOCKPICKING_BOOK;
          books_pids_proto_msg[SKILL_LOCKPICK] = 813;
          // Melee + Unarmed
-         books_pids[1 + SKILL_MELEE * books_dup_num] = SONORA_PID_MELEE_BOOK;
-         second_skill_array[SONORA_PID_MELEE_BOOK] = 1 + SKILL_UNARMED_COMBAT;
-         books_pids_proto_msg[SKILL_MELEE] = 812;
+         books_pids[1 + SKILL_UNARMED_COMBAT * books_dup_num] = SONORA_PID_MELEE_BOOK;
+         second_skill_array[SONORA_PID_MELEE_BOOK] = 1 + SKILL_MELEE;
+         books_pids_proto_msg[SKILL_UNARMED_COMBAT] = 812;
          //sneak
          books_pids_proto_msg[SKILL_SNEAK] = 811;
       end
@@ -441,6 +443,14 @@ procedure get_book_bonus(variable critter_obj,variable skill,variable is_seconda
          original_max_skill = original_book_formula_max_skill2;
       end
       else begin
+         BOOK_SKILL_BONUS = base_second_skill_book_bonus;
+      end
+      if Sonora_bookseller > 0 andAlso is_secondary_skill > 0 andAlso skill2_ini_value <= 0 andAlso skill == SKILL_BIG_GUNS then begin
+         BOOK_SKILL_BONUS = base_skill_book_bonus;
+      end
+   end
+   else begin
+      if Sonora_bookseller > 0 andAlso is_secondary_skill <= 0 andAlso skill1_ini_value <= 0 andAlso skill == SKILL_UNARMED_COMBAT then begin
          BOOK_SKILL_BONUS = base_second_skill_book_bonus;
       end
    end
@@ -1240,13 +1250,32 @@ procedure start begin
          end
          else begin
             base_skill_book_bonus = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|FixedSkillInc");
+            skill1_ini_value = base_skill_book_bonus;
             base_second_skill_book_bonus = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|FixedSkill2Inc");
+            skill2_ini_value = base_second_skill_book_bonus;
             skill_cost = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|SkPtCost");
             max_books_read = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxBooks");
             max_books_read_int = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxBooksIntDep");
             if max_books_read > 0 or max_books_read_int > 0 then set_perk_desc(PERK_comprehension_perk, modmsg(comprehension_perk_new_desc_fixed));
          end
-         if base_skill_book_bonus <= 0 then base_skill_book_bonus = 6;
+         // if skill bonus is 0 or lower
+         if base_skill_book_bonus <= 0 then begin
+            if Sonora_bookseller > 0 then begin
+               base_skill_book_bonus = 4;
+            end
+            else begin
+               base_skill_book_bonus = 6;
+            end
+         end
+         // if skill bonus is 0 or lower
+         if base_second_skill_book_bonus <= 0 then begin
+            if Sonora_bookseller > 0 then begin
+               base_second_skill_book_bonus = 2;
+            end
+            else begin
+               base_second_skill_book_bonus = 4;
+            end
+         end
          max_skill_to_read = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxSkill");
          if max_skill_to_read <= 0 then begin
             if ET_TU then begin

@@ -2,6 +2,8 @@
 ##### Skill Books mod
 - Fixed detection of book.ini file presence.
 - Fixed description of perk "comprehension" (russian language).
+- Addition for Fallout: Sonora. If you set "FixedSkillInc" and "FixedSkill2Inc" to 0 or less, then the increase in skills will match the description of the books (+4/+2).
+
 
 ### Version  v1.90 
 - A new mod has been added that allows you to apply skill books to party members, as well as change the amount of bonus skill points when reading books.

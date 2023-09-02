@@ -91,6 +91,7 @@ Additional settings that can be enabled:
 - Books can be read aloud, then the skill will increase for the player and the companion to whom the player reads the book, or for the whole group at once, depending on the option chosen.
 - The presence of the "Comprehension" perk for the player also works for companions.
 - You can allow non sentient companions like dogs and brahmins to read books and receive a bonus from them.
+- Addition for Fallout: Sonora. If you set "FixedSkillInc" and "FixedSkill2Inc" to 0 or less, then the increase in skills will match the description of the books (+4/+2).
 
 <details> 
   <summary> An example of how to modify the "GUN AND BULLETS" skill book to increase the "Small guns" and "Big guns" skills. </summary>
