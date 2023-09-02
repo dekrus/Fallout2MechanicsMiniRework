@@ -27,6 +27,8 @@
 {27}{}{ learns nothing new about medical practice.}
 {28}{}{ learns a lot about medical practice.}
 {29}{}{ learns a lot about practical human and animal anatomy.}
+{30}{}{You pay much closer attention to the smaller details when reading. Your skill points and their gain limit when reading books are increased by 50%.}
+{31}{}{You pay much closer attention to the smaller details when reading. Your skill points gained from reading and the maximum number of skill books you can read have been increased by 50%.}
 {802}{}{You learn new scientific knowledge.}
 {803}{}{You learn new repair knowledge.}
 {804}{}{You learn how best to treat various injuries.}

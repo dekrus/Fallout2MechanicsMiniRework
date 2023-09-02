@@ -48,6 +48,8 @@
 #define msg_nevada_neursurg_readed_npc 27
 #define msg_nevada_neursurg_learn_npc 28
 #define msg_nevada_neursurg_learn_npc_anatomy 29
+#define comprehension_perk_new_desc_original 30
+#define comprehension_perk_new_desc_fixed 31
 
 
 variable SkillBooksMod;
@@ -85,6 +87,7 @@ variable books_pids;
 variable books_pids_proto_msg;
 variable NonSentientBooks;
 variable lvl_up;
+variable BooksFile_location;
 
 procedure map_enter_p_proc begin
    //Change use to useon
@@ -383,9 +386,9 @@ procedure add_custom_books_pid begin
    variable custom_book_skill2;
    // Add Custom skill books from "sfall\\books.ini"
    for (counter = 1; counter < custom_books_count + 1; counter++) begin
-      custom_book_skill = get_ini_setting ("sfall\\books.ini|"+ counter +"|Skill");
-      custom_book_pid = get_ini_setting ("sfall\\books.ini|"+ counter +"|PID");
-      custom_book_skill2 = 1 + get_ini_setting ("sfall\\books.ini|"+ counter +"|Skill2");
+      custom_book_skill = get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill");
+      custom_book_pid = get_ini_setting (BooksFile_location+ "|"+ counter +"|PID");
+      custom_book_skill2 = 1 + get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill2");
       if custom_book_skill2 >= 1 then begin
          second_skill_array[custom_book_pid] = custom_book_skill2;
       end
@@ -406,7 +409,7 @@ procedure add_custom_books_pid begin
          call set_books_pid;
       end
       books_pids[counter2 + 1 + custom_book_skill * books_dup_num] = custom_book_pid;
-      books_pids_proto_msg[custom_book_skill] = get_ini_setting ("sfall\\books.ini|"+ counter +"|TextID");
+      books_pids_proto_msg[custom_book_skill] = get_ini_setting (BooksFile_location+ "|"+ counter +"|TextID");
       //In case more than 17 skills are added
       if custom_book_skill > skills_count or custom_book_skill2 > skills_count then begin
          if custom_book_skill >= custom_book_skill2 then begin
@@ -1210,6 +1213,8 @@ procedure start begin
    if game_loaded then begin
       SkillBooksMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|PartySkillBooksMod");
       if SkillBooksMod > 0 then begin
+         BooksFile_location = get_ini_string("ddraw.ini|Misc|BooksFile");
+         if BooksFile_location == "" then BooksFile_location = "books.ini";
          Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          if Sonora > 0 then begin
@@ -1231,7 +1236,7 @@ procedure start begin
             original_book_formula_max_skill2 = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|OriginalFormulaMaxSkill2");
             if original_book_formula_max_skill2 <= 0 then original_book_formula_max_skill2 = 100;
             original_book_formula_max_skill_per_book = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxSkillPerBook");
-            set_perk_desc(PERK_comprehension_perk, "You pay much closer attention to the smaller details when reading. Your skill points and their limit when reading is increased by 50%.");
+            set_perk_desc(PERK_comprehension_perk, modmsg(comprehension_perk_new_desc_original));
          end
          else begin
             base_skill_book_bonus = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|FixedSkillInc");
@@ -1239,7 +1244,7 @@ procedure start begin
             skill_cost = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|SkPtCost");
             max_books_read = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxBooks");
             max_books_read_int = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxBooksIntDep");
-            if max_books_read > 0 or max_books_read_int > 0 then set_perk_desc(PERK_comprehension_perk, "You pay much closer attention to the smaller details when reading. Your skill points gained from reading and the maximum number of skill books you can read have been increased by 50%.");
+            if max_books_read > 0 or max_books_read_int > 0 then set_perk_desc(PERK_comprehension_perk, modmsg(comprehension_perk_new_desc_fixed));
          end
          if base_skill_book_bonus <= 0 then base_skill_book_bonus = 6;
          max_skill_to_read = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxSkill");
@@ -1258,7 +1263,7 @@ procedure start begin
          books_pids_proto_msg = create_array_list(skills_count+1);
          second_skill_array = create_array_map;
          call set_books_pid; // add "original" books (depends on the specific game, it is written manually)
-         custom_books_count = get_ini_setting ("sfall\\books.ini|main|count");
+         custom_books_count = get_ini_setting (BooksFile_location+ "|main|count");
          if custom_books_count > 0 then begin
             call add_custom_books_pid();
          end

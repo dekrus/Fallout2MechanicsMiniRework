@@ -94,8 +94,7 @@ Additional settings that can be enabled:
 
 <details> 
   <summary> An example of how to modify the "GUN AND BULLETS" skill book to increase the "Small guns" and "Big guns" skills. </summary>
-if the "books.ini" file is not present in your "..\Fallout 2 (or other game)\sfall\" folder, then you can take it from (https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini)  
-place "books.ini" along the path "..\Fallout 2 (or other game)\sfall\books.ini"  
+if the "books.ini" file is not present in your game folder, then you can take it from (https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini)  
 Now look at the example below. For changing original books "overrideVanilla=" in "books.ini" can be anything if my mod is installed.  
 "count" in "books.ini" should be equal to the number of changed and/or added books  
 in square brackets indicate [1] the sequence number of the new/modified book starting from the number "1", the order of changing/adding the book does not matter.  

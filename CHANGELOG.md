@@ -1,7 +1,12 @@
-### Latest version  v1.90 
+### Latest Version  v1.91 
+##### Skill Books mod
+- Fixed detection of book.ini file presence.
+- Fixed description of perk "comprehension" (russian language).
+
+### Version  v1.90 
 - A new mod has been added that allows you to apply skill books to party members, as well as change the amount of bonus skill points when reading books.
 
-### Latest version  v1.84 
+### Version  v1.84 
 ##### Regen & Poison mod
 - Poisoned companions and other NPCs will use the antidote more often if they have it in their inventory.
 ##### SecondaryAttack Mod
