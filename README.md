@@ -106,7 +106,7 @@ in square brackets indicate [1] the sequence number of the new/modified book sta
 ; book item PID ("GUNS AND BULLETS" PID = 102, Big Book of Science  = 73, First Aid Book = 80, Scout Handbook = 86, Dean's Electronics = 76, Chemistry journals (F2 and 1.5 only) = 237), for other books will have to google  
 PID=102  
 ; textID from proto.msg which displayed when reading book("GUNS AND BULLETS" TextID = 805, Big Book of Science = 802, First Aid Book = 804, Scout Handbook=806, Dean's Electronics=803, Chemistry journals (F2 and 1.5 only)=802)  
-TextID=807  
+TextID=805 
 ; corresponding skill (skill number in order from top to bottom starting with Small guns = 0, Big guns = 1, Energy weapons = 2, ending with "outdoorsman" skill = 17)  
 ; Skill=0 will increase "Small guns" by the amount set in "FixedSkillInc"  
 Skill=0  
