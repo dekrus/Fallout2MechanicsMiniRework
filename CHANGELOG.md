@@ -1,3 +1,7 @@
+### Next version fixes
+##### SecondaryAttack Mod
+- Fixed shotgun knockback in Fallout: Sonora.
+
 ### Latest Version  v1.91 
 ##### Skill Books mod
 - Fixed detection of book.ini file presence.
