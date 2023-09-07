@@ -1,6 +1,9 @@
 ### Next version fixes
 ##### SecondaryAttack Mod
-- Fixed shotgun knockback in Fallout: Sonora.
+- Fallout Sonora: Fixed shotgun knockback.
+##### MedicalToolsMod
+- Fallout Sonora: fixed use of the doctor's bag.
+
 
 ### Latest Version  v1.91 
 ##### Skill Books mod

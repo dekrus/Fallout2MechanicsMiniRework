@@ -1,4 +1,5 @@
-#define SFALL_SC_EVALUATION   (true)  // short-circuit evaluation
+#define Sonora_doc_bag_pid 50
+
 #define msg_file "gl_MedToolsMod.msg"
 #define crit_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),PROTO_FID))
 #define modmsg(x) message_str_game(new_mod_msg, x)
@@ -65,7 +66,9 @@ variable final_fa_ap_cost;
 variable doc_used;
 variable doc_self_dmg;
 variable ET_TU;
+variable Sonora;
 variable healed_limbs;
+variable doc_bag_pid = PID_DOCTORS_BAG;
 
 export variable combat_med_tool_used;
 
@@ -85,7 +88,7 @@ procedure uninjure(variable user,variable target, variable item_pid) begin
    healed_limbs = 0;
    if user_DOC <= 0 then user_DOC = 1;
    if item_pid == PID_PARAMEDICS_BAG then skill_bonus = paramedics_bag_bonus;
-   if item_pid == PID_DOCTORS_BAG then skill_bonus = doctors_bag_bonus;
+   if item_pid == doc_bag_pid then skill_bonus = doctors_bag_bonus;
    user_DOC = user_DOC + skill_bonus + user_luck / 2;
    if user == dude_obj then begin
       if critter_state(target) BWAND DAM_CRIP_ARM_RIGHT then begin
@@ -179,7 +182,7 @@ procedure med_item_charges_restore begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
             end
          end
-         if leftHand_pid == PID_DOCTORS_BAG then begin
+         if leftHand_pid == doc_bag_pid then begin
             if get_object_data(leftHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
             end
@@ -202,7 +205,7 @@ procedure med_item_charges_restore begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
             end
          end
-         if rightHand_pid == PID_DOCTORS_BAG then begin
+         if rightHand_pid == doc_bag_pid then begin
             if get_object_data(rightHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
             end
@@ -228,7 +231,7 @@ procedure apcost_handler begin
    end else begin
       if critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND) then item_pid := obj_pid(critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND));
    end
-   if item_pid == PID_DOCTORS_BAG or item_pid == PID_PARAMEDICS_BAG then begin
+   if item_pid == doc_bag_pid or item_pid == PID_PARAMEDICS_BAG then begin
       final_doc_ap_cost = doc_item_ap_cost;
       if dude_DOC >= 100 then final_doc_ap_cost = doc_item_ap_cost - (dude_DOC - 50) / 50;
       if final_doc_ap_cost < min_doc_ap_cost then final_doc_ap_cost = min_doc_ap_cost;
@@ -256,12 +259,12 @@ procedure map_enter_p_proc begin
    if MedToolsMod > 0 then begin
       set_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES, max_charges);
       set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, max_charges_t2);
-      set_proto_data(PID_DOCTORS_BAG, PROTO_MI_CHARGES, doc_max_charges);
+      set_proto_data(doc_bag_pid, PROTO_MI_CHARGES, doc_max_charges);
       set_proto_data(PID_PARAMEDICS_BAG, PROTO_MI_CHARGES, doc_max_charges_t2);
-      if not(get_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT, (get_proto_data(PID_DOCTORS_BAG, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(doc_bag_pid, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      if not(get_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
 
       //add fa and doc item at first map loading
       if metarule(METARULE_TEST_FIRSTRUN,0) andAlso game_time > ONE_GAME_WEEK * 2 then begin
@@ -273,21 +276,21 @@ procedure map_enter_p_proc begin
                critter_type = critter_kill_type(critter);
             if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != dude_obj andAlso not(critter_in_party) andAlso critter_body_type == CR_BODY_BIPED andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
                rnd = random(0, 100);
-               doc_bag_count = obj_is_carrying_obj_pid(critter, PID_DOCTORS_BAG);
+               doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
                paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
                fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
                fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
                critter_int = get_critter_stat(critter, STAT_iq);
                if doc_bag_count <= 0 andAlso paramedic_bag_count <= 0 andAlso ( (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
-                  doc_item = create_object_sid(PID_DOCTORS_BAG, 0, 0, -1);
-                  if (high_tec_fid(critter) andAlso rnd > 9) then begin
+                  doc_item = create_object_sid(doc_bag_pid, 0, 0, -1);
+                  if Sonora < 0 andAlso (high_tec_fid(critter) andAlso rnd > 9) then begin
                      rm_obj_from_inven(critter, doc_item);
                      doc_item = create_object_sid(PID_PARAMEDICS_BAG, 0, 0, -1);
                      end
                   add_mult_objs_to_inven(critter, doc_item, 1);
                end
                rnd = random(0, 100);
-               if fa_kit_count <= 0 andAlso fa_kit2_count <= 0 andAlso ( (rnd == 0 andAlso critter_int > 4) or (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
+               if Sonora < 0 andAlso fa_kit_count <= 0 andAlso fa_kit2_count <= 0 andAlso ( (rnd == 0 andAlso critter_int > 4) or (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
                   fa_item = create_object_sid(PID_FIRST_AID_KIT, 0, 0, -1);
                   if high_tec_fid(critter) andAlso rnd > 9 then rm_obj_from_inven(critter, fa_item);
                   if high_tec_fid(critter) andAlso rnd > 9 then fa_item = create_object_sid(PID_FIELD_MEDIC_KIT, 0, 0, -1);
@@ -323,7 +326,7 @@ procedure inv_move begin
          set_object_data(removed_item, OBJ_DATA_CUR_CHARGES,max_charges_t2);
       end
    end
-   if obj_pid(removed_item) == PID_DOCTORS_BAG then begin
+   if obj_pid(removed_item) == doc_bag_pid then begin
       if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) <= 0 then begin
          set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, random(doc_min_charges, doc_max_charges));
       end
@@ -368,7 +371,7 @@ procedure npc_combat_doc_use begin
    doc_used = 0;
    // npc use doctor's bag if cripled
    if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso (is_disabled(critter) or (critter_cur_hp < (critter_max_hp/2 ))) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
-      doc_bag_count = obj_is_carrying_obj_pid(critter, PID_DOCTORS_BAG);
+      doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
       paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
       rnd = random(0, 100);
        // use doctor's bag if in inventory
@@ -376,13 +379,13 @@ procedure npc_combat_doc_use begin
          doc_used += 1;
          combat_med_tool_used = doc_used;
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
-         doc_item = obj_carrying_pid_obj(critter, PID_DOCTORS_BAG);
+         doc_item = obj_carrying_pid_obj(critter, doc_bag_pid);
          anim(critter, ANIM_magic_hands_middle, 1);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(doc_item, critter);
          set_self(0);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_DOCTORS_BAG, 1)));
+         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(doc_bag_pid, 1)));
       end
       // use paramedic bag if in inventory
       if paramedic_bag_count > 0 andAlso rnd  < critter_int * 10 then begin
@@ -469,10 +472,10 @@ procedure meditem_use begin
    variable player_level = get_pc_stat(PCSTAT_level);
    if ET_TU == 0 then healer_perk = healer_perk * 2;
    //DOC
-   if (objpid == PID_DOCTORS_BAG or objpid == PID_PARAMEDICS_BAG) then begin
+   if (objpid == doc_bag_pid or objpid == PID_PARAMEDICS_BAG) then begin
    //item charges restore
-      if objpid == PID_DOCTORS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
-      if objpid == PID_DOCTORS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,doc_max_charges);
+      if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
+      if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,doc_max_charges);
       if objpid == PID_PARAMEDICS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges_t2,doc_max_charges_t2));
       if objpid == PID_PARAMEDICS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges_t2 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, doc_max_charges_t2);
       if user == dude_obj andAlso user_DOC <= 0 then begin
@@ -636,6 +639,10 @@ procedure start begin
          set_global_script_repeat(0);
          NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
          ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
+         Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         if Sonora > 0 then begin
+            doc_bag_pid = Sonora_doc_bag_pid;
+         end
          register_hook_proc(HOOK_CALCAPCOST, apcost_handler);
          register_hook_proc(HOOK_USEOBJON, meditem_use);
          register_hook_proc(HOOK_USESKILL, use_skill_on_dead_handler);
