@@ -943,15 +943,15 @@ procedure USEOBJON begin
    //if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
       // return memory to normal if was modified
       if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
-      write_int(0x479BD4, 280509755);
+         write_int(0x479BD4, 280509755);
       end
       // return memory to normal if was modified
       if read_int(0x479BE8) != -288292236 then begin // return to normal memory adress stat
-      write_int(0x479BE8, -288292236);
+         write_int(0x479BE8, -288292236);
       end
       if objpid == PID_STIMPAK or objpid == PID_HEALING_POWDER then begin// only for stimpak and healing powder, other drugs unaffected (can be used for any drug item if needed)
-      write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹1
-      write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹2
+         write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹1
+         write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹2
       end
    //end
    //if UnsafeRegenModScripting == 0 andAlso sfall_unsafescripting < 1 then begin
@@ -992,36 +992,37 @@ procedure USEOBJON begin
   if RegenMod > 0  andAlso stimburn == 0 andAlso fast_meta then begin
    if target == dude_obj then begin
      if UnsafeRegenModScripting > 0 andAlso sfall_unsafescripting > 0 then begin
-      set_proto_data(40, PROTO_DR_STAT_A, -2);
-      set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
-      set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_A, stim_min_hp_fast_meta);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_B, stim_max_hp_fast_meta);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_C, stim_hr_increase_fast_meta);
-      set_proto_data(40, PROTO_DR_DURATION_1, stim_duration_fast_meta);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -stim_hr_decrease_fast_meta);
-      set_proto_data(40, PROTO_DR_DURATION_2, stim_penalty_duration_fast_meta);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_C, (stim_hr_decrease_fast_meta - stim_hr_increase_fast_meta));
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_A, -2);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_B, STAT_current_hp);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_C, STAT_heal_rate);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_A, stim_min_hp_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_B, stim_max_hp_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_C, stim_hr_increase_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_1, stim_duration_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_C, -stim_hr_decrease_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_2, stim_penalty_duration_fast_meta);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_C, (stim_hr_decrease_fast_meta - stim_hr_increase_fast_meta));
      end
-     if UnsafeRegenModScripting <= 0 then begin
-      set_proto_data(40, PROTO_DR_STAT_A, -2);
-      set_proto_data(40, PROTO_DR_STAT_B, 35);
-      set_proto_data(40, PROTO_DR_STAT_C, 14);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 4);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 6);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_C, 8);
-      set_proto_data(40, PROTO_DR_DURATION_1, 1);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -10);
-      set_proto_data(40, PROTO_DR_DURATION_2, 1);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 2);
+     //if UnsafeRegenModScripting <= 0 then begin
+     else begin
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_A, -2);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_B, 35);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_C, 14);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_A, 4);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_B, 6);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_C, 8);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_1, 1);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_C, -10);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_2, 1);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_C, 2);
      end
    end
    if target != dude_obj then begin
@@ -1029,7 +1030,7 @@ procedure USEOBJON begin
    end
   end
   // superstimpak usage mechanics
-   if RegenMod > 0  andAlso objpid == 144 then begin
+   if RegenMod > 0  andAlso objpid == PID_SUPER_STIMPAK then begin
       if StimUninjure == 1 then begin
          if critter_state(target) BWAND DAM_CRIP_LEG_LEFT then begin
             injuryhealed += 5;
@@ -1067,20 +1068,32 @@ procedure USEOBJON begin
            SShpdmg = SShphealed;
          end
          // display_msg("SShpdmg=" + SShpdmg);
-         set_proto_data(144, PROTO_DR_STAT_A, STAT_current_hp);
-         set_proto_data(144, PROTO_DR_STAT_B, STAT_heal_rate);
-         set_proto_data(144, PROTO_DR_STAT_C, -1);
-         set_proto_data(144, PROTO_DR_AMOUNT_1_A, SShphealed - injuryhealed);
-         set_proto_data(144, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 5)));
-         set_proto_data(144, PROTO_DR_AMOUNT_1_C, 0);
-         set_proto_data(144, PROTO_DR_DURATION_1, 2);
-         set_proto_data(144, PROTO_DR_AMOUNT_2_A, SShpdmg);
-         set_proto_data(144, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 5)) / 2.00000));
-         set_proto_data(144, PROTO_DR_AMOUNT_2_C, 0);
-         set_proto_data(144, PROTO_DR_DURATION_2, 480);
-         set_proto_data(144, PROTO_DR_AMOUNT_3_A, 0);
-         set_proto_data(144, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 5)) / 2.00000));
-         set_proto_data(144, PROTO_DR_AMOUNT_3_C, 0);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_A, STAT_current_hp);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_B, STAT_heal_rate);
+         //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, -1);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_A, SShphealed - injuryhealed);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 5)));
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, 0);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_DURATION_1, 2);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_A, SShpdmg);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 5)) / 2.00000));
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 0);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_DURATION_2, 480);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 5)) / 2.00000));
+         set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+         if Sonora > 0 then begin
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, STAT_st);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, -1);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 1);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+         end
+         else begin
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, -1);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+         end
             // modified stimpak if dude hase fast_metabolism
          if fast_meta andAlso target == dude_obj then begin
             SShpdmg = (tarHR - (2 * HRhealcost + (injuryhealed / 6))) / 4;
@@ -1088,20 +1101,32 @@ procedure USEOBJON begin
               SShpdmg = 0;
             end
             HRhealcost = SShphealed / 4;
-            set_proto_data(144, PROTO_DR_STAT_A, STAT_current_hp);
-            set_proto_data(144, PROTO_DR_STAT_B, STAT_heal_rate);
-            set_proto_data(144, PROTO_DR_STAT_C, -1);
-            set_proto_data(144, PROTO_DR_AMOUNT_1_A, 10 + SShphealed - (injuryhealed / 2));
-            set_proto_data(144, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 10)));
-            set_proto_data(144, PROTO_DR_AMOUNT_1_C, 0);
-            set_proto_data(144, PROTO_DR_DURATION_1, 1);
-            set_proto_data(144, PROTO_DR_AMOUNT_2_A, SShpdmg);
-            set_proto_data(144, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 10)) / 2.00000));
-            set_proto_data(144, PROTO_DR_AMOUNT_2_C, 0);
-            set_proto_data(144, PROTO_DR_DURATION_2, 220);
-            set_proto_data(144, PROTO_DR_AMOUNT_3_A, 0);
-            set_proto_data(144, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 10)) / 2.00000));
-            set_proto_data(144, PROTO_DR_AMOUNT_3_C, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_A, STAT_current_hp);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_B, STAT_heal_rate);
+            //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, -1);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_A, 10 + SShphealed - (injuryhealed / 2));
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_B, - (HRhealcost + (injuryhealed / 10)));
+            //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_DURATION_1, 1);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_A, SShpdmg);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_B, ceil((HRhealcost + (injuryhealed / 10)) / 2.00000));
+            //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_DURATION_2, 220);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+            set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_B, floor2((HRhealcost + (injuryhealed / 10)) / 2.00000));
+            //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+            if Sonora > 0 then begin
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, STAT_st);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, -1);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 1);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+            end
+            else begin
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, -1);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_1_C, 0);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_2_C, 0);
+               set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_AMOUNT_3_C, 0);
+            end
          end
       end
    end
@@ -2394,7 +2419,7 @@ procedure map_enter_p_proc begin
    variable rnd;
    variable critter_pid;
    variable has_scorp_tail;
-   variable has_small_scorp_tail;
+   variable has_small_scorp_tail = -1;
    variable has_antidote;
    variable antidote;
    variable radscrop_tail;
@@ -2430,7 +2455,7 @@ procedure map_enter_p_proc begin
                    rnd = random(0, 1000);
                   if (rnd < critter_cur_hp - 50) or (military_fid(critter) andAlso rnd < 75) then begin
                      stim = create_object_sid(PID_STIMPAK, 0, 0, -1);
-                     if military_fid(critter) then begin
+                     if Sonora <= 0 andAlso military_fid(critter) then begin
                         add_mult_objs_to_inven(critter, stim, random(1,3));
                         stim = create_object_sid(PID_PLASMA_GRENADE, 0, 0, -1);
                         add_mult_objs_to_inven(critter, stim, random(0,2));
@@ -2498,11 +2523,11 @@ procedure map_enter_p_proc begin
                   critter_outdoorsman = critter_outdoorsman / new_wpn;
                   rnd = random(0, 80);
                   if (rnd <= critter_outdoorsman andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam) then begin
-                     if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 andAlso has_small_scorp_tail >= has_scorp_tail then begin
+                     if Sonora <= 0 andAlso PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 andAlso has_small_scorp_tail >= has_scorp_tail then begin
                         radscrop_tail = create_object_sid(PID_SMALL_SCORPION_TAIL, 0, 0, -1);
                         add_mult_objs_to_inven(critter, radscrop_tail, random(2,3) - has_small_scorp_tail);
-                      end
-                     if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) != 117440914 or has_small_scorp_tail < has_scorp_tail then begin
+                     end
+                     if (PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) != 117440914) or has_small_scorp_tail < has_scorp_tail then begin
                         radscrop_tail = create_object_sid(PID_SCORPION_TAIL, 0, 0, -1);
                         add_mult_objs_to_inven(critter, radscrop_tail, random(2,3) - has_scorp_tail);
                      end
@@ -2530,92 +2555,95 @@ procedure map_enter_p_proc begin
    set_proto_data(PID_SCORPION_TAIL, PROTO_IT_WEIGHT, 4);
    if PID_SMALL_SCORPION_TAIL > 0 then set_proto_data(PID_SMALL_SCORPION_TAIL, PROTO_IT_WEIGHT, 2);
    // poison injection moddification
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_hp);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, STAT_current_poison);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, STAT_ag);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, Poison_amt);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, -2);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 30);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_A, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_B, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_C, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_2, 60);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_A, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_B, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_C, 2);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_CHANCE, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_PERK, 0);
-   set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_DELAY, 0);
-   // antidot moddification
    if Sonora <= 0 then begin
-   set_proto_data(49, PROTO_DR_STAT_A, -2);
-   set_proto_data(49, PROTO_DR_STAT_B, STAT_current_poison);
-   set_proto_data(49, PROTO_DR_STAT_C, STAT_poison_resist);
-   set_proto_data(49, PROTO_DR_AMOUNT_1_A, -28);
-   set_proto_data(49, PROTO_DR_AMOUNT_1_B, -18);
-   set_proto_data(49, PROTO_DR_AMOUNT_1_C, 20);
-   set_proto_data(49, PROTO_DR_DURATION_1, 10);
-   set_proto_data(49, PROTO_DR_AMOUNT_2_A, 0);
-   set_proto_data(49, PROTO_DR_AMOUNT_2_B, 0);
-   set_proto_data(49, PROTO_DR_AMOUNT_2_C, -20);
-   set_proto_data(49, PROTO_DR_DURATION_2, 0);
-   set_proto_data(49, PROTO_DR_AMOUNT_3_A, 0);
-   set_proto_data(49, PROTO_DR_AMOUNT_3_B, 0);
-   set_proto_data(49, PROTO_DR_AMOUNT_3_C, 0);
-   set_proto_data(49, PROTO_DR_ADDICT_CHANCE, 0);
-   set_proto_data(49, PROTO_DR_ADDICT_PERK, 0);
-   set_proto_data(49, PROTO_DR_ADDICT_DELAY, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_A, STAT_current_hp);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_B, STAT_current_poison);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_STAT_C, STAT_ag);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_A, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_B, Poison_amt);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_1_C, -2);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_1, 30);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_2_C, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_DURATION_2, 60);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_AMOUNT_3_C, 2);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_CHANCE, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_PERK, 0);
+      set_proto_data(PID_HYPO_POISON, PROTO_DR_ADDICT_DELAY, 0);
+
+   // antidot moddification
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_STAT_A, -2);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_STAT_B, STAT_current_poison);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_STAT_C, STAT_poison_resist);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_1_A, -28);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_1_B, -18);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_1_C, 20);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_DURATION_1, 10);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_2_C, -20);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_DURATION_2, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_AMOUNT_3_C, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_ADDICT_CHANCE, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_ADDICT_PERK, 0);
+      set_proto_data(PID_ANTIDOTE, PROTO_DR_ADDICT_DELAY, 0);
    end
   end
   if RegenMod > 0 then begin
    if UnsafeRegenModScripting > 0 andAlso sfall_unsafescripting > 0 then begin
-      set_proto_data(40, PROTO_DR_STAT_A, -2);
-      set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
-      set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_A, stim_min_hp);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_B, stim_max_hp);
-      set_proto_data(40, PROTO_DR_AMOUNT_1_C, stim_hr_increase);
-      set_proto_data(40, PROTO_DR_DURATION_1, stim_duration);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_2_C, -stim_hr_decrease);
-      set_proto_data(40, PROTO_DR_DURATION_2, stim_penalty_duration);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-      set_proto_data(40, PROTO_DR_AMOUNT_3_C, (stim_hr_decrease - stim_hr_increase));
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_A, -2);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_B, STAT_current_hp);
+      set_proto_data(PID_STIMPAK, PROTO_DR_STAT_C, STAT_heal_rate);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_A, stim_min_hp);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_B, stim_max_hp);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_C, stim_hr_increase);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_1, stim_duration);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_C, -stim_hr_decrease);
+      set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_2, stim_penalty_duration);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_C, (stim_hr_decrease - stim_hr_increase));
    end
-   if UnsafeRegenModScripting <= 0 then begin
-     set_proto_data(40, PROTO_DR_STAT_A, -2);
-     set_proto_data(40, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(40, PROTO_DR_STAT_C, STAT_heal_rate);
-     set_proto_data(40, PROTO_DR_AMOUNT_1_A, 2);
-     set_proto_data(40, PROTO_DR_AMOUNT_1_B, 4);
-     set_proto_data(40, PROTO_DR_AMOUNT_1_C, 6);
-     set_proto_data(40, PROTO_DR_DURATION_1, 1);
-     set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-     set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-     set_proto_data(40, PROTO_DR_AMOUNT_2_C, -8);
-     set_proto_data(40, PROTO_DR_DURATION_2, 60);
-     set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-     set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-     set_proto_data(40, PROTO_DR_AMOUNT_3_C, 2);
+   //if UnsafeRegenModScripting <= 0 then begin
+   else begin
+     set_proto_data(PID_STIMPAK, PROTO_DR_STAT_A, -2);
+     set_proto_data(PID_STIMPAK, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(PID_STIMPAK, PROTO_DR_STAT_C, STAT_heal_rate);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_A, 2);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_B, 4);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_1_C, 6);
+     set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_1, 1);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_A, 0);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_2_C, -8);
+     set_proto_data(PID_STIMPAK, PROTO_DR_DURATION_2, 60);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_A, 0);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_B, 0);
+     set_proto_data(PID_STIMPAK, PROTO_DR_AMOUNT_3_C, 2);
    end
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_A, -2);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_B, STAT_current_hp);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_C, STAT_pe);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_A, 2);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_B, 4);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_C, -1);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_DURATION_1, 1);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_A, 3);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_B, 5);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_C, 0);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_DURATION_2, 2);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_A, 2);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_B, 4);
-   set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_C, 1);
+
    if Sonora <= 0 then begin
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_A, -2);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_B, STAT_current_hp);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_STAT_C, STAT_pe);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_A, 2);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_B, 4);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_1_C, -1);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_DURATION_1, 1);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_A, 3);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_B, 5);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_2_C, 0);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_DURATION_2, 2);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_A, 2);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_B, 4);
+      set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_C, 1);
       set_proto_data(16777458, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR"));
       set_proto_data(16777459, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR"));
       if  ET_TU <= 0 then set_proto_data(16777570, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAQHR"));
@@ -2627,18 +2655,19 @@ procedure map_enter_p_proc begin
          set_proto_data(PID_END_BOSS, PROTO_CR_BONUS_DR(DMG_electrical), 45); // set Frank Horrigan elec res to 66 %
       end
    end
+
    // Nevada food edition
    if Nevada > 0 then begin
      // mutafruit heal
-     set_proto_data(71, PROTO_DR_STAT_A, -2);
-     set_proto_data(71, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(71, PROTO_DR_AMOUNT_1_A, 0);
-     set_proto_data(71, PROTO_DR_AMOUNT_1_B, 1);
+     set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_A, -2);
+     set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_A, 0);
+     set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_B, 1);
      // iguana
-     set_proto_data(81, PROTO_DR_STAT_C, STAT_poison_resist);
-     set_proto_data(81, PROTO_DR_AMOUNT_1_C, 2);
-     set_proto_data(81, PROTO_DR_AMOUNT_2_C , -2);
-     set_proto_data(81, PROTO_DR_AMOUNT_3_C , 0);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_STAT_C, STAT_poison_resist);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 2);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -2);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_3_C , 0);
      // pretty & glamour care kit
      set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
      set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
@@ -2665,12 +2694,12 @@ procedure map_enter_p_proc begin
       set_proto_data(212, PROTO_DR_AMOUNT_1_C, -5);
      // the ashes of the forefather poison for 6, not 25
      set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
-     //drymeat
-     set_proto_data(284, PROTO_DR_STAT_B, STAT_current_hp);
-     set_proto_data(284, PROTO_DR_AMOUNT_1_B, 1);
-     set_proto_data(284, PROTO_DR_AMOUNT_2_B, 0);
-     set_proto_data(284, PROTO_DR_AMOUNT_3_B, 0);
-     //pirog max hp instead of hr
+     //meat jerky
+     set_proto_data(PID_MEAT_JERKY, PROTO_DR_STAT_B, STAT_current_hp);
+     set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_1_B, 1);
+     set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_2_B, 0);
+     set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_3_B, 0);
+     //pirog max hp + ac instead of hr
       set_proto_data(343, PROTO_DR_STAT_A, STAT_max_hp);
       set_proto_data(343, PROTO_DR_STAT_B, STAT_current_hp);
       set_proto_data(343, PROTO_DR_STAT_C, STAT_ac);
@@ -2744,7 +2773,7 @@ procedure map_enter_p_proc begin
      set_proto_data(743, PROTO_DR_STAT_A, STAT_crit_chance);
      set_proto_data(743, PROTO_DR_STAT_B, STAT_current_hp);
      set_proto_data(743, PROTO_DR_AMOUNT_1_A, 2);
-     set_proto_data(743, PROTO_DR_AMOUNT_1_B, 4);
+     set_proto_data(743, PROTO_DR_AMOUNT_1_B, 10);
      set_proto_data(743, PROTO_DR_AMOUNT_2_A, -2);
      set_proto_data(743, PROTO_DR_AMOUNT_2_B, 0);
      set_proto_data(743, PROTO_DR_AMOUNT_3_A, 0);
@@ -2753,28 +2782,56 @@ procedure map_enter_p_proc begin
    // Sonora food edition
    if Sonora > 0 then begin
      // noodles heal
-     set_proto_data(63, PROTO_DR_AMOUNT_1_A, 4);
+     //set_proto_data(63, PROTO_DR_AMOUNT_1_A, 4);
      // tele diner max hp instead of hr
-     set_proto_data(64, PROTO_DR_AMOUNT_1_A, 5);
-     set_proto_data(64, PROTO_DR_STAT_B, STAT_max_hp);
-     set_proto_data(64, PROTO_DR_AMOUNT_1_B, 1);
-     set_proto_data(64, PROTO_DR_AMOUNT_3_B, -1);
-     // food09
-     set_proto_data(68, PROTO_DR_AMOUNT_1_A, 6);
-     set_proto_data(68, PROTO_DR_STAT_B, STAT_max_hp);
-     set_proto_data(68, PROTO_DR_AMOUNT_1_B, 2);
-     set_proto_data(68, PROTO_DR_AMOUNT_3_B, -2);
+     //set_proto_data(64, PROTO_DR_AMOUNT_1_A, 5);
+      set_proto_data(64, PROTO_DR_STAT_A, STAT_current_hp);
+      set_proto_data(64, PROTO_DR_STAT_B, STAT_max_hp);
+      set_proto_data(64, PROTO_DR_STAT_C, -1);
+      set_proto_data(64, PROTO_DR_AMOUNT_1_A, 10);
+      set_proto_data(64, PROTO_DR_AMOUNT_1_B, 2);
+      set_proto_data(64, PROTO_DR_AMOUNT_1_C, 0);
+      set_proto_data(64, PROTO_DR_DURATION_1, 1440);
+      set_proto_data(64, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(64, PROTO_DR_AMOUNT_2_B, -2);
+      set_proto_data(64, PROTO_DR_AMOUNT_2_C, 0);
+      set_proto_data(64, PROTO_DR_DURATION_2, 0);
+      set_proto_data(64, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(64, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(64, PROTO_DR_AMOUNT_3_C, 0);
+      set_proto_data(64, PROTO_DR_ADDICT_CHANCE, 0);
+      set_proto_data(64, PROTO_DR_ADDICT_PERK, 0);
+      set_proto_data(64, PROTO_DR_ADDICT_DELAY, 0);
+
+      //MRE
+      set_proto_data(68, PROTO_DR_STAT_A, STAT_max_hp);
+      set_proto_data(68, PROTO_DR_STAT_B, STAT_current_poison);
+      set_proto_data(68, PROTO_DR_STAT_C, STAT_current_hp);
+      set_proto_data(68, PROTO_DR_AMOUNT_1_A, 5);
+      set_proto_data(68, PROTO_DR_AMOUNT_1_B, -10);
+      set_proto_data(68, PROTO_DR_AMOUNT_1_C, 12);
+      set_proto_data(68, PROTO_DR_DURATION_1, 2880);
+      set_proto_data(68, PROTO_DR_AMOUNT_2_A, -5);
+      set_proto_data(68, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(68, PROTO_DR_AMOUNT_2_C, 0);
+      set_proto_data(68, PROTO_DR_DURATION_2, 0);
+      set_proto_data(68, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(68, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(68, PROTO_DR_AMOUNT_3_C, 0);
+      set_proto_data(68, PROTO_DR_ADDICT_CHANCE, 0);
+      set_proto_data(68, PROTO_DR_ADDICT_PERK, 0);
+      set_proto_data(68, PROTO_DR_ADDICT_DELAY, 0);
      // chips heal
-     set_proto_data(71, PROTO_DR_AMOUNT_1_A, 4);
+     //set_proto_data(71, PROTO_DR_AMOUNT_1_A, 4);
      // nuka
-     set_proto_data(106, PROTO_DR_AMOUNT_1_A, 5);
-     set_proto_data(106, PROTO_DR_AMOUNT_1_B, 1);
+     //set_proto_data(106, PROTO_DR_AMOUNT_1_A, 5);
+     //set_proto_data(106, PROTO_DR_AMOUNT_1_B, 1);
      // irradiated nuka
-     set_proto_data(107, PROTO_DR_AMOUNT_1_A, 5);
-     set_proto_data(107, PROTO_DR_AMOUNT_1_B, 1);
+     //set_proto_data(107, PROTO_DR_AMOUNT_1_A, 5);
+     //set_proto_data(107, PROTO_DR_AMOUNT_1_B, 1);
      // water
-     set_proto_data(108, PROTO_DR_AMOUNT_1_A, 5);
-     set_proto_data(108, PROTO_DR_AMOUNT_1_B, 1);
+     //set_proto_data(108, PROTO_DR_AMOUNT_1_A, 5);
+     //set_proto_data(108, PROTO_DR_AMOUNT_1_B, 1);
    end
   end
 end

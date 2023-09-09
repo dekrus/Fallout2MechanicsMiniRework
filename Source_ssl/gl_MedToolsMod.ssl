@@ -283,14 +283,14 @@ procedure map_enter_p_proc begin
                critter_int = get_critter_stat(critter, STAT_iq);
                if doc_bag_count <= 0 andAlso paramedic_bag_count <= 0 andAlso ( (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
                   doc_item = create_object_sid(doc_bag_pid, 0, 0, -1);
-                  if Sonora < 0 andAlso (high_tec_fid(critter) andAlso rnd > 9) then begin
+                  if Sonora <= 0 andAlso (high_tec_fid(critter) andAlso rnd > 9) then begin
                      rm_obj_from_inven(critter, doc_item);
                      doc_item = create_object_sid(PID_PARAMEDICS_BAG, 0, 0, -1);
                      end
                   add_mult_objs_to_inven(critter, doc_item, 1);
                end
                rnd = random(0, 100);
-               if Sonora < 0 andAlso fa_kit_count <= 0 andAlso fa_kit2_count <= 0 andAlso ( (rnd == 0 andAlso critter_int > 4) or (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
+               if Sonora <= 0 andAlso fa_kit_count <= 0 andAlso fa_kit2_count <= 0 andAlso ( (rnd == 0 andAlso critter_int > 4) or (is_medic(critter) andAlso rnd <= critter_int * 10) or (rnd <= 14 andAlso military_fid(critter)) or (is_brainy(critter) andAlso not(non_medic_fid(critter)) andAlso rnd < critter_int * 3) ) then begin
                   fa_item = create_object_sid(PID_FIRST_AID_KIT, 0, 0, -1);
                   if high_tec_fid(critter) andAlso rnd > 9 then rm_obj_from_inven(critter, fa_item);
                   if high_tec_fid(critter) andAlso rnd > 9 then fa_item = create_object_sid(PID_FIELD_MEDIC_KIT, 0, 0, -1);

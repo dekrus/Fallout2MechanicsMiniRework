@@ -3,6 +3,8 @@
 - Fallout Sonora: Fixed shotgun knockback.
 ##### MedicalToolsMod
 - Fallout Sonora: fixed use of the doctor's bag.
+##### Regen & Poison mod
+- Fallout Sonora: Super stimpack now reduces strength on use, as described in the game.
 
 
 ### Latest Version  v1.91 
