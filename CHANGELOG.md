@@ -1,13 +1,14 @@
-### Next version fixes
+### Latest Version  v1.92 
 ##### SecondaryAttack Mod
 - Fallout Sonora: Fixed shotgun knockback.
 ##### MedicalToolsMod
 - Fallout Sonora: fixed use of the doctor's bag.
 ##### Regen & Poison mod
 - Fallout Sonora: Super stimpack now reduces strength on use, as described in the game.
+- Fallout Sonora: Food that previously provided a bonus to healing rate now instead provides a temporary bonus to maximum health.
 
 
-### Latest Version  v1.91 
+### Version  v1.91 
 ##### Skill Books mod
 - Fixed detection of book.ini file presence.
 - Fixed description of perk "comprehension" (russian language).
