@@ -1,11 +1,13 @@
-### Latest Version  v1.92 
+но прямое управление напарниками### Latest Version  v1.92 
 ##### SecondaryAttack Mod
 - Fallout Sonora: Fixed shotgun knockback.
 ##### MedicalToolsMod
 - Fallout Sonora: fixed use of the doctor's bag.
+- Prevents the use of the medical tools if sfall direct control mod is enabled.
 ##### Regen & Poison mod
 - Fallout Sonora: Super stimpack now reduces strength on use, as described in the game.
 - Fallout Sonora: Food that previously provided a bonus to healing rate now instead provides a temporary bonus to maximum health.
+- Prevents the use of the radscorpion's tail if sfall direct control mod is enabled.
 
 
 ### Version  v1.91 

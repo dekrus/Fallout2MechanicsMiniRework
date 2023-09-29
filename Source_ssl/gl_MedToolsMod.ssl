@@ -69,6 +69,8 @@ variable ET_TU;
 variable Sonora;
 variable healed_limbs;
 variable doc_bag_pid = PID_DOCTORS_BAG;
+variable sfall_mods_config;
+variable combat_direct_controll;
 
 export variable combat_med_tool_used;
 
@@ -370,7 +372,7 @@ procedure npc_combat_doc_use begin
    combat_med_tool_used = 0;
    doc_used = 0;
    // npc use doctor's bag if cripled
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso (is_disabled(critter) or (critter_cur_hp < (critter_max_hp/2 ))) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso (is_disabled(critter) or (critter_cur_hp < (critter_max_hp/2 ))) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
       paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
       rnd = random(0, 100);
@@ -402,7 +404,7 @@ procedure npc_combat_doc_use begin
       end
    end
    // npc uses fa item if wounded
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1  andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
       fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
       stim_count = obj_is_carrying_obj_pid(critter, PID_STIMPAK);
@@ -640,6 +642,9 @@ procedure start begin
          NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
          ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         sfall_mods_config = get_ini_string("ddraw.ini|Scripts|IniConfigFolder");
+         if sfall_mods_config <= 0 then sfall_mods_config = "";
+         combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
          if Sonora > 0 then begin
             doc_bag_pid = Sonora_doc_bag_pid;
          end
