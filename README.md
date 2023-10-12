@@ -204,9 +204,9 @@ As long as the sneaking player is within the detection range of an NPC watching 
 ![Sneak](images/SneakDetection.jpg)
 
 ### Steal
-The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).
+The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
+And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
 The new Steal skill mechanic is an attempt to fix these "features". 
-And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.
 
 Basic moments:
 - If a pickpocket fails, instead of starting a fight with the player, one of the scenes will be played and a penalty will be imposed on selling, buying and speech skill checks in dialogues.
@@ -265,7 +265,7 @@ When base intelligence increases (through perks and implants but not drugs), the
 ## Compatibility
 - All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
 - Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
-- All components except for the (it's partially compatible)[Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+- All components except for the [Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
 ### EcCo Steal Mod Compatibility
 #### Fully Compatible
