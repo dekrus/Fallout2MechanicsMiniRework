@@ -6,10 +6,13 @@
  
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
-- Unzip the archive into the main game directory. F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.3.3+. it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
+- Unpack the archive into the main game directory so that the files "F2MechanicsMiniRework.dat" and "F2MechanicsMiniRework.ini" are in the mods folder.
+- F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.4.0+ or 5.0.5.0+. it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
+- If the file "party_orders.ini" exists in the mods folder, then F2MechanicsMiniRework.dat must be added to it.
+- Edit `mods/F2MechanicsMiniRework.ini` to enable, disable, or fine-tune components as you desire.
 - [SFALL v4 latest release](https://sourceforge.net/projects/sfall/files/)
 - [RUS SFALL v5 latest release](https://gitflic.ru/project/fakelshub/sfall/release/c5683b53-0234-4c12-b5ae-c03b299b373a)
-- Edit `mods/F2MechanicsMiniRework.ini` to enable, disable, or fine-tune components as you desire.
+
 
 ## Сontents
 - [Mods](#mods)
@@ -202,9 +205,14 @@ As long as the sneaking player is within the detection range of an NPC watching 
 
 ### Steal
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).
-The new Steal skill mechanic is an attempt to fix these "features".  
+The new Steal skill mechanic is an attempt to fix these "features". 
+And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.
 
 Basic moments:
+- If a pickpocket fails, instead of starting a fight with the player, one of the scenes will be played and a penalty will be imposed on selling, buying and speech skill checks in dialogues.
+- Penalties will gradually decrease and disappear if the player has not been caught pickpocketing in that city for a week or has not visited it for a long time.
+- The targets of an unsuccessful pickpocket will remember for a couple of days that the player has already tried to steal from them and next time their reaction will be harsher.
+
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.
 - When the skill exceeds 160 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
@@ -257,7 +265,15 @@ When base intelligence increases (through perks and implants but not drugs), the
 ## Compatibility
 - All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
 - Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
-- All components except for the [Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+
+- All components except for the (it's partially compatible)[Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+- For the [Steal](#steal) mod to work fully with the EcCo mod for Fallout 2, you need to download the file "gl_pbs_steal.int" from the link (https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing).
+- Place the file "gl_pbs_steal.int" in ...\Fallout 2\data\scripts (this will disable the EcCo's stealing mod. To enable it again, simply delete the file "gl_pbs_steal.int" from the scripts folder
+- Set FO2_ECCO=0 in the file `mods/F2MechanicsMiniRework.ini`
+
+- Partial compatibility with EcCo steal mod is enabled by setting FO2_ECCO=1 in the `mods/F2MechanicsMiniRework.ini` file.
+- The ability to steal weapons from hands and measure the minimum stealing skill to look into the target’s pocket will work.
+
 
 ## Uninstallation
 Delete `mods/F2MechanicsMiniRework.*` files.

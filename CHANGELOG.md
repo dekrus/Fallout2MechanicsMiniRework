@@ -1,4 +1,10 @@
-но прямое управление напарниками### Latest Version  v1.92 
+### Latest Version  v1.93 
+##### Steal mod
+- The original Fallout 2 aggression system for failed pickpockets has been reworked.
+- Added a temporary penalty to the selling price, buying price, and speech skill checks in dialogues for each failed pickpocket in the town.
+- Added option for partial compatibility with ECCO mod for Fallout 2.
+
+### Version  v1.92 
 ##### SecondaryAttack Mod
 - Fallout Sonora: Fixed shotgun knockback.
 ##### MedicalToolsMod
@@ -15,7 +21,6 @@
 - Fixed detection of book.ini file presence.
 - Fixed description of perk "comprehension" (russian language).
 - Addition for Fallout: Sonora. If you set "FixedSkillInc" and "FixedSkill2Inc" to 0 or less, then the increase in skills will match the description of the books (+4/+2).
-
 
 ### Version  v1.90 
 - A new mod has been added that allows you to apply skill books to party members, as well as change the amount of bonus skill points when reading books.
