@@ -358,10 +358,10 @@ procedure add_script_restore_lvars(variable target, variable script_id) begin
    if script_id > 0 then begin
       uniq_id = get_unique_id(target);
       arr_key = scan_array(timed_event_targets_lvar_array, get_unique_id(target));
-      set_script(target,script_id);
-      //return original uniq_id
-      set_object_data(target, OBJ_DATA_ID, uniq_id);
       if arr_key >= 0 then begin
+         set_script(target,(script_id+0x80000000));
+         //return original uniq_id
+         set_object_data(target, OBJ_DATA_ID, uniq_id);
          set_array(timed_event_targets_lvar_array,(arr_key),0);
          arr_key = arr_key + 1;
          for (i = 0; i <= lvar_max; i++) begin
@@ -1332,7 +1332,7 @@ procedure clear_gvars begin
    add_global_timer_event(game_ticks(2), fixed_param_steal);
    reg_anim_clear(anim_tar_obj);
    if anim_tar_script > 0 then begin
-      set_script(anim_tar_obj, anim_tar_script);
+      set_script(anim_tar_obj, (anim_tar_script+0x80000000));
       set_object_data(anim_tar_obj, OBJ_DATA_ID, uniq_id);
       for (i = 0; i <= 50 ; i++) begin
          lvar_value = get_array(anim_tar_lvars_arr, i);
@@ -4388,10 +4388,20 @@ procedure STEAL_HOOK begin
       steal_count += 10 + (item_weight_lvar / 4) + ((item_size + 1) * 2);
       isSuccess = 1;
       if stype == 0 then begin
-         if not(is_in_array(item,planted_items_ptr_arr)) then call add_to_stolen_items_ptr_arr(item,quantity);
+         if not(is_in_array(item,planted_items_ptr_arr)) then begin
+            call add_to_stolen_items_ptr_arr(item,quantity);
+         end
+         else begin
+            set_array(planted_items_ptr_arr, scan_array(planted_items_ptr_arr, item), 0);
+         end
       end
       else begin
-         if not(is_in_array(item,stolen_items_ptr_arr)) then call add_to_planted_items_ptr_arr(item,quantity);
+         if not(is_in_array(item,stolen_items_ptr_arr)) then begin
+            call add_to_planted_items_ptr_arr(item,quantity);
+         end
+         else begin
+            set_array(stolen_items_ptr_arr, scan_array(stolen_items_ptr_arr, item), 0);
+         end
       end
    end
    if team != TEAM_PLAYER andAlso not(target_in_party) then begin
