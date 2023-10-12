@@ -215,9 +215,9 @@ Basic moments:
 
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.
-- When the skill exceeds 160 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
+- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
 - To peep into a target's pocket, you need to meet minimum skill requirements.
-- In the case of an unsuccessful attempt to use the Steal skill, the target can sometimes become hostile. The presence of the Harmless perk significantly reduces this chance.
+- In the case of an unsuccessful attempt to use the Steal skill, the target can sometimes become hostile. The presence of the Harmless perk reduces this chance.
 
 Modifiers that increase the skill requirement and reduce the chance of a successful pickpocket include:
 - The player stands in front of the target.
@@ -265,7 +265,7 @@ When base intelligence increases (through perks and implants but not drugs), the
 ## Compatibility
 - All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
 - Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
-- All components except for the [Steal](#steal) mod are compatible with  [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+- All components except for the [Steal](#steal) mod are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
 ### EcCo Steal Mod Compatibility
 #### Fully Compatible
