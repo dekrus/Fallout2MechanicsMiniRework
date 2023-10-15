@@ -207,11 +207,16 @@ As long as the sneaking player is within the detection range of an NPC watching 
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
 And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
 The new Steal skill mechanic is an attempt to fix these "features". 
-
+![Steal](images/StealChance.gif)
 Basic moments:
+- Displays the chance of stealing when you hover over an item.
+- If the chance of stealing is 0%, then when you right-click on an item in the Pip-Boy window, the required minimum value for attempting to steal this item will be displayed.
+- If there is more than one item in a stack, the steal chance is displayed for the maximum number of items that can be stolen with the greatest success. Right click to see the probability of stealing a larger amount of items.
+
 - If a pickpocket fails, instead of starting a fight with the player, one of the scenes will be played and a penalty will be imposed on selling, buying and speech skill checks in dialogues.
 - Penalties will gradually decrease and disappear if the player has not been caught pickpocketing in that city for a week or has not visited it for a long time.
 - The targets of an unsuccessful pickpocket will remember for a couple of days that the player has already tried to steal from them and next time their reaction will be harsher.
+- Experience for successful stealing/planting is awarded even if the success streak is interrupted by fail.
 
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.

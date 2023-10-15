@@ -1,4 +1,10 @@
-### Latest Version  v1.93 
+### Latest Version  v1.94 
+##### Steal mod
+- Added display of the chance of successful stealing when hovering the mouse over an item.
+- Prevents the delayed attack trigger from going off during a failed steal animation. The trigger will fire ~4 seconds after the end of the animation.
+- Fixed the animation and sound of NPCs re-equipping their weapons during a failed theft animation.
+
+### Version  v1.93 
 ##### Steal mod
 - The original Fallout 2 aggression system for failed pickpockets has been reworked.
 - Added a temporary penalty to the selling price, buying price, and speech skill checks in dialogues for each failed pickpocket in the town.

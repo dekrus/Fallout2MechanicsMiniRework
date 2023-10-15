@@ -1,5 +1,5 @@
-{1}{}{With your skills, you can never steal %1%.}
-{2}{}{With your skills, you can never plant %1%.}
+{1}{}{With your skills, you can never steal the %1%.}
+{2}{}{With your skills, you can never plant the %1%.}
 {3}{}{ You need at least %1% steal skill to attempt this.} // failed stealing attempt
 {4}{}{ You need at least %1% steal skill to attempt this.} // failed planting attempt
 {5}{}{You cannot pickpocket with both hands broken.}
@@ -71,6 +71,8 @@
 {71}{}{Whoops! I just discovered this in my pocket. How did it get there?} 
 {72}{}{What are you doing???} 
 
+{94}{}{You need at least %1% steal skill to attempt to steal the %2%.} // failed stealing attempt
+{95}{}{You need at least %1% steal skill to attempt to plant the %2%.} // failed planting attempt																							 
 {96}{}{You were hit for }
 {97}{}{You were critically hit in the head for }
 {98}{}{You fail to steal the }
@@ -203,10 +205,10 @@
 ##Tough human name calling
 {190}{}{Now leave}
 {191}{}{You fucker!}
-{192}{}{Go away}
+{192}{}{Go away!}
 {193}{}{Fucking thief...}
 {194}{}{FUCK YOU!}
-{195}{}{Stupid prick}
+{195}{}{Stupid prick!}
 
 
 
