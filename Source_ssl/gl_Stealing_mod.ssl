@@ -283,7 +283,7 @@ procedure start begin
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          //if get_ini_setting("mods\\ecco\\misc.ini|STEAL|exp_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_steal_count_mod_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_facing_mod") then begin
             ECCO_steal_mod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|FO2_ECCO");
-            ExpandInventory = get_ini_setting("ddraw.ini|Interface|ExpandInventory");
+            //ExpandInventory = get_ini_setting("ddraw.ini|Interface|ExpandInventory");
          //end
          if ECCO_steal_mod <= 0 then begin
             register_hook_proc_spec(HOOK_STEAL, STEAL_HOOK);
