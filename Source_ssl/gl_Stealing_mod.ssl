@@ -258,7 +258,7 @@ procedure STDPROCEDURE_HOOK;
 procedure USEOBJON_HOOK;
 procedure COMBATTURN_HOOK;
 procedure MOUSECLICK_HOOK;
-procedure KEYPRESS_HOOK;
+//procedure KEYPRESS_HOOK;
 procedure map_exit_p_proc;
 procedure update_penalty_value(variable town_id);
 procedure attack_the_dude(variable target);
@@ -299,7 +299,7 @@ procedure start begin
          register_hook_proc_spec(HOOK_USEOBJON, USEOBJON_HOOK);
          register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN_HOOK);
          register_hook_proc_spec(HOOK_MOUSECLICK, MOUSECLICK_HOOK);
-         register_hook_proc_spec(HOOK_KEYPRESS, KEYPRESS_HOOK);
+         //register_hook_proc_spec(HOOK_KEYPRESS, KEYPRESS_HOOK);
          player_gender = get_critter_stat(real_dude_obj,STAT_gender);
          new_steal_msg = add_extra_msg_file(msg_file);
          SneakRework = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
@@ -518,12 +518,11 @@ procedure get_chance_to_steal_without_item(variable thief, variable target, vari
    end
 
    chance_to_steal_without_item = 50 + 15 * stype + steal_bonus + (user_steal_skill_mult * user_steal_skill) - hand_item_stealing - steal_count - (target_pe * target_pe_mult);
-   if chance_to_steal_without_item > 0 then begin
+   //if chance_to_steal_without_item > 0 then begin
       item_total_penalty = get_item_penalty(thief, target, item, stype, quantity) * quantity;
-   end
+   //end
+   if floor(chance_to_steal_without_item + steal_count - item_total_penalty) < min_chance_for_success then begin
 
-   if chance_to_steal_without_item - steal_count - item_total_penalty < min_chance_for_success then begin
-      // calculation of the required skill level
       //if StealRebalance == 2 andAlso steal_count == 0 then begin
          min_skill_needed = ceil((min_chance_for_success - (50 + 15 * stype + steal_bonus - hand_item_stealing - item_total_penalty - (target_pe * target_pe_mult))) / user_steal_skill_mult) ;
          return (min_skill_needed + 50000);
@@ -818,7 +817,9 @@ procedure show_steal begin
                   end
                   if steal_chance <= 0 andAlso show_skill_req > 0 then begin
                      steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 0, item_count) - 50000;
-                     display_msg(parse_str_2(modmsg(94), steal_chance, obj_name(item)));
+                     if steal_chance > 0 then begin
+                        display_msg(parse_str_2(modmsg(94), steal_chance, obj_name(item)));
+                     end
                   end
                end
                else begin
@@ -891,7 +892,9 @@ procedure show_steal begin
                   end
                   if steal_chance <= 0 andAlso show_skill_req > 0 then begin
                      steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 1, item_count) - 50000;
-                     display_msg(parse_str_2(modmsg(95), steal_chance, obj_name(item)));
+                     if steal_chance > 0 then begin
+                        display_msg(parse_str_2(modmsg(95), steal_chance, obj_name(item)));
+                     end
                   end
                end
 
@@ -927,11 +930,10 @@ procedure MOUSECLICK_HOOK begin
    end
 end
 
-procedure KEYPRESS_HOOK begin
-   //variable event = get_sfall_arg;
-   //variable key = get_sfall_arg;
-
-end
+//procedure KEYPRESS_HOOK begin
+//
+//
+//end
 
 procedure remove_script_save_lvars(variable target) begin
    variable tar_script = get_script(target);
@@ -4857,7 +4859,7 @@ procedure STEAL_HOOK begin
    variable target_pe_mult = 0;
    variable item_size = 0;
    variable item_weight_lvar = 0;
-   variable item_total_penalty = 0;
+
    variable chance_to_steal_without_item = 0;
    variable rnd = 0;
    variable chance_to_steal = 0;
@@ -4932,6 +4934,7 @@ procedure STEAL_HOOK begin
       chance_to_steal = get_chance_to_steal(thief, target, item, stype, quantity);
    end
 
+
    rnd = random(1, 100);
 
    if (chance_to_steal < rnd) then begin
@@ -4970,7 +4973,7 @@ procedure STEAL_HOOK begin
          end
          else begin
             set_sfall_return(2);
-            steal_count += 5 + item_size;
+            steal_count += 5 + item_weight(item) / 3;
             isSuccess = 0;
             if stype == 0 then begin
                display_msg(modmsg(msg_fail_to_steal) + item_name + ".");
@@ -4986,7 +4989,7 @@ procedure STEAL_HOOK begin
    if chance_to_steal >= rnd then begin
 
       //penalty for stealing multiple things in a row
-      steal_count += 10 + (item_weight_lvar / 4) + ((item_size + 1) * 2);
+      steal_count += 10 + item_weight(item);
       isSuccess = 1;
       if stype == 0 then begin
          if quantity >= obj_is_carrying_obj(target,item) then begin
