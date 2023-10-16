@@ -207,7 +207,8 @@ As long as the sneaking player is within the detection range of an NPC watching 
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
 And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
 The new Steal skill mechanic is an attempt to fix these "features". 
-![Steal](images/StealChance.gif)
+![Steal](images/STEAL_CHANCE_SHOW.gif)
+
 Basic moments:
 - Displays the chance of stealing when you hover over an item.
 - If the chance of stealing is 0%, then when you right-click on an item in the Pip-Boy window, the required minimum value for attempting to steal this item will be displayed.
