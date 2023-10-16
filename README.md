@@ -207,7 +207,7 @@ As long as the sneaking player is within the detection range of an NPC watching 
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
 And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
 The new Steal skill mechanic is an attempt to fix these "features". 
-![Steal](images/STEAL_CHANCE_SHOW.gif)
+![Steal](images/SHOW_STEAL_CHANCE.gif)
 
 Basic moments:
 - Displays the chance of stealing when you hover over an item.
