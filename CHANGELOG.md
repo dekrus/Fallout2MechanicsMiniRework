@@ -5,7 +5,7 @@
 - Fixed the calculation and the placement of the text of the chance of stealing.
 
 
-### Latest Version  v1.94 
+### Version  v1.94 
 ##### Steal mod
 - Added display of the chance of successful stealing when hovering the mouse over an item.
 - Prevents the delayed attack trigger from going off during a failed steal animation. The trigger will fire ~4 seconds after the end of the animation.

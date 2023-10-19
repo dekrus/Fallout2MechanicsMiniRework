@@ -210,7 +210,7 @@ variable dude_unwield;
 variable caught_stealing_buy_penalty = 1;
 variable caught_stealing_sell_penalty = 1;
 variable town_sell_price_penalty_req = 1;
-variable town_sell_price_penalty_mult = 0.07;
+variable town_sell_price_penalty_mult = 0.05;
 //variable town_buy_price_penalty_req = 3;
 variable town_buy_price_penalty_mult = 0.05;
 variable stolen_items_ptr_arr;
@@ -4434,6 +4434,8 @@ procedure ANIM_sequence_get_caught_stealing begin
    variable witness_array = objects_in_radius(dude_hex, 25, dude_elevation, OBJ_TYPE_CRITTER);
    variable blocking_obj;
    dude_was_robbed = 0;
+   call inc_tfsp_gvar_value(cur_town, 1);
+   set_global_var(GVAR_PLAYER_REPUTATION,(karma - 5));
    if Sonora > 0 then childkiller = berserker;
       foreach witness in witness_array begin
          if witness > 0 andAlso random(0,1) andAlso (get_proto_data(obj_pid(witness),PROTO_CR_BODY_TYPE) == CR_BODY_BIPED) andAlso witness != dude_obj andAlso witness != target andAlso obj_is_visible_flag(witness) then begin
@@ -5170,7 +5172,6 @@ procedure STEAL_HOOK begin
                call add_timed_event_TURN_BACK(target,game_ticks(random(3,5)));
                anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(dude_obj)));
                if obj_can_see_obj(target,dude_obj) then begin
-                  call inc_tfsp_gvar_value(cur_town, 1);
                   call create_arrays_last_pickpocket_targets_and_add_target(target,value_caught_stealing);
                   call set_anim_tar_obj(target);
                end
