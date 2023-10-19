@@ -11,7 +11,7 @@
 - If the file "party_orders.ini" exists in the mods folder, then F2MechanicsMiniRework.dat must be added to it.
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable, or fine-tune components as you desire.
 - [SFALL v4 latest release](https://sourceforge.net/projects/sfall/files/)
-- [RUS SFALL v5 latest release](https://gitflic.ru/project/fakelshub/sfall/release/c5683b53-0234-4c12-b5ae-c03b299b373a)
+- [RUS SFALL v5 latest release](https://nuclear-grot.ucoz.net/forum/10-5-1)
 
 
 ## Сontents
