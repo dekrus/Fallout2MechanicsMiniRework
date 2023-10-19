@@ -172,11 +172,11 @@ variable dropped_items_pids_array;
 variable steal_count;
 variable right_hand_item;
 variable right_hand_item_pid;
-variable right_hand_item_tmp;
+//variable right_hand_item_tmp;
 variable right_hand_item_copy;
 variable left_hand_item;
 variable left_hand_item_pid;
-variable left_hand_item_tmp;
+//variable left_hand_item_tmp;
 variable left_hand_item_copy;
 variable right_hand_item_target;
 variable stealing_from_hands = -1;
@@ -189,7 +189,7 @@ variable new_steal_msg;
 variable SneakRework;
 variable MinWpnStealReq;
 variable ECCO_steal_mod;
-variable ExpandInventory;
+variable sfall_ver_maj;
 variable party_remove_ptr;
 
 variable anim_tar_obj;
@@ -211,7 +211,7 @@ variable caught_stealing_buy_penalty = 1;
 variable caught_stealing_sell_penalty = 1;
 variable town_sell_price_penalty_req = 1;
 variable town_sell_price_penalty_mult = 0.07;
-variable town_buy_price_penalty_req = 3;
+//variable town_buy_price_penalty_req = 3;
 variable town_buy_price_penalty_mult = 0.05;
 variable stolen_items_ptr_arr;
 variable stolen_items_quantity_arr;
@@ -241,6 +241,7 @@ variable loot_obj_inv_offset_last = -2;
 variable slot_num_under_mouse_last = -1;
 variable dude_is_in_anim;
 variable show_skill_req;
+variable overlay_id;
 
 variable mouse_add;
 variable mouse_add_last;
@@ -265,7 +266,8 @@ procedure attack_the_dude(variable target);
 procedure clear_array_last_pickpocket_targets();
 procedure add_script_restore_lvars(variable target,variable script);
 procedure real_rotation_to_tile(variable begin_tile, variable dest_tile);
-procedure show_steal();
+procedure show_steal_sfall_4();
+procedure show_steal_sfall_5();
 procedure clear_gvars();
 
 
@@ -283,7 +285,7 @@ procedure start begin
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          //if get_ini_setting("mods\\ecco\\misc.ini|STEAL|exp_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_steal_count_mod_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_facing_mod") then begin
             ECCO_steal_mod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|FO2_ECCO");
-            //ExpandInventory = get_ini_setting("ddraw.ini|Interface|ExpandInventory");
+         sfall_ver_maj = sfall_ver_major;
          //end
          if ECCO_steal_mod <= 0 then begin
             register_hook_proc_spec(HOOK_STEAL, STEAL_HOOK);
@@ -336,8 +338,13 @@ procedure start begin
 
    end
    else begin
-      if steal_chance_win > 0 andAlso get_game_mode bwand INTFACELOOT then begin
-         call show_steal();
+      if steal_chance_win > 0 then begin
+         if sfall_ver_maj >= 5 then begin
+            call show_steal_sfall_5();
+         end
+         else begin
+            call show_steal_sfall_4();
+         end
       end
    end
 end
@@ -379,8 +386,9 @@ procedure get_item_penalty(variable thief, variable target, variable item, varia
       end
    end
    else begin
-      item_penalty = 0;
+      item_penalty = 0.0001;
    end
+   if item_penalty <= 0 then item_penalty = 0.0001;
    return item_penalty;
 end
 
@@ -454,7 +462,7 @@ procedure get_chance_to_steal_without_item(variable thief, variable target, vari
                ally_cur_frm = get_object_data(ally, OBJ_DATA_CUR_FRM);
                if ally_pe >= 3 andAlso ( (ally_cur_frm == 0) or (crit_is_moving(ally)) ) andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/pe_div)) then begin
                   if obj_can_see_obj(ally, dude_obj) then begin
-                  target_pe = target_pe + ally_pe - 2;
+                  target_pe = target_pe + ally_pe - 1;
                end
             end
          end
@@ -489,12 +497,12 @@ procedure get_chance_to_steal_without_item(variable thief, variable target, vari
       steal_bonus = steal_bonus + 20;
    end
       // bonus for sneak_success even if target can see thief
-   if  using_skill(dude_obj, SKILL_SNEAK) then begin
+   if using_skill(dude_obj, SKILL_SNEAK) then begin
       sneak_bonus = user_sneak_skill / 6.0;
    end
-   if sneak_bonus > user_steal_skill / 2 then begin
-      sneak_bonus = user_steal_skill / 2;
-   end
+   //if sneak_bonus > user_steal_skill / 2 then begin
+      //sneak_bonus = user_steal_skill / 2;
+   //end
    steal_bonus = steal_bonus + sneak_bonus;
 
       //it harder to steal from merchants
@@ -600,7 +608,7 @@ procedure get_chance_to_steal_min_item_count(variable thief, variable target, va
                   ally_cur_frm = get_object_data(ally, OBJ_DATA_CUR_FRM);
                   if ally_pe >= 3 andAlso ( (ally_cur_frm == 0) or (crit_is_moving(ally)) ) andAlso not(ally_state bwand (DAM_KNOCKED_OUT bwor DAM_KNOCKED_DOWN bwor DAM_BLIND)) andAlso ally_team == team andAlso (ally_rot == ally_rot_to_tar or ((ally_rot == (ally_rot_to_tar + 1)%6  or ally_rot == (ally_rot_to_tar + 5)%6) andAlso distance <= ally_pe*target_pe_mult/pe_div)) then begin
                      if obj_can_see_obj(ally, dude_obj) then begin
-                     target_pe = target_pe + ally_pe - 2;
+                     target_pe = target_pe + ally_pe - 1;
                   end
                end
             end
@@ -638,9 +646,9 @@ procedure get_chance_to_steal_min_item_count(variable thief, variable target, va
       if  using_skill(dude_obj, SKILL_SNEAK) then begin
          sneak_bonus = user_sneak_skill / 6.0;
       end
-      if sneak_bonus > user_steal_skill / 2 then begin
-         sneak_bonus = user_steal_skill / 2;
-      end
+      //if sneak_bonus > user_steal_skill / 2 then begin
+         //sneak_bonus = user_steal_skill / 2;
+      //end
       steal_bonus = steal_bonus + sneak_bonus;
 
          //it harder to steal from merchants
@@ -658,11 +666,9 @@ procedure get_chance_to_steal_min_item_count(variable thief, variable target, va
       chance_to_steal_min_item_count = 50 + 15 * stype + steal_bonus + (user_steal_skill_mult * user_steal_skill) - steal_count - (target_pe * target_pe_mult);
 
 
-
    if chance_to_steal_min_item_count > 0 then begin
       item_penalty = get_item_penalty(thief, target, item, stype, quantity);
       item_total_penalty = item_penalty * quantity;
-      if chance_to_steal_min_item_count >= min_chance_for_success then chance_to_steal_min_item_count += dude_lu;
    end
    else begin
       return 10000;
@@ -675,29 +681,32 @@ procedure get_chance_to_steal_min_item_count(variable thief, variable target, va
    if max_steal_chance > 4 then begin
       max_steal_chance = 4;
    end
-   if floor(chance_to_steal_min_item_count - item_total_penalty) < 95 + max_steal_chance then begin
-
-      max_item_count = chance_to_steal_min_item_count - 95;
+   steal_chance = floor(chance_to_steal_min_item_count - item_total_penalty);
+   if steal_chance >= min_chance_for_success then steal_chance += dude_lu;
+   if steal_chance < 95 + max_steal_chance then begin
+      max_item_count = chance_to_steal_min_item_count + dude_lu - 95;
       max_item_count = max_item_count / item_penalty;
       max_item_count = floor(max_item_count);
+      if max_item_count > quantity then max_item_count = quantity;
       if max_item_count > 0 then begin
-         return (max_item_count * 10000) + 95+ max_steal_chance;
+         return (max_item_count * 10000) + 95 + max_steal_chance;
       end
       else begin
-         max_item_count = chance_to_steal_min_item_count - 95;
-         max_item_count = 1;
+         max_item_count = 1 * ceil(1 / item_penalty);
+         if max_item_count > quantity then max_item_count = quantity;
          steal_chance = floor(chance_to_steal_min_item_count - item_penalty);
-         if steal_chance >= 0 then begin
-            return ((10000) + (steal_chance));
+         if steal_chance < 0 then steal_chance = 0;
+         if steal_chance >= min_chance_for_success - steal_count andAlso steal_chance > 0 then begin
+            steal_chance += dude_lu;
+            if steal_chance > 95 + max_steal_chance then steal_chance = 95 + max_steal_chance;
+            return ((max_item_count * 10000) + (steal_chance));
          end
          else begin
             return 10000;
          end
       end
-
    end
    else begin
-
       return (quantity * 10000) + 95 + max_steal_chance;
    end
 end
@@ -717,7 +726,7 @@ procedure get_chance_to_steal(variable thief, variable target, variable item, va
    if max_steal_chance > 4 then begin
       max_steal_chance = 4;
    end
-   if chance_to_steal >= min_chance_for_success then chance_to_steal += dude_lu;
+   if chance_to_steal + steal_count >= min_chance_for_success then chance_to_steal += dude_lu;
 
 
    if chance_to_steal > 95 + max_steal_chance then begin
@@ -726,7 +735,7 @@ procedure get_chance_to_steal(variable thief, variable target, variable item, va
    return chance_to_steal;
 end
 
-procedure show_steal begin
+inline procedure show_steal_sfall_4 begin
    variable obj_loot;
    variable loot_obj_inv_offset = read_int(0x59E7EC);
    variable loot_obj_inv_count;
@@ -746,6 +755,8 @@ procedure show_steal begin
    variable steal_chance;
    variable steal_chance_without_item;
    variable item_total_penalty;
+   variable orig_steal_chance;
+   variable orig_steal_chance_1_item;
    if steal_chance_win > 0 then begin
       if (loot_obj_inv_offset != loot_obj_inv_offset_last) orElse (dude_inv_offset != dude_inv_offset_last) orElse (slot_num_under_mouse != slot_num_under_mouse_last) orElse mouse_add != mouse_add_last then begin
          if (loot_obj_inv_offset != loot_obj_inv_offset_last) orElse (dude_inv_offset != dude_inv_offset_last) orElse (slot_num_under_mouse != slot_num_under_mouse_last) then begin
@@ -769,15 +780,14 @@ procedure show_steal begin
             else begin
                item_inv_num = (loot_obj_inv_count - 1) - slot_num;
                item = inven_ptr(obj_loot, item_inv_num);
-
                item_count = obj_is_carrying_obj(obj_loot, item);
                orig_item_count = item_count;
                if orig_item_count > 1 then begin
                   steal_chance = get_chance_to_steal_min_item_count(dude_obj, obj_loot, item, 0, orig_item_count);
-
                   item_count = steal_chance / 10000;
                   steal_chance = steal_chance % 10000;
-                  if mouse_add > 0 then begin
+                  orig_steal_chance = steal_chance;
+                  if steal_chance > 0 andAlso mouse_add > 0 then begin
                      if obj_pid(item) == PID_BOTTLE_CAPS then begin
                         item_count += mouse_add * 100;
                         if item_count > orig_item_count then begin
@@ -793,29 +803,34 @@ procedure show_steal begin
                            item_count = orig_item_count;
                         end
                      end
-
                      steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 0, item_count);
+                     if steal_chance <= 0 then begin
+                        mouse_add = -1;
+                        mouse_add_last = mouse_add;
+                     end
                   end
                end
                else begin
                   steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 0, item_count);
+                  orig_steal_chance = steal_chance;
                end
                if steal_chance <= 9 then begin
+                  if steal_chance < 0 then steal_chance = 0;
                   if orig_item_count > 1 then begin
-                     if steal_chance > 0 then begin
+                     if item_count <= 1 andAlso steal_chance <= 0 then begin
+                        interface_print("0%", WINTYPE_INVENTORY, 346, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
+                     else begin
                         for ( i = 1; i <= item_count; i *= 10) begin
                            new_x += 7;
                         end
-                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 335-new_x, (69 + (slot_num * 50)), (0 bwor 0x0010000));
-                     end
-                     else begin
-                        interface_print(steal_chance+"%", WINTYPE_INVENTORY, 345, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 337-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                      end
                   end
                   else begin
-                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 345, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 344, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
-                  if steal_chance <= 0 andAlso show_skill_req > 0 then begin
+                  if item_count <= 1 andAlso orig_steal_chance <= 0 andAlso show_skill_req > 0 then begin
                      steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 0, item_count) - 50000;
                      if steal_chance > 0 then begin
                         display_msg(parse_str_2(modmsg(94), steal_chance, obj_name(item)));
@@ -824,18 +839,13 @@ procedure show_steal begin
                end
                else begin
                   if orig_item_count > 1 then begin
-                     if steal_chance > 0 then begin
-                        for ( i = 1; i <= item_count; i *= 10) begin
-                           new_x += 7;
-                        end
-                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 328-new_x, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     for ( i = 1; i <= item_count; i *= 10) begin
+                        new_x += 7;
                      end
-                     else begin
-                        interface_print(steal_chance+"%", WINTYPE_INVENTORY, 338, (69 + (slot_num * 50)), (0 bwor 0x0010000));
-                     end
+                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 329-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
                   else begin
-                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 338, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 335, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
                end
 
@@ -853,11 +863,12 @@ procedure show_steal begin
                item = inven_ptr(dude_obj, item_inv_num);
                item_count = obj_is_carrying_obj(dude_obj, item);
                orig_item_count = item_count;
-               if item_count > 1 then begin
-                  steal_chance = get_chance_to_steal_min_item_count(dude_obj, obj_loot, item, 1, item_count);
+              if orig_item_count > 1 then begin
+                  steal_chance = get_chance_to_steal_min_item_count(dude_obj, obj_loot, item, 1, orig_item_count);
                   item_count = steal_chance / 10000;
                   steal_chance = steal_chance % 10000;
-                  if mouse_add > 0 then begin
+                  orig_steal_chance = steal_chance;
+                  if steal_chance > 0 andAlso mouse_add > 0 then begin
                      if obj_pid(item) == PID_BOTTLE_CAPS then begin
                         item_count += mouse_add * 100;
                         if item_count > orig_item_count then begin
@@ -874,23 +885,32 @@ procedure show_steal begin
                         end
                      end
                      steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 1, item_count);
+                     if steal_chance <= 0 then begin
+                        mouse_add = -1;
+                        mouse_add_last = mouse_add;
+                     end
                   end
                end
                else begin
                   steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 1, item_count);
+                  orig_steal_chance = steal_chance;
                end
-
                if steal_chance <= 9 then begin
                   if orig_item_count > 1 then begin
-                     for ( i = 1; i <= item_count; i *= 10) begin
-                        new_x += 7;
+                     if item_count <= 1 andAlso steal_chance <= 0 then begin
+                        interface_print("0%", WINTYPE_INVENTORY, 224, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                      end
-                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 215-new_x, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     else begin
+                        for ( i = 1; i <= item_count; i *= 10) begin
+                           new_x += 7;
+                        end
+                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 218-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
                   end
                   else begin
-                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 224, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 225, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
-                  if steal_chance <= 0 andAlso show_skill_req > 0 then begin
+                  if item_count <= 1 andAlso orig_steal_chance <= 0 andAlso show_skill_req > 0 then begin
                      steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 1, item_count) - 50000;
                      if steal_chance > 0 then begin
                         display_msg(parse_str_2(modmsg(95), steal_chance, obj_name(item)));
@@ -903,10 +923,10 @@ procedure show_steal begin
                      for ( i = 1; i <= item_count; i *= 10) begin
                         new_x += 7;
                      end
-                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 210-new_x, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 210-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
                   else begin
-                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 219, (69 + (slot_num * 50)), (0 bwor 0x0010000));
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 217, (69 + (slot_num * 50)), (1 bwor 0x0010000));
                   end
                end
             end
@@ -915,6 +935,210 @@ procedure show_steal begin
       end
    end
 end
+
+inline procedure show_steal_sfall_5 begin
+   variable obj_loot;
+   variable loot_obj_inv_offset = read_int(0x59E7EC);
+   variable loot_obj_inv_count;
+   variable dude_inv_offset = read_int(0x59E844);
+   variable dude_inv_count;
+   variable item;
+   variable item_count;
+   variable orig_item_count;
+   variable item_inv_num;
+   variable slot_num;
+   variable slot_num_under_mouse = read_int(0x59E93C);
+   variable inven_max_slots;
+   variable i;
+   variable refresh;
+   variable new_x;
+   variable j;
+   variable steal_chance;
+   variable steal_chance_without_item;
+   variable item_total_penalty;
+   variable orig_steal_chance;
+   variable orig_steal_chance_1_item;
+   if steal_chance_win > 0 then begin
+      if (loot_obj_inv_offset != loot_obj_inv_offset_last) orElse (dude_inv_offset != dude_inv_offset_last) orElse (slot_num_under_mouse != slot_num_under_mouse_last) orElse mouse_add != mouse_add_last then begin
+         if (loot_obj_inv_offset != loot_obj_inv_offset_last) orElse (dude_inv_offset != dude_inv_offset_last) orElse (slot_num_under_mouse != slot_num_under_mouse_last) then begin
+            mouse_add = 0;
+         end
+         mouse_add_last = mouse_add;
+         loot_obj_inv_offset_last = loot_obj_inv_offset;
+         dude_inv_offset_last = dude_inv_offset;
+         slot_num_under_mouse_last = slot_num_under_mouse;
+         sfall_func3("interface_overlay", WINTYPE_INVENTORY, 0,overlay_id);
+         overlay_id = sfall_func2("interface_overlay", WINTYPE_INVENTORY, 1);
+         sfall_func3("interface_overlay", WINTYPE_INVENTORY, 3,overlay_id);
+         inven_max_slots = read_int(0x519054);
+         SetFont(0);
+         if slot_num_under_mouse >= 2000 andAlso slot_num_under_mouse < (2000 + inven_max_slots) then begin
+            obj_loot = loot_obj;
+            loot_obj_inv_count = inven_count(obj_loot) - loot_obj_inv_offset;
+            slot_num = slot_num_under_mouse % 2000;
+            if slot_num > (loot_obj_inv_count-1) then begin
+
+            end
+            else begin
+               item_inv_num = (loot_obj_inv_count - 1) - slot_num;
+               item = inven_ptr(obj_loot, item_inv_num);
+               item_count = obj_is_carrying_obj(obj_loot, item);
+               orig_item_count = item_count;
+               if orig_item_count > 1 then begin
+                  steal_chance = get_chance_to_steal_min_item_count(dude_obj, obj_loot, item, 0, orig_item_count);
+                  item_count = steal_chance / 10000;
+                  steal_chance = steal_chance % 10000;
+                  orig_steal_chance = steal_chance;
+                  if steal_chance > 0 andAlso mouse_add > 0 then begin
+                     if obj_pid(item) == PID_BOTTLE_CAPS then begin
+                        item_count += mouse_add * 100;
+                        if item_count > orig_item_count then begin
+                           mouse_add = -1;
+                           item_count = orig_item_count;
+                           mouse_add_last = mouse_add;
+                        end
+                     end
+                     else begin
+                        item_count += mouse_add;
+                        if item_count > orig_item_count then begin
+                           mouse_add = 0;
+                           item_count = orig_item_count;
+                        end
+                     end
+                     steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 0, item_count);
+                     if steal_chance <= 0 then begin
+                        mouse_add = -1;
+                        mouse_add_last = mouse_add;
+                     end
+                  end
+               end
+               else begin
+                  steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 0, item_count);
+                  orig_steal_chance = steal_chance;
+               end
+               if steal_chance <= 9 then begin
+                  if steal_chance < 0 then steal_chance = 0;
+                  if orig_item_count > 1 then begin
+                     if item_count <= 1 andAlso steal_chance <= 0 then begin
+                        interface_print("0%", WINTYPE_INVENTORY, 346, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
+                     else begin
+                        for ( i = 1; i <= item_count; i *= 10) begin
+                           new_x += 7;
+                        end
+                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 337-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
+                  end
+                  else begin
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 344, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+                  if item_count <= 1 andAlso orig_steal_chance <= 0 andAlso show_skill_req > 0 then begin
+                     steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 0, item_count) - 50000;
+                     if steal_chance > 0 then begin
+                        display_msg(parse_str_2(modmsg(94), steal_chance, obj_name(item)));
+                     end
+                  end
+               end
+               else begin
+                  if orig_item_count > 1 then begin
+                     for ( i = 1; i <= item_count; i *= 10) begin
+                        new_x += 7;
+                     end
+                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 329-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+                  else begin
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 335, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+               end
+
+            end
+         end
+         else if slot_num_under_mouse >= 1000 andAlso slot_num_under_mouse < (1000 + inven_max_slots) then begin
+            obj_loot = loot_obj;
+            dude_inv_count = inven_count(dude_obj) - dude_inv_offset;
+            slot_num = slot_num_under_mouse % 1000;
+            if slot_num > dude_inv_count-1 then begin
+
+            end
+            else begin
+               item_inv_num = (dude_inv_count - 1) - slot_num;
+               item = inven_ptr(dude_obj, item_inv_num);
+               item_count = obj_is_carrying_obj(dude_obj, item);
+               orig_item_count = item_count;
+              if orig_item_count > 1 then begin
+                  steal_chance = get_chance_to_steal_min_item_count(dude_obj, obj_loot, item, 1, orig_item_count);
+                  item_count = steal_chance / 10000;
+                  steal_chance = steal_chance % 10000;
+                  orig_steal_chance = steal_chance;
+                  if steal_chance > 0 andAlso mouse_add > 0 then begin
+                     if obj_pid(item) == PID_BOTTLE_CAPS then begin
+                        item_count += mouse_add * 100;
+                        if item_count > orig_item_count then begin
+                           mouse_add = -1;
+                           item_count = orig_item_count;
+                           mouse_add_last = mouse_add;
+                        end
+                     end
+                     else begin
+                        item_count += mouse_add;
+                        if item_count > orig_item_count then begin
+                           mouse_add = 0;
+                           item_count = orig_item_count;
+                        end
+                     end
+                     steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 1, item_count);
+                     if steal_chance <= 0 then begin
+                        mouse_add = -1;
+                        mouse_add_last = mouse_add;
+                     end
+                  end
+               end
+               else begin
+                  steal_chance = get_chance_to_steal(dude_obj, obj_loot, item, 1, item_count);
+                  orig_steal_chance = steal_chance;
+               end
+               if steal_chance <= 9 then begin
+                  if orig_item_count > 1 then begin
+                     if item_count <= 1 andAlso steal_chance <= 0 then begin
+                        interface_print("0%", WINTYPE_INVENTORY, 224, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
+                     else begin
+                        for ( i = 1; i <= item_count; i *= 10) begin
+                           new_x += 7;
+                        end
+                        interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 218-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                     end
+                  end
+                  else begin
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 225, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+                  if item_count <= 1 andAlso orig_steal_chance <= 0 andAlso show_skill_req > 0 then begin
+                     steal_chance = get_chance_to_steal_without_item(dude_obj, obj_loot, item, 1, item_count) - 50000;
+                     if steal_chance > 0 then begin
+                        display_msg(parse_str_2(modmsg(95), steal_chance, obj_name(item)));
+                     end
+                  end
+               end
+
+               else begin
+                  if orig_item_count > 1 then begin
+                     for ( i = 1; i <= item_count; i *= 10) begin
+                        new_x += 7;
+                     end
+                     interface_print(item_count+"-"+steal_chance+"%", WINTYPE_INVENTORY, 210-new_x, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+                  else begin
+                     interface_print(steal_chance+"%", WINTYPE_INVENTORY, 217, (69 + (slot_num * 50)), (1 bwor 0x0010000));
+                  end
+               end
+            end
+         end
+         sfall_func3("interface_overlay", WINTYPE_INVENTORY, 3,0);
+         show_skill_req = 0;
+      end
+   end
+end
+
 
 procedure MOUSECLICK_HOOK begin
    variable event = get_sfall_arg;
@@ -2108,7 +2332,6 @@ procedure Flee_From_Dude_proc(variable target) begin
          if not(random(0,2)) then call show_float_msg_fear(target);
          flee_tile = get_tile_with_free_path(target);
          animate_move_obj_to_tile(target, flee_tile, (ANIMATE_RUN bwor ANIMATE_INTERRUPT));
-         //animate_move_obj_to_tile(target, flee_tile, ANIMATE_RUN);
          timed_event_num = 2;
          timed_event_time = 1;
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
@@ -3390,13 +3613,6 @@ procedure ANIM_dude_is_attacked_by_supermutant_was_caught_before(variable crit_c
             reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_hit_from_front,snd_contact),2);
             reg_anim_animate(dude_obj, ANIM_hit_from_front, 2);
             reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
-            //if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) andAlso arr_len_stole > 0 then begin
-               //reg_anim_animate(target, ANIM_magic_hands_middle, -1);
-            //end
-            //if arr_len_stole > 0 then begin
-               //reg_anim_callback(callback_target_returns_its_stolen_items);
-               //arr_len_stole = -1;
-            //end
          end
       end
       if dude_was_robbed <= 0 then begin
@@ -4788,9 +5004,7 @@ procedure GAMEMODECHANGE_HOOK begin
 
    if game_mode == INTFACELOOT then begin
       show_steal_chance = 1;
-      call show_steal();
    end
-
    //unwield and delete the weapon(or left hand item) if it was stolen
    if stealing_from_hands >= 0 andAlso lastgamemode == INTFACELOOT andAlso not(game_mode bwand COUNTERWIN) andAlso game_mode == 0 then begin
       if right_hand_stolen == 1 then begin
@@ -4852,17 +5066,17 @@ procedure STEAL_HOOK begin
    variable tar_pid = obj_pid(target);
    variable item_pid = obj_pid(item);
    variable item_name = obj_name(item);
-   variable item_cost = 0;
+   variable item_cost;
    variable target_pe = get_critter_stat(target, STAT_pe);
    variable target_base_pe = get_critter_base_stat(target, STAT_pe);
-   variable target_min_pe = 0;
-   variable target_pe_mult = 0;
-   variable item_size = 0;
-   variable item_weight_lvar = 0;
+   variable target_min_pe;
+   variable target_pe_mult;
+   variable item_size;
+   variable item_weight_lvar;
 
-   variable chance_to_steal_without_item = 0;
+   variable chance_to_steal_without_item;
    variable rnd = 0;
-   variable chance_to_steal = 0;
+   variable chance_to_steal;
    variable steal_bonus = 0;
    variable pickpocket = has_trait(TRAIT_PERK, dude_obj, PERK_pickpocket);
    variable night_vision = has_trait(TRAIT_PERK, dude_obj, PERK_night_vision );
@@ -4879,7 +5093,7 @@ procedure STEAL_HOOK begin
    variable max_steal_chance = 0;
    variable isSuccess = 0;
    variable min_skill_needed = 0;
-   variable sneak_bonus = 0;
+   variable sneak_bonus;
    variable user_state = critter_state(dude_obj);
    variable taget_state = critter_state(target);
    variable distance;
@@ -4934,11 +5148,8 @@ procedure STEAL_HOOK begin
       chance_to_steal = get_chance_to_steal(thief, target, item, stype, quantity);
    end
 
-
    rnd = random(1, 100);
-
    if (chance_to_steal < rnd) then begin
-
          if (100 + target_pe * 10) >= random(0,(170+(user_sneak_skill/2))) then begin
             if stype == 0 then begin
                display_msg(modmsg(msg_fail_to_steal) + item_name + ".");
@@ -4973,7 +5184,7 @@ procedure STEAL_HOOK begin
          end
          else begin
             set_sfall_return(2);
-            steal_count += 5 + item_weight(item) / 3;
+            steal_count += 14 - random(0,dude_lu) + item_weight(item) / 3;
             isSuccess = 0;
             if stype == 0 then begin
                display_msg(modmsg(msg_fail_to_steal) + item_name + ".");
@@ -4989,7 +5200,7 @@ procedure STEAL_HOOK begin
    if chance_to_steal >= rnd then begin
 
       //penalty for stealing multiple things in a row
-      steal_count += 10 + item_weight(item);
+      steal_count += 21 - random(0,dude_lu) + item_weight(item);
       isSuccess = 1;
       if stype == 0 then begin
          if quantity >= obj_is_carrying_obj(target,item) then begin
@@ -5066,8 +5277,8 @@ procedure USESKILL_HOOK begin
    variable light_level;
    variable target_rot;
    variable target_rot_to_tar;
-   variable ally_rot = -6;
-   variable ally_rot_to_tar = - 6;
+   variable ally_rot;
+   variable ally_rot_to_tar;
    variable team;
    variable ally;
    variable ally_team;
@@ -5077,10 +5288,10 @@ procedure USESKILL_HOOK begin
    variable tar_gender;
    variable ally_can_see;
    variable rnd;
-   variable user_state = -1;
+   variable user_state;
    variable taget_state;
-   variable ally_state = -1;
-   variable ally_cur_frm = -1;
+   variable ally_state;
+   variable ally_cur_frm;
    variable darkness_penalty;
    variable target_kill_type;
    variable obj;
@@ -5094,7 +5305,15 @@ procedure USESKILL_HOOK begin
    variable was_caught_count;
    variable show_irritation_level;
    variable pickpocket_count;
-   if (MinStealReq > 0 or MinWpnStealReq > 0) andAlso skill == SKILL_STEAL andAlso not(combat_is_initialized) andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso not(is_in_array(target, party_member_list(0))) then begin
+   if MinStealReq <= 0 andAlso skill == SKILL_STEAL then begin
+      if steal_chance_win <= 0 then begin
+         mouse_add = 0;
+         steal_chance_win = 1;
+         set_global_script_type(1);
+         set_global_script_repeat(2);
+      end
+   end
+   if (MinStealReq > 0 or MinWpnStealReq > 0) andAlso skill == SKILL_STEAL andAlso not(combat_is_initialized) andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso get_critter_stat(target,STAT_current_hp) > 0 andAlso not(is_in_array(target, party_member_list(0))) then begin
 
       target_can_see_user = obj_can_see_obj(target, user);
       // setup attack on dude if target what to kill him and can see him
@@ -5134,7 +5353,7 @@ procedure USESKILL_HOOK begin
       light_level = get_light_level;
       user_state = critter_state(dude_obj);
       target_pe = get_critter_stat(target, STAT_pe);
-      critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target); // men = 0, women = 1, children = 2, super mutants = 3, ghouls = 4
+      critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       target_steal_skill = has_skill(target, SKILL_STEAL);
       target_barter_skill = has_skill(target, SKILL_BARTER);
       target_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
@@ -5219,6 +5438,8 @@ procedure USESKILL_HOOK begin
             foreach ally in list_as_array(LIST_CRITTERS) begin
                ally_rot = -6;
                ally_rot_to_tar = -6;
+               ally_state = -1;
+               ally_cur_frm = -1;
                if ally != dude_obj andAlso ally != target andAlso is_sentient(ally) andAlso obj_is_visible_flag(ally) then begin
                   ally_rot = has_trait(TRAIT_OBJECT, ally, OBJECT_CUR_ROT);
                   ally_rot_to_tar = real_rotation_to_tile(tile_num(ally), tile_num(dude_obj));
@@ -5381,11 +5602,11 @@ procedure USESKILL_HOOK begin
          end
          else begin
 
-            if steal_chance_win <= 0 andAlso ExpandInventory <= 0 then begin
+            if steal_chance_win <= 0 then begin
                mouse_add = 0;
                steal_chance_win = 1;
                set_global_script_type(1);
-               set_global_script_repeat(15);
+               set_global_script_repeat(2);
             end
             //the ability to steal weapons from hands if the skill is high enough
             right_hand_stolen = -1;

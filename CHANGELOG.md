@@ -1,3 +1,10 @@
+### Latest Version  v1.95 
+##### Steal mod
+- Fixed the display of the chance of stealing for fall version 5+.
+- Fixed stealing items without weight, size and price.
+- Fixed the calculation and the placement of the text of the chance of stealing.
+
+
 ### Latest Version  v1.94 
 ##### Steal mod
 - Added display of the chance of successful stealing when hovering the mouse over an item.
