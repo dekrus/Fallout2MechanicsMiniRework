@@ -4,7 +4,7 @@
 ## Установка
 - Распаковать архив в основной каталог игры, так чтобы файлы "F2MechanicsMiniRework.dat" и "F2MechanicsMiniRework.ini" оказались в папке mods. 
 - F2MechanicsMiniRework требует sfall (`ddraw.dll`) 5.0.5.0+ он поставляется с модом (или опционально 4.4.0+). Если у вас более новая версия, вам не нужно перезаписывать sfall.dll при распаковке архива. 
-- Если файл "party_orders.ini" существует в папке mods, то в него необходимо прописать F2MechanicsMiniRework.dat.
+- Если файл "mods_order.txt" существует в папке mods, то в него необходимо прописать F2MechanicsMiniRework.dat.
 - Отредактируйте `mods/F2MechanicsMiniRework.ini`, чтобы включить, отключить или настроить компоненты по своему усмотрению.
 
 ## Совместимость
