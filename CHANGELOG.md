@@ -4,6 +4,7 @@
 - Fixed crash on failed steal from some NPCs.
 - Disabled displaying the chance of successful steal if EcCo partial compatibility is enabled.
 
+
 ### Version  v1.95 
 ##### Steal mod
 - Fixed the display of the chance of stealing for fall version 5+.

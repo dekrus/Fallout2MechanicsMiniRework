@@ -1629,14 +1629,14 @@ procedure callback_target_returns_its_stolen_items begin
             end
             tmp = rm_mult_objs_from_inven(dude_obj, item_ptr, item_quantity);
             add_mult_objs_to_inven(target, item_ptr, tmp);
-            returned += 1;
+            returned += 2;
          end
       end
       if dude_was_robbed <= 0 then begin
-         if returned >= arr_len then begin
+         if returned >= arr_len * 2 then begin
             display_msg(obj_name(target) + modmsg(msg_return_stolen));
          end
-         else if returned > 0 andAlso returned < arr_len then begin
+         else if returned > 0 andAlso returned < arr_len * 2 then begin
             display_msg(modmsg(msg_stolen_hided_part));
             display_msg(obj_name(target) + modmsg(msg_return_stole_part));
          end
@@ -1657,7 +1657,6 @@ procedure callback_target_returns_planted_items begin
    variable arr_len = len_array(planted_items_ptr_arr);
    variable tmp;
    variable i;
-   variable returned;
    variable target_pe;
    variable skill_roll;
    if target > 0 andAlso arr_len > 0 then begin
@@ -3015,6 +3014,7 @@ procedure ANIM_dude_is_attacked_by_human(variable crit_chance) begin
          if random(0,roll) <= crit_chance then begin
             dude_was_robbed = 1;
             return_items = 1;
+            arr_len_stole = -1;
             reg_anim_callback(callback_dmg_the_dude_critically);
             reg_anim_animate(target, ANIM_throw_punch, 0);
             reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_throw_punch,snd_weapon_hitting),0);
@@ -3083,7 +3083,7 @@ procedure ANIM_dude_is_attacked_by_human(variable crit_chance) begin
                reg_anim_animate(dude_obj, ANIM_fall_back, 3);
                reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_fall_back,snd_knock_down),0);
                if arr_len_stole > 0 then begin
-                  reg_anim_callback(callback_target_returns_its_stolen_items);
+                  reg_anim_callback(callback_target_returns_its_stolen_items_ALL);
                   arr_len_stole = -1;
                end
                if (art_exists_basic_anim(target,ANIM_magic_hands_ground)) then begin
@@ -3121,6 +3121,15 @@ procedure ANIM_dude_is_attacked_by_human(variable crit_chance) begin
                end
             end
          end
+      end
+      if arr_len_stole > 0 andAlso random(0,5) then begin
+         reg_anim_turn_towards(target, dude_hex, -1);
+         reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
+         if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) then begin
+            reg_anim_animate(target, ANIM_magic_hands_middle, -1);
+         end
+         reg_anim_callback(callback_target_returns_its_stolen_items);
+         arr_len_stole = -1;
       end
       if dude_got_hit <= 0 then begin
          reg_anim_callback(callback_show_float_msg_death_threat);
@@ -3206,6 +3215,7 @@ procedure ANIM_dude_is_attacked_by_human_was_caught_before(variable crit_chance)
          if random(0,roll) <= crit_chance then begin
             dude_was_robbed = 1;
             return_items = 1;
+            arr_len_stole = -1;
             reg_anim_callback(callback_dmg_the_dude_critically);
             reg_anim_animate(target, ANIM_throw_punch, 0);
             reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_throw_punch,snd_weapon_hitting),0);
@@ -3267,6 +3277,7 @@ procedure ANIM_dude_is_attacked_by_human_was_caught_before(variable crit_chance)
             if random(0,roll) <= crit_chance then begin
                return_items = 1;
                dude_was_robbed = 1;
+               arr_len_stole = -1;
                reg_anim_turn_towards(target, dude_hex, -1);
                reg_anim_callback(callback_dmg_the_dude_critically);
                reg_anim_animate(target, ANIM_throw_punch, 0);
@@ -3274,7 +3285,7 @@ procedure ANIM_dude_is_attacked_by_human_was_caught_before(variable crit_chance)
                reg_anim_animate(dude_obj, ANIM_fall_back, 3);
                reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_fall_back,snd_knock_down),0);
                if arr_len_stole > 0 then begin
-                  reg_anim_callback(callback_target_returns_its_stolen_items);
+                  reg_anim_callback(callback_target_returns_its_stolen_items_ALL);
                   arr_len_stole = -1;
                end
                if (art_exists_basic_anim(target,ANIM_magic_hands_ground)) then begin
@@ -3312,6 +3323,15 @@ procedure ANIM_dude_is_attacked_by_human_was_caught_before(variable crit_chance)
                end
             end
          end
+      end
+      if arr_len_stole > 0 then begin
+         reg_anim_turn_towards(target, dude_hex, -1);
+         reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
+         if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) then begin
+            reg_anim_animate(target, ANIM_magic_hands_middle, -1);
+         end
+         reg_anim_callback(callback_target_returns_its_stolen_items);
+         arr_len_stole = -1;
       end
       if dude_got_hit <= 0 then begin
          reg_anim_callback(callback_show_float_msg_death_threat);
@@ -3397,6 +3417,7 @@ procedure ANIM_dude_is_attacked_by_supermutant(variable crit_chance) begin
          if random(0,roll) <= crit_chance then begin
             dude_was_robbed = 1;
             return_items = 1;
+            arr_len_stole = -1;
             reg_anim_turn_towards(target, dude_hex, -1);
             reg_anim_callback(callback_dmg_the_dude_critically);
             reg_anim_animate(target, ANIM_throw_punch, 0);
@@ -3458,6 +3479,7 @@ procedure ANIM_dude_is_attacked_by_supermutant(variable crit_chance) begin
             //anim critical hit and KO
             if random(0,roll) <= crit_chance then begin
                dude_was_robbed = 1;
+               arr_len_stole = -1;
                reg_anim_turn_towards(target, dude_hex, -1);
                reg_anim_callback(callback_dmg_the_dude_critically);
                reg_anim_animate(target, ANIM_throw_punch, 0);
@@ -3465,7 +3487,7 @@ procedure ANIM_dude_is_attacked_by_supermutant(variable crit_chance) begin
                reg_anim_animate(dude_obj, ANIM_fall_back, 3);
                reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_fall_back,snd_knock_down),0);
                if arr_len_stole > 0 then begin
-                  reg_anim_callback(callback_target_returns_its_stolen_items);
+                  reg_anim_callback(callback_target_returns_its_stolen_items_ALL);
                   arr_len_stole = -1;
                end
                if (art_exists_basic_anim(target,ANIM_magic_hands_ground)) then begin
@@ -3504,6 +3526,15 @@ procedure ANIM_dude_is_attacked_by_supermutant(variable crit_chance) begin
                end
             end
          end
+      end
+      if arr_len_stole > 0 andAlso random(0,10) then begin
+         reg_anim_turn_towards(target, dude_hex, -1);
+         reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
+         if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) then begin
+            reg_anim_animate(target, ANIM_magic_hands_middle, -1);
+         end
+         reg_anim_callback(callback_target_returns_its_stolen_items);
+         arr_len_stole = -1;
       end
       if dude_got_hit <= 0 then begin
          reg_anim_callback(callback_show_float_msg_death_threat);
@@ -3589,6 +3620,7 @@ procedure ANIM_dude_is_attacked_by_supermutant_was_caught_before(variable crit_c
          if random(0,roll) <= crit_chance then begin
             dude_was_robbed = 1;
             return_items = 1;
+            arr_len_stole = -1;
             reg_anim_turn_towards(target, dude_hex, -1);
             reg_anim_callback(callback_dmg_the_dude_critically);
             reg_anim_animate(target, ANIM_throw_punch, 0);
@@ -3651,7 +3683,7 @@ procedure ANIM_dude_is_attacked_by_supermutant_was_caught_before(variable crit_c
                reg_anim_animate(dude_obj, ANIM_fall_back, 3);
                reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_fall_back,snd_knock_down),0);
                if arr_len_stole > 0 then begin
-                  reg_anim_callback(callback_target_returns_its_stolen_items);
+                  reg_anim_callback(callback_target_returns_its_stolen_items_ALL);
                   arr_len_stole = -1;
                end
                if (art_exists_basic_anim(target,ANIM_magic_hands_ground)) then begin
@@ -3689,6 +3721,15 @@ procedure ANIM_dude_is_attacked_by_supermutant_was_caught_before(variable crit_c
                end
             end
          end
+      end
+      if arr_len_stole > 0 then begin
+         reg_anim_turn_towards(target, dude_hex, -1);
+         reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
+         if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) then begin
+            reg_anim_animate(target, ANIM_magic_hands_middle, -1);
+         end
+         reg_anim_callback(callback_target_returns_its_stolen_items);
+         arr_len_stole = -1;
       end
       if dude_got_hit <= 0 then begin
          reg_anim_callback(callback_show_float_msg_death_threat);
