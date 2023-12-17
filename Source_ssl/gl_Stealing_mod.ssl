@@ -427,11 +427,12 @@ procedure get_chance_to_steal_without_item(variable thief, variable target, vari
    variable ally_state = -1;
    variable ally_cur_frm = -1;
    variable darkness_penalty;
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
    variable item_total_penalty;
    variable chance_to_steal;
    variable min_skill_needed;
    variable hand_item_stealing;
+   if target > 0 then target_kill_type = critter_kill_type(target);
    // Stealing weapons from hand.
    if (item == right_hand_item_copy or item == left_hand_item_copy) andAlso stype == 0 then begin
       right_hand_item_target = target;
@@ -575,14 +576,14 @@ procedure get_chance_to_steal_min_item_count(variable thief, variable target, va
    variable ally_state = -1;
    variable ally_cur_frm = -1;
    variable darkness_penalty;
-   variable target_kill_type = critter_kill_type(target);
    variable item_total_penalty;
    variable chance_to_steal;
    variable max_item_count;
    variable item_penalty;
    variable steal_chance;
    variable max_steal_chance;
-
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
       // SKILL_SCIENCE and SKILL_REPAIR bonus for stealing from robots
       if target_kill_type == KILL_TYPE_robot_kills then begin
          skill_bonus = (has_skill(thief, SKILL_REPAIR) / 3) + (has_skill(thief, SKILL_SCIENCE) / 2);
@@ -2260,7 +2261,8 @@ procedure get_tile_with_free_path(variable target) begin
 end
 
 procedure show_float_msg_attack(variable target) begin
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
    if target_kill_type == KILL_TYPE_super_mutant_kills then begin
       float_msg(target, modmsg(msg_supmut_attack), FLOAT_MSG_RED);
    end
@@ -2304,8 +2306,8 @@ end
 
 
 procedure show_float_msg_fear(variable target) begin
-   //variable target_gender = get_critter_stat(target, STAT_gender);
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
    //child
    if target_kill_type == KILL_TYPE_children_kills then begin
       float_msg(target, modmsg(msg_child_flee), FLOAT_MSG_RED);
@@ -2401,7 +2403,8 @@ procedure show_float_msg_tough_response begin
 end
 
 procedure show_float_msg_attack_frightened(variable target) begin
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
    if target_kill_type == KILL_TYPE_children_kills then begin
       float_msg(target, modmsg(msg_child_flee), random(FLOAT_MSG_NEAR_WHITE,FLOAT_MSG_WHITE));
    end
@@ -2417,7 +2420,8 @@ procedure show_float_msg_attack_frightened(variable target) begin
 end
 
 procedure show_float_msg_death_threat(variable target) begin
-   variable target_kill_type = critter_kill_type(target);
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
    if target_kill_type == KILL_TYPE_super_mutant_kills then begin
       float_msg(target, modmsg(msg_supmut_threat), FLOAT_MSG_RED);
    end
