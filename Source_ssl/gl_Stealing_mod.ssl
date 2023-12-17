@@ -163,6 +163,9 @@
 #include "animcomd.h"
 
 variable Sonora;
+variable Nevada;
+variable Et_tu;
+variable Resurrection;
 
 //variable pickpocket_count;
 variable last_pickpocket_target;
@@ -282,7 +285,10 @@ procedure start begin
          if StealRebalance > 0 then StealRebalance = 2;
          MinStealReq = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Steal|MinStealReq");
          MinWpnStealReq = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Steal|MinWpnStealReq");
+         Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         Resurrection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Resurrection");
+         ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
          //if get_ini_setting("mods\\ecco\\misc.ini|STEAL|exp_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_steal_count_mod_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_facing_mod") then begin
             ECCO_steal_mod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|FO2_ECCO");
          sfall_ver_maj = sfall_ver_major;
@@ -1291,7 +1297,7 @@ procedure set_anim_tar_obj(variable target) begin
    anim_tar_rot_tile = tile_num_in_direction(anim_tar_tile, anim_tar_rot, 1);
    anim_tar_melee_dmg = get_critter_stat(target,STAT_melee_dmg);
    anim_tar_unarmed_skill = has_skill(target, SKILL_UNARMED_COMBAT) - dude_lu;
-   if right_hand_stolen <= 0 andAlso obj_item_subtype(anim_tar_weapon) == item_type_weapon then begin
+   if anim_tar_weapon > 0 andAlso right_hand_stolen <= 0 andAlso obj_item_subtype(anim_tar_weapon) == item_type_weapon then begin
       anim_tar_weapon_anim = get_proto_data(obj_pid(anim_tar_weapon), PROTO_WP_ANIM);
       if anim_tar_weapon_anim > WPN_ANIM_NONE then begin
          anim_tar_fire_arm = anim_tar_weapon;
@@ -1310,7 +1316,7 @@ procedure set_anim_tar_obj(variable target) begin
    end
    if active_hand then begin
       dude_wpn = critter_inven_obj(dude_obj, INVEN_TYPE_RIGHT_HAND);
-      if obj_item_subtype(dude_wpn) == item_type_weapon then begin
+      if dude_wpn > 0 andAlso obj_item_subtype(dude_wpn) == item_type_weapon then begin
          wpn_anim_dude = get_proto_data(obj_pid(dude_wpn), PROTO_WP_ANIM);
          if (wpn_anim_dude <= WPN_ANIM_NONE) then begin
             dude_wpn = -1;
@@ -1322,8 +1328,7 @@ procedure set_anim_tar_obj(variable target) begin
    end
    else begin
       dude_wpn = critter_inven_obj(dude_obj, INVEN_TYPE_LEFT_HAND);
-      wpn_anim_dude = get_proto_data(obj_pid(dude_wpn), PROTO_WP_ANIM);
-      if obj_item_subtype(dude_wpn) == item_type_weapon then begin
+      if dude_wpn > 0 andAlso obj_item_subtype(dude_wpn) == item_type_weapon then begin
          wpn_anim_dude = get_proto_data(obj_pid(dude_wpn), PROTO_WP_ANIM);
          if (wpn_anim_dude <= WPN_ANIM_NONE) then begin
             dude_wpn = -1;
@@ -5165,7 +5170,13 @@ procedure STEAL_HOOK begin
                steal_chance_win = 0;
                mouse_add = 0;
             end
-            set_sfall_return(2);
+            if get_script(target) == 214 andAlso Et_tu <= 0 andalso Nevada <= 0 andAlso Resurrection <= 0 andAlso Sonora <= 0 then begin
+               set_sfall_return(0);
+               return;
+            end
+            else begin
+               set_sfall_return(2);
+            end
             steal_item_num = 0;
             isSuccess = 0;
             if not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
@@ -5307,7 +5318,7 @@ procedure USESKILL_HOOK begin
    variable show_irritation_level;
    variable pickpocket_count;
    if MinStealReq <= 0 andAlso skill == SKILL_STEAL then begin
-      if steal_chance_win <= 0 then begin
+      if ECCO_steal_mod <= 0 andAlso steal_chance_win <= 0 then begin
          mouse_add = 0;
          steal_chance_win = 1;
          set_global_script_type(1);
@@ -5326,10 +5337,10 @@ procedure USESKILL_HOOK begin
       end
       //if
       user_steal_skill = has_skill(user, SKILL_STEAL) + skill_bonus;
-      if user_steal_skill <= 0 then begin
-         display_msg(modmsg(msg_cant_pickpocket));
-         return;
-      end
+      //if user_steal_skill <= 0 then begin
+         //display_msg(modmsg(msg_cant_pickpocket));
+         //return;
+      //end
       tar_pid = obj_pid(target);
       user_sneak_skill = has_skill(user, SKILL_SNEAK);
       // SKILL_SCIENCE and SKILL_REPAIR bonus for stealing from robots
@@ -5525,7 +5536,8 @@ procedure USESKILL_HOOK begin
             return;
          end
          min_steal_skill = ceil(min_steal_skill);
-         if min_steal_skill < 10 then min_steal_skill = 1;
+         if min_steal_skill < 1 then min_steal_skill = 1;
+         if has_skill(user, SKILL_STEAL) < 0 then user_steal_skill = 0;
             // Minimum skill level to open steal interface
          if user_steal_skill < min_steal_skill then begin
             anim_tar_weapon = -1;
@@ -5602,8 +5614,7 @@ procedure USESKILL_HOOK begin
             display_msg(modmsg(msg_cant_pickpocket) + parse_str_2(modmsg(msg_cant_plant2), min_steal_skill, 0));
          end
          else begin
-
-            if steal_chance_win <= 0 then begin
+            if ECCO_steal_mod <= 0 andAlso steal_chance_win <= 0 then begin
                mouse_add = 0;
                steal_chance_win = 1;
                set_global_script_type(1);

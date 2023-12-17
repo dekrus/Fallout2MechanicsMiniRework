@@ -1,9 +1,14 @@
-### Latest Version  v1.95 
+### Latest Version  v1.96 
+##### Steal mod
+- Fixed stealing chance at negative steal skill values.
+- Fixed crash on failed steal from some NPCs.
+- Disabled displaying the chance of successful steal if EcCo partial compatibility is enabled.
+
+### Version  v1.95 
 ##### Steal mod
 - Fixed the display of the chance of stealing for fall version 5+.
 - Fixed stealing items without weight, size and price.
 - Fixed the calculation and the placement of the text of the chance of stealing.
-
 
 ### Version  v1.94 
 ##### Steal mod
