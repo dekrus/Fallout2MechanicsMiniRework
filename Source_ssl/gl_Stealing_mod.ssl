@@ -1710,8 +1710,12 @@ procedure rm_timed_event_number(variable target,variable event_num) begin
 end
 
 procedure get_dude_worn_armor_perk begin
+   variable armor;
    variable armor_perk;
-   armor_perk = get_proto_data(obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_WORN)), PROTO_AR_PERK);
+   armor = critter_inven_obj(dude_obj, INVEN_TYPE_WORN);
+   if armor > 0 then begin
+      armor_perk = get_proto_data(obj_pid(armor), PROTO_AR_PERK);
+   end
    return armor_perk;
 end
 

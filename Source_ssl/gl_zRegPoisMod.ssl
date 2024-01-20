@@ -976,7 +976,7 @@ procedure USEOBJON begin
         display_msg(failed_sneak_use_msg);
      end
      if rnd < 1 andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso tar_type != KILL_TYPE_children_kills andAlso tar_fid != FID_NACHLD andAlso tar_fid != FID_NFBRLP andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
-        float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_BAD);
+        float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_AFRAID);
         set_sfall_return(0);
      end
      else begin
@@ -2171,11 +2171,11 @@ procedure ModInTurnBased begin
               end
             end
             if PoisonTickDmg > 0 andAlso crithr < 6 then begin
-            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+            float_msg(critter, "-" + PoisonTickDmg, FLOAT_COLOR_AFRAID);
             end
            end
            if PoisonTickDmg > 0 andAlso RegenMod == 0 then begin
-            float_msg(critter, "-" + PoisonTickDmg, FLOAT_MSG_RED);
+            float_msg(critter, "-" + PoisonTickDmg, FLOAT_COLOR_AFRAID);
            end
          end
          if PoisonTickDmg > 0 andAlso Critter == real_dude_obj then begin

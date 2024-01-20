@@ -1,21 +1,20 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
 #define msg_file "gl_SecondaryAttackMod.msg"
+//#define combat_msg_file "COMBAT.msg"
 #define is_critter(obj)   (obj_type(obj) == OBJ_TYPE_CRITTER)
 #define is_multihex(critter_obj)  (get_flags(critter_obj) bwand FLAG_MULTIHEX)
 #define is_prone(critter_obj)  (critter_state(critter_obj) == CRITTER_IS_PRONE)
 #define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
-#define crit_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),8))
+#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define art_exists_death_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000 + 0x10000000))) // knockdown and death   20-35
+#define art_exists_basic_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000)))
 #define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
-#define FID_MABRAN 16777292 //pinky
-#define FID_MAROBE 16777315 //goris robe
-#define FID_NFLYNN 16777299 //lynnet
-#define FID_NMBRSR 16777294 // black gangster in desperado
-#define FID_MADEGG 16777274 // egg
-#define FID_NMBOXX 16777312 // boxer
-#define FID_MAGUNN 16777317 //turret with miniguns
-#define FID_MAGUN2 16777306 //turet with dual_plasma
-#define FID_NFNICE 16777289 // mis. bishop
-#define FID_NMOLDD 16777314 //old man
+
+#define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
+                                       critter_fid == FID_NAPOWR or \
+                                       critter_fid == FID_HANPWR or \
+                                       critter_fid == FID_MABOSS)
+
 
 #define modmsg(x) message_str_game(SecondaryAttackMod_msg, x)
 #define msg_hit 1
@@ -32,11 +31,26 @@
 #define msg_hit_add_1_hp 20
 #define msg_critical_hit_1_hp 21
 #define msg_critical_hit_add_1_hp 22
+
+#define combat_msg_you 506
+
+#define combat_msg_hit_dmg 513
+#define combat_msg_hit_1_dmg 523
+#define combat_msg_hit_no_dmg 527
+
+
+
+
+
+
 #define PID_SONORA_SMALL_ENERGY_CELL 1
 #define PID_SONORA_MICRO_FUSION_CELL 2
-#define pid_laser_projectile (0x05000009) // 6 frames
-#define pid_plasma_big_projectile  (0x500000A) // 6 frames
+#define pid_laser_projectile (0x05000009)
+#define pid_plasma_big_projectile  (0x500000A)
+#define pid_electric_projectile  (0x500000D)
+#define pid_emp_expl  (0x5000008)
 #define pid_sonora_railgun 183
+#define SONORA_COMBAT_EXP_GLOBAL_NUM 20
 #define CRITICAL_MISS          0
 #define MISS                   1
 #define HIT                    2
@@ -49,6 +63,18 @@
 #define PROTO_CR_BONUS_DT(damage_type) (244 + (4 * damage_type))
 #define PROTO_CR_BASE_DR(damage_type) (132 + (4 * damage_type))
 #define PROTO_CR_BONUS_DR(damage_type) (272 + (4 * damage_type))
+#define reg_anim_animate_and_move(object, tile, animID, delay)                 sfall_func4("reg_anim_animate_and_move", object, tile, animID, delay)
+#define set_obj_script_fixed_value(obj_sid, value) call_offset_v2(0x4A3B34, obj_sid, value)
+#define set_obj_script_objects(obj_sid, source, target) call_offset_v3(0x4A3B0C, obj_sid, source, target)
+#define exec_obj_script_proc(obj_sid, script_proc_type) call_offset_v2(0x4A4810, obj_sid, script_proc_type)
+#define get_combat_exp read_int(0x56D398)
+#define set_combat_exp(value) write_int(0x56D398,value)
+#define inc_kill_count(kill_type) call_offset_v1(0x42D878, kill_type)
+#define set_who_hit_me(critter,obj,attacker_critter_obj) call_offset_v2(0x42E4C0,critter,obj,attacker_critter_obj)
+#define get_critter_xp(critter_obj) (get_proto_data(obj_pid(critter_obj), PROTO_CR_EXP_VAL))
+#define DMG_BURST 16
+#define DMG_BURST_HEAVY 32
+#define OUTLINE_CYAN_IRIDESCENT 0xEBF0
 
 
 #include "define_extra.h"
@@ -61,30 +87,43 @@ variable SecondaryAttackMod_msg;
 variable LaserSecondaryAttackMod;
 variable LaserLineWidth;
 variable LaserHitChance;
+variable LaserForced = 0;
+variable ElecSecondaryAttackMod = 2;
+variable ElecMaxTargets = 2;
+variable ElecRadius = 5;
+variable ElecDmgMin = 50;
+variable ElecDmgMax = 100;
+variable ElecHitChance;
+variable ElecForced = 0;
+variable ElecAmmoCost = 3;
 variable GaussSecondaryAttackMod;
 variable GaussLineWidth;
 variable GaussHitChance;
 variable GaussDamageReductionPerTarget;
+variable GaussForced = 0;
 variable PlasmaSecondaryAttackMod;
 variable PlasmaBlastRadius;
 variable PlasmaDamagePercentage;
+variable PlasmaForced = 0;
+variable PlasmaAmmoCost = 3;
 variable ShotgunSecondaryAttackMod;
 variable ShotgunMaxDistanceToKnockback;
 variable ShotgunKnockbackMin;
 variable ShotgunKnockbackMax;
+variable ShotgunForced = 0;
 variable PistolSecondaryAttackMod;
 variable AllowSniperPerk;
-variable combat_speed;
 variable combat_diff;
 variable show_float_dmg;
-variable Nevada;
+//variable Nevada;
 variable Sonora;
-variable ET_TU;
-variable config_file;
+//variable ET_TU;
+
 variable target_bodypart;
-variable atk_rslt;
+variable atk_rslt =-1;
 variable missed_shot;
 variable combat_dmg;
+variable orig_attacker;
 variable orig_target;
 variable real_orig_target;
 variable new_dmg_to_orig_target;
@@ -92,9 +131,14 @@ variable pre_targets_array;
 variable targets_array;
 variable dmg_array;
 variable crit_roll_array;
+variable death_array;
 variable crit_power_roll;
 variable last_dmg;
 variable new_targets_count;
+variable targets_count;
+variable friendly_targets_count;
+variable enemy_targets_count;
+variable enemy_team;
 variable missed_targets_count;
 variable multihex_targets_count;
 variable laser_curr_ammo;
@@ -104,7 +148,6 @@ variable remainder;
 variable one_time_call;
 variable proj_pid_changed;
 variable placeholder;
-variable point_anim_frames;
 variable bonus_crit_power_roll;
 variable bonus_ranged_damage;
 variable living_anatomy;
@@ -130,7 +173,6 @@ variable weapon_max_dmg;
 variable weapon_perk;
 variable weapon_proj_pid;
 variable weapon_cur_ammo;
-variable ammo_caliber;
 variable ammo_mult;
 variable ammo_div;
 variable ammo_dr_mod;
@@ -155,28 +197,46 @@ variable pistol_double_tap_ap_cost;
 variable pistol_double_tap_miss;
 variable pistol_double_tap_to_hit_penalty;
 variable alt_fire_used;
+variable attacker_frm = -1;
+variable is_single_shot;
 variable shotgun_caliber;
+variable old_emp_expl;
+variable npc_orig_tar;
+variable elec_tar_num;
+
+variable dude_turn;
+
+
 
 procedure destroy_placeholder begin
    if placeholder then destroy_object(placeholder);
 end
 
-procedure disable_ui begin
-   game_ui_disable;
+//procedure disable_ui begin
+   //if not(game_ui_is_disabled) then begin
+      //call_offset_v1(0x443BFC,1);//game_ui_disable but allow screen_moving
+      //call_offset_v1(0x44C840,26);// set_cursor_mode animated_watch_wait
+   //end
+//end
+
+procedure kill_dude begin
+   critter_heal(dude_obj, -(get_critter_stat(dude_obj, STAT_current_hp)));
 end
 
-procedure enable_ui begin
-   game_ui_enable;
-end
+//procedure enable_ui begin
+   //game_ui_enable;
+//end
 
 procedure restore_weapon_proj_pid begin
-   if weapon_proj_pid then begin
-      set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, weapon_proj_pid);
+   if proj_pid_changed > 0 then begin
+      if weapon_proj_pid > 0 then begin
+         set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, weapon_proj_pid);
+      end
+      else begin
+         set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
+      end
+      proj_pid_changed = 0;
    end
-   else begin
-      set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
-   end
-   proj_pid_changed = 0;
 end
 
 procedure get_one_hander_bonus(variable weapon_flags) begin
@@ -224,11 +284,6 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target) begin
    // bodypart_hit_modifier penalty
    if bodypart_hit_modifier then begin
       hit_chance = hit_chance + bodypart_hit_modifier;
-   end
-
-   // perk_night_vision  bonus to hit for Sonora
-   if Sonora andAlso night_vision then begin
-      hit_chance = hit_chance + 15;
    end
 
    //darkness to_hit penalty in low light(considering PERK_night_vision) without PERK_weapon_night_sight
@@ -377,8 +432,14 @@ procedure lvar_full_reset begin
    if array_exists(crit_roll_array) then free_array(crit_roll_array);
    if array_exists(pre_targets_array) then free_array(pre_targets_array);
    if array_exists(targets_array) then free_array(targets_array);
-   //last_missed_target = 0;
+   friendly_targets_count = 0;
+   enemy_targets_count = 0;
+   targets_count = 0;
+   npc_orig_tar = 0;
+   elec_tar_num = 0;
+   attacker_frm = -1;
    alt_fire_used = 0;
+   is_single_shot = 0;
    real_orig_target = 0;
    new_targets_count = 0;
    missed_targets_count = 0;
@@ -414,7 +475,7 @@ procedure lvar_full_reset begin
    weapon_perk = 0;
    weapon_proj_pid = 0;
    weapon_cur_ammo = 0;
-   ammo_caliber = 0;
+   //ammo_caliber = 0;
    ammo_mult = 0;
    ammo_div = 0;
    ammo_dr_mod = 0;
@@ -428,9 +489,9 @@ procedure lvar_full_reset begin
    pistol_double_tap_weapon = 0;
 end
 
-procedure is_hit_from_front(variable attacker,variable target) begin
+procedure is_hit_from_front(variable attacker_tile,variable target) begin
    variable tar_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
-   variable rot_to_atk = rotation_to_tile(tile_num(target), tile_num(attacker));
+   variable rot_to_atk = rotation_to_tile(tile_num(target), attacker_tile);
    if tar_rot == rot_to_atk or (tar_rot + 1)%6 == rot_to_atk or (tar_rot + 5)%6 == rot_to_atk then begin
       return true;
    end
@@ -439,27 +500,43 @@ procedure is_hit_from_front(variable attacker,variable target) begin
    end
 end
 
-procedure get_tiles_per_frame(variable combat_speed) begin
-   variable tiles_per_frame = 1.0;
-   if combat_speed <= 0 then begin
-      tiles_per_frame = 1.0;
+//checking that there are no obstacles between objects
+procedure check_block_shoot(variable obj_1,variable obj_2) begin
+   variable tile_1 = tile_num(obj_1);
+   variable tile_2 = tile_num(obj_2);
+   variable blocking_obj_1_to_2;
+   variable last_blocking_obj_1_to_2;
+   variable blocking_obj_2_to_1;
+   variable last_blocking_obj_2_to_1;
+   variable max_count = 25;
+   variable i;
+   if obj_1 <= 0 or obj_2 <= 0 then begin
+      return false;
    end
-   else if combat_speed <= 7 then begin
-      tiles_per_frame = 1.5;
+   else begin
+      blocking_obj_1_to_2 = obj_blocking_line(obj_1, tile_2, BLOCKING_TYPE_SHOOT);
+      blocking_obj_2_to_1 = obj_blocking_line(obj_2, tile_1, BLOCKING_TYPE_SHOOT);
+      for (i = 0;i <= max_count; i++) begin
+         if (blocking_obj_1_to_2 == obj_2 andAlso blocking_obj_2_to_1 == obj_1) or (blocking_obj_1_to_2 == blocking_obj_2_to_1 andALso ShootThru(blocking_obj_1_to_2)) then begin
+            return true;
+         end
+         else begin
+            last_blocking_obj_1_to_2 = blocking_obj_1_to_2;
+            last_blocking_obj_2_to_1 = blocking_obj_2_to_1;
+            if not(ShootThru(blocking_obj_1_to_2)) or not(ShootThru(blocking_obj_2_to_1)) then begin
+               return false;
+            end
+            else begin
+               blocking_obj_1_to_2 = obj_blocking_line(last_blocking_obj_1_to_2, tile_2, BLOCKING_TYPE_SHOOT);
+               blocking_obj_2_to_1 = obj_blocking_line(last_blocking_obj_2_to_1, tile_1, BLOCKING_TYPE_SHOOT);
+               if blocking_obj_1_to_2 == last_blocking_obj_1_to_2 andAlso blocking_obj_2_to_1 == last_blocking_obj_2_to_1 then begin
+                  return false;
+               end
+            end
+         end
+      end
    end
-   else if combat_speed <= 16 then begin
-      tiles_per_frame = 2.0;
-   end
-   else if combat_speed <= 36 then begin
-      tiles_per_frame = 2.5;
-   end
-   else if combat_speed <= 42 then begin
-      tiles_per_frame = 3.0;
-   end
-   else if combat_speed >= 43 then begin
-      tiles_per_frame = 5.0;
-   end
-   return tiles_per_frame;
+   return false;
 end
 
 //so far without taking into account CRITTER_KILL_TYPE critical hit tables
@@ -485,12 +562,106 @@ procedure get_crit_mult(variable crit_power_roll,variable target) begin
    return crit_mult;
 end
 
-procedure calc_dmg_laser(variable attacker, variable target) begin
-   variable target_pid = obj_pid(target);
+
+procedure calc_dmg_electric(variable attacker, variable target) begin
    variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
-   variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
-   variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
+   variable target_dt;
+   variable target_dr;
+   variable weapon_dmg = random(weapon_min_dmg, weapon_max_dmg);
+   variable rnd = random(0, 100);
+   variable crit_roll = rnd;
+   variable crit_mult = 1;
+   variable min_dmg = 1;
+   variable hit_chance;
+   variable miss;
+   variable dmg;
+   if ElecDmgMin >= ElecDmgMax then ElecDmgMin = ElecDmgMax;
+   if weapon_damage_type == DMG_electrical then begin
+      target_dt = get_critter_stat(target,STAT_dmg_thresh_electrical);
+      target_dr = get_critter_stat(target,STAT_dmg_resist_electrical);
+   end
+   else begin
+      target_dt = get_critter_stat(target,STAT_dmg_thresh_emp);
+      target_dr = get_critter_stat(target,STAT_dmg_resist_emp);
+   end
+   if weapon_perk == PERK_weapon_penetrate then begin
+      target_dt = target_dt * 0.2;
+      target_dr = target_dr * 0.3;
+   end
+   // if YAAM ammo active
+   if ammo_dr_mod > 0 then begin
+      ammo_dr_mod = 0;
+      target_dt = target_dt - ammo_dr_mod;
+      if target_dt < ammo_dr_mod then begin
+         target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
+      end
+   end
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse then begin
+      target_dr = target_dr + 30;
+   end
+   // hit chance calculation start
+   if ElecHitChance > 0 then begin
+      if is_critter(target) then hit_chance = get_ranged_chance_to_hit(attacker, target);
+       // +15% bonus hit chance. 5% guaranteed chance to hit
+      hit_chance = hit_chance + 15;
+      if rnd > 4 andAlso rnd > hit_chance or rnd > 95 then miss = 1;
+   end
+   else begin
+      miss = 0;
+   end
+   //if (target == orig_target andAlso missed_shot) then miss = 1;
+
+   //if miss
+   //if miss then begin
+      //dmg = -1;
+      //return dmg;
+   //end
+   //if hit
+   //else begin
+      crit_power_roll = 0;
+      //PERK_sniper crit chance bonus
+      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
+         crit_power_roll = random(1, (100 + bonus_crit_power_roll));
+         crit_mult = get_crit_mult(crit_power_roll,target);
+         if crit_mult < 2 then begin
+            target_dt = target_dt * 0.8;
+            target_dr = target_dr * 0.8;
+         end
+         else begin
+            target_dt = target_dt * 0.2;
+            target_dr = target_dr * 0.2;
+         end
+      end
+      if target_dt < 0 then target_dt = 0;
+      if target_dr > 90 then target_dr = 90;
+      if target_dr < 0 then target_dr = 0;
+      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0)) + 5 * living_anatomy;
+      if dmg < min_dmg then begin
+         return 0;
+      end
+      if miss > 0 then begin
+         dmg = round(random((ElecDmgMin / 2), ElecDmgMin) * dmg / 100.0);
+         return dmg;
+      end
+      else begin
+         dmg = round(random(ElecDmgMin, ElecDmgMax) * dmg / 100.0);
+         return dmg;
+      end
+
+   //end
+end
+
+procedure calc_dmg_laser(variable attacker, variable target) begin
+   variable attacker_lu = get_critter_stat(attacker, STAT_lu);
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+   variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
+   //variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
+   //variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
+   variable target_dt = get_critter_stat(target,STAT_dmg_thresh_laser);
+   variable target_dr = get_critter_stat(target,STAT_dmg_resist_laser);
+   variable target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
    variable weapon_dmg = random(weapon_min_dmg, weapon_max_dmg);
    variable rnd = random(0, 100);
    variable crit_roll = rnd;
@@ -509,25 +680,31 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
          target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
       end
    end
+   //guaranteed increase in laser armor-piercing when using an alternative firing mode
+   if weapon_perk == PERK_weapon_penetrate then begin
+      target_dt = target_dt * 0.2;
+      target_dr = target_dr * 0.2 + ammo_dr_mod;
+   end
+   else begin
+      if target_team != TEAM_PLAYER then begin
+         target_dt = target_dt * 0.6;
+         target_dr = target_dr * 0.6 + ammo_dr_mod;
+      end
+   end
    //Increase target_dr if it attacker has TRAIT_finesse
    if finesse then begin
       target_dr = target_dr + 30;
    end
-   //guaranteed increase in laser armor-piercing when using an alternative firing mode
-   if weapon_perk == PERK_weapon_penetrate then begin
-      target_dt = target_dt * 0.1;
-      target_dr = target_dr * 0.3 + ammo_dr_mod;
-   end
-   else begin
-      target_dt = target_dt * 0.4;
-      target_dr = target_dr * 0.4 + ammo_dr_mod;
-   end
    // hit chance calculation start
    if LaserHitChance > 0 then begin
       if is_critter(target) then hit_chance = get_ranged_chance_to_hit(attacker, target);
-       // +15% bonus hit chance. 5% guaranteed chance to hit
       hit_chance = hit_chance + 15;
-      if rnd > 4 andAlso rnd > hit_chance or rnd > 95 then miss = 1;
+      if attacker_team == target_team then hit_chance = 95 - hit_chance;
+       // +15% bonus hit chance. 5% guaranteed chance to hit
+
+      if hit_chance < 0 or (rnd > 4 andAlso rnd > hit_chance) or rnd > 95 then begin
+         miss = 1;
+      end
    end
    else begin
       miss = 0;
@@ -573,11 +750,10 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
 end
 
 procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg) begin
-   variable target_pid = obj_pid(target);
    variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
-   variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
-   variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
+   variable target_dt = get_critter_stat(target,STAT_dmg_thresh);
+   variable target_dr = get_critter_stat(target,STAT_dmg_resist);
    variable target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
    variable rnd = random(0, 100);
    variable crit_roll = rnd;
@@ -587,6 +763,10 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
    variable hit_chance;
    variable miss;
    variable dmg;
+   if weapon_perk == PERK_weapon_penetrate or Sonora > 0 then begin
+      target_dt = target_dt * 0.2;
+      target_dr = target_dr * 0.2;
+   end
    if is_critter(target) then last_target_on_a_line = target;
    if is_multihex(target) then multihex_targets_count += 1;
    // if YAAM ammo active
@@ -644,7 +824,8 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
       if target_dt < 0 then target_dt = 0;
       if target_dr > 90 then target_dr = 90;
       if target_dr < 0 then target_dr = 0;
-      dmg = round(((weapon_dmg - target_dt) * (100 + random(0,10) - target_dr) / 100.0));
+      if Sonora > 0 andAlso weapon_dmg < 30 then weapon_dmg = random(30, 40);
+      dmg = round((((weapon_dmg * 1.15) - target_dt) * (100 + random(0,10) - target_dr) / 100.0));
       if new_targets_count > 1 then begin
          min_reduced_dmg = round((last_dmg - GaussDamageReductionPerTarget * last_dmg * (new_targets_count - missed_targets_count)));
          //reduce damage by 0.5% per each tile in distance
@@ -660,25 +841,6 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
       end
       return dmg;
    end
-end
-
-//by JimTheDinosaur https://nma-fallout.com/threads/stuff-for-define_extra-h.202989/page-2
-procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
-  	variable temp_dist = tile_distance(begin_tile, dest_tile);
-  	variable temp_rot = rotation_to_tile(begin_tile, dest_tile);
-  	if temp_rot == 4 then begin
-  	   if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 5, temp_dist), dest_tile) then
-  	      temp_rot = 5;
-  	   else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 3, temp_dist), dest_tile) then
-  	      temp_rot = 3;
-  	   end
-  	   else if temp_rot == 1 then begin
-  	   if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 0, temp_dist), dest_tile) then
-  	      temp_rot = 0;
-  	   else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 2, temp_dist), dest_tile) then
-  	      temp_rot = 2;
-  	   end
-  	return temp_rot;
 end
 
 procedure re_count(variable counter) begin
@@ -714,8 +876,10 @@ procedure get_targets_on_thin_line_gauss_reversed(variable first_tile,variable l
    variable tile_count;
    variable counter;
    variable new_target;
+   variable new_tar_team;
    variable distance;
    variable dmg;
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    new_targets_count = 0;
    missed_targets_count = 0;
    multihex_targets_count = 0;
@@ -795,6 +959,13 @@ procedure get_targets_on_thin_line_gauss_reversed(variable first_tile,variable l
    tile_count = 0;
    foreach new_target in targets_array begin
       if new_target then begin
+         new_tar_team = has_trait(TRAIT_OBJECT, new_target, OBJECT_TEAM_NUM);
+         if new_tar_team == enemy_team then begin
+            enemy_targets_count += 1;
+         end
+         else if attacker_team == new_tar_team then begin
+            friendly_targets_count += 1;
+         end
          new_targets_count += 1;
          dmg = calc_dmg_gauss(attacker , new_target, weapon_dmg);
          weapon_dmg = dmg;
@@ -1024,6 +1195,7 @@ procedure get_targets_on_thin_line_laser_reversed(variable first_tile,variable l
    variable local_targets_array = create_array(50, 0);
    variable local_dmg_array = create_array(50,0);
    variable local_crit_roll_array = create_array(50,0);
+   variable new_target_team;
    variable check_tile = first_tile;
    variable blocking_obj;
    variable side;
@@ -1033,6 +1205,8 @@ procedure get_targets_on_thin_line_laser_reversed(variable first_tile,variable l
    variable modified;
    variable distance;
    variable dmg;
+   variable new_tar_team;
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    if modified == 0 andAlso temp_rot_in_dir == 0 andAlso atk_cur_rot == 4 andAlso rotation_to_tile(last_tile , first_tile) == 1 andAlso temp_rot == 4 then begin
       modified = 1;
       temp_rot =  (temp_rot + 1)%6;
@@ -1116,24 +1290,61 @@ procedure get_targets_on_thin_line_laser_reversed(variable first_tile,variable l
    new_targets_count = 0;
    multihex_targets_count = 0;
    targets_array = create_array(len_array(local_targets_array),0);
+   if orig_target > 0 andAlso not(is_in_array(orig_target,local_targets_array)) then begin
+      distance_objs(distance, attacker, orig_target);
+      set_array(local_targets_array,distance,orig_target);
+   end
+
    foreach new_target in local_targets_array begin
-      if new_target then begin
-         //terminate procedure if reached original
+      if new_target andAlso new_target != attacker then begin
+
+
          new_targets_count += 1;
-         dmg = calc_dmg_laser(attacker, new_target);
-         set_array(local_dmg_array, (new_targets_count - 1), dmg);
-         set_array(local_crit_roll_array, (new_targets_count - 1), crit_power_roll);
-         set_array(targets_array, (new_targets_count - 1), new_target);
-         if new_target == orig_target then begin
-            new_main_target = new_target;
-            dmg_array = local_dmg_array;
-            crit_roll_array = local_crit_roll_array;
-            new_dmg_to_orig_target = dmg;
-            local_dmg_array = 0;
-            local_crit_roll_array = 0;
-            pre_targets_array = 0;
-            return;
+         if obj_type(new_target) == OBJ_TYPE_CRITTER then begin
+            new_tar_team = has_trait(TRAIT_OBJECT, new_target, OBJECT_TEAM_NUM);
+            if new_tar_team == enemy_team then begin
+               enemy_targets_count += 1;
+            end
+            else if attacker_team == new_tar_team then begin
+               friendly_targets_count += 1;
+            end
+
+
+            dmg = calc_dmg_laser(attacker, new_target);
+            set_array(local_dmg_array, (new_targets_count - 1), dmg);
+            set_array(local_crit_roll_array, (new_targets_count - 1), crit_power_roll);
+            set_array(targets_array, (new_targets_count - 1), new_target);
+            //terminate procedure if reached original target
+            if new_target == orig_target then begin
+               new_main_target = new_target;
+               dmg_array = local_dmg_array;
+               crit_roll_array = local_crit_roll_array;
+               new_dmg_to_orig_target = dmg;
+               local_dmg_array = 0;
+               local_crit_roll_array = 0;
+               pre_targets_array = 0;
+               return;
+            end
          end
+         else begin
+            //terminate procedure if reached original target
+            if new_target == orig_target then begin
+               dmg = 0;
+               crit_power_roll = 1;
+               set_array(local_dmg_array, (new_targets_count - 1), dmg);
+               set_array(local_crit_roll_array, (new_targets_count - 1), crit_power_roll);
+               set_array(targets_array, (new_targets_count - 1), new_target);
+               new_main_target = new_target;
+               dmg_array = local_dmg_array;
+               crit_roll_array = local_crit_roll_array;
+               new_dmg_to_orig_target = dmg;
+               local_dmg_array = 0;
+               local_crit_roll_array = 0;
+               pre_targets_array = 0;
+               return;
+            end
+         end
+
          //terminate procedure if there are not enough ammo to penetrate additional targets
          if new_targets_count == laser_curr_ammo - base_alt_ammo_cost then begin
             new_main_target = new_target;
@@ -1412,6 +1623,8 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
    variable tar_cur_frm;
    variable tar_cur_hp;
    variable dmg;
+   variable new_tar_team;
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    set_obj_visibility(pseudo_attacker, 1);
    local_targets_array = create_array(50,0);
    local_dmg_array = create_array(50,0);
@@ -1427,10 +1640,17 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
 
       tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
       if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,local_targets_array))then begin
+         new_tar_team = has_trait(TRAIT_OBJECT, blocking_obj, OBJECT_TEAM_NUM);
+         if new_tar_team == enemy_team then begin
+            enemy_targets_count += 1;
+         end
+         else if attacker_team == new_tar_team then begin
+            friendly_targets_count += 1;
+         end
          new_targets_count += 1;
          distance_objs(distance, pseudo_attacker, blocking_obj);
          set_array(local_targets_array, (distance + 1), blocking_obj);
-         dmg = calc_dmg_gauss(attacker , target, weapon_dmg);
+         dmg = calc_dmg_gauss(attacker , blocking_obj, weapon_dmg);
          weapon_dmg = dmg;
          set_array(local_dmg_array, (new_targets_count - 1), dmg);
          set_array(local_crit_roll_array, (new_targets_count - 1), crit_power_roll);
@@ -1452,6 +1672,13 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
 
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
          if tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso not(is_in_array(blocking_obj,local_targets_array)) then begin
+            new_tar_team = has_trait(TRAIT_OBJECT, blocking_obj, OBJECT_TEAM_NUM);
+            if new_tar_team == enemy_team then begin
+               enemy_targets_count += 1;
+            end
+            else if attacker_team == new_tar_team then begin
+               friendly_targets_count += 1;
+            end
             new_targets_count += 1;
             if new_targets_count > 1 then weapon_dmg = last_dmg;
             distance_objs(distance, pseudo_attacker, blocking_obj);
@@ -1481,6 +1708,13 @@ procedure get_targets_on_wide_line_gauss(variable attacker ,variable target) beg
 
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
          if not(is_in_array(blocking_obj,local_targets_array)) andAlso tar_cur_frm == 0 andAlso tar_cur_hp > 0 andAlso obj_is_visible_flag(blocking_obj) then begin
+            new_tar_team = has_trait(TRAIT_OBJECT, blocking_obj, OBJECT_TEAM_NUM);
+            if new_tar_team == enemy_team then begin
+               enemy_targets_count += 1;
+            end
+            else if attacker_team == new_tar_team then begin
+               friendly_targets_count += 1;
+            end
             new_targets_count += 1;
             distance_objs(distance, pseudo_attacker, blocking_obj);
             set_array(local_targets_array, (distance + 1), blocking_obj);
@@ -1520,6 +1754,8 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
    variable count;
    variable dmg;
    variable tar_cur_frm;
+   variable new_tar_team;
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    set_obj_visibility(pseudo_attacker, 1);
    pre_targets_array = create_array(50,0);
    local_dmg_array = create_array(50,0);
@@ -1533,9 +1769,15 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
          //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
          if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
+            new_tar_team = has_trait(TRAIT_OBJECT, blocking_obj, OBJECT_TEAM_NUM);
+            if new_tar_team == enemy_team then begin
+               enemy_targets_count += 1;
+            end
+            else if attacker_team == new_tar_team then begin
+               friendly_targets_count += 1;
+            end
             new_targets_count += 1;
             //terminate procedure if there are not enough ammo to penetrate additional targets
-
             if new_targets_count == laser_curr_ammo - base_alt_ammo_cost then begin
                new_main_target = blocking_obj;
                target = blocking_obj;
@@ -1566,6 +1808,13 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
          //tar_cur_frm = get_object_data(blocking_obj, OBJ_DATA_CUR_FRM);
          tar_cur_hp = get_critter_stat(blocking_obj, STAT_current_hp);
          if tar_cur_hp > 0 andAlso tar_cur_frm == 0 andAlso obj_is_visible_flag(blocking_obj) andAlso not(is_in_array(blocking_obj,pre_targets_array)) then begin
+            new_tar_team = has_trait(TRAIT_OBJECT, blocking_obj, OBJECT_TEAM_NUM);
+            if new_tar_team == enemy_team then begin
+               enemy_targets_count += 1;
+            end
+            else if attacker_team == new_tar_team then begin
+               friendly_targets_count += 1;
+            end
             new_targets_count += 1;
             if blocking_obj == target then begin
                //new_main_target = blocking_obj;
@@ -1601,7 +1850,6 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
       count += 1;
    end
    if pseudo_attacker then destroy_object(pseudo_attacker);
-   //new_main_target = target;
    dmg_array = local_dmg_array;
    crit_roll_array = local_crit_roll_array;
    targets_array = pre_targets_array;
@@ -1610,6 +1858,306 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
    pre_targets_array = 0;
 end
 
+procedure show_dmg_combat_msg(variable target,variable attacker,variable dmg_value) begin
+   variable target_gender;
+   variable target_name;
+   variable combat_msg_num;
+   variable target_cur_hp;
+   //return if no target
+   if target <= 0 then return;
+   target_cur_hp = get_critter_stat(target, STAT_current_hp);
+   // npc msg
+   if target != dude_obj then begin
+      target_name = obj_name(target);
+      target_gender = get_critter_stat(target, STAT_gender) * 100;
+      combat_msg_num += (target_gender + 100);
+   end
+   //dude msg
+   else begin
+      target_name = modmsg(combat_msg_you);
+      target_gender = get_critter_stat(target, STAT_gender) * 50;
+      combat_msg_num += target_gender;
+   end
+   // dmg msg
+   if dmg_value > 1 then begin
+      combat_msg_num += combat_msg_hit_dmg;
+   end
+   // 1 dmg msg
+   else if dmg_value == 1 then begin
+      combat_msg_num += combat_msg_hit_1_dmg;
+   end
+   //no dmg msg
+   else begin
+      combat_msg_num += combat_msg_hit_no_dmg;
+   end
+   //show msg
+   if target_cur_hp > dmg_value then begin
+      display_msg(sprintf2(modmsg(combat_msg_num), target_name, dmg_value)+".");
+   end
+   //show death msg
+   else begin
+      display_msg(sprintf2(modmsg(combat_msg_num), target_name, dmg_value)+modmsg(msg_death));
+   end
+end
+
+procedure show_death_msg begin
+   variable target;
+   variable dmg_value;
+   variable target_sid;
+   variable target_frm;
+   foreach (target : dmg_value in death_array) begin
+      target_frm = art_anim(obj_art_fid(target));
+      if target_frm >= ANIM_bad_landing_sf andAlso target_frm <= ANIM_fall_front_blood_sf then begin
+         set_array(death_array, target, 0);
+         target_sid = get_object_data(target, OBJ_DATA_SID);
+         if target_sid > 0 then begin
+            set_obj_script_objects(target_sid, orig_attacker, 0);
+            exec_obj_script_proc(target_sid, destroy_proc);
+         end
+         call show_dmg_combat_msg(target, -1, dmg_value);
+         if target != dude_obj then begin
+            kill_critter(target, target_frm);
+         end
+         else begin
+            critter_heal(target,-dmg_value);
+         end
+      end
+   end
+   if len_array(death_array) <= 0 then begin
+      free_array(death_array);
+   end
+end
+
+procedure get_death_anim(variable target, variable attacker, variable dmg_value, variable dmg_type, variable dmg_source_tile) begin
+   variable death_anim = ANIM_fall_back;
+   variable target_cur_anim = art_anim(obj_art_fid(target));
+   variable target_max_hp = get_critter_stat(target, STAT_max_hp);
+   variable death_anim_sf;
+   variable is_front_hit = is_hit_from_front(dmg_source_tile, target);
+   variable is_burst = dmg_type bwand DMG_BURST;
+   //add target to array of creatures that will die. critter_PTR as key, dmg as value
+   if not(array_exists(death_array)) then begin
+      death_array = create_array_map;
+      set_array(death_array, target, dmg_value);
+   end
+   else begin
+      set_array(death_array, target, dmg_value);
+   end
+   //Death animation for a knocked out target
+   if target_cur_anim == ANIM_fall_back then begin
+      death_anim = ANIM_fall_back_blood;
+      return death_anim;
+   end
+   else if target_cur_anim == ANIM_fall_front then begin
+      death_anim = ANIM_fall_front_blood;
+      return death_anim;
+   end
+   //Death animation for a standing target
+   else begin
+      dmg_type -= is_burst;
+      //standard death_anim
+      if dmg_type == DMG_normal_dam andAlso is_burst < 0 andAlso (dmg_value < 35 or dmg_value < target_max_hp) andAlso random(0,2) then begin
+         death_anim = ANIM_fall_front - is_front_hit;
+      end
+      //brutal death_anim
+      else begin
+         if dmg_type == DMG_plasma then begin
+            if random(0, 3) then begin
+               death_anim = ANIM_melted_to_nothing;
+            end
+            else begin
+               death_anim = ANIM_charred_body;
+            end
+         end
+         else if dmg_type == DMG_electrical then begin
+            if random(0, 3) then begin
+               death_anim = ANIM_electrify;
+            end
+            else begin
+               death_anim = ANIM_electrified_to_nothing;
+            end
+         end
+         else if dmg_type == DMG_laser then begin
+            death_anim = ANIM_sliced_in_half;
+         end
+         else if dmg_type == DMG_explosion then begin
+            death_anim = ANIM_exploded_to_nothing;
+         end
+         else if dmg_type == DMG_normal_dam then begin
+            //brust death_anim
+            if is_burst > 0 then begin
+               //heavy burst
+               if is_burst > DMG_BURST then begin
+                  death_anim = ANIM_chunks_of_flesh;
+               end
+               //light burst
+               else begin
+                  death_anim = ANIM_dancing_autofire;
+               end
+            end
+            //single death_anim
+            else begin
+               if dmg_value < 99 andAlso dmg_value < target_max_hp then begin
+                  death_anim = ANIM_big_hole;
+               end
+               else begin
+                  death_anim = ANIM_exploded_to_nothing;
+               end
+            end
+         end
+         else if dmg_type == DMG_fire then begin
+            death_anim = ANIM_fire_dance;
+            death_anim_sf = death_anim + 28;
+            if not(art_exists_death_anim(target,death_anim)) andAlso not(art_exists_basic_anim(target,death_anim)) andAlso not(art_exists_death_anim(target,death_anim_sf)) andAlso not(art_exists_basic_anim(target,death_anim_sf)) then begin
+               death_anim = ANIM_burned_to_nothing;
+            end
+         end
+         else begin
+            death_anim = ANIM_fall_front - is_front_hit;
+         end
+      end
+      death_anim_sf = death_anim + 28;
+      //if death_anim exist then return it
+      if art_exists_death_anim(target,death_anim) orElse art_exists_basic_anim(target,death_anim) orElse art_exists_death_anim(target,death_anim_sf) orElse art_exists_basic_anim(target,death_anim_sf) then begin
+         return death_anim;
+      end
+      //else return standard death_anim
+      else begin
+         if is_front_hit or (not(art_exists_death_anim(target,ANIM_fall_front)) andAlso not(art_exists_basic_anim(target,ANIM_fall_front)) andAlso not(art_exists_death_anim(target,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(target,ANIM_fall_front_sf))) then begin
+            return ANIM_fall_back;
+         end
+         else begin
+            return ANIM_fall_front;
+         end
+      end
+   end
+end
+
+procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_value, variable dmg_type, variable animate, variable dmg_source_tile) begin
+   variable target_cur_hp;
+   variable target_cur_anim;
+   variable target_sid;
+   variable target_team = -1;
+   variable attacker_team = -1;
+   variable who_hit_target;
+   variable death_anim;
+   variable death_anim_part2;
+   variable death_anim_sf;
+   variable attacker_weapon;
+   variable combat_xp_bonus;
+   variable in_combat;
+   //check if the target exists and is a creature
+   if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER orElse attacker <= 0 orElse get_array(death_array,target) > 0 then begin
+      return;
+   end
+   //check dmg source tile
+   if dmg_source_tile < 0 or dmg_source_tile == tile_num(target) then begin
+      dmg_source_tile = tile_num(attacker);
+   end
+   target_cur_hp = get_critter_stat(target, STAT_current_hp);
+   target_cur_anim = art_anim(obj_art_fid(target));
+   target_sid = get_object_data(target, OBJ_DATA_SID);
+   target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+   attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+   if combat_is_initialized then begin
+      in_combat = 1;
+      attacker_weapon = get_object_data(combat_data, C_ATTACK_WEAPON);
+   end
+   if dmg_source_tile < 0 or dmg_source_tile == tile_num(target) then begin
+      dmg_source_tile = tile_num(attacker);
+   end
+   //chance to set who hit the target if they are from different teams
+   if attacker_team != target_team andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 or not(random(0,2))) then begin
+      set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
+   end
+   //cause non-lethal damage
+   if target_cur_hp > dmg_value then begin
+      //if the target has a script, set and execute “damage_p_proc”
+      if target_sid > 0 andAlso attacker_team != target_team then begin
+         set_obj_script_fixed_value(target_sid, dmg_value);
+         set_obj_script_objects(target_sid, attacker, attacker_weapon);
+         exec_obj_script_proc(target_sid, damage_proc);
+      end
+      if animate > 0 andAlso target_cur_anim != ANIM_fall_back andAlso target_cur_anim != ANIM_fall_front then begin
+         reg_anim_combat_check(0);
+         reg_anim_clear(target);
+         reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+         if is_hit_from_front(dmg_source_tile, target) or not(art_exists_basic_anim(target,ANIM_hit_from_back)) then begin
+            reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_front,snd_contact),0);
+            reg_anim_animate(target, ANIM_hit_from_front, 0);
+         end
+         else begin
+            reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_back,snd_contact),0);
+            reg_anim_animate(target, ANIM_hit_from_back, 0);
+         end
+         reg_anim_end();
+      end
+      call show_dmg_combat_msg(target, attacker, dmg_value);
+      critter_heal(target, -dmg_value);
+   end
+   //cause lethal damage
+   else begin
+      //if the target has a script, set and execute “damage_p_proc”
+      if target_sid > 0 andAlso attacker_team != target_team then begin
+         set_obj_script_fixed_value(target_sid, dmg_value);
+         set_obj_script_objects(target_sid, attacker, attacker_weapon);
+         exec_obj_script_proc(target_sid, damage_proc);
+      end
+      if animate > 0 then begin
+         death_anim = get_death_anim(target,attacker,dmg_value,dmg_type,dmg_source_tile);
+         reg_anim_combat_check(0);
+         reg_anim_clear(target);
+         reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+         //standardt death anim
+         if death_anim == ANIM_fall_back or death_anim == ANIM_fall_front then begin
+            death_anim_part2 = death_anim + 14;
+            death_anim_sf = death_anim_part2 + 28;
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim,snd_knock_down),0);
+            reg_anim_animate(target, death_anim, 0);
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim_part2,snd_knock_down),-1);
+            reg_anim_animate(target, death_anim_part2, 0);
+         end
+         //KO target death
+         else if death_anim == ANIM_fall_back_blood or death_anim == ANIM_fall_back_blood then begin
+            death_anim_sf = death_anim + 28;
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim,snd_knock_down),0);
+            reg_anim_animate(target, death_anim, 0);
+         end
+         //brutal fire_dance death
+         else if death_anim == ANIM_fire_dance then begin
+            death_anim_part2 = death_anim - 4;
+            death_anim_sf = death_anim_part2 + 28;
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim,snd_knock_down),0);
+            reg_anim_animate(target, death_anim, 0);
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim_part2,snd_knock_down),-1);
+            reg_anim_animate(target, death_anim_part2, 0);
+         end
+         //brutal death
+         else begin
+            death_anim_sf = death_anim + 28;
+            reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim,snd_knock_down),0);
+            reg_anim_animate(target, death_anim, 0);
+         end
+         reg_anim_animate(target, death_anim_sf, -1);
+         reg_anim_callback(show_death_msg);
+         reg_anim_end();
+      end
+      //increase combat_xp and increase kill_count
+      if in_combat andAlso attacker_team == TEAM_PLAYER then begin
+         if target_team != TEAM_PLAYER then begin
+            //inc combat exp
+            if Sonora <= 0 then begin
+               combat_xp_bonus = get_combat_exp + get_critter_xp(target);
+               set_combat_exp(combat_xp_bonus);
+            end
+            inc_kill_count(critter_kill_type(target));
+         end
+         else begin
+            inc_kill_count(critter_kill_type(target));
+         end
+      end
+   end
+end
 
 procedure STDPROCEDURE begin
    variable i;
@@ -1624,10 +2172,13 @@ procedure STDPROCEDURE begin
    variable accumulated_experience;
    variable critter_team;
    variable party;
-   if combat_is_initialized andAlso target_bodypart == BODY_HIT_TORSO andAlso one_time_call == 1 andAlso targets_array != 0 then begin
-      attacker = dude_obj;
+   variable target_sid;
+   variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+   variable in_combat = combat_is_initialized;
+   if in_combat andAlso one_time_call == 1 andAlso targets_array != 0 then begin
+      attacker = orig_attacker;
       party = party_member_list(0);
-      if missed_shot andAlso show_float_dmg andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) then begin
+      if missed_shot andAlso show_float_dmg andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) andAlso targets_count > 1 then begin
          if combat_dmg <= 0 then begin
             float_msg(orig_target, "0", 2);
          end
@@ -1638,34 +2189,45 @@ procedure STDPROCEDURE begin
       reg_anim_combat_check(0);
       reg_anim_begin();
       foreach (new_tar in targets_array) begin
+               if new_tar == orig_target andAlso obj_type(orig_target) != OBJ_TYPE_CRITTER then begin
+                  i += 1;
+               end
                   if new_tar andAlso obj_type(new_tar) == OBJ_TYPE_CRITTER andAlso new_tar != attacker andAlso (not(is_dead(new_tar)) or new_tar == orig_target) then begin
                   tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
                   crit_power_roll = get_array(crit_roll_array, i);
-                  if new_tar == last_target_on_a_line then crit_power_roll = -1;
+                  if new_tar == last_target_on_a_line andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER then crit_power_roll = -1;
                   crit_mult = get_crit_mult(crit_power_roll,new_tar);
                   new_tar_pid = obj_pid(new_tar);
                   new_tar_critter_flags = get_proto_data(new_tar_pid, PROTO_CR_FLAGS);
                   new_tar_frame = art_anim(obj_art_fid(new_tar));
                   critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
+                  target_sid = get_object_data(new_tar, OBJ_DATA_SID);
                   //on a hit, the target becomes hostile
                   if critter_team == TEAM_PLAYER then begin
                      //on a hit, a friendly(non-companion) target with low health has a 33% chance to become hostile
                      if (tar_cur_hp < 20 andAlso not(random(0,2))) andAlso not(is_in_array(new_tar, party)) then attack_setup(new_tar, attacker);
                   end
                   else begin
-                     //on a hit, a neutral target has a 100% chance to become hostile
-                     attack_setup(new_tar, attacker);
+                     //on a hit, a neutral target has a 66% chance to become hostile
+                     if random(0,2) then attack_setup(new_tar, attacker);
                   end
-                  if (new_tar_critter_flags bwand CFLG_INVULN) then begin
-                     dmg = 0;
+
+                  if new_tar == orig_target then begin
+                     dmg = combat_dmg;
                   end
                   else begin
-                     dmg = round(get_array(dmg_array, i) * crit_mult);
+                     if (new_tar_critter_flags bwand CFLG_INVULN) then begin
+                        dmg = 0;
+                     end
+                     else begin
+                        dmg = round(get_array(dmg_array, i) * crit_mult);
+                     end
                   end
-                  if new_tar == orig_target then dmg = combat_dmg;
                   i += 1;
+
+
                         if dmg <= 0 then begin
-                           if show_float_dmg then begin
+                           if show_float_dmg andAlso targets_count > 1 then begin
                               if crit_power_roll < 0 or (missed_shot andAlso new_tar == orig_target) then begin
                                  float_msg(new_tar,"~", 2);
                               end
@@ -1676,7 +2238,7 @@ procedure STDPROCEDURE begin
                            if new_tar != orig_target then display_msg(parse_str_2(modmsg(msg_hit_no_dmg), obj_name(new_tar), dmg));
                            if not(new_tar_critter_flags bwand CFLG_INVULN) then break;
                         end
-                        if show_float_dmg andAlso new_tar == orig_target then begin
+                        if show_float_dmg andAlso new_tar == orig_target andAlso targets_count > 1 then begin
                            if dmg <= 0 then begin
                               if missed_shot then begin
                                  float_msg(new_tar, "~", 2);
@@ -1691,20 +2253,11 @@ procedure STDPROCEDURE begin
                         end
                         if dmg > 0 andAlso new_tar != orig_target then begin
                            if crit_power_roll < 0 then begin
-                              if show_float_dmg then float_msg(new_tar, "~", 2);
+                              if show_float_dmg andAlso targets_count > 1 then float_msg(new_tar, "~", 2);
                               display_msg(parse_str_2(modmsg(msg_hit_no_dmg), obj_name(new_tar), dmg));
                            end
                            else begin
-                           if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
-                           //exp for sonora
-                           if sonora then begin
-                              if tar_cur_hp > dmg andAlso crit_power_roll <= 100 then begin
-                                 accumulated_experience += (dmg * 2.5);
-                              end
-                              else begin
-                                 accumulated_experience += (tar_cur_hp * 2.5);
-                              end
-                           end
+
                                  // new_target will take non lethal dmg
                                  if tar_cur_hp - dmg > 0 andAlso crit_power_roll <= 100 then begin
                                     if crit_mult == 2 then begin
@@ -1748,13 +2301,44 @@ procedure STDPROCEDURE begin
                                           display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
                                        end
                                     end
+                                    //call dmg_p_proc in critter script
+                                    if target_sid > 0 andAlso attacker_team != critter_team then begin
+                                       set_obj_script_fixed_value(target_sid, dmg);
+                                       set_obj_script_objects(target_sid, attacker, weapon);
+                                       exec_obj_script_proc(target_sid, damage_proc);
+                                    end
                                     critter_heal(new_tar, -dmg);
+                                    if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
                                  end
                                  //if new_target will die
                                  else begin
-                                    if not(sonora) then accumulated_experience += get_proto_data(new_tar_pid, PROTO_CR_EXP_VAL);
+
+                                    if sonora <= 0 then accumulated_experience += get_critter_xp(new_tar);
                                     set_outline(new_tar, OUTLINE_NONE);
+                                    //call dmg_p_proc in critter script
+                                    if target_sid > 0 andAlso attacker_team != critter_team then begin
+                                       set_obj_script_fixed_value(target_sid, dmg);
+                                       set_obj_script_objects(target_sid, attacker, weapon);
+                                       exec_obj_script_proc(target_sid, damage_proc);
+                                    end
+                                    if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
                                     if new_tar != orig_target then critter_heal(new_tar, -tar_cur_hp);
+                                    //if in_combat add kill xp
+                                    if in_combat andAlso attacker_team == TEAM_PLAYER then begin
+                                       if attacker_team != TEAM_PLAYER then begin
+                                          inc_kill_count(critter_kill_type(new_tar));
+                                          accumulated_experience += get_critter_xp(new_tar);
+                                       end
+                                       else begin
+                                          inc_kill_count(critter_kill_type(new_tar));
+                                       end
+                                    end
+
+                                    //if the target has a script, set and execute “destroy_p_proc”
+                                    if target_sid > 0 then begin
+                                       set_obj_script_objects(target_sid, new_tar, attacker);
+                                       exec_obj_script_proc(target_sid, destroy_proc);
+                                    end
                                     if new_tar_frame == ANIM_fall_back then begin
                                        reg_anim_clear(new_tar);
                                        reg_anim_animate(new_tar, ANIM_fall_back_blood, random(1,3));
@@ -1802,16 +2386,19 @@ procedure STDPROCEDURE begin
                              end
                         end
                   end
+
       end
-      if accumulated_experience > 1 andAlso attacker == dude_obj then begin
-         if sonora then accumulated_experience = round(accumulated_experience);
-         give_exp_points(accumulated_experience);
-         display_msg(modmsg(msg_gift_exp_start) + accumulated_experience + modmsg(msg_gift_exp_end));
+      if accumulated_experience > 1 andAlso attacker_team == TEAM_PLAYER then begin
+         if Sonora <= 0 then begin
+            accumulated_experience = accumulated_experience + get_combat_exp;
+            set_combat_exp(accumulated_experience);
+         end
       end
       reg_anim_end();
+
    call lvar_full_reset();
    end
-   if one_time_call andAlso combat_is_initialized then begin
+   if one_time_call > 0 andAlso combat_is_initialized then begin
       one_time_call = 0;
       real_orig_target = 0;
    end
@@ -1820,296 +2407,335 @@ procedure STDPROCEDURE begin
       real_orig_target = 0;
    end
 end
+
 procedure laser_line_dmg(variable attacker,variable target) begin
-   variable rot_atk_to_tar = real_rotation_to_tile(tile_num(attacker), tile_num(target));
+   variable atkr_tile = tile_num(attacker);
+   variable attacker_elev = elevation(attacker);
+   variable rot_atk_to_tar = rotation_to_tile(atkr_tile, tile_num(target));
    variable crit_mult = 1;
-   variable rot_mult = 1;
-   variable min_anim_delay = 1;
    variable anim_frame = 0;
-   variable tiles_per_frame = get_tiles_per_frame(combat_speed);
    variable new_tar;
    variable new_tar_critter_flags;
    variable new_tar_special_death;
-   variable new_tar_fid;
-   variable new_tar_critter_type;
    variable tar_cur_frm;
-   variable first_dist;
-   variable distance_atk_new_tar;
-   variable distance_last_tar_new_tar;
-   variable last_crit;
-   variable anim_delay;
+   variable anim_delay = -1;
    variable dmg;
    variable i;
-   last_crit = attacker;
-   reg_anim_combat_check(0);
-   reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
-   //get distance to new_tar
+   variable projectile;
+   //variable projectile;
+   variable timer;
+   variable new_tar_tile;
+   variable new_tar_cur_hp;
+   variable start_tile = tile_num_in_direction(atkr_tile, rot_atk_to_tar, 1);
    foreach (new_tar in targets_array) begin
-      if new_tar andAlso new_tar != attacker then begin
-         distance_objs(first_dist, attacker, new_tar);
-         break;
-      end
-   end
-   first_dist = round(first_dist / 1.5);
-   if rot_atk_to_tar != 1 andAlso rot_atk_to_tar != 4 then first_dist = (first_dist / 2.0);
-   if first_dist < 1 then first_dist = 1;
-   placeholder = create_object_sid(pid_laser_projectile, tile_num(attacker), elevation(attacker), -1);
-   set_obj_visibility(placeholder, 1);
-   anim_delay = round(first_dist / tiles_per_frame);
-   reg_anim_animate(placeholder, anim_frame, 6);
-   reg_anim_animate_reverse(placeholder, anim_frame, point_anim_frames);
-   if tiles_per_frame == 5 andAlso (rot_atk_to_tar == 1 or rot_atk_to_tar == 4) then begin
-      if anim_delay > 6 then begin
-         anim_delay = 3 + anim_delay - 6;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 6 then begin
-         anim_delay = 6 + anim_delay - 6;
-         reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-      end
-   end
-   if tiles_per_frame < 5.0 then begin
-         if anim_delay > 6 then begin
-            anim_delay = 3 + anim_delay - 6;
-            if anim_delay < 5 then anim_delay = 5;
-            reg_anim_animate(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 6 then begin
-            anim_delay = 1 + anim_delay - 6;
-            if anim_delay < 4 then anim_delay = 4;
-            reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 6 then begin
-            anim_delay = anim_delay - 6;
-            if anim_delay < 4 then anim_delay = 4;
-            reg_anim_animate(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 6 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 6 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 7 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 7 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 7 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-         end
-         if anim_delay > 7 then begin
-            anim_delay = 1 + anim_delay - 6;
-            reg_anim_animate(placeholder, anim_frame, anim_delay);
-         end
-      end
-   i = 0;
-   anim_delay = 0;
-   foreach (new_tar in targets_array) begin
+      targets_count += 1;
       if new_tar andAlso new_tar == target then begin
          i += 1;
+         new_tar_tile = tile_num(new_tar);
+
+         placeholder = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+         set_obj_visibility(placeholder, 1);
+         set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
+
+
+         projectile = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+         anim(projectile, ANIMATE_ROTATION, rot_atk_to_tar);
+         set_obj_visibility(projectile, 1);
+         move_to(projectile, start_tile, attacker_elev);
+
+         timer = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+         set_obj_visibility(timer, 1);
+
+         reg_anim_combat_check(0);
+         reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+         reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+         reg_anim_animate(placeholder, ANIM_point, -1);
+         reg_anim_animate(placeholder, ANIM_fire_single, -1);
+         reg_anim_animate(timer, ANIM_stand, 0);
+         reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, 0);
+         reg_anim_destroy(projectile);
+         reg_anim_animate(timer, anim_frame, -1);
+         reg_anim_animate_reverse(timer, anim_frame, -1);
+         reg_anim_animate(timer, anim_frame, -1);
+         reg_anim_animate_reverse(timer, anim_frame, 4);
+         reg_anim_destroy(timer);
+         reg_anim_destroy(placeholder);
+         reg_anim_callback(restore_weapon_proj_pid);
+         reg_anim_callback(STDPROCEDURE);
+         reg_anim_end();
          break;
       end
       if new_tar andAlso new_tar != target andAlso new_tar != attacker then begin
       tar_cur_frm = get_object_data(new_tar, OBJ_DATA_CUR_FRM);
-      new_tar_critter_flags = get_proto_data(obj_pid(new_tar), PROTO_CR_FLAGS);
-      new_tar_special_death = (new_tar_critter_flags bwand CFLG_SPECIAL);
-      new_tar_fid = crit_fid(new_tar);
-      new_tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, new_tar);
-      crit_power_roll = get_array(crit_roll_array, i);
-      crit_mult = get_crit_mult(crit_power_roll,new_tar);
-      dmg = round(get_array(dmg_array, i) * crit_mult);
-      distance_objs(distance_last_tar_new_tar, last_crit, new_tar);
-      min_anim_delay = 1 / tiles_per_frame;
-      if rot_atk_to_tar != 1 andAlso rot_atk_to_tar != 4 then begin
-         distance_last_tar_new_tar = distance_last_tar_new_tar / 2.2;
-         min_anim_delay = min_anim_delay / 2.2;
-      end
-      if distance_last_tar_new_tar > 1 then begin
-         anim_delay += ceil( min_anim_delay + (distance_last_tar_new_tar)  / tiles_per_frame);
-      end
-      else begin
-         distance_objs(distance_atk_new_tar, attacker, new_tar);
-         if rot_atk_to_tar != 1 andAlso rot_atk_to_tar != 4 then distance_atk_new_tar = distance_atk_new_tar / 2.2;
-         anim_delay = ceil( min_anim_delay + (distance_atk_new_tar)  / tiles_per_frame);
-         distance_last_tar_new_tar = distance_last_tar_new_tar + 1;
-         if anim_delay > round(distance_last_tar_new_tar * 3 / tiles_per_frame) then anim_delay = 1 + round(distance_last_tar_new_tar * 3 / tiles_per_frame);
-      end
-      last_crit = new_tar;
-      i += 1;
             //animate if target is not in anim
             if tar_cur_frm == 0 then begin
+               new_tar_critter_flags = get_proto_data(obj_pid(new_tar), PROTO_CR_FLAGS);
+               new_tar_special_death = (new_tar_critter_flags bwand CFLG_SPECIAL);
+               crit_power_roll = get_array(crit_roll_array, i);
+               crit_mult = get_crit_mult(crit_power_roll,new_tar);
+               dmg = round(get_array(dmg_array, i) * crit_mult);
+               new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
+               i += 1;
+               new_tar_tile = tile_num(new_tar);
+
+               placeholder = create_object_sid(pid_laser_projectile, tile_num_in_direction(atkr_tile, rot_atk_to_tar+1, 3), attacker_elev, -1);
+               set_obj_visibility(placeholder, 1);
+               set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
+
+               projectile = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+               anim(projectile, ANIMATE_SET_FRAME, 5);
+               set_obj_visibility(projectile, 1);
+               move_to(projectile, start_tile, attacker_elev);
+
+               timer = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+               set_obj_visibility(timer, 1);
+
                //miss animation
                if crit_power_roll < 0 or (new_tar_critter_flags bwand CFLG_INVULN) then begin
-                  reg_anim_clear(new_tar);
+                  reg_anim_combat_check(0);
+                  reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                  reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                  reg_anim_animate(placeholder, ANIM_point, -1);
+                  reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
                   reg_anim_animate(new_tar, ANIM_dodge_anim, anim_delay);
+                  reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_dodge_anim,snd_contact),0);
+                  reg_anim_destroy(projectile);
+                  reg_anim_destroy(timer);
+                  reg_anim_destroy(placeholder);
+                  reg_anim_end();
                end
                else begin
-                        //hit animation start
-                        if get_critter_stat(new_tar,STAT_current_hp) - dmg > 0 andAlso crit_power_roll <= 100 then begin
-                           if crit_mult < 2 or dmg <= 0 or (new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
-                              if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills then begin
-                                 reg_anim_clear(new_tar);
-                                 reg_anim_animate(new_tar, ANIM_hit_from_front, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_hit_from_front,snd_contact),0);
+                  //hit animation start
+                  if new_tar_cur_hp - dmg > 0 andAlso crit_power_roll <= 100 then begin
+                     if crit_mult < 2 or dmg <= 0 or (new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
+                        if is_hit_from_front(atkr_tile, new_tar) or not(art_exists_basic_anim(new_tar,ANIM_hit_from_back)) then begin
+                           reg_anim_combat_check(0);
+                           reg_anim_clear(new_tar);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                           reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                           reg_anim_animate(placeholder, ANIM_point, -1);
+                           reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                           reg_anim_animate(new_tar, ANIM_hit_from_front, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_hit_from_front,snd_contact),0);
+                           reg_anim_destroy(projectile);
+                           reg_anim_destroy(timer);
+                           reg_anim_destroy(placeholder);
+                           reg_anim_end();
+                        end
+                        else begin
+                           reg_anim_combat_check(0);
+                           reg_anim_clear(new_tar);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                           reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                           reg_anim_animate(placeholder, ANIM_point, -1);
+                           reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+                           reg_anim_animate(new_tar, ANIM_hit_from_back, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_hit_from_back,snd_contact),0);
+                           reg_anim_destroy(projectile);
+                           reg_anim_destroy(timer);
+                           reg_anim_destroy(placeholder);
+                           reg_anim_end();
+                        end
+                     end
+                     else begin
+                        if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_death_anim(new_tar,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front_sf))) then begin
+                           reg_anim_combat_check(0);
+                           reg_anim_clear(new_tar);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                           reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                           reg_anim_animate(placeholder, ANIM_point, -1);
+                           reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                           reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
+                           reg_anim_destroy(projectile);
+                           reg_anim_destroy(timer);
+                           reg_anim_destroy(placeholder);
+                           reg_anim_end();
+                        end
+                        else begin
+                           reg_anim_combat_check(0);
+                           reg_anim_clear(new_tar);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                           reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                           reg_anim_animate(placeholder, ANIM_point, -1);
+                           reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                           reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
+                           reg_anim_destroy(projectile);
+                           reg_anim_destroy(timer);
+                           reg_anim_destroy(placeholder);
+                           reg_anim_end();
+                        end
+                     end
+                     if crit_mult == 2 andAlso not(new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
+                        critter_injure(new_tar, DAM_KNOCKED_DOWN);
+                     end
+                     if crit_mult == 3 andAlso not(new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
+                        critter_injure(new_tar, DAM_KNOCKED_OUT);
+                     end
+                  end
+                  //hit animation end
+
+                  //death animation start
+                  else begin
+                  //non gore death
+                       if dmg > 0 andAlso dmg < 30 andAlso not(bloody_mess) then begin
+                           if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_death_anim(new_tar,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front_sf))) then begin
+                              reg_anim_combat_check(0);
+                              reg_anim_clear(new_tar);
+                              reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                              reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                              reg_anim_animate(placeholder, ANIM_point, -1);
+                              reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                              reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                              reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
+                              reg_anim_destroy(projectile);
+                              reg_anim_destroy(timer);
+                              reg_anim_destroy(placeholder);
+                              reg_anim_end();
+                           end
+                           else begin
+                              reg_anim_combat_check(0);
+                              reg_anim_clear(new_tar);
+                              reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                              reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                              reg_anim_animate(placeholder, ANIM_point, -1);
+                              reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                              reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
+                              reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
+                              reg_anim_destroy(projectile);
+                              reg_anim_destroy(timer);
+                              reg_anim_destroy(placeholder);
+                              reg_anim_end();
+                           end
+                        end
+                        if dmg >= 30 or bloody_mess then begin
+                           // if obj dont have ANIM_sliced_in_half death anim then
+                            if (not(art_exists_death_anim(new_tar,ANIM_sliced_in_half)) andAlso not(art_exists_basic_anim(new_tar,ANIM_sliced_in_half)) andAlso not(art_exists_death_anim(new_tar,ANIM_sliced_in_half_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_sliced_in_half_sf))) then begin
+                              //critter is not the Horrigan
+                              if obj_pid(new_tar) != PID_END_BOSS then begin
+                                 if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_death_anim(new_tar,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front_sf))) then begin
+                                    reg_anim_combat_check(0);
+                                    reg_anim_clear(new_tar);
+                                    reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                                    reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                                    reg_anim_animate(placeholder, ANIM_point, -1);
+                                    reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                                    reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
+                                    reg_anim_destroy(projectile);
+                                    reg_anim_destroy(timer);
+                                    reg_anim_destroy(placeholder);
+                                    reg_anim_end();
+                                 end
+                                 else begin
+                                    reg_anim_combat_check(0);
+                                    reg_anim_clear(new_tar);
+                                    reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                                    reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                                    reg_anim_animate(placeholder, ANIM_point, -1);
+                                    reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+
+                                    reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
+                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
+                                    reg_anim_destroy(projectile);
+                                    reg_anim_destroy(timer);
+                                    reg_anim_destroy(placeholder);
+                                    reg_anim_end();
+                                 end
                               end
+                              // horrigan death
                               else begin
+                                 reg_anim_combat_check(0);
                                  reg_anim_clear(new_tar);
-                                 reg_anim_animate(new_tar, ANIM_hit_from_back, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_hit_from_back,snd_contact),0);
+                                 reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                                 reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                                 reg_anim_animate(placeholder, ANIM_point, -1);
+                                 reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+                                 reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
+                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
+                                 reg_anim_destroy(projectile);
+                                 reg_anim_destroy(timer);
+                                 reg_anim_destroy(placeholder);
+                                 reg_anim_end();
                               end
                            end
                            else begin
-                              if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
-                                 if new_tar_fid == FID_MADEGG then begin
-                                    //no anim for eggs
-                                 end
-                                 else begin
-                                    reg_anim_clear(new_tar);
-                                    reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
-                                 end
-                              end
-                              else begin
-                                 reg_anim_clear(new_tar);
-                                 reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
-                              end
-                           end
-                           if crit_mult == 2 andAlso not(new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
-                              critter_injure(new_tar, DAM_KNOCKED_DOWN);
-                           end
-                           if crit_mult == 3 andAlso not(new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
-                              critter_injure(new_tar, DAM_KNOCKED_OUT);
+                              reg_anim_combat_check(0);
+                              reg_anim_clear(new_tar);
+                              reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+                              reg_anim_turn_towards(placeholder, new_tar_tile, -1);
+                              reg_anim_animate(placeholder, ANIM_point, -1);
+                              reg_anim_animate_and_move(projectile, new_tar_tile, ANIMATE_RUN, -1);
+                              reg_anim_animate(new_tar, ANIM_sliced_in_half, anim_delay);
+                              reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_sliced_in_half,snd_die),0);
+                              reg_anim_destroy(projectile);
+                              reg_anim_destroy(timer);
+                              reg_anim_destroy(placeholder);
+                              reg_anim_end();
                            end
                         end
-                        //hit animation end
-
-                        //death animation start
-                        else begin
-                        //non gore death
-                             if dmg > 0 andAlso dmg < 30 andAlso not(bloody_mess) then begin
-                                 if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
-                                    if new_tar_fid == FID_MADEGG then begin
-                                       //no anim for eggs
-                                    end
-                                    else begin
-                                       reg_anim_clear(new_tar);
-                                       reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                       reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
-                                    end
-                                 end
-                                 else begin
-                                    reg_anim_clear(new_tar);
-                                    reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
-                                 end
-                              end
-                              if dmg >= 30 or bloody_mess then begin
-                                    // if obj dont have ANIM_sliced_in_half death anim then
-                                    if new_tar_fid == FID_NMBOXX or new_tar_fid == FID_NMOLDD or new_tar_fid == FID_MADEGG or new_tar_fid == FID_NFLYNN or new_tar_fid == FID_NFNICE or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills or (new_tar_critter_type == KILL_TYPE_robot_kills andAlso new_tar_fid != 16777282) or new_tar_critter_type == 18 then begin
-                                       //critter is not the Horrigan
-                                       if obj_pid(new_tar) != PID_END_BOSS then begin
-                                          if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
-                                             if new_tar_fid == FID_MADEGG then begin
-                                                //no anim for eggs
-                                             end
-                                             else begin
-                                                reg_anim_clear(new_tar);
-                                                reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                                reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
-                                             end
-                                          end
-                                          //critter is the Horrigan
-                                          else begin
-                                             reg_anim_clear(new_tar);
-                                             reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
-                                             reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
-                                          end
-                                       end
-                                       // horrigan death
-                                       else begin
-                                          reg_anim_clear(new_tar);
-                                          reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
-                                          reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
-                                       end
-                                    end
-                                    else begin
-                                       reg_anim_clear(new_tar);
-                                       reg_anim_animate(new_tar, ANIM_sliced_in_half, anim_delay);
-                                       reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_sliced_in_half,snd_die),0);
-                                    end
-                              end
-
-
                      end
                   end
-
-
-
             end
          end
       end
-                                       reg_anim_clear(placeholder);
-                                       reg_anim_animate(placeholder, ANIM_sliced_in_half, -1);
 
-      reg_anim_callback(restore_weapon_proj_pid);
-      reg_anim_callback(STDPROCEDURE);
-      reg_anim_callback(destroy_placeholder);
-      reg_anim_end();
 end
 
 procedure gauss_line_dmg(variable attacker,variable target) begin
    variable new_tar;
    variable new_tar_critter_flags;
    variable new_tar_special_death;
-   variable new_tar_fid;
-   variable new_tar_critter_type;
    variable tar_cur_frm;
    variable i = 0;
-   variable last_crit;
    variable anim_delay = 0;
    variable dmg;
    variable crit_mult = 1;
-   last_crit = attacker;
+   variable new_tar_cur_hp;
+   variable atkr_tile = tile_num(attacker);
+   placeholder = create_object_sid(pid_laser_projectile, 0, elevation(attacker), -1);
+   set_obj_visibility(placeholder, 1);
+   set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
+
    reg_anim_combat_check(0);
    reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
-   placeholder = create_object_sid(pid_laser_projectile, tile_num(dude_obj), elevation(dude_obj), -1);
-   set_obj_visibility(placeholder, 1);
-   reg_anim_animate(placeholder, 0, 6);
-   reg_anim_animate_reverse(placeholder, 0, point_anim_frames);
+   reg_anim_turn_towards(placeholder, tile_num(target), -1);
+   reg_anim_animate(placeholder, ANIM_point, -1);
+   reg_anim_animate(placeholder, ANIM_fire_single, -1);
+
    foreach (new_tar in targets_array) begin
-   if new_tar andAlso new_tar == target then begin
+      if new_tar andAlso new_tar == target then begin
+         targets_count += 1;
+         i += 1;
+      end
+      if new_tar andAlso new_tar != target andAlso new_tar != attacker then begin
+      tar_cur_frm = get_object_data(new_tar, OBJ_DATA_CUR_FRM);
+      crit_power_roll = get_array(crit_roll_array, i);
+      crit_mult = get_crit_mult(crit_power_roll,new_tar);
+      dmg = round(get_array(dmg_array, i) * crit_mult);
+      targets_count += 1;
       i += 1;
-   end
-   if new_tar andAlso new_tar != target andAlso new_tar != attacker then begin
-   tar_cur_frm = get_object_data(new_tar, OBJ_DATA_CUR_FRM);
-   new_tar_critter_flags = get_proto_data(obj_pid(new_tar), PROTO_CR_FLAGS);
-   new_tar_special_death = (new_tar_critter_flags bwand CFLG_SPECIAL);
-   new_tar_fid = crit_fid(new_tar);
-   new_tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, new_tar);
-   crit_power_roll = get_array(crit_roll_array, i);
-   crit_mult = get_crit_mult(crit_power_roll,new_tar);
-   dmg = round(get_array(dmg_array, i) * crit_mult);
-   i += 1;
-
-
          if tar_cur_frm == 0 andAlso dmg > 0 then begin
+            new_tar_critter_flags = get_proto_data(obj_pid(new_tar), PROTO_CR_FLAGS);
+            new_tar_special_death = (new_tar_critter_flags bwand CFLG_SPECIAL);
+            new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
             //miss animation
             if crit_power_roll < 0 or (new_tar_critter_flags bwand CFLG_INVULN) then begin
                reg_anim_animate(new_tar, ANIM_dodge_anim, anim_delay);
+               reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_dodge_anim,snd_contact),0);
             end
             else begin
               //hit animation start
-               if get_critter_stat(new_tar,STAT_current_hp) - dmg > 0 andAlso crit_power_roll <= 100 then begin
+               if new_tar_cur_hp - dmg > 0 andAlso crit_power_roll <= 100 then begin
                   if crit_mult < 2 or (new_tar_critter_flags bwand CFLG_NOKNOCKBACK) then begin
-                     if (is_hit_from_front(attacker, new_tar)) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills then begin
+                     if is_hit_from_front(atkr_tile, new_tar) or not(art_exists_basic_anim(new_tar,ANIM_hit_from_back)) then begin
                         reg_anim_animate(new_tar, ANIM_hit_from_front, anim_delay);
                         reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_hit_from_front,snd_contact),0);
                      end
@@ -2119,14 +2745,9 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
                      end
                   end
                   else begin
-                     if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
-                        if new_tar_fid == FID_MADEGG then begin
-                           //no anim for eggs
-                        end
-                        else begin
-                           reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
-                        end
+                     if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_death_anim(new_tar,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front_sf))) then begin
+                        reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                        reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
                      end
                      else begin
                         reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
@@ -2144,72 +2765,71 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
 
                //death animation start
                else begin
-                        //low dmg start
-                        if dmg <= 30 andAlso not(bloody_mess) then begin
-                           if is_hit_from_front(attacker, new_tar) or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MAROBO or new_tar_fid == FID_MAHAND or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_rat_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills then begin
-                              if new_tar_fid == FID_MADEGG then begin
-                                 //no anim for eggs
-                              end
-                              else begin
-                                 reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
-                              end
-                           end
-                           else begin
-                              reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
-                              reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
-                           end
-                        end
-                        //low dmg end
+                  //low dmg start
+                  if dmg <= 30 andAlso not(bloody_mess) then begin
+                     if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front)) andAlso not(art_exists_death_anim(new_tar,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_fall_front_sf))) then begin
+                        reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                        reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_knock_down),0);
+                     end
+                     else begin
+                        reg_anim_animate(new_tar, ANIM_fall_front, anim_delay);
+                        reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_front,snd_knock_down),0);
+                     end
+                  end
+                  //low dmg end
 
-                        //dmg > 30 and <= 60 start
-                        else if dmg <= 60 or (bloody_mess andAlso dmg <= 50) then begin
-                              // if obj dont have big_hole death anim then
-                              if new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_NFLYNN or new_tar_fid == FID_NMBRSR or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_dog_kills or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_floater_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_giant_ant_kills or new_tar_critter_type == KILL_TYPE_brahmin_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills or new_tar_critter_type == KILL_TYPE_robot_kills or new_tar_critter_type == 18 then begin
-                                 if obj_pid(new_tar) != PID_END_BOSS then begin
-                                    reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_die),0);
-                                 end
-                                 else begin
-                                    reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
-                                 end
-                              end
-                              else begin
-                                 reg_anim_animate(new_tar, ANIM_big_hole, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_big_hole,snd_die),0);
-                              end
+                  //dmg > 30 and <= 60 start
+                  else if dmg <= 60 or (bloody_mess andAlso dmg <= 50) then begin
+                     // if obj dont have big_hole death anim then
+                     if is_hit_from_front(atkr_tile, new_tar) or (not(art_exists_death_anim(new_tar,ANIM_big_hole)) andAlso not(art_exists_basic_anim(new_tar,ANIM_big_hole)) andAlso not(art_exists_death_anim(new_tar,ANIM_big_hole_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_big_hole_sf))) then begin
+                        if obj_pid(new_tar) != PID_END_BOSS then begin
+                           reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_die),0);
                         end
-                        //dmg > 30 and <= 60 end
+                        else begin
+                           reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
+                        end
+                     end
+                     else begin
+                        if random(0,4) or (not(art_exists_death_anim(new_tar,ANIM_exploded_to_nothing)) andAlso not(art_exists_basic_anim(new_tar,ANIM_exploded_to_nothing)) andAlso not(art_exists_death_anim(new_tar,ANIM_exploded_to_nothing_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_exploded_to_nothing_sf))) then begin
+                           reg_anim_animate(new_tar, ANIM_big_hole, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_big_hole,snd_die),0);
+                        end
+                        else begin
+                           reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
+                        end
+                     end
+                  end
+                  //dmg > 30 and <= 60 end
 
-                        //dmg > 60 start
-                        else if dmg > 60 or (bloody_mess andAlso dmg > 50) then begin
-                           // if obj dont have explode death anim then
-                           if (get_critter_stat(new_tar,STAT_current_hp) < (dmg / 2)) or new_tar_special_death or new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_MABRAN or new_tar_fid == FID_MAMURT or new_tar_fid == FID_MAMRAT or new_tar_fid == FID_NMDOCC or new_tar_fid == FID_NMDOCC or new_tar_fid == FID_NMVALT or new_tar_critter_type == KILL_TYPE_deathclaw_kills or new_tar_critter_type == KILL_TYPE_plant_kills or new_tar_critter_type == 18 then begin
-                              // if obj dont have big_hole death anim then
-                              if new_tar_fid == FID_MAGUN2 or new_tar_fid == FID_MAGUNN or new_tar_fid == FID_NMBOXX or new_tar_fid == FID_MADEGG or new_tar_fid == FID_NFLYNN or new_tar_fid == FID_NMBRSR or new_tar_fid == FID_MAROBE or new_tar_critter_type == KILL_TYPE_dog_kills or new_tar_critter_type == KILL_TYPE_manti_kills or new_tar_critter_type == KILL_TYPE_floater_kills or new_tar_critter_type == KILL_TYPE_centaur_kills or new_tar_critter_type == KILL_TYPE_giant_ant_kills or new_tar_critter_type == KILL_TYPE_brahmin_kills or new_tar_critter_type == KILL_TYPE_radscorpion_kills or new_tar_critter_type == KILL_TYPE_plant_kills or new_tar_critter_type == 18 then begin
-                                  if obj_pid(new_tar) != PID_END_BOSS then begin
-                                    reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_die),0);
-                                 end
-                                 else begin
-                                    reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
-                                    reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
-                                 end
-                              end
-                              else begin
-                                 reg_anim_animate(new_tar, ANIM_big_hole, anim_delay);
-                                 reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_big_hole,snd_die),0);
-                              end
+                  //dmg > 60 start
+                  else if dmg > 60 or (bloody_mess andAlso dmg > 50) then begin
+                     // if obj dont have explode death anim then
+                     if (new_tar_cur_hp < (dmg / 2)) or (not(art_exists_death_anim(new_tar,ANIM_exploded_to_nothing)) andAlso not(art_exists_basic_anim(new_tar,ANIM_exploded_to_nothing)) andAlso not(art_exists_death_anim(new_tar,ANIM_exploded_to_nothing_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_exploded_to_nothing_sf))) then begin
+                        // if obj dont have big_hole death anim then
+                        if (not(art_exists_death_anim(new_tar,ANIM_big_hole)) andAlso not(art_exists_basic_anim(new_tar,ANIM_big_hole)) andAlso not(art_exists_death_anim(new_tar,ANIM_big_hole_sf)) andAlso not(art_exists_basic_anim(new_tar,ANIM_big_hole_sf))) then begin
+                            if obj_pid(new_tar) != PID_END_BOSS then begin
+                              reg_anim_animate(new_tar, ANIM_fall_back, anim_delay);
+                              reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_fall_back,snd_die),0);
                            end
                            else begin
                               reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
                               reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
                            end
                         end
-                        //dmg 60 end
-
-
+                        else begin
+                           reg_anim_animate(new_tar, ANIM_big_hole, anim_delay);
+                           reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_big_hole,snd_die),0);
+                        end
+                     end
+                     else begin
+                        reg_anim_animate(new_tar, ANIM_exploded_to_nothing, anim_delay);
+                        reg_anim_play_sfx(new_tar,sfx_build_char_name(new_tar,ANIM_exploded_to_nothing,snd_die),0);
+                     end
+                  end
+                  //dmg 60 end
                end
                //death animation end
 
@@ -2217,9 +2837,6 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
          end
       end
    end
-                                       reg_anim_clear(placeholder);
-                                       reg_anim_animate(placeholder, ANIM_sliced_in_half, -1);
-
    reg_anim_callback(restore_weapon_proj_pid);
    reg_anim_callback(STDPROCEDURE);
    reg_anim_callback(destroy_placeholder);
@@ -2227,36 +2844,50 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
 end
 
 procedure plasma_alt_explosion begin
+   variable attacker = orig_attacker;
    variable target_elevation = elevation(orig_target);
+   variable tar_tile = tile_num(orig_target);
+   variable target_rot_to_attacker = rotation_to_tile(tar_tile, tile_num(attacker));
+   variable test_tile;
    variable target_dt;
    variable target_dr;
-   variable tar_tile = tile_num(orig_target);
    variable critter_team = -5;
    variable blast_radius = PlasmaBlastRadius;
    variable new_tar_dmg_mult;
    variable array_critters_in_radius = objects_in_radius(tar_tile,blast_radius, target_elevation, OBJ_TYPE_CRITTER);
    variable new_tar;
-   variable new_tar_pid;
+   variable new_tar_tile;
    variable new_tar_cur_hp;
    variable distance;
    variable exlposion;
    variable pid = 0x500001D;
    variable sfx = "WHS1FXX1";
-   variable attacker = dude_obj;
    variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
-   variable crit_power_roll;
    variable crit_mult = 1;
    variable crit_roll;
    variable dmg;
-   variable accumulated_experience;
    variable party = party_member_list(0);
-   one_time_call = 0;
+   variable dead_attacker;
+   variable new_tar_count;
+   variable tar_is_critter = is_critter(orig_target);
+   variable blocking;
+   variable last_block;
+   variable is_blocked;
+   variable count;
+   variable dmg_to_attacker = -1;
+
+   if tar_is_critter <= 0 then test_tile = tile_num_in_direction(tar_tile,target_rot_to_attacker,1);
    exlposion = create_object(pid, tar_tile, target_elevation);
    reg_anim_combat_check(0);
    reg_anim_begin();
    reg_anim_animate(exlposion,0, 0);
-   reg_anim_animate_reverse(exlposion,0, 0);
+   if (weapon_anim == WPN_ANIM_RIFLE) or (weapon_anim == WPN_ANIM_BIG_GUN) then begin
+      reg_anim_animate_reverse(exlposion,0, 2);
+   end
+   else begin
+      reg_anim_animate_reverse(exlposion,0, 0);
+   end
    reg_anim_play_sfx(exlposion,sfx, 0);
    reg_anim_destroy(exlposion);
    reg_anim_end();
@@ -2270,20 +2901,57 @@ procedure plasma_alt_explosion begin
    end
    foreach new_tar in array_critters_in_radius begin
       new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
-      if new_tar != orig_target andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) andAlso obj_is_visible_flag(new_tar) then begin
+      if new_tar != orig_target andAlso new_tar != dead_attacker andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) andAlso obj_is_visible_flag(new_tar) then begin
+         //BLOCKING_TYPE_SHOOT check
+         new_tar_tile = tile_num(new_tar);
+         blocking = obj_blocking_line(orig_target, new_tar_tile, BLOCKING_TYPE_SHOOT);
+         if blocking != new_tar then begin
+            is_blocked = 1;
+            if (ShootThru(blocking)) then begin
+               for (count := 0; count <= (blast_radius + 2); count++) begin
+                  last_block = blocking;
+                  blocking = obj_blocking_line(last_block, new_tar_tile, BLOCKING_TYPE_SHOOT);
+                  if blocking == new_tar then begin
+                     is_blocked = 0;
+                     break;
+                  end
+               end
+            end
+            if is_blocked then continue;
+         end
+         //BLOCKING_TYPE_SHOOT check if hit Scenery
+         if tar_is_critter <= 0 then begin
+            blocking = obj_blocking_line(new_tar, test_tile, BLOCKING_TYPE_SHOOT);
+            if blocking then begin
+               is_blocked = 1;
+               if (ShootThru(blocking)) then begin
+                  for (count := 0; count <= (blast_radius + 2); count++) begin
+                     last_block = blocking;
+                     blocking = obj_blocking_line(last_block, test_tile, BLOCKING_TYPE_SHOOT);
+                     if blocking == last_block or blocking <= 0 then begin
+                        is_blocked = 0;
+                        break;
+                     end
+                  end
+               end
+               if is_blocked then continue;
+            end
+         end
          new_tar_dmg_mult = PlasmaDamagePercentage + 0.1;
          distance = 0;
-         new_tar_pid = obj_pid(new_tar);
-         target_dt = get_proto_data(new_tar_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
-         target_dr = get_proto_data(new_tar_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(new_tar_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
+         //new_tar_pid = obj_pid(new_tar);
+         target_dt = get_critter_stat(new_tar,STAT_dmg_thresh_plasma);
+         target_dr = get_critter_stat(new_tar,STAT_dmg_resist_plasma);
+         if weapon_perk == PERK_weapon_penetrate then begin
+            target_dt = target_dt * 0.2;
+            target_dr = target_dr * 0.2;
+         end
          critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
-
          //Increase target_dr if it attacker has TRAIT_finesse
          if finesse then begin
             target_dr = target_dr + 30;
          end
          if target_dr > 90 then target_dr = 90;
-
          crit_roll = random(1, 100);
          if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
             crit_power_roll = random(1, (100 + bonus_crit_power_roll));
@@ -2300,124 +2968,326 @@ procedure plasma_alt_explosion begin
          if crit_mult > 2 then crit_mult = 2;
          if new_tar_dmg_mult andAlso new_tar_dmg_mult < 1 then begin
             distance_objs(distance, orig_target, new_tar);
-            if distance > 1 then new_tar_dmg_mult = (PlasmaDamagePercentage ^ (distance));
+            if distance > 1 then new_tar_dmg_mult = (new_tar_dmg_mult ^ (distance));
             if new_tar_dmg_mult < 0 then new_tar_dmg_mult = 0;
          end
          dmg = 5 * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * new_tar_dmg_mult * crit_mult);
          if dmg < 0 then dmg = 0;
          //on a successful hit, the target becomes hostile
          if critter_team == TEAM_PLAYER then begin
-            //on a successful damaging hit, a friendly(non-campanion) target with low health has a 33% chance to become hostile
-            if dmg > 5 andAlso new_tar_cur_hp > dmg andAlso new_tar_cur_hp / 2 < dmg andAlso not(random(0,2)) andAlso not(is_in_array(new_tar, party)) then attack_setup(new_tar, attacker);
+            //on a successful damaging hit, a friendly(non-campanion) target with low health has a 25% chance to become hostile
+            if dmg > 5 andAlso new_tar_cur_hp > dmg andAlso new_tar_cur_hp / 2 < dmg andAlso not(random(0,3)) andAlso not(is_in_array(new_tar, party)) then attack_setup(new_tar, attacker);
          end
          else begin
-            //on a successful hit, a non-friendly target has a 100% chance to become hostile
-            attack_setup(new_tar, attacker);
+            //on a successful hit, a non-friendly target has a 66% chance to become hostile
+            if random(0,2) then attack_setup(new_tar, attacker);
          end
-         if dmg andAlso new_tar == attacker then critter_heal(new_tar, - dmg);
+         if new_tar == attacker andAlso dmg >= 0 then begin
+            dmg_to_attacker = dmg;
+         end
+         if new_tar != attacker andAlso new_tar != orig_target then begin
+            call critter_inflict_dmg(new_tar, attacker, dmg, DMG_plasma, 1, tar_tile);
+            //critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
+            new_tar_count += 1;
+         end
          if show_float_dmg andAlso new_tar != orig_target andAlso new_tar > 0 then begin
             if dmg > 0 then begin
-               if sonora andAlso critter_team != TEAM_PLAYER andAlso new_tar != attacker then begin
-                  if new_tar_cur_hp > dmg then begin
-                     accumulated_experience += (dmg * 2.5);
-                  end
-                  else begin
-                     accumulated_experience += (new_tar_cur_hp * 2.5);
-                  end
-               end
                float_msg(new_tar,"-"+dmg, 2);
             end
             else begin
                float_msg(new_tar,"0", 2);
             end
          end
-         if new_tar != attacker andAlso new_tar != orig_target then critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
       end
    end
-   if sonora andAlso accumulated_experience > 1 andAlso attacker == dude_obj then begin
-      accumulated_experience = round(accumulated_experience);
-      give_exp_points(accumulated_experience);
-      display_msg(modmsg(msg_gift_exp_start) + accumulated_experience + modmsg(msg_gift_exp_end));
+   if dmg_to_attacker >= 0 then begin
+      if get_critter_stat(attacker, STAT_current_hp) > dmg_to_attacker then begin
+         critter_heal(attacker, - dmg_to_attacker);
+      end
+      else begin
+         set_obj_visibility(attacker, 1);
+         dead_attacker = create_object_sid(obj_pid(attacker), tile_num(attacker), target_elevation, -1);
+         anim(dead_attacker, ANIMATE_ROTATION, has_trait(TRAIT_OBJECT, attacker, OBJECT_CUR_ROT));
+         set_object_data(dead_attacker, OBJ_DATA_FID, obj_art_fid(attacker));
+         critter_heal(dead_attacker, -(get_critter_stat(dead_attacker, STAT_current_hp)-1));
+         //critter_dmg(dead_attacker, dmg_to_attacker, (DMG_plasma bwor DMG_BYPASS_ARMOR));
+         call critter_inflict_dmg(dead_attacker, attacker, dmg_to_attacker, DMG_plasma, 1, tar_tile);
+         if attacker == dude_obj then begin
+            call kill_dude in 1;
+         end
+         else begin
+            critter_heal(attacker, - dmg_to_attacker);
+            move_obj_inven_to_obj(attacker, dead_attacker);
+         end
+      end
    end
 end
 
 procedure plasma_aoe_dmg(variable attacker,variable target) begin
-   variable rot_atk_to_tar = real_rotation_to_tile(tile_num(attacker), tile_num(target));
-   variable tiles_per_frame = get_tiles_per_frame(combat_speed);
-   variable new_tar;
-   variable anim_delay;
-   variable first_dist;
-   variable anim_frame = 0;
+   variable attacker_tile = tile_num(attacker);
+   variable attacker_elev = elevation(attacker);
+   variable target_tile = tile_num(target);
+   variable rot_atk_to_tar = rotation_to_tile(attacker_tile, target_tile);
+   variable start_tile = tile_num_in_direction(attacker_tile, rot_atk_to_tar, 1);
+   variable projectile;
+   variable timer;
+   orig_target = target;
+   placeholder = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+   set_obj_visibility(placeholder, 1);
+   set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
+
+
+   projectile = create_object_sid(pid_plasma_big_projectile, 0, attacker_elev, -1);
+   anim(projectile, ANIMATE_ROTATION, rot_atk_to_tar);
+   set_obj_visibility(projectile, 1);
+   move_to(projectile, start_tile, attacker_elev);
+
+
+   timer = create_object_sid(pid_plasma_big_projectile, 0, attacker_elev, -1);
+   set_obj_visibility(timer, 1);
+
    reg_anim_combat_check(0);
    reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
-   distance_objs(first_dist, attacker, target);
-   if rot_atk_to_tar != 1 andAlso rot_atk_to_tar != 4 then first_dist = (first_dist / 2.0);
-   if first_dist < 1 then first_dist = 1;
-   placeholder = create_object_sid(pid_laser_projectile, tile_num(attacker), elevation(attacker), -1);
-   set_obj_visibility(placeholder, 1);
-   anim_delay = round(first_dist / tiles_per_frame);
-   reg_anim_animate(placeholder, anim_frame, 6);
-   reg_anim_animate_reverse(placeholder, anim_frame, point_anim_frames);
-   if tiles_per_frame == 5 andAlso (rot_atk_to_tar == 1 or rot_atk_to_tar == 4) then begin
-      if anim_delay > 7 then begin
-         anim_delay = 3 + anim_delay - 6;
-         if anim_delay > 5 then anim_delay = 5;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-   end
-   if tiles_per_frame < 5.0 then begin
-      if anim_delay > 6 then begin
-         anim_delay = 3 + anim_delay - 6;
-         if anim_delay < 5 then anim_delay = 5;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 6 then begin
-         anim_delay = 1 + anim_delay - 6;
-         if anim_delay < 4 then anim_delay = 4;
-         reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 6 then begin
-         anim_delay = anim_delay - 6;
-         if anim_delay < 4 then anim_delay = 4;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 6 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 6 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 7 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 7 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 7 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate_reverse(placeholder, anim_frame, anim_delay);
-      end
-      if anim_delay > 7 then begin
-         anim_delay = 1 + anim_delay - 6;
-         reg_anim_animate(placeholder, anim_frame, anim_delay);
-      end
-   end
+   reg_anim_turn_towards(placeholder, target_tile, -1);
+   reg_anim_animate(placeholder, ANIM_point, -1);
+   reg_anim_animate(placeholder, ANIM_fire_single, -1);
+   reg_anim_animate(timer, ANIM_stand, 0);
+   reg_anim_animate_and_move(projectile, target_tile, ANIMATE_RUN, 0);
    reg_anim_callback(plasma_alt_explosion);
    reg_anim_callback(restore_weapon_proj_pid);
-   reg_anim_callback(lvar_full_reset);
-   reg_anim_callback(disable_ui);
-   reg_anim_clear(placeholder);
-   reg_anim_animate(placeholder, 0, -1);
-   reg_anim_animate_reverse(placeholder, 0, -1);
-   reg_anim_animate(placeholder, 0, -1);
+   if projectile then reg_anim_destroy(projectile);
+   if timer then reg_anim_destroy(timer);
    reg_anim_callback(STDPROCEDURE);
-   reg_anim_callback(enable_ui);
+   reg_anim_callback(lvar_full_reset);
    reg_anim_callback(destroy_placeholder);
    reg_anim_end();
+end
+
+
+procedure callback_set_outline_none begin
+   variable critter;
+   foreach critter in list_as_array(LIST_CRITTERS) begin
+      if get_outline(critter) != 0 then begin
+         set_outline(critter, OUTLINE_NONE);
+      end
+   end
+   set_outline(dude_obj, OUTLINE_NONE);
+   tile_refresh_display;
+end
+
+procedure callback_refresh_outline begin
+   call callback_set_outline_none in 1;
+end
+
+procedure callback_electrical_chain_show_orig_target_dmg begin
+   variable target = orig_target;
+   variable target_cur_hp;
+   variable target_team;
+   variable emp_expl;
+   if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
+      float_msg(target, "-"+combat_dmg, 2);
+      set_outline(target, OUTLINE_CYAN_IRIDESCENT);
+      if old_emp_expl > 0 then begin
+         emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
+         set_outline(emp_expl, OUTLINE_CYAN_IRIDESCENT);
+         reg_anim_combat_check(0);
+         reg_anim_begin();
+         reg_anim_animate_and_hide(emp_expl, ANIM_stand, -1);
+         reg_anim_destroy(emp_expl);
+         reg_anim_end();
+      end
+   end
+end
+
+procedure callback_electrical_chain_dmg begin
+   variable target = get_array(targets_array,elec_tar_num);
+   variable target_cur_hp;
+   variable target_team;
+   variable dmg;
+   variable dead_attacker;
+   variable emp_expl;
+   if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
+      target_cur_hp = get_critter_stat(target, STAT_current_hp);
+      target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+      dmg = get_array(dmg_array,elec_tar_num);
+      set_outline(target, OUTLINE_CYAN_IRIDESCENT);
+      if target != orig_attacker orElse target_cur_hp > dmg then begin
+         if random(0,1) then begin
+            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_emp, 1, tile_num(target));
+         end
+         else begin
+            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_electrical, 1, tile_num(target));
+         end
+      end
+      else begin
+         set_obj_visibility(target, 1);
+         dead_attacker = create_object_sid(obj_pid(target), tile_num(target), elevation(target), -1);
+         anim(dead_attacker, ANIMATE_ROTATION, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
+         set_object_data(dead_attacker, OBJ_DATA_FID, obj_art_fid(target));
+         critter_heal(dead_attacker, -(get_critter_stat(dead_attacker, STAT_current_hp)-1));
+         call critter_inflict_dmg(dead_attacker, target, dmg, DMG_electrical, 1, tile_num(orig_target));
+         if target == dude_obj then begin
+            call kill_dude in 2;
+         end
+         else begin
+            critter_heal(target, -dmg);
+            move_obj_inven_to_obj(target, dead_attacker);
+         end
+      end
+      float_msg(target, "-"+dmg, 2);
+      if old_emp_expl > 0 then begin
+         emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
+         set_outline(emp_expl, OUTLINE_CYAN_IRIDESCENT);
+         reg_anim_combat_check(0);
+         reg_anim_begin();
+         reg_anim_animate_and_hide(emp_expl, ANIM_stand, -1);
+         reg_anim_destroy(emp_expl);
+         reg_anim_end();
+      end
+   end
+   elec_tar_num += 1;
+end
+
+procedure electrical_chain_dmg(variable attacker,variable target) begin
+   variable attacker_tile;
+   variable target_tile;
+   variable attacker_elev;
+   variable rot_atk_to_tar;
+   variable start_tile;
+   variable distance;
+   variable distance_closest;
+   variable new_tar;
+   variable new_tar_array;
+   variable new_tar_array_len;
+   variable projectile;
+   variable timer;
+   variable last_tar;
+   variable last_tar_tile;
+   variable rnd_tar;
+   variable rnd_tar_dmg;
+   variable targets_array_key = -1;
+   variable i;
+   if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER then begin
+      call lvar_full_reset();
+      return;
+   end
+   attacker_tile = tile_num(attacker);
+   target_tile = tile_num(target);
+   attacker_elev = elevation(attacker);
+   rot_atk_to_tar = rotation_to_tile(attacker_tile, target_tile);
+   start_tile = tile_num_in_direction(attacker_tile, rot_atk_to_tar, 1);
+   new_tar_array = create_array_map;
+   targets_array = create_array_map;
+   dmg_array = create_array_map;
+   crit_roll_array = create_array_map;
+   orig_target = target;
+   last_tar = target;
+   last_tar_tile = target_tile;
+
+   for (i = 0; i < ElecMaxTargets; i++) begin
+      distance_closest = ElecRadius;
+      // get next rnd target
+      foreach new_tar in objects_in_radius(last_tar_tile,ElecRadius,attacker_elev,OBJ_TYPE_CRITTER) begin
+         if new_tar != target then begin
+            distance_objs(distance,last_tar,new_tar);
+            if distance <= distance_closest then begin
+               if get_critter_stat(new_tar, STAT_current_hp) > 0 andAlso not(is_in_array(new_tar,targets_array)) andAlso obj_is_visible_flag(new_tar) then begin
+                  if not(check_block_shoot(new_tar, last_tar)) then begin
+                     continue;
+                  end
+                  else begin
+                     if distance == distance_closest then begin
+                        set_array(new_tar_array, len_array(new_tar_array),new_tar);
+                     end
+                     else if distance < distance_closest then begin
+                        clear_array(new_tar_array);
+                        distance_closest = distance;
+                        set_array(new_tar_array, len_array(new_tar_array),new_tar);
+                     end
+                  end
+               end
+            end
+            else begin
+               continue;
+            end
+         end
+      end
+
+      new_tar_array_len = len_array(new_tar_array) - 1;
+      //get random target
+      if new_tar_array_len >= 0 then begin
+         rnd_tar = get_array(new_tar_array, random(0, new_tar_array_len));
+         last_tar = rnd_tar;
+         last_tar_tile = tile_num(rnd_tar);
+         clear_array(new_tar_array);
+         targets_array_key = len_array(targets_array);
+         set_array(targets_array, targets_array_key, rnd_tar);
+         rnd_tar_dmg = calc_dmg_electric(attacker, rnd_tar);
+         rnd_tar_dmg = round(rnd_tar_dmg * get_crit_mult(crit_power_roll,rnd_tar));
+         set_array(dmg_array, targets_array_key, rnd_tar_dmg);
+         if rnd_tar_dmg <= 0 then break;
+      end
+      //exit the loop if there are no more suitable targets
+      else begin
+         break;
+      end
+   end
+   free_array(new_tar_array);
+
+   elec_tar_num = 0;
+   placeholder = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
+   set_obj_visibility(placeholder, 1);
+   set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
+
+
+   projectile = create_object_sid(pid_electric_projectile, 0, attacker_elev, -1);
+   anim(projectile, ANIMATE_ROTATION, rot_atk_to_tar);
+   set_object_data(projectile, OBJ_DATA_FID, get_proto_data(PID_BLOCKING_HEX, PROTO_FID));
+   set_outline(projectile, OUTLINE_CYAN_IRIDESCENT);
+   move_to(projectile, start_tile, attacker_elev);
+
+
+   timer = create_object_sid(pid_plasma_big_projectile, 0, attacker_elev, -1);
+   set_obj_visibility(timer, 1);
+
+   reg_anim_combat_check(0);
+   reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+   reg_anim_turn_towards(placeholder, target_tile, -1);
+   reg_anim_animate(placeholder, ANIM_point, -1);
+   reg_anim_animate(placeholder, ANIM_fire_single, -1);
+   reg_anim_change_fid(projectile, get_proto_data(pid_electric_projectile, PROTO_FID), 0);
+   reg_anim_animate(timer, ANIM_stand, 0);
+   reg_anim_animate_and_move(projectile, target_tile, ANIMATE_RUN, 0);
+   reg_anim_callback(callback_electrical_chain_show_orig_target_dmg);
+   if targets_array_key >= 0 then begin
+      foreach new_tar in targets_array begin
+         reg_anim_turn_towards(projectile, tile_num(new_tar),-1);
+         reg_anim_animate_and_move(projectile, tile_num(new_tar), ANIMATE_WALK, -1);
+         reg_anim_callback(callback_electrical_chain_dmg);
+      end
+   end
+   if projectile then reg_anim_destroy(projectile);
+   reg_anim_callback(lvar_full_reset);
+   reg_anim_callback(callback_refresh_outline);
+   reg_anim_callback(destroy_placeholder);
+   reg_anim_end();
+end
+
+procedure get_dude_worn_armor_perk begin
+   variable dude_armor = critter_inven_obj(dude_obj, INVEN_TYPE_WORN);
+   variable armor_perk;
+   if dude_armor > 0 then armor_perk = get_proto_data(obj_pid(dude_armor), PROTO_AR_PERK);
+   return armor_perk;
+end
+
+procedure player_wearing_power_armor begin
+   variable armor_perk = get_dude_worn_armor_perk;
+   if armor_perk == PERK_armor_powered or armor_perk == PERK_armor_advanced_1 or armor_perk == PERK_armor_advanced_2 then begin
+      return true;
+   end
+   else begin
+      return false;
+   end
 end
 
 procedure MOVECOST begin
@@ -2523,15 +3393,27 @@ procedure AFTERHITROLL begin
    variable target = get_sfall_arg;
    variable bodypart = get_sfall_arg;
    variable hit_chance = get_sfall_arg;
+   variable attacker_iq;
    variable attacker_lu;
    variable critical_chance;
    variable target_pid;
    variable rnd;
    variable Atktype;
-   variable ammo_cost;
+   variable ammo_cost = 1;
    variable same_target;
    variable line_length;
-   if attacker == dude_obj then begin
+   variable attacker_team;
+   variable new_target;
+   variable new_tar_team;
+   variable new_tar_arr;
+   variable distance;
+   variable last_distance;
+   attacker_frm = anim_busy(attacker);
+   if attacker > 0 andAlso attacker_frm == 0 then begin
+      is_single_shot = 0;
+      npc_orig_tar = 0;
+      enemy_team = has_trait(TRAIT_OBJECT, orig_target, OBJECT_TEAM_NUM);
+      orig_attacker = attacker;
       attacker_lu = get_critter_stat(attacker, STAT_lu);
       critical_chance = get_critter_stat(attacker, STAT_crit_chance);
       if target then target_pid = obj_pid(target);
@@ -2547,7 +3429,7 @@ procedure AFTERHITROLL begin
       else begin
          missed_shot = 0;
       end
-      //if attacker == dude_obj then begin
+      if attacker == dude_obj then begin
          if active_hand == LEFT_HAND then begin
             weapon = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
          end
@@ -2566,10 +3448,10 @@ procedure AFTERHITROLL begin
          if AllowSniperPerk then begin
             sniper = has_trait(TRAIT_PERK, attacker, PERK_sniper);
          end
-      //end
-      //else begin
-         //weapon = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
-      //end
+      end
+      else begin
+         weapon = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
+      end
       if weapon > 0 then begin
          weapon_pid = obj_pid(weapon);
          weapon_flags = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
@@ -2583,13 +3465,8 @@ procedure AFTERHITROLL begin
          weapon_cur_ammo = get_object_data(weapon, OBJ_DATA_CUR_CHARGES);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
          weapon_proj_pid = get_proto_data(weapon_pid, PROTO_WP_PROJ_PID);
-         point_anim_frames = 6;
-         if weapon_anim then begin
-            if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) then point_anim_frames = 5;
-            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) then point_anim_frames = 6;
-         end
          if weapon_ammo_pid > 0 then begin
-            ammo_caliber = get_proto_data(weapon_ammo_pid, PROTO_AM_CALIBER);
+            //ammo_caliber = get_proto_data(weapon_ammo_pid, PROTO_AM_CALIBER);
             ammo_mult = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_MULT);
             ammo_div = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_DIV);
             ammo_dr_mod = get_proto_data(weapon_ammo_pid, PROTO_AM_DR_MOD);
@@ -2598,10 +3475,12 @@ procedure AFTERHITROLL begin
          //get range of the first attack mode for weapons in the right/left hand
          if Atktype == ATKTYPE_LWEP1 or Atktype ==  ATKTYPE_RWEP1 then begin
             weapon_range = get_proto_data(weapon_pid, PROTO_WP_RANGE_1);
+            if (weapon_flags bwand ATKMODE_PRI_SINGLE) == ATKMODE_PRI_SINGLE andAlso ((weapon_flags bwand ATKMODE_PRI_BURST) != ATKMODE_PRI_BURST) then is_single_shot = 1;
          end
          //get range of the second attack mode for weapons in the right/left hand
-         if Atktype ==  ATKTYPE_LWEP2 or Atktype ==  ATKTYPE_RWEP2 then begin
+         else if Atktype ==  ATKTYPE_LWEP2 or Atktype ==  ATKTYPE_RWEP2 then begin
             weapon_range = get_proto_data(weapon_pid, PROTO_WP_RANGE_2);
+            if (weapon_flags bwand ATKMODE_SEC_SINGLE) == ATKMODE_SEC_SINGLE andAlso ((weapon_flags bwand ATKMODE_SEC_BURST) != ATKMODE_SEC_BURST) then is_single_shot = 1;
          end
          if (ammo_mult - ammo_div) >= 0 andAlso ammo_div > 0 then begin
             weapon_min_dmg = round(1.0 * weapon_min_dmg * ammo_mult / ammo_div);
@@ -2611,13 +3490,90 @@ procedure AFTERHITROLL begin
             one_hander_bonus = get_one_hander_bonus(weapon_flags);
          end
       end
-      //if attacker == dude_obj andAlso weapon_damage_type == DMG_plasma andAlso target_bodypart != BODY_HIT_TORSO then set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0x05000002);
-      // plasma set new proj_pid and weapon_cur_ammo
-      if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 then begin
+      // electrical and EMP set new proj_pid and weapon_cur_ammo
+      if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or attacker != dude_obj)  andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
+         if attacker != dude_obj then begin
+            new_tar_arr = objects_in_radius(tile_num(orig_target),ElecRadius, elevation(orig_target), OBJ_TYPE_CRITTER);
+            last_distance = ElecRadius;
+            attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+            foreach new_target in new_tar_arr begin
+               if new_target == orig_target or get_critter_stat(new_target, STAT_current_hp) <= 0 then continue;
+               distance_objs(distance,target,new_target);
+               if distance == last_distance then begin
+                  new_tar_team = has_trait(TRAIT_OBJECT, new_target, OBJECT_TEAM_NUM);
+                  if new_tar_team == enemy_team then begin
+                     enemy_targets_count += 1;
+                  end
+                  else if attacker_team == new_tar_team then begin
+                     friendly_targets_count += 1;
+                  end
+               end
+               else if distance < last_distance then begin
+                  friendly_targets_count = 0;
+                  enemy_targets_count = 0;
+                  new_tar_team = has_trait(TRAIT_OBJECT, new_target, OBJECT_TEAM_NUM);
+                  if new_tar_team == enemy_team then begin
+                     enemy_targets_count += 1;
+                  end
+                  else if attacker_team == new_tar_team then begin
+                     friendly_targets_count += 1;
+                  end
+                  last_distance = distance;
+               end
+            end
+         end
+         if (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
+         end
+         if attack_result <= MISS then begin
+            set_sfall_return(CRITICAL_MISS);
+            set_sfall_arg(0, CRITICAL_MISS);
+            return;
+         end
          alt_fire_used = 1;
-         proj_pid_changed = 1;
-         set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_plasma_big_projectile);
-         if weapon_cur_ammo >= 3 then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - 2);
+         if weapon_proj_pid <= 0 then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_electric_projectile);
+            if missed_shot then call restore_weapon_proj_pid in 1;
+         end
+         if ElecAmmoCost > 1 andAlso weapon_cur_ammo >= ElecAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - 1);
+      end
+      // electrical and EMP set new proj_pid and weapon_cur_ammo
+
+      // plasma set new proj_pid and weapon_cur_ammo
+      if PlasmaSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or PlasmaSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or PlasmaForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= PlasmaAmmoCost andAlso weapon_range > 1 then begin
+         if attacker != dude_obj then begin
+            new_tar_arr = objects_in_radius(tile_num(orig_target),PlasmaBlastRadius, elevation(orig_target), OBJ_TYPE_CRITTER);
+            attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+            friendly_targets_count = 0;
+            enemy_targets_count = 0;
+            foreach new_target in new_tar_arr begin
+               if get_critter_stat(new_target, STAT_current_hp) <= 0 then continue;
+               new_tar_team = has_trait(TRAIT_OBJECT, new_target, OBJECT_TEAM_NUM);
+               if new_tar_team == enemy_team then begin
+                  enemy_targets_count += 1;
+               end
+               else if attacker_team == new_tar_team then begin
+                  friendly_targets_count += 1;
+                  if new_target == attacker then friendly_targets_count += 10;
+               end
+            end
+         end
+         if (PlasmaForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
+         end
+         alt_fire_used = 1;
+         if weapon_proj_pid <= 0 orElse weapon_proj_pid != pid_plasma_big_projectile then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_plasma_big_projectile);
+            if missed_shot then call restore_weapon_proj_pid in 1;
+         end
+         //proj_pid_changed = 1;
+
+         if PlasmaAmmoCost > 1 andAlso weapon_cur_ammo >= PlasmaAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (PlasmaAmmoCost + base_ammo_cost));
+         //if missed_shot then call restore_weapon_proj_pid in 1;
       end
       // plasma set new proj_pid and weapon_cur_ammo end
 
@@ -2653,37 +3609,48 @@ procedure AFTERHITROLL begin
                pistol_double_tap_visual = 1;
                intface_redraw;
             end
-            //set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
          end
       end
       // pistols double tap end
 
       // laser get new targets
-      if LaserSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
-         alt_fire_used = 1;
-         if weapon_proj_pid != pid_laser_projectile then begin
-            proj_pid_changed = 1;
-            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_laser_projectile);
-         end
-         if ((not(same_target) or atk_rslt == MISS) andAlso random(1,100) <= ammo_cost)  or hit_chance <= 0 or attack_result < MISS then begin
+      if is_single_shot andAlso LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj or LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+         if attack_result < MISS then begin
             set_sfall_return(CRITICAL_MISS);
             set_sfall_arg(0, CRITICAL_MISS);
             return;
          end
+         alt_fire_used = 1;
          laser_curr_ammo = weapon_cur_ammo;
-         if Sonora then begin
-            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+         if Sonora > 0 then begin
+            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then begin
+               laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then begin
+               laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then begin
+               laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SONORA_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then begin
+               laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+            end
          end
          else begin
-            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
-            if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
-         end
+            if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_micro_fusion + 2  then begin
+               laser_curr_ammo = laser_max_targets_two_handed_micro_fusion + 2; // max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_MICRO_FUSION_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_micro_fusion + 2 then begin
+               laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then begin
 
+               laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+            end
+            else if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then begin
+               laser_curr_ammo = laser_max_targets_one_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
+            end
+         end
 
          rnd = random(1, 96);
          if rnd > hit_chance then begin
@@ -2691,7 +3658,8 @@ procedure AFTERHITROLL begin
          end
          if LaserLineWidth then begin
             call get_targets_on_wide_line_laser(attacker, orig_target);
-            ammo_cost = new_targets_count;
+            //ammo_cost = new_targets_count;
+            ammo_cost = base_ammo_cost;
             if weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
             if not(same_target) then begin
                laser_curr_ammo = random(1, (new_targets_count + base_alt_ammo_cost + base_ammo_cost));
@@ -2701,7 +3669,8 @@ procedure AFTERHITROLL begin
          end
          else begin
             call get_targets_on_thin_line_laser(attacker, orig_target);
-            ammo_cost = new_targets_count;
+            //ammo_cost = new_targets_count;
+            ammo_cost = base_ammo_cost;
             if weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
             if not(same_target) then begin
                laser_curr_ammo = random(1, (new_targets_count + base_alt_ammo_cost + base_ammo_cost));
@@ -2714,23 +3683,30 @@ procedure AFTERHITROLL begin
             new_main_target = last_target_on_a_line;
             missed_shot = 1;
          end
+         if weapon_proj_pid != pid_laser_projectile then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_laser_projectile);
+            if missed_shot then call restore_weapon_proj_pid in 1;
+         end
       end
       // gauss get new targets
-      if GaussSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_range > 1 andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora andAlso weapon_pid == pid_sonora_railgun)) then begin
-         alt_fire_used = 1;
-         if weapon_proj_pid > 0 then begin
-            proj_pid_changed = 1;
-            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
-         end
-         rnd = random(1, 96);
-         if rnd > hit_chance then begin
-            missed_shot = 1;
-         end
+      if GaussSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or GaussSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or GaussForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_range > 1 andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora > 0 andAlso weapon_pid == pid_sonora_railgun)) then begin
          if attack_result < MISS then begin
             set_sfall_return(CRITICAL_MISS);
             set_sfall_arg(0, CRITICAL_MISS);
             return;
          end
+         alt_fire_used = 1;
+         rnd = random(1, 96);
+         if rnd > hit_chance then begin
+            missed_shot = 1;
+         end
+         if weapon_proj_pid > 0 then begin
+            proj_pid_changed = 1;
+            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
+            if missed_shot then call restore_weapon_proj_pid in 1;
+         end
+
          new_main_target = 0;
          line_length = 50;
          if GaussLineWidth then begin
@@ -2784,48 +3760,105 @@ procedure COMBATDAMAGE begin
    variable dmgtotar = get_sfall_arg;
    variable dmgtoatk = get_sfall_arg;
    variable tar_flags = get_sfall_arg;
-   variable atk_falgs = get_sfall_arg;
+   variable atk_flags = get_sfall_arg;
    variable weapon = get_sfall_arg;
    variable dmg_mult = get_sfall_arg_at(8);
    variable atktype = get_sfall_arg_at(11);
+   variable atk_data = get_sfall_arg_at(12);
    variable target_kill_type;
    variable knockback_distance;
    variable attacker_target_distance;
    variable rnd;
    variable line_length;
+   variable target_is_wearing_power_armor;
+   variable stonewall_perk;
+   orig_attacker = attacker;
    combat_dmg = dmgtotar;
+   attacker_frm = anim_busy(attacker);
+   if ShotgunForced > 0 andAlso weapon > 0 then begin
+      weapon_pid = obj_pid(weapon);
+      weapon_caliber = get_proto_data(weapon_pid, PROTO_WP_CALIBER);
+   end
    if missed_shot andAlso target != real_orig_target then begin
       if weapon_damage_type == DMG_laser then begin
          combat_dmg = calc_dmg_laser(attacker,target);
       end
-      else begin
+      else if weapon_damage_type == DMG_normal_dam then begin
          combat_dmg = calc_dmg_gauss(attacker,target,random(weapon_min_dmg, weapon_max_dmg));
       end
    end
-   if attacker == dude_obj andAlso atk_rslt != CRITICAL_MISS andAlso one_time_call == 0 then begin
-
+   if attacker andAlso attacker_frm == 0 andAlso one_time_call <= 0 then begin
       combat_dmg = dmgtotar;
-      // plasma aoe dmg
-      if PlasmaSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= 3 andAlso weapon_range > 1 then begin
-         orig_target = target;
-         if combat_dmg > 0 then begin
-            combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
+
+      // electric chain dmg
+      if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or attacker != dude_obj) andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
          end
-         set_sfall_return(combat_dmg);
-         set_sfall_arg(2, combat_dmg);
+         orig_target = target;
+         one_time_call = 1;
+         call electrical_chain_dmg(attacker,target);
+      end
+      // electric chain dmg end
+
+      // plasma aoe dmg
+      if PlasmaSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or PlasmaSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or PlasmaForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= PlasmaAmmoCost andAlso weapon_range > 1 then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (PlasmaForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
+         end
+         orig_target = target;
+         one_time_call = 1;
+         if combat_dmg > 0 andAlso has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then begin
+            combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
+            set_sfall_return(combat_dmg);
+            set_sfall_arg(2, combat_dmg);
+         end
          call plasma_aoe_dmg(attacker,target);
       end
       // plasma aoe dmg end
 
       //shotgun alt fire(knockback)
-      if ShotgunSecondaryAttackMod andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso target_bodypart == BODY_HIT_TORSO then begin
+      if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or (attacker != dude_obj andAlso not(random(0,2)))) then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
+            call lvar_full_reset;
+            return;
+         end
          distance_objs(attacker_target_distance, attacker, target);
          knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-         rnd = random(0, 1);
-         target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-         if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills then begin
-            knockback_distance = knockback_distance * 2 / 3;
-            rnd = random(0, 4);
+         if target == dude_obj then begin
+            target_is_wearing_power_armor = player_wearing_power_armor;
+            stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+            if target_is_wearing_power_armor then begin
+               knockback_distance = 1;
+               rnd = 5;
+            end
+            else if stonewall_perk then begin
+               if random(0, 1) then begin
+                  knockback_distance = 0;
+                  rnd = 10;
+               end
+               else begin
+                  knockback_distance = knockback_distance / 2;
+                  rnd = random(0, 20 + 10 * ShotgunForced);
+               end
+            end
+            else begin
+               rnd = random(0, 10 + 10 * ShotgunForced);
+            end
+         end
+         else begin
+            target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+            if power_armor_fid(critter_art_fid(target)) then target_is_wearing_power_armor = 1;
+            if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or target_is_wearing_power_armor then begin
+               if knockback_distance > 1 then knockback_distance = random(1, knockback_distance / 2);
+               rnd = random(0, 4 + (6 * ShotgunForced));
+            end
+            else begin
+               knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
+               rnd = random(0, 2 + (3 * ShotgunForced));
+            end
          end
          if knockback_distance < 1 then knockback_distance = 1;
          if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
@@ -2841,15 +3874,15 @@ procedure COMBATDAMAGE begin
                set_sfall_return(tar_flags);
                set_sfall_arg(4, tar_flags);
             end
-            set_sfall_return(atk_falgs);
-            set_sfall_arg(5, atk_falgs);
+            set_sfall_return(atk_flags);
+            set_sfall_arg(5, atk_flags);
             set_sfall_return(knockback_distance);
             set_sfall_arg(10, knockback_distance);
          end
       end
       //shotgun alt fire(knockback) end
 
-            // pistols double tap
+      // pistols double tap
       if PistolSecondaryAttackMod andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
          alt_fire_used = 1;
          if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO then begin
@@ -2889,10 +3922,14 @@ procedure COMBATDAMAGE begin
       // pistols double tap end
 
       // laser alt dmg
-      if LaserSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+      if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (LaserForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
+         end
          one_time_call = 1;
          // get new targets if missed;
-         if atk_rslt == MISS then begin
+         if atk_rslt < HIT then begin
             if LaserLineWidth then begin
                targets_array = 0;
                call get_targets_on_wide_line_laser(attacker, target);
@@ -2930,7 +3967,11 @@ procedure COMBATDAMAGE begin
       // laser alt dmg end
 
       //gauss alt dmg
-      if GaussSecondaryAttackMod > 0 andAlso attacker == dude_obj andAlso target_bodypart == BODY_HIT_TORSO andAlso weapon andAlso weapon_range > 1  andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora andAlso weapon_pid == pid_sonora_railgun)) then begin
+      if GaussSecondaryAttackMod > 0 andAlso (attacker == dude_obj or GaussSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or GaussForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_range > 1  andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora > 0 andAlso weapon_pid == pid_sonora_railgun)) then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (GaussForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+            call lvar_full_reset;
+            return;
+         end
          one_time_call = 1;
          // get new targets if missed;
          if atk_rslt == MISS then begin
@@ -2940,7 +3981,7 @@ procedure COMBATDAMAGE begin
             end
             else begin
                call get_targets_on_thin_line_gauss(attacker, target,line_length);
-               while not(is_in_array(target,targets_array)) andAlso line_length > 45 do begin
+               while not(is_in_array(target,targets_array)) andAlso line_length > 40 do begin
                   line_length -= 1;
                   call get_targets_on_thin_line_gauss(attacker, target,line_length);
                end
@@ -2978,10 +4019,15 @@ end
 
 
 procedure TOHIT begin
+   variable attacker = get_sfall_arg_at(1);
    variable target = get_sfall_arg_at(2);
    variable hit_chance = get_sfall_arg_at(7);
    variable attacked_body_part = get_sfall_arg_at(3);
    variable new_hit_chance;
+   if attacker != dude_obj andAlso npc_orig_tar <= 0 then begin
+      npc_orig_tar = target;
+      orig_target = target;
+   end
    if is_critter(target) andAlso target == real_orig_target then begin
       target_bodypart = get_sfall_arg_at(3);
    end
@@ -2999,9 +4045,9 @@ procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
-   if is_critter(target) andAlso is_attacking andAlso can_be_attacked then begin
+   if is_attacking andAlso can_be_attacked then begin
       orig_target = target;
-      real_orig_target = target;
+      if is_critter(target) then real_orig_target = target;
    end
    if can_be_attacked andAlso pistol_double_tap_activated andAlso pistol_double_tap_taps < pistol_double_tap_max_taps then begin
       if target == pistol_double_tap_target then begin
@@ -3021,14 +4067,7 @@ end
 
 //get combat speed
 procedure GAMEMODECHANGE begin
-   variable last_game_mode = get_sfall_arg_at(1);
    variable game_mode;
-   if last_game_mode bwand OPTIONS then begin
-      combat_diff = (combat_difficulty + 1);
-      combat_speed = get_ini_setting(config_file+"|preferences|combat_speed");
-      if combat_speed < 0 then combat_speed = 50;
-      if combat_speed > 50 then combat_speed = 50;
-   end
    if pistol_double_tap_target_selected then begin
       game_mode = get_game_mode;
       if (game_mode bwand INVENTORY) or not(game_mode) then begin
@@ -3045,6 +4084,29 @@ procedure GAMEMODECHANGE begin
 end
 
 procedure COMBATTURN begin
+   dude_turn = 0;
+   if get_sfall_arg_at(1) == dude_obj then begin
+      if get_sfall_arg_at(0) == 1 then begin
+         dude_turn = 1;
+      end
+      if pistol_double_tap_visual or pistol_double_tap_activated then begin
+         pistol_double_tap_activated = 0;
+         pistol_double_tap_in_process = 0;
+         pistol_double_tap_visual = 0;
+         pistol_double_tap_taps = 0;
+         pistol_double_tap_target_selected = 0;
+         pistol_double_tap_target = -1;
+         pistol_double_tap_weapon_last_ammo = 0;
+         pistol_double_tap_in_process_missed = 0;
+         intface_redraw;
+      end
+   end
+   if alt_fire_used or one_time_call then begin
+      call lvar_full_reset();
+   end
+end
+
+procedure USEOBJON begin
    if get_sfall_arg_at(1) == dude_obj then begin
       if pistol_double_tap_visual or pistol_double_tap_activated then begin
          pistol_double_tap_activated = 0;
@@ -3057,25 +4119,44 @@ procedure COMBATTURN begin
          pistol_double_tap_in_process_missed = 0;
          intface_redraw;
       end
-      if alt_fire_used then call lvar_full_reset();
    end
 end
 
-
 procedure start begin
+variable test;
+variable item;
+variable i;
    if game_loaded then begin
       variable SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
+      //test!
+      //write_byte(0x41362E, read_byte(0x41364F));
+      //write_byte(0x41361F, read_byte(0x41364F));
+      //write_byte(0x413654, read_byte(0x41364F));
+      //for (i=0 ;i <= 32; i+=4) begin
+      //set_proto_data(PID_PLASMA_PISTOL, PROTO_WP_RANGE_1, 50);
+      //set_proto_data(PID_PLASMA_PISTOL, PROTO_WP_RANGE_2, 50);
+      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_1, 50);
+      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_2, 50);
+      //set_proto_data(PID_TURBO_PLASMA_RIFLE, PROTO_WP_RANGE_1, 50);
+      //set_proto_data(PID_TURBO_PLASMA_RIFLE, PROTO_WP_RANGE_2, 50);
+      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_1, 50);
+      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_2, 50);
+      //item = create_object_sid(PID_ALIEN_LASER_PISTOL, 0, 0, -1);
+      //add_mult_objs_to_inven(dude_obj, item, 1);
+      //set_object_data(dude_obj, OBJ_DATA_FID, FID_MABOSS);
+      //wield_obj_critter(dude_obj, item);
       if SecondaryAttackMod > 0 then begin
          //Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
          Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         if Sonora > 0 then set_proto_data(pid_sonora_railgun, PROTO_WP_PROJ_PID, 0);
          //ET_TU = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
          //ProneTargetsSkip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ProneSkip");
          AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
-         config_file = get_ini_string("ddraw.ini|Misc|ConfigFile");
-         if config_file == "" then config_file = "fallout2.cfg";
+         //config_file = get_ini_string("ddraw.ini|Misc|ConfigFile");
+         //if config_file == "" then config_file = "fallout2.cfg";
 
-         LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
+         LaserSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
          if LaserSecondaryAttackMod > 0 then begin
             LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
             if LaserLineWidth < 0 then LaserLineWidth = 0;
@@ -3083,16 +4164,26 @@ procedure start begin
             //LaserHitChance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserHitChance");
             LaserHitChance = 1;
             laser_max_targets_two_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWMFC");
-            if laser_max_targets_two_handed_micro_fusion < 0 then laser_max_targets_two_handed_micro_fusion = 4;
+            if laser_max_targets_two_handed_micro_fusion < 4 then laser_max_targets_two_handed_micro_fusion = 4;
             laser_max_targets_one_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWMFC");
-            if laser_max_targets_one_handed_micro_fusion < 0 then laser_max_targets_one_handed_micro_fusion = 2;
+            if laser_max_targets_one_handed_micro_fusion < 4 then laser_max_targets_one_handed_micro_fusion = 4;
             laser_max_targets_two_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWSEC");
-            if laser_max_targets_two_handed_small_cell < 0 then laser_max_targets_two_handed_small_cell = 3;
+            if laser_max_targets_two_handed_small_cell < 4 then laser_max_targets_two_handed_small_cell = 4;
             laser_max_targets_one_handed_small_cell = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWSEC");
-            if laser_max_targets_one_handed_small_cell < 0 then laser_max_targets_one_handed_small_cell = 1;
+            if laser_max_targets_one_handed_small_cell < 4 then laser_max_targets_one_handed_small_cell = 4;
          end
 
-         GaussSecondaryAttackMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
+         ElecSecondaryAttackMod = 200;
+         if ElecSecondaryAttackMod > 0 then begin
+            test = create_object_sid(pid_emp_expl, 0, 0, -1);
+            anim(test, ANIMATE_SET_FRAME, 5);
+            if get_object_data(test, OBJ_DATA_CUR_FRM) == 0 then old_emp_expl = 1;
+            if test > 0 then destroy_object(test);
+            ElecHitChance = 1;
+         if ElecForced > 0 then ElecAmmoCost = 1;
+         end
+
+         GaussSecondaryAttackMod = 200 + get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
          if GaussSecondaryAttackMod > 0 then begin
             GaussLineWidth = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussLineWidth");
             if GaussLineWidth < 0 then GaussLineWidth = 0;
@@ -3103,16 +4194,17 @@ procedure start begin
             if GaussDamageReductionPerTarget <= 0 then GaussDamageReductionPerTarget = 0.17;
          end
 
-         PlasmaSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
+         PlasmaSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
          if PlasmaSecondaryAttackMod > 0 then begin
             PlasmaBlastRadius = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaBlastRadius");
             if PlasmaBlastRadius < 1 then PlasmaBlastRadius = 2;
             PlasmaDamagePercentage = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaDamagePercentage"));
             if PlasmaDamagePercentage > 1 then PlasmaDamagePercentage = 1;
             if PlasmaDamagePercentage <= 0 then PlasmaDamagePercentage = 0.65;
+            if PlasmaForced > 0 then PlasmaAmmoCost = 1;
          end
 
-         ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
+         ShotgunSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
          if ShotgunSecondaryAttackMod > 0 then begin
             shotgun_caliber = CALIBER_12_GAUGE;
             if Sonora > 0 then shotgun_caliber = 5;
@@ -3133,14 +4225,13 @@ procedure start begin
          end
 
 
-         combat_speed = get_ini_setting(config_file+"|preferences|combat_speed");
-         if combat_speed < 0 then combat_speed = 50;
-         if combat_speed > 50 then combat_speed = 50;
+
+
 
          SecondaryAttackMod_msg = add_extra_msg_file(msg_file);
+         //COMBAT_MSG = add_extra_msg_file(combat_msg_file);
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
-
          register_hook_proc_spec(HOOK_TARGETOBJECT, TARGETOBJECT);
          register_hook_proc_spec(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
          register_hook_proc_spec(HOOK_TOHIT, TOHIT);
@@ -3148,7 +4239,7 @@ procedure start begin
             register_hook_proc_spec(HOOK_MOVECOST, MOVECOST);
             register_hook_proc_spec(HOOK_DEATHANIM2, DEATHANIM2);
             register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
-            register_hook_proc_spec(HOOK_USEOBJON, COMBATTURN);
+            register_hook_proc_spec(HOOK_USEOBJON, USEOBJON);
          end
          register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
          set_global_script_type(0);

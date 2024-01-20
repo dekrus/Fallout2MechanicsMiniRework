@@ -9,3 +9,4 @@ release/*
 data/*
 !data/scripts
 !data/text
+Source_ssl_pre_1.98/*
