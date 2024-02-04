@@ -221,7 +221,7 @@ Basic moments:
 
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.
-- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
+- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal ** weapons and items from the hands of the NPC. (bold)**
 - To peep into a target's pocket, you need to meet minimum skill requirements.
 - In the case of an unsuccessful attempt to use the Steal skill, the target can sometimes become hostile. The presence of the Harmless perk reduces this chance.
 
@@ -273,14 +273,16 @@ When base intelligence increases (through perks and implants but not drugs), the
 - Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
 - All components except for the [Steal](#steal) mod are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
-### EcCo Steal Mod Compatibility
-#### Fully Compatible
+### Setting up compatibility with the EcCo Steal mod
+#### Partial Compatibility
 - For the [Steal](#steal) mod to work fully with the EcCo mod for Fallout 2, you need to download the file "gl_pbs_steal.int" from the link (https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing).
 - Place the file "gl_pbs_steal.int" in ...\Fallout 2\data\scripts (this will disable the EcCo's stealing mod. To enable it again, simply delete the file "gl_pbs_steal.int" from the scripts folder
-- Set FO2_ECCO=0 in the file `mods/F2MechanicsMiniRework.ini`
+- Set "FO2_ECCO=0" in the file `mods/F2MechanicsMiniRework.ini`
 #### Partial Compatibility
 - Partial compatibility with EcCo steal mod is enabled by setting FO2_ECCO=1 in the `mods/F2MechanicsMiniRework.ini` file.
-- The ability to steal weapons from hands and measure the minimum stealing skill to look into the target’s pocket will work.
+- Partial compatibility includes:  
+	- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
+	- To peep into a target's pocket, you need to meet minimum skill requirements.
 
 
 ## Uninstallation
