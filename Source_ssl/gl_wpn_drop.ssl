@@ -22,6 +22,7 @@ variable atk_rslt;
 variable combat_dmg;
 variable dropping;
 variable target_who_can_drop;
+variable target_who_can_drop_hp;
 variable exp_rh_wpn_drop_critters_array;
 variable exp_lh_wpn_drop_critters_array;
 
@@ -114,15 +115,15 @@ procedure STDPROCEDURE begin
    variable party_bonus;
    variable exp_target;
    if combat_is_initialized then begin
-      if target_who_can_drop andAlso ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0) then begin
+      if target_who_can_drop andAlso ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0 andAlso target_who_can_drop_hp != get_critter_stat(target_who_can_drop, STAT_current_hp)) then begin
          party = party_member_list(0);
          target_in_party = is_in_array(target_who_can_drop, party);
          if not(target_in_party) then party_bonus = 1;
          rnd = random(0, 100);
-         if rnd < WpnDropNonCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == HIT then begin
+         if rnd < WpnDropNonCrit + WpnDropNonCrit * 7 * party_bonus andAlso atk_rslt == HIT then begin
             call Drop_Weapons(target_who_can_drop,target_bodypart);
          end
-         if rnd < WpnDropCrit + WpnDropCrit * party_bonus  andAlso atk_rslt == CRITICAL_HIT then begin
+         if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso atk_rslt == CRITICAL_HIT then begin
             call Drop_Weapons(target_who_can_drop,target_bodypart);
          end
          call clear_lvars();
@@ -309,9 +310,10 @@ procedure COMBATDAMAGE begin
          end
       end
    end
-   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == get_sfall_arg_at(0) then begin
-      combat_dmg = get_sfall_arg_at(2);
-      if combat_dmg >= get_critter_stat(target_who_can_drop,STAT_current_hp) then begin
+   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == target then begin
+      combat_dmg = dmgtotar;
+      target_who_can_drop_hp = get_critter_stat(target_who_can_drop, STAT_current_hp);
+      if combat_dmg >= target_who_can_drop_hp then begin
          call clear_lvars();
       end
    end

@@ -1,13 +1,13 @@
 ### Version v1.98 in developing
-##### SecondaryAttack Mod
-- Добавлена "цепная атака" для электро и ЕМП стрелкового оружия.
-- Добавлен режим позволяющий НПЦ применять альтернативные атаки оружием, частота применения и их эффективность зависят от настроек сложности боя игры и интеллекта НПЦ.
-- Добавлен режим где каждая одиночная атака(+ очередь для дробовиков) будет вызыввать эффект альтернативной атаки, а не только прицельные выстрелы в тело.
-- Улучшено: Анимации эффектов алтернативных атак теперь полностью соответвуют настройкам скорости боя в игровых опциях.
-- Исправлено: Плазменый взрыв при алттернативном режиме атаки больше не будет паражать цели сквозь стены и другие непростреливаемые преграды.
-- Уменьшено базове потребление энергии и количество целей при альтернативной стрельбе из лазерного оружия.
+#####SecondaryAttack Mod
+- Added "chain attack" for PULSE and EMP weapons.
+- Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.
+- Added a mode where each single attack (and for shotguns also a burst) will cause the effect of an alternative attack (without targeted shots to the torso)
+- Improved: Animations for the effects of alternative attacks are now fully consistent with the combat speed settings in the game options.
+- Fixed: Plasma explosion in alternative attack mode will no longer hit targets through walls and other non-shootable obstacles.
+- Reduced base energy consumption and increased the number of targets when using the alternative fire mode with laser weapons.
 ##### Steal mod
-- Добавлена поддержка расширенного инвентаря для sfall версии 5.0.6 и выше.
+- Added support for extended inventory for sfall version 5.0.6 and higher.
 
 
 ### Latest Version  v1.96 

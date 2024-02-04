@@ -14,6 +14,7 @@
 #include "ARTFID.H"
 
 
+
 procedure start;
 procedure misstohit;
 procedure COMBATDAMAGE;
@@ -549,7 +550,7 @@ procedure misstohit begin
 
    if MissMod > 0 then begin
 // new targets for missed attacks
-      if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 then begin
+      if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 andAlso attacker != target then begin
          //new targets for miss on low range with spear-like weapons
           if distance1 < 2 and wpnrng < 3 then begin
             foreach (critter in objects_in_radius(tar_tile,1,elevation(target),OBJ_TYPE_CRITTER)) begin
@@ -733,8 +734,8 @@ procedure misstohit begin
 
 // humans,ghouls,supermutants/radscop/ Horrigan  conversion of aimed hits in eye/groin in critter's back into head/ torso+legs hits
       if critter_type < 5 or critter_type == 6 or critter_type > 17 then begin // (kill type 0 - 4) = humans, ghouls, supermutants / 6=radscop / > 18= Horrigan and maybe player(38 or 38)
-            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0 andAlso ((tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)  or  tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
-                 if bpart == BODY_HIT_EYES andAlso (tar_cur_frm != 10 or (tar_cur_frm != 4 andAlso tar_fid == 16777311)) then begin
+            if hitmiss > MISS andAlso tile_distance_objs(target, attacker) > 0 andAlso ((tar_cur_frm == 4 andAlso tar_fid == FID_NMBOXX)  or  tar_cur_frm == 6  or  rotationatkr == rotationtar or rotationatkr == ((rotationtar + 5) % 6) or rotationatkr == ((rotationtar + 1) % 6) ) then begin
+                 if bpart == BODY_HIT_EYES andAlso (tar_cur_frm != 10 or (tar_cur_frm != 4 andAlso tar_fid == FID_NMMEXI)) then begin
                      set_sfall_return(hitmiss); // hit or miss
                      set_sfall_arg(0, hitmiss);
                      set_sfall_return(BODY_HIT_HEAD); // new bodypart
@@ -743,7 +744,7 @@ procedure misstohit begin
                   end
 
          // groin from back and rears convertion to torso or random leg
-              if (bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6 or (tar_cur_frm != 4 andAlso tar_fid == 16777311) )  or (bpart == BODY_HIT_GROIN andAlso (tar_cur_frm == 6 or (tar_cur_frm == 4 andAlso tar_fid == FID_BOXER)) andAlso not( rotationatkr == rotationtar))  then begin
+              if (bpart == BODY_HIT_GROIN  andAlso tar_cur_frm != 10 andAlso tar_cur_frm != 6 or (tar_cur_frm != 4 andAlso tar_fid == FID_NMMEXI) )  or (bpart == BODY_HIT_GROIN andAlso (tar_cur_frm == 6 or (tar_cur_frm == 4 andAlso tar_fid == FID_NMBOXX)) andAlso not( rotationatkr == rotationtar))  then begin
                      rnd = random(1, 100);
                      if rnd <= 60 then begin
                         set_sfall_return(hitmiss); // hit or miss

@@ -74,8 +74,7 @@
 #define get_critter_xp(critter_obj) (get_proto_data(obj_pid(critter_obj), PROTO_CR_EXP_VAL))
 #define DMG_BURST 16
 #define DMG_BURST_HEAVY 32
-#define OUTLINE_CYAN_IRIDESCENT 0xEBF0
-
+#define OUTLINE_BLINKING_CYAN 0xEBF0
 
 #include "define_extra.h"
 #include "DEFINE.H"
@@ -87,37 +86,33 @@ variable SecondaryAttackMod_msg;
 variable LaserSecondaryAttackMod;
 variable LaserLineWidth;
 variable LaserHitChance;
-variable LaserForced = 0;
-variable ElecSecondaryAttackMod = 2;
-variable ElecMaxTargets = 2;
-variable ElecRadius = 5;
+variable LaserForced;
+variable ElecSecondaryAttackMod;
+variable ElecMaxTargets;
+variable ElecRadius;
 variable ElecDmgMin = 50;
 variable ElecDmgMax = 100;
 variable ElecHitChance;
-variable ElecForced = 0;
+variable ElecForced;
 variable ElecAmmoCost = 3;
 variable GaussSecondaryAttackMod;
 variable GaussLineWidth;
 variable GaussHitChance;
 variable GaussDamageReductionPerTarget;
-variable GaussForced = 0;
+variable GaussForced;
 variable PlasmaSecondaryAttackMod;
 variable PlasmaBlastRadius;
 variable PlasmaDamagePercentage;
-variable PlasmaForced = 0;
+variable PlasmaForced;
 variable PlasmaAmmoCost = 3;
 variable ShotgunSecondaryAttackMod;
-variable ShotgunMaxDistanceToKnockback;
 variable ShotgunKnockbackMin;
 variable ShotgunKnockbackMax;
-variable ShotgunForced = 0;
+variable ShotgunForced;
 variable PistolSecondaryAttackMod;
 variable AllowSniperPerk;
-variable combat_diff;
 variable show_float_dmg;
-//variable Nevada;
 variable Sonora;
-//variable ET_TU;
 
 variable target_bodypart;
 variable atk_rslt =-1;
@@ -204,8 +199,6 @@ variable old_emp_expl;
 variable npc_orig_tar;
 variable elec_tar_num;
 
-variable dude_turn;
-
 
 
 procedure destroy_placeholder begin
@@ -219,13 +212,15 @@ end
    //end
 //end
 
+//procedure enable_ui begin
+   //game_ui_enable;
+//end
+
 procedure kill_dude begin
    critter_heal(dude_obj, -(get_critter_stat(dude_obj, STAT_current_hp)));
 end
 
-//procedure enable_ui begin
-   //game_ui_enable;
-//end
+
 
 procedure restore_weapon_proj_pid begin
    if proj_pid_changed > 0 then begin
@@ -500,7 +495,7 @@ procedure is_hit_from_front(variable attacker_tile,variable target) begin
    end
 end
 
-//checking that there are no obstacles between objects
+//checking that there are no not_shot_through obstacles between objects
 procedure check_block_shoot(variable obj_1,variable obj_2) begin
    variable tile_1 = tile_num(obj_1);
    variable tile_2 = tile_num(obj_2);
@@ -657,8 +652,6 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
-   //variable target_dt = get_proto_data(target_pid, PROTO_CR_BASE_DT(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DT(weapon_damage_type));
-   //variable target_dr = get_proto_data(target_pid, PROTO_CR_BASE_DR(weapon_damage_type)) + get_proto_data(target_pid, PROTO_CR_BONUS_DR(weapon_damage_type));
    variable target_dt = get_critter_stat(target,STAT_dmg_thresh_laser);
    variable target_dr = get_critter_stat(target,STAT_dmg_resist_laser);
    variable target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
@@ -1346,7 +1339,7 @@ procedure get_targets_on_thin_line_laser_reversed(variable first_tile,variable l
          end
 
          //terminate procedure if there are not enough ammo to penetrate additional targets
-         if new_targets_count == laser_curr_ammo - base_alt_ammo_cost then begin
+         if LaserForced <= 0 andAlso (new_targets_count * 2) == laser_curr_ammo - base_alt_ammo_cost then begin
             new_main_target = new_target;
             dmg_array = local_dmg_array;
             crit_roll_array = local_crit_roll_array;
@@ -1778,7 +1771,7 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
             end
             new_targets_count += 1;
             //terminate procedure if there are not enough ammo to penetrate additional targets
-            if new_targets_count == laser_curr_ammo - base_alt_ammo_cost then begin
+            if LaserForced <= 0 andAlso (new_targets_count * 2) == laser_curr_ammo - base_alt_ammo_cost then begin
                new_main_target = blocking_obj;
                target = blocking_obj;
                dmg = calc_dmg_laser(attacker, blocking_obj);
@@ -1827,7 +1820,7 @@ procedure get_targets_on_wide_line_laser(variable attacker ,variable target) beg
                break;
             end
             //terminate cycle if there are not enough ammo to penetrate additional targets
-            if new_targets_count == laser_curr_ammo - base_alt_ammo_cost then begin
+            if LaserForced <= 0 andAlso (new_targets_count * 2) == laser_curr_ammo - base_alt_ammo_cost then begin
                new_main_target = blocking_obj;
                target = blocking_obj;
                dmg = calc_dmg_laser(attacker, blocking_obj);
@@ -1942,6 +1935,11 @@ procedure get_death_anim(variable target, variable attacker, variable dmg_value,
    end
    else begin
       set_array(death_array, target, dmg_value);
+   end
+   //Death animation for Horrigan
+   if target > 0 andAlso obj_pid(target) == PID_END_BOSS then begin
+      death_anim = ANIM_exploded_to_nothing;
+      return death_anim;
    end
    //Death animation for a knocked out target
    if target_cur_anim == ANIM_fall_back then begin
@@ -2178,7 +2176,7 @@ procedure STDPROCEDURE begin
    if in_combat andAlso one_time_call == 1 andAlso targets_array != 0 then begin
       attacker = orig_attacker;
       party = party_member_list(0);
-      if missed_shot andAlso show_float_dmg andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) andAlso targets_count > 1 then begin
+      if missed_shot andAlso show_float_dmg > 0 andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER andAlso not(is_in_array(orig_target,targets_array)) andAlso targets_count > 1 then begin
          if combat_dmg <= 0 then begin
             float_msg(orig_target, "0", 2);
          end
@@ -2227,7 +2225,7 @@ procedure STDPROCEDURE begin
 
 
                         if dmg <= 0 then begin
-                           if show_float_dmg andAlso targets_count > 1 then begin
+                           if show_float_dmg > 0 andAlso targets_count > 1 then begin
                               if crit_power_roll < 0 or (missed_shot andAlso new_tar == orig_target) then begin
                                  float_msg(new_tar,"~", 2);
                               end
@@ -2238,7 +2236,7 @@ procedure STDPROCEDURE begin
                            if new_tar != orig_target then display_msg(parse_str_2(modmsg(msg_hit_no_dmg), obj_name(new_tar), dmg));
                            if not(new_tar_critter_flags bwand CFLG_INVULN) then break;
                         end
-                        if show_float_dmg andAlso new_tar == orig_target andAlso targets_count > 1 then begin
+                        if show_float_dmg > 0 andAlso new_tar == orig_target andAlso targets_count > 1 then begin
                            if dmg <= 0 then begin
                               if missed_shot then begin
                                  float_msg(new_tar, "~", 2);
@@ -2253,7 +2251,7 @@ procedure STDPROCEDURE begin
                         end
                         if dmg > 0 andAlso new_tar != orig_target then begin
                            if crit_power_roll < 0 then begin
-                              if show_float_dmg andAlso targets_count > 1 then float_msg(new_tar, "~", 2);
+                              if show_float_dmg > 0 andAlso targets_count > 1 then float_msg(new_tar, "~", 2);
                               display_msg(parse_str_2(modmsg(msg_hit_no_dmg), obj_name(new_tar), dmg));
                            end
                            else begin
@@ -2302,27 +2300,28 @@ procedure STDPROCEDURE begin
                                        end
                                     end
                                     //call dmg_p_proc in critter script
+                                    critter_heal(new_tar, -dmg);
                                     if target_sid > 0 andAlso attacker_team != critter_team then begin
                                        set_obj_script_fixed_value(target_sid, dmg);
                                        set_obj_script_objects(target_sid, attacker, weapon);
                                        exec_obj_script_proc(target_sid, damage_proc);
                                     end
-                                    critter_heal(new_tar, -dmg);
-                                    if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
+                                    if show_float_dmg > 0 then float_msg(new_tar, "-"+dmg, 2);
                                  end
                                  //if new_target will die
                                  else begin
 
                                     if sonora <= 0 then accumulated_experience += get_critter_xp(new_tar);
                                     set_outline(new_tar, OUTLINE_NONE);
+                                    if new_tar != orig_target andAlso new_tar_pid != PID_END_BOSS then critter_heal(new_tar, -tar_cur_hp);
                                     //call dmg_p_proc in critter script
                                     if target_sid > 0 andAlso attacker_team != critter_team then begin
                                        set_obj_script_fixed_value(target_sid, dmg);
                                        set_obj_script_objects(target_sid, attacker, weapon);
                                        exec_obj_script_proc(target_sid, damage_proc);
                                     end
-                                    if show_float_dmg then float_msg(new_tar, "-"+dmg, 2);
-                                    if new_tar != orig_target then critter_heal(new_tar, -tar_cur_hp);
+                                    if show_float_dmg > 0 then float_msg(new_tar, "-"+dmg, 2);
+
                                     //if in_combat add kill xp
                                     if in_combat andAlso attacker_team == TEAM_PLAYER then begin
                                        if attacker_team != TEAM_PLAYER then begin
@@ -2891,7 +2890,7 @@ procedure plasma_alt_explosion begin
    reg_anim_play_sfx(exlposion,sfx, 0);
    reg_anim_destroy(exlposion);
    reg_anim_end();
-   if show_float_dmg andAlso orig_target > 0 andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER then begin
+   if show_float_dmg > 0 andAlso orig_target > 0 andAlso obj_type(orig_target) == OBJ_TYPE_CRITTER then begin
       if combat_dmg > 0 then begin
          float_msg(orig_target,"-"+combat_dmg, 2);
       end
@@ -2990,7 +2989,7 @@ procedure plasma_alt_explosion begin
             //critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
             new_tar_count += 1;
          end
-         if show_float_dmg andAlso new_tar != orig_target andAlso new_tar > 0 then begin
+         if show_float_dmg > 0 andAlso new_tar != orig_target andAlso new_tar > 0 then begin
             if dmg > 0 then begin
                float_msg(new_tar,"-"+dmg, 2);
             end
@@ -3063,20 +3062,20 @@ procedure plasma_aoe_dmg(variable attacker,variable target) begin
    reg_anim_end();
 end
 
-
-procedure callback_set_outline_none begin
+procedure callback_refresh_outline begin
    variable critter;
-   foreach critter in list_as_array(LIST_CRITTERS) begin
-      if get_outline(critter) != 0 then begin
+   variable cursor = get_cursor_mode;
+   variable not_cursor = cursor - 1;
+   foreach critter in targets_array begin
+      if get_outline(critter) > 0 then begin
          set_outline(critter, OUTLINE_NONE);
       end
    end
    set_outline(dude_obj, OUTLINE_NONE);
+   if not_cursor < 0 then not_cursor = 2;
+   set_cursor_mode(not_cursor);
+   set_cursor_mode(cursor);
    tile_refresh_display;
-end
-
-procedure callback_refresh_outline begin
-   call callback_set_outline_none in 1;
 end
 
 procedure callback_electrical_chain_show_orig_target_dmg begin
@@ -3085,11 +3084,11 @@ procedure callback_electrical_chain_show_orig_target_dmg begin
    variable target_team;
    variable emp_expl;
    if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
-      float_msg(target, "-"+combat_dmg, 2);
-      set_outline(target, OUTLINE_CYAN_IRIDESCENT);
+      if show_float_dmg > 0 then float_msg(target, "-"+combat_dmg, 2);
+      set_outline(target, OUTLINE_BLINKING_CYAN);
       if old_emp_expl > 0 then begin
          emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
-         set_outline(emp_expl, OUTLINE_CYAN_IRIDESCENT);
+         set_outline(emp_expl, OUTLINE_BLINKING_CYAN);
          reg_anim_combat_check(0);
          reg_anim_begin();
          reg_anim_animate_and_hide(emp_expl, ANIM_stand, -1);
@@ -3110,7 +3109,7 @@ procedure callback_electrical_chain_dmg begin
       target_cur_hp = get_critter_stat(target, STAT_current_hp);
       target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
       dmg = get_array(dmg_array,elec_tar_num);
-      set_outline(target, OUTLINE_CYAN_IRIDESCENT);
+      set_outline(target, OUTLINE_BLINKING_CYAN);
       if target != orig_attacker orElse target_cur_hp > dmg then begin
          if random(0,1) then begin
             call critter_inflict_dmg(target, orig_attacker, dmg, DMG_emp, 1, tile_num(target));
@@ -3134,10 +3133,10 @@ procedure callback_electrical_chain_dmg begin
             move_obj_inven_to_obj(target, dead_attacker);
          end
       end
-      float_msg(target, "-"+dmg, 2);
+      if show_float_dmg > 0 then float_msg(target, "-"+dmg, 2);
       if old_emp_expl > 0 then begin
          emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
-         set_outline(emp_expl, OUTLINE_CYAN_IRIDESCENT);
+         set_outline(emp_expl, OUTLINE_BLINKING_CYAN);
          reg_anim_combat_check(0);
          reg_anim_begin();
          reg_anim_animate_and_hide(emp_expl, ANIM_stand, -1);
@@ -3243,8 +3242,7 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
    projectile = create_object_sid(pid_electric_projectile, 0, attacker_elev, -1);
    anim(projectile, ANIMATE_ROTATION, rot_atk_to_tar);
    set_object_data(projectile, OBJ_DATA_FID, get_proto_data(PID_BLOCKING_HEX, PROTO_FID));
-   set_outline(projectile, OUTLINE_CYAN_IRIDESCENT);
-   move_to(projectile, start_tile, attacker_elev);
+   set_outline(projectile, OUTLINE_BLINKING_CYAN);
 
 
    timer = create_object_sid(pid_plasma_big_projectile, 0, attacker_elev, -1);
@@ -3266,11 +3264,14 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
          reg_anim_callback(callback_electrical_chain_dmg);
       end
    end
+   reg_anim_callback(restore_weapon_proj_pid);
+   reg_anim_animate_reverse(timer, ANIM_stand, -1);
+   reg_anim_callback(callback_refresh_outline);
    if projectile then reg_anim_destroy(projectile);
    reg_anim_callback(lvar_full_reset);
-   reg_anim_callback(callback_refresh_outline);
    reg_anim_callback(destroy_placeholder);
    reg_anim_end();
+   move_to(projectile, start_tile, attacker_elev);
 end
 
 procedure get_dude_worn_armor_perk begin
@@ -3492,6 +3493,14 @@ procedure AFTERHITROLL begin
       end
       // electrical and EMP set new proj_pid and weapon_cur_ammo
       if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or attacker != dude_obj)  andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
+         if attack_result <= MISS then begin
+            if weapon_proj_pid > 0 andAlso ((attacker != dude_obj andAlso ElecForced > 0) or attacker == dude_obj) then begin
+               proj_pid_changed = 1;
+               set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
+               call restore_weapon_proj_pid in 1;
+            end
+            return;
+         end
          if attacker != dude_obj then begin
             new_tar_arr = objects_in_radius(tile_num(orig_target),ElecRadius, elevation(orig_target), OBJ_TYPE_CRITTER);
             last_distance = ElecRadius;
@@ -3522,15 +3531,20 @@ procedure AFTERHITROLL begin
                end
             end
          end
+         attacker_iq = get_critter_stat(attacker, STAT_iq);
+         if random(0,attacker_iq) <= 1 then begin
+            if random(0,1) then begin
+               friendly_targets_count += 10;
+            end
+            else begin
+               friendly_targets_count -= 10;
+            end
+         end
          if (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
             call lvar_full_reset;
             return;
          end
-         if attack_result <= MISS then begin
-            set_sfall_return(CRITICAL_MISS);
-            set_sfall_arg(0, CRITICAL_MISS);
-            return;
-         end
+
          alt_fire_used = 1;
          if weapon_proj_pid <= 0 then begin
             proj_pid_changed = 1;
@@ -3560,6 +3574,17 @@ procedure AFTERHITROLL begin
                end
             end
          end
+
+         attacker_iq = get_critter_stat(attacker, STAT_iq);
+         if random(0,attacker_iq) <= 1 then begin
+            if random(0,1) then begin
+               friendly_targets_count += 10;
+            end
+            else begin
+               friendly_targets_count -= 10;
+            end
+         end
+
          if (PlasmaForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
             call lvar_full_reset;
             return;
@@ -3570,7 +3595,6 @@ procedure AFTERHITROLL begin
             set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_plasma_big_projectile);
             if missed_shot then call restore_weapon_proj_pid in 1;
          end
-         //proj_pid_changed = 1;
 
          if PlasmaAmmoCost > 1 andAlso weapon_cur_ammo >= PlasmaAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (PlasmaAmmoCost + base_ammo_cost));
          //if missed_shot then call restore_weapon_proj_pid in 1;
@@ -3614,7 +3638,7 @@ procedure AFTERHITROLL begin
       // pistols double tap end
 
       // laser get new targets
-      if is_single_shot andAlso LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj or LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+      if is_single_shot andAlso LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj or LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 1 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
          if attack_result < MISS then begin
             set_sfall_return(CRITICAL_MISS);
             set_sfall_arg(0, CRITICAL_MISS);
@@ -3644,7 +3668,6 @@ procedure AFTERHITROLL begin
                laser_curr_ammo = laser_max_targets_one_handed_micro_fusion + 2;// max additional targets for two_handed high power laser weapon
             end
             else if (weapon_anim == WPN_ANIM_RIFLE or weapon_anim == WPN_ANIM_BIG_GUN) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_two_handed_small_cell + 2 then begin
-
                laser_curr_ammo = laser_max_targets_two_handed_small_cell + 2;// max additional targets for two_handed high power laser weapon
             end
             else if (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_ammo_pid == PID_SMALL_ENERGY_CELL andAlso laser_curr_ammo > laser_max_targets_one_handed_small_cell + 2 then begin
@@ -3658,9 +3681,15 @@ procedure AFTERHITROLL begin
          end
          if LaserLineWidth then begin
             call get_targets_on_wide_line_laser(attacker, orig_target);
-            //ammo_cost = new_targets_count;
-            ammo_cost = base_ammo_cost;
-            if weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
+            if LaserForced <= 0 then begin
+               ammo_cost = new_targets_count / 2;
+            end
+            else begin
+               ammo_cost = 0;
+            end
+            //ammo_cost = base_ammo_cost;
+            if ammo_cost < 0 then ammo_cost = 0;
+            if ammo_cost > 0 andAlso weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
             if not(same_target) then begin
                laser_curr_ammo = random(1, (new_targets_count + base_alt_ammo_cost + base_ammo_cost));
                targets_array = 0;
@@ -3669,9 +3698,15 @@ procedure AFTERHITROLL begin
          end
          else begin
             call get_targets_on_thin_line_laser(attacker, orig_target);
-            //ammo_cost = new_targets_count;
-            ammo_cost = base_ammo_cost;
-            if weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
+            if LaserForced <= 0 then begin
+               ammo_cost = new_targets_count / 2;
+            end
+            else begin
+               ammo_cost = 0;
+            end
+            //ammo_cost = base_ammo_cost;
+            if ammo_cost < 0 then ammo_cost = 0;
+            if ammo_cost > 0 andAlso weapon_cur_ammo + 1 >= ammo_cost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - ammo_cost);
             if not(same_target) then begin
                laser_curr_ammo = random(1, (new_targets_count + base_alt_ammo_cost + base_ammo_cost));
                targets_array = 0;
@@ -3683,7 +3718,7 @@ procedure AFTERHITROLL begin
             new_main_target = last_target_on_a_line;
             missed_shot = 1;
          end
-         if weapon_proj_pid != pid_laser_projectile then begin
+         if weapon_proj_pid <= 0 then begin
             proj_pid_changed = 1;
             set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_laser_projectile);
             if missed_shot then call restore_weapon_proj_pid in 1;
@@ -3820,16 +3855,18 @@ procedure COMBATDAMAGE begin
       // plasma aoe dmg end
 
       //shotgun alt fire(knockback)
-      if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or (attacker != dude_obj andAlso not(random(0,2)))) then begin
+      if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or (attacker != dude_obj andAlso is_single_shot andAlso not(random(0,2)))) then begin
          if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
             call lvar_full_reset;
             return;
          end
          distance_objs(attacker_target_distance, attacker, target);
          knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-         if target == dude_obj then begin
-            target_is_wearing_power_armor = player_wearing_power_armor;
-            stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+         if has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
+            if target == dude_obj then begin
+               target_is_wearing_power_armor = player_wearing_power_armor;
+               stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+            end
             if target_is_wearing_power_armor then begin
                knockback_distance = 1;
                rnd = 5;
@@ -3922,7 +3959,7 @@ procedure COMBATDAMAGE begin
       // pistols double tap end
 
       // laser alt dmg
-      if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 2 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+      if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 1 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
          if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (LaserForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
             call lvar_full_reset;
             return;
@@ -4084,11 +4121,7 @@ procedure GAMEMODECHANGE begin
 end
 
 procedure COMBATTURN begin
-   dude_turn = 0;
    if get_sfall_arg_at(1) == dude_obj then begin
-      if get_sfall_arg_at(0) == 1 then begin
-         dude_turn = 1;
-      end
       if pistol_double_tap_visual or pistol_double_tap_activated then begin
          pistol_double_tap_activated = 0;
          pistol_double_tap_in_process = 0;
@@ -4128,41 +4161,20 @@ variable item;
 variable i;
    if game_loaded then begin
       variable SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
-      //test!
-      //write_byte(0x41362E, read_byte(0x41364F));
-      //write_byte(0x41361F, read_byte(0x41364F));
-      //write_byte(0x413654, read_byte(0x41364F));
-      //for (i=0 ;i <= 32; i+=4) begin
-      //set_proto_data(PID_PLASMA_PISTOL, PROTO_WP_RANGE_1, 50);
-      //set_proto_data(PID_PLASMA_PISTOL, PROTO_WP_RANGE_2, 50);
-      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_1, 50);
-      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_2, 50);
-      //set_proto_data(PID_TURBO_PLASMA_RIFLE, PROTO_WP_RANGE_1, 50);
-      //set_proto_data(PID_TURBO_PLASMA_RIFLE, PROTO_WP_RANGE_2, 50);
-      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_1, 50);
-      //set_proto_data(PID_PLASMA_PISTOL_EXT_CART, PROTO_WP_RANGE_2, 50);
-      //item = create_object_sid(PID_ALIEN_LASER_PISTOL, 0, 0, -1);
-      //add_mult_objs_to_inven(dude_obj, item, 1);
-      //set_object_data(dude_obj, OBJ_DATA_FID, FID_MABOSS);
-      //wield_obj_critter(dude_obj, item);
       if SecondaryAttackMod > 0 then begin
-         //Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
          Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          if Sonora > 0 then set_proto_data(pid_sonora_railgun, PROTO_WP_PROJ_PID, 0);
-         //ET_TU = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
-         //ProneTargetsSkip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ProneSkip");
          AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
-         //config_file = get_ini_string("ddraw.ini|Misc|ConfigFile");
-         //if config_file == "" then config_file = "fallout2.cfg";
 
-         LaserSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
+         LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
          if LaserSecondaryAttackMod > 0 then begin
             LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");
             if LaserLineWidth < 0 then LaserLineWidth = 0;
             if LaserLineWidth > 1 then LaserLineWidth = 1;
             //LaserHitChance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserHitChance");
             LaserHitChance = 1;
+            LaserForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserForcedActivation");
             laser_max_targets_two_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWMFC");
             if laser_max_targets_two_handed_micro_fusion < 4 then laser_max_targets_two_handed_micro_fusion = 4;
             laser_max_targets_one_handed_micro_fusion = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_OWMFC");
@@ -4173,17 +4185,22 @@ variable i;
             if laser_max_targets_one_handed_small_cell < 4 then laser_max_targets_one_handed_small_cell = 4;
          end
 
-         ElecSecondaryAttackMod = 200;
+         ElecSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseSecondaryAttackMod");
          if ElecSecondaryAttackMod > 0 then begin
+            ElecRadius = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseMaxRadius");
+            if ElecRadius <= 0 then ElecRadius = 5;
+            ElecMaxTargets = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseMaxTargets");
+            if ElecMaxTargets <= 0 then ElecMaxTargets = 2;
+            ElecForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseForcedActivation");
             test = create_object_sid(pid_emp_expl, 0, 0, -1);
             anim(test, ANIMATE_SET_FRAME, 5);
             if get_object_data(test, OBJ_DATA_CUR_FRM) == 0 then old_emp_expl = 1;
             if test > 0 then destroy_object(test);
             ElecHitChance = 1;
-         if ElecForced > 0 then ElecAmmoCost = 1;
+            if ElecForced > 0 then ElecAmmoCost = 1;
          end
 
-         GaussSecondaryAttackMod = 200 + get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
+         GaussSecondaryAttackMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
          if GaussSecondaryAttackMod > 0 then begin
             GaussLineWidth = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussLineWidth");
             if GaussLineWidth < 0 then GaussLineWidth = 0;
@@ -4192,19 +4209,21 @@ variable i;
             GaussHitChance = 1;
             GaussDamageReductionPerTarget = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussDamageReductionPerTarget"));
             if GaussDamageReductionPerTarget <= 0 then GaussDamageReductionPerTarget = 0.17;
+            GaussForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussForcedActivation");
          end
 
-         PlasmaSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
+         PlasmaSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
          if PlasmaSecondaryAttackMod > 0 then begin
             PlasmaBlastRadius = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaBlastRadius");
             if PlasmaBlastRadius < 1 then PlasmaBlastRadius = 2;
             PlasmaDamagePercentage = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaDamagePercentage"));
             if PlasmaDamagePercentage > 1 then PlasmaDamagePercentage = 1;
             if PlasmaDamagePercentage <= 0 then PlasmaDamagePercentage = 0.65;
+            PlasmaForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaForcedActivation");
             if PlasmaForced > 0 then PlasmaAmmoCost = 1;
          end
 
-         ShotgunSecondaryAttackMod = 200 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
+         ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
          if ShotgunSecondaryAttackMod > 0 then begin
             shotgun_caliber = CALIBER_12_GAUGE;
             if Sonora > 0 then shotgun_caliber = 5;
@@ -4212,6 +4231,7 @@ variable i;
             if ShotgunKnockbackMin < 1 then ShotgunKnockbackMin = 1;
             ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
             if ShotgunKnockbackMax < 1 then ShotgunKnockbackMax = 5;
+            ShotgunForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunForcedActivation");
          end
 
          PistolSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolSecondaryAttackMod");
@@ -4229,7 +4249,7 @@ variable i;
 
 
          SecondaryAttackMod_msg = add_extra_msg_file(msg_file);
-         //COMBAT_MSG = add_extra_msg_file(combat_msg_file);
+
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_TARGETOBJECT, TARGETOBJECT);
