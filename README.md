@@ -221,7 +221,7 @@ Basic moments:
 
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.
-- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal ** weapons and items from the hands of the NPC. (bold)**
+- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal **weapons and items from the hands of the NPC.**
 - To peep into a target's pocket, you need to meet minimum skill requirements.
 - In the case of an unsuccessful attempt to use the Steal skill, the target can sometimes become hostile. The presence of the Harmless perk reduces this chance.
 
