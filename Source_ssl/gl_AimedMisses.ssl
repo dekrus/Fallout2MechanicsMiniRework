@@ -19,21 +19,22 @@ procedure start;
 procedure misstohit;
 procedure COMBATDAMAGE;
 procedure SwingThrust;
-procedure LOS_is_blocked(variable watcher_obj , variable target_obj1 );
+procedure LOS_is_blocked(variable watcher_obj, variable target_obj1 );
 procedure real_rotation_to_tile(variable begin_tile, variable dest_tile);
 
 variable MissMod;
 variable BodyRndHit;
 variable SwingThrustTweak;
-variable tardt;
-variable tardr;
+variable dt_mod;
+variable dr_mod;
+variable dmg_type;
 variable thrusthit;
-//variable weapon;
 variable missed;
 variable newtarget;
 variable first_target_dist;
 variable burst;
 variable grenade;
+variable pyro_bonus;
 
 procedure start begin
    if game_loaded then begin
@@ -44,6 +45,8 @@ procedure start begin
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, misstohit);
          if SwingThrustTweak > 0 then register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
+         pyro_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
+         if pyro_bonus < 0 then pyro_bonus = 5;
       end
       set_global_script_type(0);
       set_global_script_repeat(0);
@@ -123,13 +126,9 @@ procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
 end
 
 procedure SwingThrust begin
-   //variable hitch_capped = get_sfall_arg;
    variable atkr = get_sfall_arg_at(1);
    variable tar = get_sfall_arg_at(2);
-   //variable bpart = get_sfall_arg;
-   //variable Sourcetile = get_sfall_arg;
    variable Atktype = get_sfall_arg_at(5);
-   //variable rngflag = get_sfall_arg;
    variable hitch = get_sfall_arg_at(7);
    variable wpn_flags;
    variable leftHand_obj;
@@ -254,17 +253,19 @@ procedure COMBATDAMAGE begin
    variable wpn_flags;
    variable attacker_melee_dmg;
    variable target_type;
-   variable target_pid;
    variable rnd;
    variable wpnpid;
    variable wpnanim;
+   variable wpnmindmg;
    variable wpnmaxdmg;
-   variable bonusdmg;
    variable newdmg;
    variable swing;
    variable thrust;
    variable wpn_dmg_type;
    variable new_target_dist = -2;
+   variable tar_dt;
+   variable tardt_extra;
+   variable tardr_extra;
    if weapon > 0 then begin
       wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
       wpnpid = obj_pid(weapon);
@@ -287,67 +288,78 @@ procedure COMBATDAMAGE begin
    end
    if target then begin
       target_type = obj_type(target);
-      if target_type == OBJ_TYPE_CRITTER then begin
-         target_pid = obj_pid(target);
-      end
    end
    //swingThrust
    if SwingThrustTweak > 0 andAlso wpnpid > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
       wpn_flags = get_proto_data(wpnpid, PROTO_FLAG_EXT);
       wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
       if Atktype == ATKTYPE_LWEP1 then begin // left first attack mode
-         if (wpn_flags bwand ATKMODE_PRI_SWING  ) == 3 then begin
+         if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
             swing = 1;
          end
-         if (wpn_flags bwand ATKMODE_PRI_THRUST  ) == 4 then begin
+         if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
             thrust = 1;
          end
       end
       if Atktype ==  ATKTYPE_LWEP2 then begin // left second attack mode
-         if (wpn_flags bwand ATKMODE_SEC_SWING  ) == 48 then begin
+         if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
             swing = 1;
          end
-         if (wpn_flags bwand ATKMODE_SEC_THRUST  ) == 64 then begin
+         if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
             thrust = 1;
          end
       end
       if Atktype ==  ATKTYPE_RWEP1 then begin // right 1 attack
-         if (wpn_flags bwand ATKMODE_PRI_SWING  ) == 3 then begin
+         if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
             swing = 1;
          end
-         if (wpn_flags bwand ATKMODE_PRI_THRUST  ) == 4 then begin
+         if (wpn_flags bwand ATKMODE_PRI_THRUST) == 4 then begin
             thrust = 1;
          end
       end
       if Atktype ==  ATKTYPE_RWEP2 then begin // right 2 attack
-         if (wpn_flags bwand ATKMODE_SEC_SWING  ) == 48 then begin
+         if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
             swing = 1;
          end
-         if (wpn_flags bwand ATKMODE_SEC_THRUST  ) == 64 then begin
+         if (wpn_flags bwand ATKMODE_SEC_THRUST) == 64 then begin
             thrust = 1;
          end
       end
 
       //New effect for swing and thust attacks
       if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-         tardt = get_proto_data(target_pid, 244);
-         if tardt < 2 then begin // more likely to deal maximum damage when attacking lowarmored target
+         tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
+         tar_dt = get_critter_stat(target, (STAT_dmg_thresh + dmg_type));
+         if tar_dt <= 3 then begin // more likely to deal maximum damage when attacking low armored target
             wpnmaxdmg = get_proto_data(wpnpid, PROTO_WP_DMG_MAX);
+            wpnmindmg = 1 + get_proto_data(wpnpid, PROTO_WP_DMG_MIN);
             attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
-            bonusdmg = (random(23, 38) * 4.0 / 100.0);
-            newdmg = ceil(dmgtotar * bonusdmg + 1);
-            if newdmg > (wpnmaxdmg + attacker_melee_dmg) then begin
-               newdmg = (wpnmaxdmg + attacker_melee_dmg);
+            //inc min wpn dmg by half of diff max-min dmg
+            wpnmindmg += random(1,attacker_melee_dmg);
+            wpnmaxdmg += attacker_melee_dmg;
+            newdmg = random(wpnmindmg, wpnmaxdmg);
+            if tar_dt > 0 then begin
+               newdmg -= tar_dt;
             end
-            set_sfall_return(newdmg);
-            set_sfall_arg(2, newdmg);
+            newdmg -= get_critter_stat(target, (STAT_dmg_resist + dmg_type)) * newdmg / 100;
+            newdmg += has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk) * 5;
+            if wpn_dmg_type == DMG_fire andAlso has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) then begin
+               newdmg += pyro_bonus;
+            end
+            if dmgtotar < newdmg then begin
+               set_sfall_return(newdmg);
+               set_sfall_arg(2, newdmg);
+            end
          end
       end
-      if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-         if thrusthit == 1 then begin // return norman dr|dt values
-            set_proto_data(target_pid, 244, tardt);
-            set_proto_data(target_pid, 272, tardr);
+      if thrusthit == 1 andAlso thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
+         // return norman dr|dt valuesvariable dt_mod;
+         if dt_mod > 0 then begin
+            tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
+            set_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type), (tardt_extra + dt_mod));
          end
+         tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + dmg_type));
+         set_critter_extra_stat(target, (STAT_dmg_resist + dmg_type), (tardr_extra + dr_mod));
       end
    end
 end
@@ -364,7 +376,6 @@ procedure misstohit begin
    variable rotationatkr = -1;
    variable oldrotationatkr = -1;
    variable rotationtar = -1;
-   //variable rotationatk = -1;
    variable rotationnewtar = -1;
    variable critter = 0;
    variable distance1 = 0;
@@ -395,29 +406,29 @@ procedure misstohit begin
    variable wpn_flags = 0;
    variable wpn_dmg_type;
    variable wpnrng = 0;
-   //variable burst = 0;
-   //variable grenade = 0;
    variable swing = 0;
    variable thrust = 0;
    variable shortcritfrm = 0;
    variable rndarm = 0;
    variable rndleg = 0;
-   variable newtardt = 0;
-   variable newtardr = 0;
    variable critter_type = -1;
    variable tar_cur_frm = 0;
    variable attacker_meleedmg = 0;
    variable wpn_maxdmg = 0;
-   variable tar_pid;
+   variable wpn_mindmg = 0;
+   variable wpn_perk;
    variable tar_fid = 0;
    variable atk_mode;
    variable combat_diff;
    variable tar_tile;
    variable atk_tile;
    variable critter_tile;
+   variable tardt_extra;
+   variable tardr_extra;
    burst = 0;
    grenade = 0;
    if MissMod > 0 or SwingThrustTweak > 0 then begin
+      dmg_type = 0;
       newtarget = 0;
       missed = -1;
       hitmiss = get_sfall_arg;
@@ -434,7 +445,6 @@ procedure misstohit begin
       atk_tile = tile_num(attacker);
       rotationatkr = real_rotation_to_tile(atk_tile, tar_tile);
       oldrotationatkr = rotation_to_tile(atk_tile, tar_tile);
-      //rotationatk = has_trait(TRAIT_OBJECT, attacker, OBJECT_CUR_ROT);
       rotationtar = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
       rndarm = random(BODY_HIT_LEFT_ARM, BODY_HIT_RIGHT_ARM);
       rndleg = random(BODY_HIT_RIGHT_LEG, BODY_HIT_LEFT_LEG);
@@ -446,9 +456,9 @@ procedure misstohit begin
       atk_mode = get_object_data(combat_data, C_ATTACK_HIT_MODE);
    //determining the type of attack
       if leftHand_obj andAlso atk_mode == ATKTYPE_LWEP1 then begin // left first attack mode range
-      wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_1);
-      wpn = leftHand;
-      wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+         wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_1);
+         wpn = leftHand;
+         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
          if (wpn_flags bwand ATKMODE_PRI_BURST ) == 7 or (wpn_flags bwand ATKMODE_PRI_FLAME ) == 8  then begin
            burst = 1;
          end
@@ -464,9 +474,9 @@ procedure misstohit begin
       end
 
       if leftHand_obj andAlso atk_mode == ATKTYPE_LWEP2 then begin // left second attack mode range
-      wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_2);
-      wpn = leftHand;
-      wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+         wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_2);
+         wpn = leftHand;
+         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
          if (wpn_flags bwand ATKMODE_SEC_BURST ) == 112 or (wpn_flags bwand ATKMODE_SEC_FLAME ) == 128 then begin
            burst = 1;
          end
@@ -482,9 +492,9 @@ procedure misstohit begin
       end
 
       if rightHand_obj andAlso atk_mode == ATKTYPE_RWEP1 then begin // right 1 attack range
-      wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_1);
-      wpn = rightHand;
-      wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+         wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_1);
+         wpn = rightHand;
+         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
          if (wpn_flags bwand ATKMODE_PRI_BURST ) == 7 or (wpn_flags bwand ATKMODE_PRI_FLAME ) == 8  then begin
            burst = 1;
          end
@@ -500,9 +510,9 @@ procedure misstohit begin
       end
 
       if rightHand_obj andAlso atk_mode == ATKTYPE_RWEP2 then begin // right 2 attack range
-      wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_2);
-      wpn = rightHand;
-      wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
+         wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_2);
+         wpn = rightHand;
+         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
          if (wpn_flags bwand ATKMODE_SEC_BURST ) == 112 or (wpn_flags bwand ATKMODE_SEC_FLAME ) == 128 then begin
            burst = 1;
          end
@@ -519,30 +529,40 @@ procedure misstohit begin
       if wpn > 0 then begin
          wpnanim = get_proto_data(wpn, PROTO_WP_ANIM);
          wpn_dmg_type = get_proto_data(wpn, PROTO_WP_DMG_TYPE);
+         dmg_type = wpn_dmg_type;
       end
    end
 
       //New effect for swing and thust attacks
    if SwingThrustTweak > 0 andAlso wpn > 0 then begin
-      if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
-      end
+      //if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
+      //end
       if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
          thrusthit = 0;
          if hitmiss > MISS then begin
-         wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
-         thrusthit = 1;
-         tar_pid = obj_pid(target);
-         tardt = get_proto_data(tar_pid, 244);
-         tardr = get_proto_data(tar_pid, 272);
-         attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
-         newtardt = tardt - ceil((wpn_maxdmg + attacker_meleedmg) / 8.0);
-         newtardr = tardr - 2 - ceil((wpn_maxdmg + attacker_meleedmg) / 3.0);
-         set_proto_data(tar_pid, 244, newtardt);
-         set_proto_data(tar_pid, 272, newtardr);
-            if hitmiss == CRITICAL_HIT andAlso random (0, 98) < (get_critter_stat(attacker, STAT_crit_chance) / 2) then begin
-            set_sfall_return(CRITICAL_HIT); //  critical hit
-            set_sfall_arg(0, CRITICAL_HIT);
-            return;
+            wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
+            wpn_mindmg = get_proto_data(wpn, PROTO_WP_DMG_MIN);
+            wpn_perk = get_proto_data(wpn, PROTO_WP_PERK);
+            thrusthit = 1;
+            attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
+            if wpn_perk == PERK_weapon_penetrate then begin
+               dt_mod = 2;
+               dr_mod = 25;
+            end
+            else begin
+               dt_mod = 1 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 7);
+               dr_mod = 10 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 3);
+            end
+            if dt_mod > 0 then begin
+               tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type));
+               set_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type), (tardt_extra - dt_mod));
+            end
+            tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type));
+            set_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type), (tardr_extra - dr_mod));
+            if hitmiss == CRITICAL_HIT andAlso (random (0, 98) < ((get_critter_stat(attacker, STAT_crit_chance) + 1) / 2)) then begin
+               set_sfall_return(CRITICAL_HIT); //  critical hit
+               set_sfall_arg(0, CRITICAL_HIT);
+               return;
             end
          end
       end
