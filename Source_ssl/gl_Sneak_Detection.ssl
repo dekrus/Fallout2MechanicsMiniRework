@@ -219,6 +219,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
    variable armor_weight;
    variable min_perception_range = min_perception_range_ini;
    variable watcher_kill_type;
+   variable watcher_frm = art_anim(obj_art_fid(watcher));
    // reproduction of the original fallout 2 NPC perception formula + detecion outline
    if SneakRework <= 0 andAlso team != TEAM_PLAYER then begin
    watcher_rot_to_tar = rotation_to_tile(tile_num(watcher), target_tile);
@@ -419,7 +420,7 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
             end
          end
             // perception penalty  if target in KO
-         if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) then begin
+         if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) or (watcher_frm >= ANIM_bad_landing_sf andAlso watcher_frm <= ANIM_fall_front_blood_sf) then begin
             orig_dist = -1;
             perception_range = -1;
          end
@@ -533,6 +534,7 @@ procedure perception_handler begin
    variable target_elevation;
    variable combat_started;
    variable sneaking;
+   variable watcher_frm;
    // new sneak & perception mechanics
    if watcher != dude_obj andAlso target == dude_obj andAlso obj_type(watcher) == OBJ_TYPE_CRITTER andAlso get_critter_stat(watcher,STAT_current_hp) > 0 then begin
       watcher_elevation = elevation(watcher);
@@ -547,8 +549,9 @@ procedure perception_handler begin
          end
          else begin
             watcher_state = critter_state(watcher);
+            watcher_frm = art_anim(obj_art_fid(watcher));
             // perception penalty  if target in KO
-            if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) then begin
+            if (watcher_state BWAND DAM_KNOCKED_DOWN) or (watcher_state BWAND DAM_KNOCKED_OUT) or (watcher_state bwand CRITTER_IS_PRONE) or (watcher_frm >= ANIM_bad_landing_sf andAlso watcher_frm <= ANIM_fall_front_blood_sf) then begin
                perception_range = -2;
                set_sfall_return(0);
                set_sfall_arg(2, 0);

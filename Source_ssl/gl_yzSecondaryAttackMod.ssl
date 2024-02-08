@@ -2048,10 +2048,6 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER orElse attacker <= 0 orElse get_array(death_array,target) > 0 then begin
       return;
    end
-   //check dmg source tile
-   if dmg_source_tile < 0 or dmg_source_tile == tile_num(target) then begin
-      dmg_source_tile = tile_num(attacker);
-   end
    target_cur_hp = get_critter_stat(target, STAT_current_hp);
    target_cur_anim = art_anim(obj_art_fid(target));
    target_sid = get_object_data(target, OBJ_DATA_SID);
@@ -2061,6 +2057,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
       in_combat = 1;
       attacker_weapon = get_object_data(combat_data, C_ATTACK_WEAPON);
    end
+   //check dmg source tile
    if dmg_source_tile < 0 or dmg_source_tile == tile_num(target) then begin
       dmg_source_tile = tile_num(attacker);
    end

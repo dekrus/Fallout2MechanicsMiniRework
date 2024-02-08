@@ -25,9 +25,12 @@
 {25}{}{%1% takes %2% damage from poison and dies.}
 {26}{}{%1%: Poison level has reached a lethal value!}
 {27}{}{You feel the aftereffects of poisoning.}
-{28}{}{Regeneration mod: You need to enable the "AllowUnsafeScripting" setting in ddraw.ini for the mod to work correctly.}
+{28}{}{MechanicsMiniRework: To work correctly, you must activate the "AllowUnsafeScripting" parameter in "ddraw.ini".
 {29}{}{I don't think we know each other *that* well.}
 {30}{}{Get it away from me!}
 {31}{}{Hands off!}
 {32}{}{Hey! Back off.}
 {33}{}{%1% uses %2%.}
+
+{1000}{}{MechanicsMiniRework: Requires sfall 4.4.2 or later.}
+{1001}{}{MechanicsMiniRework: Requires sfall 5.0.6.2 or later.}
