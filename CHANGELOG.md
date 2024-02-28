@@ -1,13 +1,19 @@
-### Version v1.98 in developing
+### Version v1.98 in development
 #####SecondaryAttack Mod
-- Added "chain attack" for PULSE and EMP weapons.
+- Added "chain shot" for PULSE and EMP ranged weapons.
 - Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.
-- Added a mode where each single attack (and for shotguns also a burst) will cause the effect of an alternative attack (without targeted shots to the torso)
+- Added a mode where each single attack (and for shotguns also a burst) will cause the effect of an alternative attack (without targeted shots to the torso).
 - Improved: Animations for the effects of alternative attacks are now fully consistent with the combat speed settings in the game options.
 - Fixed: Plasma explosion in alternative attack mode will no longer hit targets through walls and other non-shootable obstacles.
 - Reduced base energy consumption and increased the number of targets when using the alternative fire mode with laser weapons.
 ##### Steal mod
 - Added support for extended inventory for sfall version 5.0.6 and higher.
+- Fixed: NPCs who died while punishing a player for stealing from them will no longer come back from the dead to finish the job.
+##### Regen & Poison mod
+- Fixed: The corpses of party members who died from poisoning while moving around the global map will no longer "haunt" the player.
+- Fixed: Dead NPCs will no longer express their displeasure when attempting to poison them with a poison syringe.
+##### Sneak Detection Mod
+- The sneak detection now takes into account movement and is displayed 1 tile forward if the player is moving towards an NPC (or vice versa), allowing a little more time to react.
 
 
 ### Latest Version  v1.96 

@@ -1,8 +1,9 @@
 #define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
 #define art_exists_death_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000 + 0x10000000)))
 #define art_exists_basic_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000)))
+
 #define can_use_weapon(critter_obj,weaponAnim)    (art_exists((obj_art_fid(critter_obj) bwand 0xFFFF0FFF) bwor (weaponAnim * 0x1000)))
-#define crit_is_moving(critter_obj)    ( (art_anim(obj_art_fid(critter_obj)) == ANIM_walk) or (art_anim(critter_art_fid(critter_obj)) == ANIM_running) )
+#define crit_is_moving(critter_obj)    ( (art_anim(obj_art_fid(critter_obj)) == ANIM_walk) or (art_anim(obj_art_fid(critter_obj)) == ANIM_running) )
 
 #define weak_fid(critter_obj)          (critter_art_fid(critter_obj) == FID_NFTRMP or \
                                        (critter_art_fid(critter_obj) == FID_NMOLDD andAlso get_critter_stat(critter_obj,STAT_st) <= 5) or \
@@ -91,6 +92,10 @@
 #define msg_pretends_see_nothing random(63,65)
 #define msg_pretends_see_nothing_stolen random(63,68)
 #define msg_pretends_see_nothing_planted random(69,72)
+#define msg_hit_point_and_die 73
+#define msg_hit_points_and_die 74
+#define msg_all_witnesses_are_dead 75
+
 
 #define msg_you_were_hit_for 96
 #define msg_you_were_critically_hit_for 97
@@ -101,7 +106,9 @@
 #define msg_child_attack random(230, 234)
 #define msg_child_flee random(241, 246)
 #define msg_child_common random(250, 254)
+#define msg_child_common_ghosts 255
 #define msg_child_rare random(260, 266)
+#define msg_child_rare_ghosts 267
 #define msg_child_name_calling random(290, 294)
 #define msg_pls_dont_kill random(270, 277)
 #define msg_supmut_neutral random(300, 304)
@@ -123,6 +130,8 @@
 #define msg_unaiming_normal random(150, 154)
 #define msg_aiming random(160, 164)
 #define msg_unaiming_threat random(170, 174)
+#define msg_all_ghosts 76
+
 
 #define modmsg(x) (message_str_game(new_steal_msg, x))
 #define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
@@ -153,6 +162,21 @@
 #define arr_lpt_shift_4 4
 #define arr_lpt_shift_max 5
 #define fixed_param_steal 225
+#define get_critter_xp(critter_obj) (get_proto_data(obj_pid(critter_obj), PROTO_CR_EXP_VAL))
+#define set_obj_script_objects(obj_sid, source, target) call_offset_v3(0x4A3B0C, obj_sid, source, target)
+#define set_obj_script_fixed_value(obj_sid, value) call_offset_v2(0x4A3B34, obj_sid, value)
+#define exec_obj_script_proc(obj_sid, script_proc_type) call_offset_v2(0x4A4810, obj_sid, script_proc_type)
+#define inc_kill_count(kill_type) call_offset_v1(0x42D878, kill_type)
+#define set_game_time(time_in_ticks) write_int(0x51C720,time_in_ticks)
+#define script_chk_timed_events call_offset_v0(0x4A3D84)
+#define set_is_loading_game_value(bool_value) write_int(0x5194C4,bool_value)
+#define event_attack 1
+#define event_flee_from_dude 2
+#define event_return_to_tile 3
+#define event_restore_rotation 4
+#define reg_anim_set_priority call_offset_v1(0x413C20, 1)
+#define OUTLINE_NEW_GLOW_RED  0x8500
+#define time_skip  12
 
 
 #include "sfall.h"
@@ -190,10 +214,12 @@ variable StealRebalance;
 variable MinStealReq;
 variable new_steal_msg;
 variable SneakRework;
+variable SneakDetection;
 variable MinWpnStealReq;
 variable ECCO_steal_mod;
 variable sfall_ver_maj;
 variable party_remove_ptr;
+variable witness_count;
 
 variable anim_tar_obj;
 variable anim_tar_kill_type;
@@ -207,7 +233,9 @@ variable anim_tar_fire_arm;
 variable anim_tar_weapon;
 variable anim_tar_weapon_anim;
 variable anim_tar_script;
+//variable anim_tar_sid;
 variable anim_tar_lvars_arr;
+variable anim_tar_is_dead;
 variable dude_wpn;
 variable dude_unwield;
 variable caught_stealing_buy_penalty = 1;
@@ -227,9 +255,11 @@ variable set_tar_flee;
 
 variable dude_lu;
 variable dude_was_robbed;
+variable dude_is_source;
 variable target_returns_goods;
 variable timer_added_time;
 variable timer_removed;
+variable targets_fleeing;
 variable targets_prep_attack;
 variable targets_prep_attack_attacking;
 variable tile_to_pickup;
@@ -245,6 +275,9 @@ variable slot_num_under_mouse_last = -1;
 variable dude_is_in_anim;
 variable show_skill_req;
 variable overlay_id;
+variable real_game_time;
+variable real_time;
+variable scripts_disabled;
 
 variable mouse_add;
 variable mouse_add_last;
@@ -254,6 +287,8 @@ variable last_dude_inv_offset;
 variable last_loot_obj_inv_offset;
 variable last_dude_inv_count;
 variable last_loot_obj_inv_count;
+
+variable is_loading_game_orig;
 
 procedure start;
 procedure STEAL_HOOK;
@@ -266,17 +301,22 @@ procedure STDPROCEDURE_HOOK;
 procedure USEOBJON_HOOK;
 procedure COMBATTURN_HOOK;
 procedure MOUSECLICK_HOOK;
+procedure ONDEATH_HOOK;
 //procedure KEYPRESS_HOOK;
 procedure map_exit_p_proc;
 procedure update_penalty_value(variable town_id);
 procedure attack_the_dude(variable target);
+procedure Flee_From_Dude_proc(variable target,variable end_flee);
 procedure clear_array_last_pickpocket_targets();
 procedure add_script_restore_lvars(variable target,variable script);
 procedure real_rotation_to_tile(variable begin_tile, variable dest_tile);
+procedure show_float_msg_fear(variable target);
 procedure show_steal_sfall_4();
 procedure show_steal_sfall_5();
 procedure show_steal_sfall_5_ExpandInventory();
 procedure clear_gvars();
+procedure scr_enable();
+procedure timed_event_p_proc();
 
 
 procedure start begin
@@ -284,6 +324,7 @@ procedure start begin
    variable critter_id;
    variable critter_script_id;
    variable arr_key;
+   variable arr_event_num;
    if game_loaded then begin
       StealRebalance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance");
       if StealRebalance > 0 then begin
@@ -295,7 +336,7 @@ procedure start begin
          Resurrection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Resurrection");
          ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
          //if get_ini_setting("mods\\ecco\\misc.ini|STEAL|exp_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_steal_count_mod_mult") or get_ini_setting("mods\\ecco\\misc.ini|STEAL|chance_facing_mod") then begin
-            ECCO_steal_mod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|FO2_ECCO");
+         ECCO_steal_mod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|FO2_ECCO");
          sfall_ver_maj = sfall_ver_major;
 		 if sfall_ver_maj >= 5 andAlso (sfall_ver_build + sfall_ver_minor) >= 6 then ExpandInventory = get_ini_setting("ddraw.ini|Interface|ExpandInventory");
          //end
@@ -313,10 +354,12 @@ procedure start begin
          register_hook_proc_spec(HOOK_USEOBJON, USEOBJON_HOOK);
          register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN_HOOK);
          register_hook_proc_spec(HOOK_MOUSECLICK, MOUSECLICK_HOOK);
+         register_hook_proc_spec(HOOK_ONDEATH, ONDEATH_HOOK);
          //register_hook_proc_spec(HOOK_KEYPRESS, KEYPRESS_HOOK);
          player_gender = get_critter_stat(real_dude_obj,STAT_gender);
          new_steal_msg = add_extra_msg_file(msg_file);
          SneakRework = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|SneakRework");
+         SneakDetection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|SneakDetection");
          last_pickpocket_targets_array = load_array("last_pickpocket_targets_array");
          timed_event_targets_array = load_array("timed_event_targets_array");
          timed_event_targets_lvar_array = load_array("timed_event_targets_lvar_array");
@@ -330,8 +373,12 @@ procedure start begin
                if is_in_array(critter_id, timed_event_targets_array) then begin
                   arr_key = scan_array(timed_event_targets_array, critter_id) - arr_shift_id;
                   set_array(timed_event_targets_array, arr_key, critter_ptr);
-                  if get_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num)) == 1 then begin
+                  arr_event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
+                  if arr_event_num == event_attack then begin
                      targets_prep_attack += 1;
+                  end
+                  else if arr_event_num == event_flee_from_dude then begin
+                     targets_fleeing += 1;
                   end
                   if is_in_array(critter_id , timed_event_targets_lvar_array) then begin
                      critter_script_id = (get_array(timed_event_targets_array, (arr_key + arr_shift_script)));
@@ -347,7 +394,6 @@ procedure start begin
       dude_lu = dude_luck;
       set_global_script_type(3);
       set_global_script_repeat(0);
-
    end
    else begin
       if steal_chance_win > 0 then begin
@@ -363,7 +409,38 @@ procedure start begin
             call show_steal_sfall_4();
          end
       end
+      if scripts_disabled > 0 then begin
+         if get_uptime > real_time then begin
+            call_offset_v0(0x4A53E0); // critters
+            call_offset_v0(0x4A53A8);
+            scripts_disabled = 0;
+            set_global_script_type(3);
+            set_global_script_repeat(0);
+            add_global_timer_event(5,5);
+            return;
+         end
+      end
    end
+end
+
+procedure scr_enable begin
+   set_game_time(real_game_time + game_ticks(6));
+   call_offset_v0(0x4A53E0); // critters
+   call_offset_v0(0x4A53A8);
+   scripts_disabled = 0;
+   set_global_script_type(3);
+   set_global_script_repeat(0);
+end
+
+procedure scr_disable begin
+   real_time = get_uptime + 20000;
+   set_global_script_type(3);
+   set_global_script_repeat(60);
+   real_game_time = game_time;
+   set_game_time(real_game_time - game_ticks(6));
+   call_offset_v0(0x4A53D0);
+   call_offset_v0(0x4A53F0);//critt
+   scripts_disabled = 1;
 end
 
 procedure COMBATTURN_HOOK begin
@@ -372,7 +449,6 @@ procedure COMBATTURN_HOOK begin
       set_tar_flee = 0;
    end
 end
-
 
 procedure get_item_penalty(variable thief, variable target, variable item, variable stype, variable quantity) begin
    variable item_pid = obj_pid(item);
@@ -1409,6 +1485,7 @@ procedure MOUSECLICK_HOOK begin
          end
       end
    end
+
 end
 
 //procedure KEYPRESS_HOOK begin
@@ -1454,10 +1531,16 @@ procedure add_script_restore_lvars(variable target, variable script_id) begin
    variable lvar_value;
    variable uniq_id;
    variable i;
+   variable target_frm;
+   variable target_sid;
+   variable last_target_tile = tile_num(target);
+   variable last_target_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
+   variable last_target_elevation = elevation(target);
    if script_id > 0 then begin
       uniq_id = get_unique_id(target);
       arr_key = scan_array(timed_event_targets_lvar_array, get_unique_id(target));
       if arr_key >= 0 then begin
+         target_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
          set_script(target,(script_id+0x80000000));
          //return original uniq_id
          set_object_data(target, OBJ_DATA_ID, uniq_id);
@@ -1470,6 +1553,19 @@ procedure add_script_restore_lvars(variable target, variable script_id) begin
             set_local_var(i, lvar_value);
             set_self(0);
             set_array(timed_event_targets_lvar_array,(arr_key + i),0);
+         end
+         target_sid = get_object_data(target, OBJ_DATA_SID);
+         if critter_state(target) == CRITTER_IS_DEAD then begin
+            if target_sid > 0 then begin
+               exec_obj_script_proc(target_sid, destroy_proc);
+               kill_critter(target, target_frm);
+            end
+         end
+         else begin
+            is_loading_game_orig = is_loading_game;
+            set_is_loading_game_value(true);
+            exec_obj_script_proc(target_sid, map_enter_proc);
+            set_is_loading_game_value(is_loading_game_orig);
          end
       end
       else begin
@@ -1491,7 +1587,7 @@ procedure USEOBJON_HOOK begin
       // setup attack on dude if target what to kill him and can see him
       if arr_te_key >= 0 then begin
          arr_te_num = get_array(timed_event_targets_array, (arr_te_key + arr_shift_fixed_num));
-         if arr_te_num == 1 andAlso obj_can_see_obj(target, dude_obj) then begin
+         if arr_te_num == event_attack andAlso obj_can_see_obj(target, dude_obj) then begin
             call attack_the_dude(target);
             set_sfall_return(-1);
             return;
@@ -1506,6 +1602,17 @@ procedure STDPROCEDURE_HOOK begin
    variable source_object = get_sfall_arg;
    variable arr_te_key;
    variable arr_te_num;
+   if targets_fleeing > 0 andAlso std_num == talk_proc then begin
+      arr_te_key = scan_array(timed_event_targets_array, target);
+      if arr_te_key >= 0 then begin
+         arr_te_num = get_array(timed_event_targets_array, (arr_te_key + arr_shift_fixed_num));
+         if arr_te_num == event_flee_from_dude then begin
+            call Flee_From_Dude_proc(target, -15);
+            set_sfall_return(-1);
+            return;
+         end
+      end
+   end
    if targets_prep_attack > 0 andAlso (std_num == talk_proc or (source_object == dude_obj andAlso \
       (std_num == use_proc or\
       std_num == use_obj_on_proc or\
@@ -1516,7 +1623,7 @@ procedure STDPROCEDURE_HOOK begin
       // setup attack on dude if target wants to attack him and sees him
       if arr_te_key >= 0 then begin
          arr_te_num = get_array(timed_event_targets_array, (arr_te_key + arr_shift_fixed_num));
-         if arr_te_num == 1 andAlso (obj_can_see_obj(target, dude_obj) or std_num == talk_proc) then begin
+         if arr_te_num == event_attack andAlso (obj_can_see_obj(target, dude_obj) or std_num == talk_proc) then begin
             call attack_the_dude(target);
             set_sfall_return(-1);
             return;
@@ -1525,25 +1632,23 @@ procedure STDPROCEDURE_HOOK begin
    end
 end
 
-procedure set_anim_tar_obj(variable target) begin
+procedure set_anim_tar_obj(variable target,variable orig_rotation) begin
    variable wpn_anim_dude;
    variable uniq_id = set_unique_id(target);
    variable i;
    anim_tar_obj = target;
-   anim_tar_script = get_script(target);
-   if anim_tar_script > 0 then begin
-      anim_tar_lvars_arr = create_array_map;
-      for (i = 0; i <= 50; i++) begin
-         set_self(target);
-         set_array(anim_tar_lvars_arr,i,local_var(i));
-         set_self(0);
-      end
-      remove_script(target);
-      set_object_data(anim_tar_obj, OBJ_DATA_ID, uniq_id);
-   end
+   //anim_tar_script = get_script(target);
+   //anim_tar_sid = get_object_data(target, OBJ_DATA_SID);
+   anim_tar_script = -2;
+
    anim_tar_kill_type = critter_kill_type(target);
    anim_tar_gender = get_critter_stat(target, STAT_gender);
-   anim_tar_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
+   if orig_rotation < 0 then begin
+      anim_tar_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
+   end
+   else begin
+      anim_tar_rot = orig_rotation;
+   end
    anim_tar_tile = tile_num(target);
    anim_tar_rot_tile = tile_num_in_direction(anim_tar_tile, anim_tar_rot, 1);
    anim_tar_melee_dmg = get_critter_stat(target,STAT_melee_dmg);
@@ -1635,6 +1740,7 @@ procedure add_to_timed_event_array(variable target,variable event_num, variable 
       //
       //save event time
       timed_event_target_fixed_time = game_time + time_in_game_ticks;
+      if scripts_disabled > 0 then timed_event_target_fixed_time += game_ticks(time_skip);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time), timed_event_target_fixed_time);
       //
       //save tile_num
@@ -1658,8 +1764,8 @@ procedure add_to_timed_event_array(variable target,variable event_num, variable 
       set_array(timed_event_targets_array, (arr_key + arr_shift_rot), timed_event_target_rot);
       //
       //save script id
-      if new_tile_or_minus_one < -1 then begin
-         timed_event_target_tile = get_script((timed_event_target));
+      if new_script_id_or_minus_two < -1 then begin
+         timed_event_target_script = get_script((timed_event_target));
       end
       else begin
          timed_event_target_script = new_script_id_or_minus_two;
@@ -1676,7 +1782,7 @@ end
 procedure assign_timed_event_number(variable target,variable event_num, variable time_in_game_ticks, variable new_tile_or_minus_one, variable new_rot_or_minus_one, variable new_script_id_or_minus_two) begin
    //add_global_timer_event(time_in_game_ticks, event_num);
    //if timer_added_time <= game_time then begin
-      add_global_timer_event(time_in_game_ticks, fixed_param_steal);
+   add_global_timer_event(time_in_game_ticks, fixed_param_steal);
    //end
    call add_to_timed_event_array(target,event_num, time_in_game_ticks, new_tile_or_minus_one, new_rot_or_minus_one,new_script_id_or_minus_two);
 end
@@ -1686,6 +1792,7 @@ procedure reset_and_add_timed_event_timer(variable target,variable event_num, va
    variable orig_event_num = get_array(timed_event_targets_array,(arr_key + arr_shift_fixed_num));
    variable new_timed_event_target_fixed_time = game_time + new_time;
    if orig_event_num == event_num then begin
+      if scripts_disabled > 0 then new_timed_event_target_fixed_time += game_ticks(time_skip);
       add_global_timer_event(new_timed_event_target_fixed_time, fixed_param_steal);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time), new_timed_event_target_fixed_time);
    end
@@ -1695,6 +1802,28 @@ procedure rm_timed_event_target(variable target,variable arr_key) begin
    variable i;
    for (i = 0; i <= arr_shift_max ; i++) begin
       set_array(timed_event_targets_array, (arr_key + i), 0);
+   end
+end
+
+procedure ONDEATH_HOOK begin
+   variable target = get_sfall_arg;
+   variable tar_script;
+   variable arr_key;
+   if target > 0 then begin
+      if target == anim_tar_obj then begin
+         if anim_tar_is_dead <= 0 then begin
+            anim_tar_is_dead = 1;
+            call clear_gvars;
+         end
+      end
+      else begin
+         if is_in_array(get_unique_id(target), timed_event_targets_lvar_array) then begin
+            arr_key = scan_array(timed_event_targets_lvar_array, get_unique_id(target));
+            tar_script = (get_array(timed_event_targets_array, (arr_key + arr_shift_script)));
+            call add_script_restore_lvars(target, tar_script);
+            call rm_timed_event_target(target, arr_key);
+         end
+      end
    end
 end
 
@@ -1786,6 +1915,7 @@ procedure callback_pickup_all_on_tile begin
    variable tile = tile_to_pickup;
    variable tile_elevation = elevation(dude_obj);
    variable arr_items_on_tile = tile_get_objs(tile, tile_elevation);
+   call timed_event_p_proc();
    if len_array(dropped_items_pids_array) > 0 then begin
       foreach item_ptr in arr_items_on_tile begin
          if item_ptr > 0 then begin
@@ -1812,6 +1942,7 @@ procedure callback_put_on_tile_all_stolen_items begin
    variable tmp;
    variable tmp2;
    variable i;
+   variable returned_items;
    if target > 0 andAlso arr_len > 0 then begin
       dropped_items_pids_array = create_array_map;
       for (i = 0; i < (arr_len); i++) begin
@@ -1827,9 +1958,13 @@ procedure callback_put_on_tile_all_stolen_items begin
                   tmp2 = create_object(item_pid, tile, tile_elevation);
                   add_mult_objs_to_inven(target, tmp2, (tmp-1));
                end
+               returned_items += 1;
                move_to(item_ptr, tile, tile_elevation);
             end
          end
+      end
+      if returned_items <= 0 then begin
+         //if there are no stolen items in inventory (the player managed to throw them away/they were deleted by script or smth), then the player should puts in part of his money?
       end
    end
    if array_exists(stolen_items_ptr_arr) then free_array(stolen_items_ptr_arr);
@@ -2119,6 +2254,9 @@ procedure map_exit_p_proc begin
    variable event_num;
    variable blocking_obj;
    variable i;
+   if anim_tar_obj > 0 then begin
+      call clear_gvars;
+   end
    // Head back to original tile
    if arr_len >= 10 then begin
       if array_exists(anim_tar_lvars_arr) then free_array(anim_tar_lvars_arr);
@@ -2137,13 +2275,16 @@ procedure map_exit_p_proc begin
       anim_tar_weapon = -1;
       dude_wpn = -1;
       dude_unwield = -1;
-      anim_tar_script = -1;
-      if anim_tar_obj > 0 then call clear_gvars();
+      //anim_tar_script = -2;
       for (i = 0; i < (2 * arr_len) + 60; i += (arr_shift_max + 1)) begin
          arr_key = i;
          target = get_array(timed_event_targets_array, (arr_key + arr_shift_ptr));
          if target > 0 then begin
             float_msg(target, 0, 0);
+            if critter_state(target) == CRITTER_IS_DEAD then begin
+               call rm_timed_event_target(target, arr_key);
+               continue;
+            end
             tar_tile = get_array(timed_event_targets_array, (arr_key + arr_shift_tile));
             tar_rot = (get_array(timed_event_targets_array, (arr_key + arr_shift_rot))) - 1;
             tile_elevation = elevation(target);
@@ -2158,7 +2299,8 @@ procedure map_exit_p_proc begin
                      tar_cur_tile = tile_num(target);
                      critter_on_tile = tile_get_next_critter(tar_tile, tile_elevation, 0);
                      move_to(target, tar_tile, elevation(target));
-                     move_to(critter_on_tile, tar_cur_tile, elevation(target));
+                     //move_to(critter_on_tile, tar_cur_tile, elevation(target));
+                     critter_attempt_placement(target, tar_tile, tile_elevation);
                   end
                end
             end
@@ -2174,6 +2316,7 @@ procedure map_exit_p_proc begin
       end
       remove_timer_event(fixed_param_steal);
       targets_prep_attack = 0;
+      targets_fleeing = 0;
       if len_array(timed_event_targets_array) > 0 then begin
          for (i = 0; i < (arr_len*2 + 60); i ++) begin
             arr_key = i;
@@ -2239,47 +2382,47 @@ procedure speech_barter_penalty(variable activate) begin
    end
 end
 
-procedure callback_reset_timed_event_timer_4 begin
-   variable target;
-   variable timer;
-   variable arr_key;
-   variable arr_len = len_array(timed_event_targets_array);
-   variable event_num;
-   variable targets_number_max;
-   variable targets_number;
-   variable i;
-   for (i = 0; i < (2 * arr_len) + 60; i+=(arr_shift_max+1)) begin
-      arr_key = i;
-      target = get_array(timed_event_targets_array, (arr_key + arr_shift_ptr));
-      if target > 0 then begin
-         event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
-            if event_num == 4 then begin
-            timer = random(game_ticks(1),game_ticks(4));
-            call reset_and_add_timed_event_timer(target, 4, timer);
-         end
-      end
-   end
-end
-
-procedure callback_reset_timed_event_timer_3 begin
-   variable target;
-   variable timer;
-   variable arr_key;
-   variable arr_len = len_array(timed_event_targets_array);
-   variable event_num;
-   variable i;
-   for (i = 0; i < arr_len + 60; i+= (arr_shift_max+1)) begin
-      arr_key = i;
-      target = get_array(timed_event_targets_array, (arr_key + arr_shift_ptr));
-      if target > 0 then begin
-         event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
-            if event_num == 3 then begin
-            timer = random(game_ticks(2),game_ticks(6));
-            call reset_and_add_timed_event_timer(target, 3, timer);
-         end
-      end
-   end
-end
+//procedure callback_reset_timed_event_timer_4 begin
+   //variable target;
+   //variable timer;
+   //variable arr_key;
+   //variable arr_len = len_array(timed_event_targets_array);
+   //variable event_num;
+   //variable targets_number_max;
+   //variable targets_number;
+   //variable i;
+   //for (i = 0; i < (2 * arr_len) + 60; i+=(arr_shift_max+1)) begin
+      //arr_key = i;
+      //target = get_array(timed_event_targets_array, (arr_key + arr_shift_ptr));
+      //if target > 0 then begin
+         //event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
+            //if event_num == event_restore_rotation then begin
+            //timer = game_ticks(random(1,4));
+            //call reset_and_add_timed_event_timer(target, event_restore_rotation, timer);
+         //end
+      //end
+   //end
+//end
+//
+//procedure callback_reset_timed_event_timer_3 begin
+   //variable target;
+   //variable timer;
+   //variable arr_key;
+   //variable arr_len = len_array(timed_event_targets_array);
+   //variable event_num;
+   //variable i;
+   //for (i = 0; i < arr_len + 60; i+= (arr_shift_max+1)) begin
+      //arr_key = i;
+      //target = get_array(timed_event_targets_array, (arr_key + arr_shift_ptr));
+      //if target > 0 then begin
+         //event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
+            //if event_num == event_return_to_tile then begin
+            //timer = game_ticks(random(2,6));
+            //call reset_and_add_timed_event_timer(target, event_return_to_tile, timer);
+         //end
+      //end
+   //end
+//end
 
 procedure add_timed_event_ATTACK_DUDE_ON_SIGHT(variable target, variable game_seconds) begin
    variable timed_event_num;
@@ -2292,13 +2435,15 @@ procedure add_timed_event_ATTACK_DUDE_ON_SIGHT(variable target, variable game_se
    remove_timer_event(fixed_param_steal);
    targets_prep_attack += 1;
    if not(is_in_array(target,timed_event_targets_array)) then begin
-      timed_event_num = 1;
+      timed_event_num = event_attack;
       timed_event_time = game_seconds;
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       call assign_timed_event_number(target, timed_event_num,timed_event_time,target_tile,target_rot,target_script);
    end
    else begin
-      timed_event_num = 1;
+      timed_event_num = event_attack;
       timed_event_time = game_time + game_seconds;
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       arr_key = scan_array(timed_event_targets_array,target);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time),timed_event_time);
@@ -2315,6 +2460,7 @@ procedure add_timed_event_FLEE_FROM_DUDE(variable target, variable game_seconds)
    variable arr_key;
    timer_added_time = 0;
    remove_timer_event(fixed_param_steal);
+   targets_fleeing += 1;
    if not(is_in_array(target,timed_event_targets_array)) then begin
       timed_event_num = 2;
       timed_event_time = game_seconds;
@@ -2342,6 +2488,7 @@ procedure add_timed_event_TURN_BACK(variable target, variable game_seconds) begi
    if not(is_in_array(target,timed_event_targets_array)) then begin
       timed_event_num = 3;
       timed_event_time = game_seconds;
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       call assign_timed_event_number(target, timed_event_num,timed_event_time,target_tile,target_rot,target_script);
    end
    else begin
@@ -2349,6 +2496,7 @@ procedure add_timed_event_TURN_BACK(variable target, variable game_seconds) begi
       if get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num)) >= 3 then begin
          timed_event_num = 3;
          timed_event_time = game_time + game_seconds;
+         if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time),timed_event_time);
          add_global_timer_event(timed_event_time, fixed_param_steal);
@@ -2368,13 +2516,16 @@ procedure callback_add_timed_event_ATTACK_DUDE_ON_SIGHT begin
    remove_timer_event(fixed_param_steal);
    targets_prep_attack += 1;
    if not(is_in_array(target,timed_event_targets_array)) then begin
-      timed_event_num = 1;
+      timed_event_num = event_attack;
       timed_event_time = game_ticks(6);
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
+      call assign_timed_event_number(target, timed_event_num,timed_event_time,anim_tar_tile,anim_tar_rot,anim_tar_script);
       call assign_timed_event_number(target, timed_event_num,timed_event_time,anim_tar_tile,anim_tar_rot,anim_tar_script);
    end
    else begin
-      timed_event_num = 1;
+      timed_event_num = event_attack;
       timed_event_time = game_time + game_ticks(6);
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       arr_key = scan_array(timed_event_targets_array,target);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time),timed_event_time);
@@ -2388,6 +2539,7 @@ procedure callback_add_timed_event_FLEE_FROM_DUDE begin
    variable timed_event_time;
    variable arr_key;
    timer_added_time = 0;
+   targets_fleeing += 1;
    remove_timer_event(fixed_param_steal);
    if not(is_in_array(target,timed_event_targets_array)) then begin
       timed_event_num = 2;
@@ -2412,15 +2564,17 @@ procedure callback_add_timed_event_TURN_BACK begin
    timer_added_time = 0;
    remove_timer_event(fixed_param_steal);
    if not(is_in_array(target,timed_event_targets_array)) then begin
-      timed_event_num = 3;
+      timed_event_num = event_return_to_tile;
       timed_event_time = game_ticks(random(2,4));
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       call assign_timed_event_number(target, timed_event_num,timed_event_time,anim_tar_tile,anim_tar_rot,anim_tar_script);
    end
    else begin
       arr_key = scan_array(timed_event_targets_array,target);
-      if get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num)) != 3 then begin
-      timed_event_num = 3;
+      if get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num)) != event_return_to_tile then begin
+      timed_event_num = event_return_to_tile;
       timed_event_time = game_time + game_ticks(random(2,4));
+      if scripts_disabled > 0 then timed_event_time += game_ticks(time_skip);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
       set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time),timed_event_time);
       add_global_timer_event(timed_event_time, fixed_param_steal);
@@ -2432,9 +2586,15 @@ procedure callback_add_timed_event_TURN_BACK begin
 end
 
 procedure clear_gvars begin
-   variable  i;
+   variable i;
    variable lvar_value;
    variable uniq_id = get_unique_id(anim_tar_obj);
+   variable target_frm;
+   variable target_sid;
+   variable last_target_tile = tile_num(anim_tar_obj);
+   variable last_target_rot = has_trait(TRAIT_OBJECT, anim_tar_obj, OBJECT_CUR_ROT);
+   variable last_target_elevation = elevation(anim_tar_obj);
+   variable last_obj_vis = obj_is_visible_flag(anim_tar_obj);
    if dude_will_die <= 0 andAlso dude_unwield > 0 andAlso dude_wpn > 0 then begin
       wield_obj_critter(dude_obj, dude_wpn);
       refresh_pc_art;
@@ -2444,18 +2604,28 @@ procedure clear_gvars begin
    end
    add_global_timer_event(game_ticks(2), fixed_param_steal);
    reg_anim_clear(anim_tar_obj);
-   if anim_tar_script > 0 then begin
-      set_script(anim_tar_obj, (anim_tar_script+0x80000000));
-      set_object_data(anim_tar_obj, OBJ_DATA_ID, uniq_id);
-      for (i = 0; i <= 50 ; i++) begin
-         lvar_value = get_array(anim_tar_lvars_arr, i);
-         if lvar_value == 0.0 then lvar_value = 0;
-         set_self(anim_tar_obj);
-         set_local_var(i, get_array(anim_tar_lvars_arr, i));
-         set_self(0);
+   call scr_enable;
+   if anim_tar_is_dead > 0 or critter_state(anim_tar_obj) == CRITTER_IS_DEAD then begin
+      target_sid = get_object_data(anim_tar_obj, OBJ_DATA_SID);
+      if target_sid > 0 then begin
+         if dude_is_source > 0 then begin
+            inc_kill_count(anim_tar_kill_type);
+            if get_critter_xp(anim_tar_obj) > 0 then begin
+               give_xp(get_critter_xp(anim_tar_obj));
+            end
+            if witness_count > 0 then begin
+               set_obj_script_objects(target_sid, dude_obj, anim_tar_obj);
+               exec_obj_script_proc(target_sid, damage_proc);
+            end
+         end
+         exec_obj_script_proc(target_sid, destroy_proc);
+         set_outline(anim_tar_obj, OUTLINE_NONE);
+         kill_critter(anim_tar_obj, target_frm);
       end
-      free_array(anim_tar_lvars_arr);
+      anim_tar_is_dead = 0;
    end
+   witness_count = 0;
+   dude_is_source = 0;
    dude_will_die = -1;
    anim_tar_obj = -1;
    anim_tar_rot = -1;
@@ -2473,7 +2643,8 @@ procedure clear_gvars begin
    anim_tar_weapon_anim = -1;
    dude_wpn = -1;
    dude_unwield = -1;
-   anim_tar_script = -1;
+   anim_tar_script = -2;
+   //anim_tar_sid = -1;
    attack_delay = 1;
    dude_is_in_anim = -1;
 end
@@ -2489,7 +2660,12 @@ procedure get_tile_with_free_path(variable target) begin
    variable new_max_count;
    variable arr_len;
    variable last_arr_len;
-   //if no_anim_run_fid(target) then max_count = max_count - 7;
+   //if art_exists_death_anim(target,ANIM_running)then begin
+      //max_count = random(12,18);
+   //end
+   //else begin
+      //max_count = random(5,10);
+   //end
    for (count = 0; count < 15; count++) begin
       new_max_count = max_count - count;
       if new_max_count <= 0 then break;
@@ -2579,7 +2755,7 @@ procedure show_float_msg_fear(variable target) begin
    end
 end
 
-procedure Flee_From_Dude_proc(variable target) begin
+procedure Flee_From_Dude_proc(variable target,variable end_flee) begin
    variable tar_tile;
    variable tar_rot;
    variable flee_tile;
@@ -2587,11 +2763,17 @@ procedure Flee_From_Dude_proc(variable target) begin
    variable timed_event_time;
    variable arr_key = scan_array(timed_event_targets_array, target);
    variable distance = tile_distance_objs(target, dude_obj);
-   if distance <= 10 andAlso obj_can_see_obj(target,dude_obj) then begin
-      if random(0,80) then begin
+   if arr_key < 0 then
+      return;
+   if end_flee <= 0 andAlso distance <= 10 andAlso obj_can_see_obj(target,dude_obj) then begin
+      if random(0,60) or end_flee == -15 then begin
          if not(random(0,2)) then call show_float_msg_fear(target);
          flee_tile = get_tile_with_free_path(target);
-         animate_move_obj_to_tile(target, flee_tile, (ANIMATE_RUN bwor ANIMATE_INTERRUPT));
+         reg_anim_clear(target);
+         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+         reg_anim_set_priority;
+         reg_anim_obj_run_to_tile(target, flee_tile, -1);
+         reg_anim_end();
          timed_event_num = 2;
          timed_event_time = 1;
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
@@ -2600,6 +2782,7 @@ procedure Flee_From_Dude_proc(variable target) begin
       else begin
          // stops fleeing
          float_msg(target, modmsg(msg_gives_stop_flee), FLOAT_COLOR_NORMAL);
+         targets_fleeing -= 1;
          timed_event_num = 3;
          timed_event_time = game_time + game_ticks(random(2,4));
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
@@ -2607,8 +2790,8 @@ procedure Flee_From_Dude_proc(variable target) begin
       end
    end
    else begin
-      if random(0,30) then begin
-         if distance >= 25 andAlso not(random(0,5)) then begin
+      if (end_flee <= 0 andAlso random(0,15)) or end_flee == -15 then begin
+         if distance >= 25 andAlso not(random(0,5)) andAlso end_flee != -15 then begin
             // stops fleeing
             if not(random(0,5)) then float_msg(target, modmsg(msg_gives_stop_flee_questing), FLOAT_COLOR_NORMAL);
             tar_tile = get_array(timed_event_targets_array, (arr_key + arr_shift_tile));
@@ -2622,6 +2805,7 @@ procedure Flee_From_Dude_proc(variable target) begin
       else begin
          // stops fleeing
          if not(random(0,5)) then float_msg(target, modmsg(msg_gives_stop_flee_questing), FLOAT_COLOR_NORMAL);
+         targets_fleeing -= 1;
          timed_event_num = 3;
          timed_event_time = game_time + game_ticks(random(2,8));
          set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num),timed_event_num);
@@ -2651,7 +2835,12 @@ procedure show_float_msg_tough_response begin
       float_msg(anim_tar_obj, modmsg(msg_supmut_non_combat_attack), FLOAT_MSG_LIGHT_RED);
    end
    else begin
-      float_msg(anim_tar_obj, modmsg(msg_tough_human_non_combat_attack), FLOAT_MSG_LIGHT_RED);
+      if (get_flags(dude_obj) bwand FLAG_TRANSGLASS) andAlso not(random(0,2)) then begin
+         float_msg(anim_tar_obj, modmsg(msg_all_ghosts), FLOAT_MSG_LIGHT_RED);
+      end
+      else begin
+         float_msg(anim_tar_obj, modmsg(msg_tough_human_non_combat_attack), FLOAT_MSG_LIGHT_RED);
+      end
    end
 end
 
@@ -2746,11 +2935,21 @@ procedure show_float_msg_harmless_frightened_response begin
 end
 
 procedure callback_show_float_msg_rare_response_child begin
-   float_msg(anim_tar_obj, modmsg(msg_child_rare), random(6,9));
+   if (get_flags(dude_obj) bwand FLAG_TRANSGLASS) andAlso not(random(0,3)) then begin
+      float_msg(anim_tar_obj, modmsg(msg_child_rare_ghosts), FLOAT_MSG_LIGHT_RED);
+   end
+   else begin
+      float_msg(anim_tar_obj, modmsg(msg_child_rare), random(6,9));
+   end
 end
 
 procedure callback_show_float_msg_common_response_child begin
-   float_msg(anim_tar_obj, modmsg(msg_child_common), random(6,9));
+   if (get_flags(dude_obj) bwand FLAG_TRANSGLASS) andAlso not(random(0,3)) then begin
+      float_msg(anim_tar_obj, modmsg(msg_child_common_ghosts), FLOAT_MSG_LIGHT_RED);
+   end
+   else begin
+      float_msg(anim_tar_obj, modmsg(msg_child_common), random(6,9));
+   end
 end
 
 procedure callback_rob_the_dude begin
@@ -2876,37 +3075,22 @@ procedure target_drop_random_item begin
          display_msg(obj_name(target) + modmsg(msg_puts_some_pretend));
       end
    end
-
-end
-
-procedure kill_the_target_fall_front_blood begin
-   set_global_var(GVAR_PLAYER_REPUTATION,(global_var(GVAR_PLAYER_REPUTATION) - 30));
-   kill_critter(anim_tar_obj, ANIM_fall_back_blood_sf);
-   call clear_gvars();
-   reg_anim_end();
-end
-
-procedure kill_the_target_fall_back_blood begin
-   set_global_var(GVAR_PLAYER_REPUTATION,(global_var(GVAR_PLAYER_REPUTATION) - 30));
-   kill_critter(anim_tar_obj, ANIM_fall_back_blood_sf);
-   call clear_gvars();
-   reg_anim_end();
-end
-
-procedure kill_the_target_big_hole begin
-   kill_critter(anim_tar_obj, ANIM_big_hole_sf);
-   set_global_var(GVAR_PLAYER_REPUTATION,(global_var(GVAR_PLAYER_REPUTATION) - 30));
-   call clear_gvars();
-   reg_anim_end();
 end
 
 procedure callback_dmg_the_target_all_hp_dmg begin
    variable dmg = get_critter_stat(anim_tar_obj,STAT_current_hp);
+   set_outline(anim_tar_obj, OUTLINE_NONE);
+   anim_tar_is_dead = 1;
+   dude_is_source = 1;
+   set_global_var(GVAR_PLAYER_REPUTATION,(global_var(GVAR_PLAYER_REPUTATION) - 20));
    if dmg == 1 then begin
-      display_msg(Obj_name(anim_tar_obj)+modmsg(msg_was_hit)+dmg+modmsg(msg_hit_point));
+      display_msg(Obj_name(anim_tar_obj)+modmsg(msg_was_hit)+dmg+modmsg(msg_hit_point_and_die));
    end
    else begin
-      display_msg(Obj_name(anim_tar_obj)+modmsg(msg_was_hit)+dmg+modmsg(msg_hit_points));
+      display_msg(Obj_name(anim_tar_obj)+modmsg(msg_was_hit)+dmg+modmsg(msg_hit_points_and_die));
+   end
+   if witness_count <= 0 then begin
+      display_msg(modmsg(msg_all_witnesses_are_dead));
    end
 end
 
@@ -2915,6 +3099,7 @@ procedure callback_dmg_the_dude_0_dmg begin
 end
 
 procedure kill_the_dude_fall_back_blood begin
+   set_outline(dude_obj, OUTLINE_NONE);
    kill_critter(dude_obj, ANIM_fall_back_blood_sf);
    call clear_gvars();
    reg_anim_end();
@@ -2946,6 +3131,7 @@ procedure callback_dmg_the_dude begin
    variable dude_dt = get_critter_stat(dude_obj, STAT_dmg_thresh);
    variable dude_dr = get_critter_stat(dude_obj, STAT_dmg_resist);
    variable dmg = round((random(4, 10) + anim_tar_melee_dmg - (dude_dt / 2)) * (100 - (dude_dr / 2)) / 100.0);
+   call timed_event_p_proc();
    if dmg < 1 then begin
       if anim_tar_kill_type != KILL_TYPE_super_mutant_kills andAlso not(military_fid(critter_art_fid(anim_tar_obj))) andAlso not(power_armor_fid(critter_art_fid(anim_tar_obj))) then begin
          dmg = 0;
@@ -2975,6 +3161,7 @@ procedure callback_dmg_the_dude_child begin
    variable dude_dt = get_critter_stat(dude_obj, STAT_dmg_thresh);
    variable dude_dr = get_critter_stat(dude_obj, STAT_dmg_resist);
    variable dmg = round((random(1, (3 + anim_tar_melee_dmg))  - dude_dt ) * (100 - dude_dr) / 100.0);
+   call timed_event_p_proc();
    if dmg < 1 then begin
       if anim_tar_kill_type != KILL_TYPE_super_mutant_kills andAlso not(military_fid(critter_art_fid(anim_tar_obj))) andAlso not(power_armor_fid(critter_art_fid(anim_tar_obj))) then begin
          dmg = 0;
@@ -3004,6 +3191,7 @@ procedure callback_dmg_the_dude_critically begin
    variable dude_dt = get_critter_stat(dude_obj, STAT_dmg_thresh);
    variable dude_dr = get_critter_stat(dude_obj, STAT_dmg_resist);
    variable dmg = round((random(9, 18) + anim_tar_melee_dmg - (dude_dt / 5)) * (100 - (dude_dr / 5)) / 100.0);
+   call timed_event_p_proc();
    if dmg < 1 then begin
       if anim_tar_kill_type != KILL_TYPE_super_mutant_kills andAlso not(military_fid(critter_art_fid(anim_tar_obj))) andAlso not(power_armor_fid(critter_art_fid(anim_tar_obj))) then begin
          dmg = 0;
@@ -3028,15 +3216,21 @@ procedure callback_dmg_the_dude_critically begin
 end
 
 procedure disable_ui begin
+   if not(obj_on_screen(dude_obj)) or (anim_tar_obj > 0 andAlso not(obj_on_screen(anim_tar_obj))) then begin
+      tile_set_center(tile_num(dude_obj));
+   end
    game_ui_disable;
    remove_timer_event(5);
-   add_global_timer_event(game_ticks(16),5);
+   add_global_timer_event(game_ticks(15),5);
 end
 
 procedure disable_ui_15 begin
+   if not(obj_on_screen(dude_obj)) or (anim_tar_obj > 0 andAlso not(obj_on_screen(anim_tar_obj))) then begin
+      tile_set_center(tile_num(dude_obj));
+   end
    game_ui_disable;
    remove_timer_event(5);
-   add_global_timer_event(game_ticks(16),5);
+   add_global_timer_event(game_ticks(15),5);
 end
 
 procedure ANIM_target_aim_at_dude(variable caught_count) begin
@@ -3068,10 +3262,10 @@ procedure ANIM_target_aim_at_dude(variable caught_count) begin
    before_dude_hex = tile_num_in_direction(behind_dude_hex,dude_rot_to_tar, 1);
    tile_to_pickup = before_dude_hex;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -3095,7 +3289,6 @@ procedure ANIM_target_aim_at_dude(variable caught_count) begin
       reg_anim_callback(callback_pickup_all_on_tile);
       reg_anim_turn_towards(target, behind_dude_hex, -1);
       if caught_count <= 0 then begin
-
          reg_anim_obj_move_to_tile(target, anim_tar_tile, -1);
          reg_anim_turn_towards(target, behind_dude_hex, -1);
          reg_anim_animate(target, ANIM_stand, -1);
@@ -3226,10 +3419,10 @@ procedure ANIM_dude_is_attacked_by_human(variable crit_chance) begin
    variable arr_len_stole = len_array(stolen_items_ptr_arr);
    variable put_away;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -3367,7 +3560,7 @@ procedure ANIM_dude_is_attacked_by_human(variable crit_chance) begin
                reg_anim_animate(dude_obj, ANIM_hit_from_front, 2);
                reg_anim_turn_towards(dude_obj, before_dude_hex, -1);
                if (art_exists_basic_anim(target,ANIM_magic_hands_middle)) andAlso arr_len_stole > 0 then begin
-                  if arr_len_stole > 0 then reg_anim_animate(target, ANIM_magic_hands_middle, -1);
+                  reg_anim_animate(target, ANIM_magic_hands_middle, -1);
                end
                if arr_len_stole > 0 then begin
                   reg_anim_callback(callback_target_returns_its_stolen_items);
@@ -3427,10 +3620,10 @@ procedure ANIM_dude_is_attacked_by_human_was_caught_before(variable crit_chance)
    variable arr_len_stole = len_array(stolen_items_ptr_arr);
    variable put_away;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -3628,10 +3821,10 @@ procedure ANIM_dude_is_attacked_by_supermutant(variable crit_chance) begin
    variable arr_len_stole = len_array(stolen_items_ptr_arr);
    variable put_away;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -3831,10 +4024,10 @@ procedure ANIM_dude_is_attacked_by_supermutant_was_caught_before(variable crit_c
    variable arr_len_stole = len_array(stolen_items_ptr_arr);
    variable put_away;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4017,10 +4210,10 @@ procedure ANIM_dude_take_0_dmg_and_kills_all_types begin
    variable before_dude_hex = tile_num_in_direction(dude_hex,rotation_to_tile(dude_hex,tar_hex), 1);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       //hide weapon
       reg_anim_combat_check(0);
@@ -4059,35 +4252,38 @@ procedure ANIM_dude_take_0_dmg_and_kills_all_types begin
       reg_anim_animate(dude_obj, ANIM_stand, -1);
       reg_anim_play_sfx(dude_obj,sfx_build_char_name(dude_obj,ANIM_throw_punch,snd_contact),-1);
       reg_anim_animate(dude_obj, ANIM_throw_punch, 0);
-      if art_exists_death_anim(target,ANIM_big_hole) andAlso dude_strength >= 8 then begin
+      if (art_exists_death_anim(target,ANIM_big_hole) or art_exists_basic_anim(target,ANIM_big_hole) or art_exists_death_anim(target,ANIM_big_hole_sf) or art_exists_basic_anim(target,ANIM_big_hole_sf)) andAlso dude_strength >= 8 then begin
          reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_big_hole,snd_contact),2);
          reg_anim_animate(target, ANIM_big_hole, 0);
          reg_anim_callback(callback_dmg_the_target_all_hp_dmg);
          reg_anim_callback(enable_ui);
-         reg_anim_callback(kill_the_target_big_hole);
+         reg_anim_callback(clear_gvars);
+         reg_anim_end();
       end
       else begin
-         if art_exists_death_anim(target,ANIM_fall_back) then begin
+         if art_exists_death_anim(target,ANIM_fall_back) or art_exists_basic_anim(target,ANIM_fall_back) or art_exists_death_anim(target,ANIM_fall_back_sf) or art_exists_basic_anim(target,ANIM_fall_back_sf) then begin
             reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_back,snd_contact),2);
             reg_anim_animate(target, ANIM_fall_back, 0);
-            if art_exists_death_anim(target,ANIM_fall_back_blood) then begin
+            if art_exists_death_anim(target,ANIM_fall_back_blood) or art_exists_basic_anim(target,ANIM_fall_back_blood) or art_exists_death_anim(target,ANIM_fall_back_blood_sf) or art_exists_basic_anim(target,ANIM_fall_back_blood_sf) then begin
                reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_back_blood,snd_contact),-1);
                reg_anim_animate(target, ANIM_fall_back_blood, 0);
             end
             reg_anim_callback(callback_dmg_the_target_all_hp_dmg);
             reg_anim_callback(enable_ui);
-            reg_anim_callback(kill_the_target_fall_back_blood);
+            reg_anim_callback(clear_gvars);
+            reg_anim_end();
          end
          else begin
             reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_front,snd_contact),2);
             reg_anim_animate(target, ANIM_fall_front, 0);
-            if art_exists_death_anim(target,ANIM_fall_front_blood) then begin
+            if art_exists_death_anim(target,ANIM_fall_front_blood) or art_exists_basic_anim(target,ANIM_fall_front_blood) or art_exists_death_anim(target,ANIM_fall_front_blood_sf) or art_exists_basic_anim(target,ANIM_fall_front_blood_sf) then begin
                reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_front_blood,snd_contact),-1);
                reg_anim_animate(target, ANIM_fall_front_blood, 0);
             end
             reg_anim_callback(callback_dmg_the_target_all_hp_dmg);
             reg_anim_callback(enable_ui);
-            reg_anim_callback(kill_the_target_fall_front_blood);
+            reg_anim_callback(clear_gvars);
+            reg_anim_end();
          end
       end
    end
@@ -4101,10 +4297,10 @@ procedure ANIM_rare_case_child begin //neutral float and return stolen items
    variable before_dude_hex = tile_num_in_direction(dude_hex,rotation_to_tile(dude_hex,tar_hex), 1);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4140,10 +4336,10 @@ procedure ANIM_rare_case_hit_dude_child begin //neutral float and return stolen 
    variable arr_key;
    variable put_away;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4208,10 +4404,10 @@ procedure ANIM_common_case_child begin //neutral float and return stolen items
    variable dude_hex = tile_num(dude_obj);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4236,10 +4432,10 @@ procedure ANIM_neutral_response_all_types begin //neutral float and return stole
    variable before_dude_hex = tile_num_in_direction(dude_hex,rotation_to_tile(dude_hex,tar_hex), 1);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4270,10 +4466,10 @@ procedure ANIM_harmless_response begin //neutral float and return stolen items
    variable dude_hex = tile_num(dude_obj);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4296,15 +4492,15 @@ procedure ANIM_flee_child begin // fleeing and add timed event flee_or_return
    variable target = anim_tar_obj;
    variable dude_hex = tile_num(dude_obj);
    variable tar_hex = tile_num(anim_tar_obj);
-   variable tile_1 = get_tile_with_free_path(target);
+   //variable tile_1 = get_tile_with_free_path(target);
    variable tar_rot = rotation_to_tile(tar_hex, anim_tar_rot_tile);
    variable tar_rot_to_dude = rotation_to_tile(tar_hex, dude_hex);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4329,15 +4525,14 @@ procedure ANIM_target_is_fleeing begin // fleeing and add timed event flee_or_re
    variable target = anim_tar_obj;
    variable dude_hex = tile_num(dude_obj);
    variable tar_hex = tile_num(anim_tar_obj);
-   variable tile_1 = get_tile_with_free_path(target);
    variable tar_rot = rotation_to_tile(tar_hex, anim_tar_rot_tile);
    variable tar_rot_to_dude = rotation_to_tile(tar_hex, dude_hex);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4368,10 +4563,10 @@ procedure ANIM_target_is_fleeing_after_giving_item_all_types begin
    variable money_count = obj_is_carrying_obj(target, money_ptr);
    variable arr_key;
    if target > 0 then begin
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4420,10 +4615,10 @@ procedure ANIM_target_is_fleeing_after_missed_punch_child begin
    variable arr_key;
    if target > 0 then begin
       inven_unwield(target);
-      arr_key = scan_array(timed_event_targets_array, target);
-      if arr_key >= 0 then begin
-         set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
-      end
+      //arr_key = scan_array(timed_event_targets_array, target);
+      //if arr_key >= 0 then begin
+         //set_array(timed_event_targets_array, (arr_key+arr_shift_fixed_num),-1);
+      //end
       if right_hand_stolen == 1 then inven_unwield(right_hand_item_target);
       reg_anim_combat_check(0);
       reg_anim_clear(target);
@@ -4546,6 +4741,7 @@ end
 procedure timed_event_p_proc begin
    variable target;
    variable time_in_ticks;
+   variable tar_state;
    variable tar_rot;
    variable tar_cur_rot;
    variable tar_tile;
@@ -4558,8 +4754,8 @@ procedure timed_event_p_proc begin
    variable i;
    variable targets_number_max;
    variable targets_number;
-   if not(combat_is_initialized) andAlso (dude_is_in_anim <= 0) then begin
-      if (fixed_param == fixed_param_steal) then begin
+   if not(combat_is_initialized) then begin
+      if (fixed_param == fixed_param_steal) or scripts_disabled > 0 then begin
          arr_len = len_array(timed_event_targets_array);
          if arr_len >= 10 then begin
             targets_number_max = arr_len / (arr_shift_max + 1);
@@ -4569,15 +4765,27 @@ procedure timed_event_p_proc begin
                // target check
                if target > 0 then begin
                   targets_number += 1;
-                  time_in_ticks = game_time;
+                  if dude_is_in_anim > 0 then begin
+                     time_in_ticks = real_game_time + game_ticks(6);
+                  end
+                  else begin
+                     time_in_ticks = game_time;
+                  end
                   event_time = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time));
+                  tar_state = critter_state(target);
+                  if tar_state == CRITTER_IS_DEAD then begin
+                     call rm_timed_event_target(target, arr_key);
+                     continue;
+                  end
+                  else if (tar_state bwand CRITTER_IS_PRONE) or target == anim_tar_obj then begin
+                     continue;
+                  end
                   // time check
-
                   if event_time <= time_in_ticks then begin
                      event_num = get_array(timed_event_targets_array, (arr_key + arr_shift_fixed_num));
 
                      //NUM 1 - attack if target can see dude
-                     if event_num == 1 then begin
+                     if event_num == event_attack andAlso (dude_is_in_anim <= 0) then begin
                         if attack_delay > 0 then begin
                            attack_delay = 0;
                            set_array(timed_event_targets_array, (arr_key + arr_shift_fixed_time),(time_in_ticks+game_ticks(4)));
@@ -4589,33 +4797,34 @@ procedure timed_event_p_proc begin
                      end
                      //
                      //NUM 2 - flee from dude if dude is near and target can see dude
-                     else if event_num == 2 then begin
-
-                        call Flee_From_Dude_proc(target);
+                     else if event_num == event_flee_from_dude then begin
+                        call Flee_From_Dude_proc(target, false);
                         continue;
                      end
                      //
                      //NUM 3 - return to the starting point
-                     else if event_num == 3 then begin
+                     else if event_num == event_return_to_tile then begin
                         tar_tile = get_array(timed_event_targets_array, (arr_key + arr_shift_tile));
                         //animate if not on the starting tile
                         if tile_num(target) != tar_tile then begin
-                           animate_move_obj_to_tile(target, tar_tile, (ANIMATE_WALK));
-                           if not(anim_busy(target)) then begin
-                              call remove_script_save_lvars(target);
-                              animate_move_obj_to_tile(target, tar_tile, (ANIMATE_WALK));
-                           end
-                           if not(crit_is_moving(target)) then begin
-                              if is_in_array(get_unique_id(target), timed_event_targets_lvar_array) then begin
-                                 tar_script_id = (get_array(timed_event_targets_array, (arr_key + arr_shift_script)));
-                                 call add_script_restore_lvars(target, tar_script_id);
-                              end
-                           end
+                           reg_anim_clear(target);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+                           reg_anim_set_priority;
+                           reg_anim_obj_run_to_tile(target, tar_tile, -1);
+                           reg_anim_end();
                            continue;
                         end
                         else begin
+                           if (dude_is_in_anim > 0) then begin
+                              continue;
+                           end
                            tar_rot = (get_array(timed_event_targets_array, (arr_key + arr_shift_rot))) - 1;
-                           anim(target, ANIMATE_ROTATION, tar_rot);
+                           //anim(target, ANIMATE_ROTATION, tar_rot);
+                           reg_anim_clear(target);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+                           reg_anim_set_priority;
+                           reg_anim_turn_towards(target, tile_num_in_direction(tar_tile,tar_rot,1), -1);
+                           reg_anim_end();
                            tar_cur_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
                            //remove the target from the array if it is in the starting position
                            if tar_rot == tar_cur_rot then begin
@@ -4629,8 +4838,13 @@ procedure timed_event_p_proc begin
                            //add the target to the array_anim_rotation if it is not in orig_rot
                            else begin
                            //animate rotation to orig_rot if on the starting tile
-                              call remove_script_save_lvars(target);
-                              anim(target, ANIMATE_ROTATION, tar_rot);
+                              //call remove_script_save_lvars(target);
+                              //anim(target, ANIMATE_ROTATION, tar_rot);
+                              reg_anim_clear(target);
+                              reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+                              reg_anim_set_priority;
+                              reg_anim_turn_towards(target, tile_num_in_direction(tar_tile,tar_rot,1), -1);
+                              reg_anim_end();
                               tar_cur_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
                               if is_in_array(get_unique_id(target), timed_event_targets_lvar_array) then begin
                                  tar_script_id = (get_array(timed_event_targets_array, (arr_key + arr_shift_script)));
@@ -4650,9 +4864,13 @@ procedure timed_event_p_proc begin
                      end
                      //
                      // turn to original rotation
-                     else if event_num == 4 then begin
+                     else if event_num == event_restore_rotation andAlso (dude_is_in_anim <= 0) then begin
                         tar_rot = (get_array(timed_event_targets_array, (arr_key + arr_shift_rot))) - 1;
-                        anim(target, ANIMATE_ROTATION, tar_rot);
+                        reg_anim_clear(target);
+                        reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+                        reg_anim_set_priority;
+                        reg_anim_turn_towards(target, tile_num_in_direction(tar_tile,tar_rot,1), -1);
+                        reg_anim_end();
                         tar_cur_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
                         if tar_rot == tar_cur_rot then begin
                            if is_in_array(get_unique_id(target), timed_event_targets_lvar_array) then begin
@@ -4663,8 +4881,12 @@ procedure timed_event_p_proc begin
                            continue;
                         end
                         else begin
-                           call remove_script_save_lvars(target);
-                           anim(target, ANIMATE_ROTATION, tar_rot);
+                           //call remove_script_save_lvars(target);
+                           reg_anim_clear(target);
+                           reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+                           reg_anim_set_priority;
+                           reg_anim_turn_towards(target, tile_num_in_direction(tar_tile,tar_rot,1), -1);
+                           reg_anim_end();
                            tar_cur_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
                            if is_in_array(get_unique_id(target), timed_event_targets_lvar_array) then begin
                               tar_script_id = (get_array(timed_event_targets_array, (arr_key + arr_shift_script)));
@@ -4717,8 +4939,10 @@ end
 
 procedure ANIM_sequence_get_caught_stealing begin
    variable target = anim_tar_obj;
+   variable target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
    variable tar_hex = tile_num(target);
    variable tar_max_hp;
+   variable tar_sid;
    variable gvar_value = get_tfsp_gvar_value(cur_town);
    variable dude_hex = tile_num(dude_obj);
    variable dude_rot_to_tar = rotation_to_tile(dude_hex, tar_hex);
@@ -4732,24 +4956,55 @@ procedure ANIM_sequence_get_caught_stealing begin
    variable timed_event_time;
    variable behind_dude_hex = tile_num_in_direction(dude_hex,((dude_rot_to_tar+3) % 6), 2);
    variable stolen_goods_count = len_array(stolen_items_ptr_arr);
+   variable dude_inv_stolen_goods_count;
    variable pickpocket_count = is_in_array_last_pickpocket_targets(target, 0) - harmless_perk - sex_appeal_trait;
    variable was_caught_count = ((pickpocket_count - 1 - value_caught_stealing) / (value_caught_stealing - 1));
    variable witness;
-   variable witness_array = objects_in_radius(dude_hex, 25, dude_elevation, OBJ_TYPE_CRITTER);
+   variable witness_team = -1;
+   variable witness_rot;
+   variable witness_rot_to_dude;
+   variable witness_array = objects_in_radius(dude_hex, 30, dude_elevation, OBJ_TYPE_CRITTER);
    variable blocking_obj;
-   dude_was_robbed = 0;
-   call inc_tfsp_gvar_value(cur_town, 1);
-   set_global_var(GVAR_PLAYER_REPUTATION,(karma - 5));
-   if Sonora > 0 then childkiller = berserker;
+   variable can_see;
+   variable target_will_die;
+   variable i;
+   variable item_ptr;
+   variable item_pid;
+   variable item_quantity;
+      dude_was_robbed = 0;
+      set_global_var(GVAR_PLAYER_REPUTATION,(karma - 5));
+      if Sonora > 0 then childkiller = berserker;
       foreach witness in witness_array begin
-         if witness > 0 andAlso random(0,1) andAlso (get_proto_data(obj_pid(witness),PROTO_CR_BODY_TYPE) == CR_BODY_BIPED) andAlso witness != dude_obj andAlso witness != target andAlso obj_is_visible_flag(witness) then begin
-            blocking_obj = obj_blocking_line(witness, dude_hex, BLOCKING_TYPE_SIGHT);
-            if blocking_obj <= 0 or blocking_obj == dude_obj then begin
-               call add_timed_event_TURN_BACK(witness, game_ticks(random(10, 20)));
-               if random(0, 1) then begin
-                  float_msg(witness, "?!", FLOAT_MSG_YELLOW);
+         if witness > 0 andAlso (get_proto_data(obj_pid(witness),PROTO_CR_BODY_TYPE) == CR_BODY_BIPED) andAlso critter_state(witness) == CRITTER_IS_NORMAL andAlso (art_anim(obj_art_fid(witness)) == 0) andALso witness != dude_obj andAlso witness != target andAlso obj_is_visible_flag(witness) then begin
+            blocking_obj = obj_blocking_line(witness, dude_hex, BLOCKING_TYPE_SHOOT);
+            can_see = 0;
+            witness_team = has_trait(TRAIT_OBJECT, witness, OBJECT_TEAM_NUM);
+            if witness_team != TEAM_PLAYER andAlso obj_can_see_obj(witness, dude_obj) then begin
+               witness_count += 1;
+               can_see = 1;
+            end
+            if blocking_obj <= 0 or blocking_obj == dude_obj or can_see > 0 then begin
+               if random(0,2) then begin
+                     witness_rot_to_dude = rotation_to_tile(tile_num(witness),dude_hex);
+                     witness_rot = has_trait(TRAIT_OBJECT, witness, OBJECT_CUR_ROT);
+                  if witness_team != TEAM_PLAYER andAlso witness_rot != witness_rot_to_dude then begin
+                     call add_timed_event_TURN_BACK(witness, game_ticks(random(1, 6) + time_skip));
+                     anim(witness, ANIMATE_ROTATION, rotation_to_tile(tile_num(witness), dude_hex));
+                  end
+                  if has_trait(TRAIT_OBJECT, witness, OBJECT_CUR_ROT) == witness_rot_to_dude andAlso random(0,1) then begin
+                     if random(0,1) then begin
+                        float_msg(witness, "?!", FLOAT_MSG_YELLOW);
+                     end
+                     else begin
+                        float_msg(witness, "!", FLOAT_MSG_NEAR_WHITE);
+                     end
+                  end
+                  if can_see <= 0 andAlso witness_rot != witness_rot_to_dude then begin
+                     if witness_team != TEAM_PLAYER andAlso obj_can_see_obj(witness, dude_obj) then begin
+                        witness_count += 1;
+                     end
+                  end
                end
-               anim(witness, ANIMATE_ROTATION, rotation_to_tile(tile_num(witness), dude_hex));
             end
          end
       end
@@ -4758,7 +5013,26 @@ procedure ANIM_sequence_get_caught_stealing begin
          dude_unwield = 1;
       end
       anim(target, ANIMATE_ROTATION, rotation_to_tile(tar_hex, dude_hex));
-       //target is child
+       // check if the player still has stolen items
+       if stolen_goods_count > 0 then begin
+          for (i = 0; i < (stolen_goods_count); i++) begin
+            item_ptr = get_array(stolen_items_ptr_arr, i);
+            if item_ptr > 0 then begin
+               item_pid = obj_pid(item_ptr);
+               item_ptr = obj_carrying_pid_obj(dude_obj, item_pid);
+               if item_ptr > 0 then begin
+                  dude_inv_stolen_goods_count += 1;
+               end
+            end
+         end
+         if dude_inv_stolen_goods_count <= 0 then begin
+            stolen_goods_count = 0;
+            if array_exists(stolen_items_ptr_arr) then free_array(stolen_items_ptr_arr);
+            if array_exists(stolen_items_ptr_arr) then free_array(stolen_items_quantity_arr);
+         end
+      end
+
+      //target is child
       if anim_tar_kill_type == KILL_TYPE_children_kills then begin
          //the player doesn't scare kids
          if power_armor <= 0 andAlso childkiller <= 0 andAlso berserker <= 0 andAlso karma <= KARMA_BETRAYER then begin
@@ -4803,11 +5077,12 @@ procedure ANIM_sequence_get_caught_stealing begin
          //the player scares kids
          else begin
             //if the player has already killed children
-            if childkiller >= 1 then begin
-               if random(0,15) andAlso karma <= 0 then begin
+            if childkiller >= 1 or karma <= KARMA_BETRAYER then begin
+               if random(0,15) then begin
                   call ANIM_target_is_fleeing_after_giving_item_all_types();
                end
                else begin
+                  target_will_die = 1;
                   call ANIM_dude_take_0_dmg_and_kills_all_types();
                end
             end
@@ -4831,16 +5106,23 @@ procedure ANIM_sequence_get_caught_stealing begin
       end
       else if anim_tar_kill_type == KILL_TYPE_robot_kills then begin
          if was_caught_count <= 0 then begin
-            call add_timed_event_ATTACK_DUDE_ON_SIGHT(target,game_ticks(6));
+            call add_timed_event_ATTACK_DUDE_ON_SIGHT(target,game_ticks(6 + time_skip));
             anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(dude_obj)));
             call show_float_msg_death_threat(target);
-            add_global_timer_event(game_ticks(6),fixed_param_steal);
+            add_global_timer_event(game_ticks(6 + time_skip),fixed_param_steal);
             call clear_gvars();
          end
          else begin
-            call show_float_msg_attack(target);
             call clear_gvars();
-            attack_setup(target, dude_obj);
+            tar_sid = get_object_data(target, OBJ_DATA_SID);
+            if tar_sid > 0 then begin
+               set_obj_script_objects(tar_sid, dude_obj, 0);
+               exec_obj_script_proc(tar_sid, pickup_proc);
+            end
+            else begin
+               call show_float_msg_attack(target);
+               attack_setup(target, dude_obj);
+            end
          end
       end
        //target is not a child
@@ -4855,9 +5137,16 @@ procedure ANIM_sequence_get_caught_stealing begin
                   call ANIM_dude_is_attacked_by_supermutant_was_caught_before(85 + (2 * gvar_value) - dude_lu);
                end
                else begin
-                  call show_float_msg_attack(target);
                   call clear_gvars();
-                  attack_setup(target, dude_obj);
+                  tar_sid = get_object_data(target, OBJ_DATA_SID);
+                  if tar_sid > 0 then begin
+                     set_obj_script_objects(tar_sid, dude_obj, 0);
+                     exec_obj_script_proc(tar_sid, pickup_proc);
+                  end
+                  else begin
+                     call show_float_msg_attack(target);
+                     attack_setup(target, dude_obj);
+                  end
                end
             end
          end
@@ -4887,9 +5176,16 @@ procedure ANIM_sequence_get_caught_stealing begin
                      end
                   end
                   else begin
-                     call show_float_msg_attack(target);
                      call clear_gvars();
-                     attack_setup(target, dude_obj);
+                     tar_sid = get_object_data(target, OBJ_DATA_SID);
+                     if tar_sid > 0 then begin
+                        set_obj_script_objects(tar_sid, dude_obj, 0);
+                        exec_obj_script_proc(tar_sid, pickup_proc);
+                     end
+                     else begin
+                        call show_float_msg_attack(target);
+                        attack_setup(target, dude_obj);
+                     end
                   end
                end
             end
@@ -4970,19 +5266,27 @@ procedure ANIM_sequence_get_caught_stealing begin
                                  end
                               end
                               else begin
+                                 target_will_die = 1;
                                  call ANIM_dude_take_0_dmg_and_kills_all_types();
                               end
                            end
                         end
                      end
                      else begin
-                        call show_float_msg_attack_frightened(target);
-                        tar_max_hp = get_critter_stat(target, STAT_max_hp);
-                        if tar_max_hp < 100 andAlso tar_max_hp < get_critter_stat(dude_obj,STAT_max_hp) then begin
-                           set_tar_flee = target;
-                        end
                         call clear_gvars();
-                        attack_setup(target, dude_obj);
+                        tar_sid = get_object_data(target, OBJ_DATA_SID);
+                        if tar_sid > 0 then begin
+                           set_obj_script_objects(tar_sid, dude_obj, 0);
+                           exec_obj_script_proc(tar_sid, pickup_proc);
+                        end
+                        else begin
+                           call show_float_msg_attack_frightened(target);
+                           tar_max_hp = get_critter_stat(target, STAT_max_hp);
+                           if tar_max_hp < 100 andAlso tar_max_hp < get_critter_stat(dude_obj,STAT_max_hp) then begin
+                              set_tar_flee = target;
+                           end
+                           attack_setup(target, dude_obj);
+                        end
                      end
                   end
                end
@@ -5006,9 +5310,16 @@ procedure ANIM_sequence_get_caught_stealing begin
                         end
                      end
                      else begin
-                        call show_float_msg_attack(target);
                         call clear_gvars();
-                        attack_setup(target, dude_obj);
+                        tar_sid = get_object_data(target, OBJ_DATA_SID);
+                        if tar_sid > 0 then begin
+                           set_obj_script_objects(tar_sid, dude_obj, 0);
+                           exec_obj_script_proc(tar_sid, pickup_proc);
+                        end
+                        else begin
+                           call show_float_msg_attack(target);
+                           attack_setup(target, dude_obj);
+                        end
                      end
                   end
                end
@@ -5081,16 +5392,24 @@ procedure ANIM_sequence_get_caught_stealing begin
                            end
                            //dude kills his target
                            else begin
+                              target_will_die = 1;
                               call ANIM_dude_take_0_dmg_and_kills_all_types();
                            end
                         end
                      end
                   end
                   else begin
-                     call show_float_msg_attack_frightened(target);
                      call clear_gvars();
                      set_tar_flee = target;
-                     attack_setup(target, dude_obj);
+                     tar_sid = get_object_data(target, OBJ_DATA_SID);
+                     if tar_sid > 0 then begin
+                        set_obj_script_objects(tar_sid, dude_obj, 0);
+                        exec_obj_script_proc(tar_sid, pickup_proc);
+                     end
+                     else begin
+                        call show_float_msg_attack_frightened(target);
+                        attack_setup(target, dude_obj);
+                     end
                   end
                end
             end
@@ -5160,19 +5479,27 @@ procedure ANIM_sequence_get_caught_stealing begin
                                  end
                               end
                               else begin
+                                 target_will_die = 1;
                                  call ANIM_dude_take_0_dmg_and_kills_all_types();
                               end
                            end
                         end
                      end
                      else begin
-                        call show_float_msg_attack_frightened(target);
-                        tar_max_hp = get_critter_stat(target, STAT_max_hp);
-                        if tar_max_hp < 100 andAlso tar_max_hp < get_critter_stat(dude_obj,STAT_max_hp) then begin
-                           set_tar_flee = target;
-                        end
                         call clear_gvars();
-                        attack_setup(target, dude_obj);
+                        tar_sid = get_object_data(target, OBJ_DATA_SID);
+                        if tar_sid > 0 then begin
+                           set_obj_script_objects(tar_sid, dude_obj, 0);
+                           exec_obj_script_proc(tar_sid, pickup_proc);
+                        end
+                        else begin
+                           call show_float_msg_attack_frightened(target);
+                           tar_max_hp = get_critter_stat(target, STAT_max_hp);
+                           if tar_max_hp < 100 andAlso tar_max_hp < get_critter_stat(dude_obj,STAT_max_hp) then begin
+                              set_tar_flee = target;
+                           end
+                           attack_setup(target, dude_obj);
+                        end
                      end
                   end
                end
@@ -5202,16 +5529,25 @@ procedure ANIM_sequence_get_caught_stealing begin
                         end
                      end
                      else begin
-                        call show_float_msg_attack(target);
                         call clear_gvars();
-                        attack_setup(target, dude_obj);
+                        tar_sid = get_object_data(target, OBJ_DATA_SID);
+                        if tar_sid > 0 then begin
+                           set_obj_script_objects(tar_sid, dude_obj, 0);
+                           exec_obj_script_proc(tar_sid, pickup_proc);
+                        end
+                        else begin
+                           call show_float_msg_attack(target);
+                           attack_setup(target, dude_obj);
+                        end
                      end
                   end
                end
             end
          end
       end
-
+      if target_will_die <= 0 or (target_will_die > 0 andAlso witness_count > 0) then begin
+         call inc_tfsp_gvar_value(cur_town, 1);
+      end
 end
 
 
@@ -5287,7 +5623,6 @@ procedure GAMEMODECHANGE_HOOK begin
       timer_removed = 0;
       add_global_timer_event(game_ticks(2), fixed_param_steal);
    end
-
    if lastgamemode bwand WORLDMAP then begin
       caught_stealing_buy_penalty = 1;
       caught_stealing_sell_penalty = 1;
@@ -5296,6 +5631,9 @@ procedure GAMEMODECHANGE_HOOK begin
    end
    if game_mode bwand DIALOG then begin
       call speech_barter_penalty(1);
+      if targets_fleeing > 0 then begin
+         call Flee_From_Dude_proc(dialog_obj, true);
+      end
    end
    if (lastgamemode bwand DIALOG) then begin
       call speech_barter_penalty(0);
@@ -5306,11 +5644,22 @@ procedure GAMEMODECHANGE_HOOK begin
       party_remove_ptr = 0;
    end
 
-   if anim_tar_obj > 0 andAlso game_mode == 0 then begin
-      dude_is_in_anim = 1;
-      call ANIM_sequence_get_caught_stealing();
-      remove_timer_event(fixed_param_steal);
-      timer_removed = 1;
+   if anim_tar_obj > 0 then begin
+      if game_mode == 0 then begin
+         if critter_state(anim_tar_obj) != CRITTER_IS_DEAD then begin
+            dude_is_in_anim = 1;
+            call callback_add_timed_event_TURN_BACK;
+            call ANIM_sequence_get_caught_stealing();
+            remove_timer_event(fixed_param_steal);
+            timer_removed = 1;
+         end
+         else begin
+            call clear_gvars;
+         end
+      end
+      else if (game_mode bwand COMBAT) andAlso not(lastgamemode bwand COMBAT) then begin
+         call clear_gvars;
+      end
    end
 
    if game_mode == INTFACELOOT then begin
@@ -5372,6 +5721,7 @@ procedure STEAL_HOOK begin
    variable user_sneak_skill = has_skill(thief, SKILL_SNEAK);
    variable target_steal_skill = has_skill(target, SKILL_STEAL);
    variable target_barter_skill = has_skill(target, SKILL_BARTER);
+   variable target_sid = get_object_data(target, OBJ_DATA_SID);
    variable skill_bonus;
    variable user_steal_skill_mult = 1.50;
    variable tar_pid = obj_pid(target);
@@ -5417,7 +5767,8 @@ procedure STEAL_HOOK begin
    variable right_hand_item_stealing;
 
    // force SUCCESS on party members and friends
-   if target_in_party or has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
+   //if target_in_party or has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
+   if target_in_party then begin
    //if target_in_party then begin
       //add temp. party member prevent XP gain
       if not(target_in_party) then begin
@@ -5474,6 +5825,7 @@ procedure STEAL_HOOK begin
                steal_chance_win = 0;
                mouse_add = 0;
             end
+
             if get_script(target) == 214 andAlso Et_tu <= 0 andalso Nevada <= 0 andAlso Resurrection <= 0 andAlso Sonora <= 0 then begin
                set_sfall_return(0);
                return;
@@ -5484,16 +5836,26 @@ procedure STEAL_HOOK begin
             steal_item_num = 0;
             isSuccess = 0;
             if not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
-               call add_timed_event_TURN_BACK(target,game_ticks(random(3,5)));
+               call add_timed_event_TURN_BACK(target,game_ticks(random(1,4) + (time_skip / 2)));
                anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(dude_obj)));
-               if obj_can_see_obj(target,dude_obj) then begin
-                  call create_arrays_last_pickpocket_targets_and_add_target(target,value_caught_stealing);
-                  call set_anim_tar_obj(target);
-               end
-               else begin
-                  add_global_timer_event(game_ticks(1), fixed_param_steal);
-                  float_msg(target, "?", FLOAT_MSG_PURPLE);
-               end
+               //if obj_can_see_obj(target,dude_obj) then begin
+                  target_sid = get_object_data(target, OBJ_DATA_SID);
+                  if target_sid > 0 then begin
+                     exec_obj_script_proc(target_sid, critter_proc);
+                  end
+                  if not(combat_is_initialized) then begin
+                     if SneakDetection > 0 andAlso using_skill(dude_obj,SKILL_SNEAK) then begin
+                        set_outline(target, OUTLINE_NEW_GLOW_RED);
+                     end
+                     call scr_disable;
+                     call create_arrays_last_pickpocket_targets_and_add_target(target,value_caught_stealing);
+                     call set_anim_tar_obj(target,target_rot);
+                  end
+               //end
+               //else begin
+                  //add_global_timer_event(game_ticks(1), fixed_param_steal);
+                  //float_msg(target, "?", FLOAT_MSG_PURPLE);
+               //end
             end
             tap_key(1);
             return;
@@ -5511,10 +5873,9 @@ procedure STEAL_HOOK begin
             return;
          end
 
-   end
-      //Successful attempt
-   if chance_to_steal >= rnd then begin
-
+   end      //Successful attempt
+   //else if chance_to_steal >= rnd then begin
+   else begin
       //penalty for stealing multiple things in a row
       steal_count += 21 - random(0,dude_lu) + item_weight(item);
       isSuccess = 1;
@@ -5636,10 +5997,13 @@ procedure USESKILL_HOOK begin
    variable pickpocket_count;
    if MinStealReq <= 0 andAlso skill == SKILL_STEAL then begin
       if ECCO_steal_mod <= 0 andAlso steal_chance_win <= 0 then begin
-         mouse_add = 0;
-         steal_chance_win = 1;
-         set_global_script_type(1);
-         set_global_script_repeat(2);
+         //if has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then begin
+         if not(is_in_array(target, party_member_list(0))) then begin
+            mouse_add = 0;
+            steal_chance_win = 1;
+            set_global_script_type(1);
+            set_global_script_repeat(2);
+         end
       end
    end
    if (MinStealReq > 0 or MinWpnStealReq > 0) andAlso skill == SKILL_STEAL andAlso not(combat_is_initialized) andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso not(NO_STEAL(target)) andAlso get_critter_stat(target,STAT_current_hp) > 0 andAlso not(is_in_array(target, party_member_list(0))) then begin
@@ -5864,38 +6228,46 @@ procedure USESKILL_HOOK begin
             end
             //rnd = random(0 + pickpocket_count, 4 + (2 * pickpocket_count));
             //rnd = 0;
-            if target_can_see_user andAlso not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
+            if not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
                if pickpocket_count <= random(0,1) then begin
-                  call add_timed_event_TURN_BACK(target, game_ticks(random(2, 5)));
-                  anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(user)));
-                  if target_kill_type != KILL_TYPE_children_kills andAlso not(weak_fid(target)) then begin
-                     if pickpocket_count <= 0 then begin
-                        if target_kill_type == KILL_TYPE_super_mutant_kills then begin
-                           float_msg(target, modmsg(msg_supmut_neutral), FLOAT_COLOR_NORMAL);
-                        end
-                        else if target_kill_type == KILL_TYPE_robot_kills then begin
-                           float_msg(target, modmsg(msg_robot_normal), FLOAT_COLOR_NORMAL);
+                  if target_rot != target_rot_to_tar then begin
+                     call add_timed_event_TURN_BACK(target, game_ticks(random(2, 5)));
+                     anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(user)));
+                  end
+                  if obj_can_see_obj(target,dude_obj) then begin
+                     if target_kill_type != KILL_TYPE_children_kills andAlso not(weak_fid(target)) then begin
+                        if pickpocket_count <= 0 then begin
+                           if target_kill_type == KILL_TYPE_super_mutant_kills then begin
+                              float_msg(target, modmsg(msg_supmut_neutral), FLOAT_COLOR_NORMAL);
+                           end
+                           else if target_kill_type == KILL_TYPE_robot_kills then begin
+                              float_msg(target, modmsg(msg_robot_normal), FLOAT_COLOR_NORMAL);
+                           end
+                           else begin
+                              float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_NORMAL);
+                           end
                         end
                         else begin
-                           float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_NORMAL);
+                           if target_kill_type == KILL_TYPE_super_mutant_kills then begin
+                              float_msg(target, modmsg(msg_supmut_aggressive), FLOAT_COLOR_AFRAID);
+                           end
+                           else if target_kill_type == KILL_TYPE_robot_kills then begin
+                              float_msg(target, modmsg(msg_robot_aggressive), FLOAT_COLOR_AFRAID);
+                           end
+                           else begin
+                              float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_AFRAID);
+                           end
                         end
                      end
                      else begin
-                        if target_kill_type == KILL_TYPE_super_mutant_kills then begin
-                           float_msg(target, modmsg(msg_supmut_aggressive), FLOAT_COLOR_AFRAID);
-                        end
-                        else if target_kill_type == KILL_TYPE_robot_kills then begin
-                           float_msg(target, modmsg(msg_robot_aggressive), FLOAT_COLOR_AFRAID);
-                        end
-                        else begin
-                           float_msg(target, modmsg(random(msg_caught1,msg_caught7)), FLOAT_COLOR_AFRAID);
-                        end
+                        float_msg(target, modmsg(msg_weak1), FLOAT_MSG_YELLOW);
                      end
+                     add_global_timer_event(game_ticks(1), fixed_param_steal);
                   end
                   else begin
-                     float_msg(target, modmsg(msg_weak1), FLOAT_MSG_YELLOW);
+                     add_global_timer_event(game_ticks(1), fixed_param_steal);
+                     float_msg(target, "?", FLOAT_MSG_PURPLE);
                   end
-                  add_global_timer_event(game_ticks(1), fixed_param_steal);
                end
                else begin
                   if target_kill_type != KILL_TYPE_children_kills andAlso not(weak_fid(target)) then begin
@@ -5932,10 +6304,12 @@ procedure USESKILL_HOOK begin
          end
          else begin
             if ECCO_steal_mod <= 0 andAlso steal_chance_win <= 0 then begin
-               mouse_add = 0;
-               steal_chance_win = 1;
-               set_global_script_type(1);
-               set_global_script_repeat(2);
+               //if team != TEAM_PLAYER then begin
+                  mouse_add = 0;
+                  steal_chance_win = 1;
+                  set_global_script_type(1);
+                  set_global_script_repeat(2);
+               //end
             end
             //the ability to steal weapons from hands if the skill is high enough
             right_hand_stolen = -1;

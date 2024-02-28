@@ -42,7 +42,7 @@
 {42}{}{You have been caught stealing. Rumors about this will quickly spread among the locals.}
 {43}{}{To hell with you, I won't run anymore!} 
 {44}{}{Screw you, I'm done running} 
-{45}{}{You can go to hell, I'm not running any longer} 
+{45}{}{You can go to hell, I'm not running anymore} 
 {46}{}{FUCK IT!} 
 {47}{}{Phew, it seems this moron finally has left me alone} 
 {48}{}{Thank goodness, it appears this imbecile has decided to give me a break} 
@@ -69,7 +69,12 @@
 {69}{}{Oh! How did this end up in my pocket?}
 {70}{}{Well, isn't this a surprise! I have no idea how this ended up in my pocket!}
 {71}{}{Whoops! I just discovered this in my pocket. How did it get there?} 
-{72}{}{What are you doing???} 
+{72}{}{And why did you slip this to me?} 
+{73}{}{ hit point and dies instantly.}
+{74}{}{ hit points and dies instantly.}
+{75}{}{The only witness is dead, no one will know about your crime.}
+{76}{}{I ain't afraid of no ghosts!}
+
 
 {94}{}{You need at least %1% steal skill to attempt to steal the %2%.} // failed stealing attempt
 {95}{}{You need at least %1% steal skill to attempt to plant the %2%.} // failed planting attempt																							 
@@ -103,6 +108,7 @@
 {252}{}{I'm just a kid. Taking my stuff is really unfair!}
 {253}{}{"Sad crying sounds"}
 {254}{}{Aren't you ashamed of stealing from a child?}
+{255}{}{OH NO! IT'S A GHOST!}
 
 ##child rare response
 {260}{}{Hey, that's mine. I'm taking it back}
@@ -112,6 +118,7 @@
 {264}{}{I may be small, but I'm not afraid to stand up for myself. Hand over my belongings!}
 {265}{}{GIMME BACK MY STUFF!!!}
 {266}{}{Give it back!}
+{267}{}{I ain't afraid of no ghosts!}
 
 ##pls dont hurt me
 {270}{}{Please don't kill me! Take this, I don’t need this anymore!}
