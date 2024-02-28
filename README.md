@@ -50,6 +50,14 @@ Laser weapons:
 - Alternate mode increases armor penetration. ( All targets' laser defenses are multiplied by 0.5 )
 - Hit chance and critical hit chance are calculated separately for each target.
 
+Pulse & EMP ranged weapons(will be added in version 1.98):
+![Secondary-Attack](images/PULSE_CHAIN.gif)  
+
+- Pulse weapons deal weapon damage (+ perks and critical effects) in a “chain” of 2 creatures closest to the main target.
+- The maximum distance between targets and the maximum number of additional targets are configured in the "F2MechanicsMiniRework.ini" file.
+- The alternate firing mode consumes 3 microfusion cells/small energy cells.
+- Critical hit chance is calculated separately for each target.
+
 Gauss weapons:
 ![Secondary-Attack](images/GAUSS.gif)  
 
@@ -57,12 +65,12 @@ Gauss weapons:
 - The maximum number of additional targets depends on the attacker's damage, the amount of damage reduction for each target (configurable in the "F2MechanicsMiniRework.ini" file), and the armor defenses of the targets on the line.
 - Hit chance and critical hit chance are calculated separately for each target.
 
-PLASMA weapons:
+Plasma weapons:
 ![Secondary-Attack](images/PLASMA.gif)  
 
 - Plasma weapons deal weapon damage (+ perks and critical effects) to all creatures in a radius around the main target.
 - The radius of the plasma explosion is configured in the "F2MechanicsMiniRework.ini" file.
-- Damage depends on the distance to the main target. The greater the distance, the lower the damage (can be configured in the "F2MechanicsMiniRework.ini" file).
+- Damage depends on the distance to the center of the explosion. The greater the distance, the lower the damage (can be configured in the "F2MechanicsMiniRework.ini" file).
 - The alternate firing mode consumes 3 microfusion cells/small energy cells.
 - Critical hit chance is calculated separately for each target.
 
