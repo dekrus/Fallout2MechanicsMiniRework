@@ -201,7 +201,6 @@ While the sneaking player is within sight of an observing NPC, that NPC will be 
 - Bright Red - Player has been detected.
 - Dark Red - (Steal mod only) Player has been detected, but the NPC will not notice an attempt to steal from other NPCs.
 - Gray   - (Fog of War disabled) Player not detected, but will be detected if line of sight becomes unblocked.
-![Sneak](images/SneakDetection.jpg)
 
 ### Steal
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
