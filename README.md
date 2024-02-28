@@ -192,7 +192,7 @@ Removes randomness from the sneak skill. Now the detection area does not depend 
 
 #### Sneak Detection 
 ** (It is recommended to switch graphics to DirectX 9 for best performance, and also set "DontTurnOffSneakIfYouRun=1" in ddraw.ini for convenience)** 
-![Sneak](images/SNEAK.gif)
+![Sneak](images/SNEAK.gif)  
 Sneak detection color indication that works for the original and new stealth mechanics.
 As long as the sneaking player is within the detection range of an NPC watching him, that NPC will be outlined:
 
