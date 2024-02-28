@@ -193,9 +193,8 @@ Removes randomness from the sneak skill. Now the detection area does not depend 
 #### Sneak Detection 
 ** (It is recommended to switch graphics to DirectX 9 for best performance, and also set "DontTurnOffSneakIfYouRun=1" in ddraw.ini for convenience)** 
 ![Sneak](images/SNEAK.gif)  
-Sneak detection color indication that works for the original and new stealth mechanics.
-As long as the sneaking player is within the detection range of an NPC watching him, that NPC will be outlined:
-
+Color-coded sneak detection that works for both the original and new sneak mechanics.  
+While the sneaking player is within sight of an observing NPC, that NPC will be highlighted:
 - Green - Player not detected, safe to approach.
 - Yellow - Player not detected, but will be detected if approaching 4 steps closer.
 - Orange - Player not detected, but will be detected if approaching 1 step closer.
