@@ -5601,6 +5601,17 @@ procedure GAMEMODECHANGE_HOOK begin
    variable loot_obj_inv_count;
    variable i;
    loot_obj_inv_offset_last = -2;
+   if game_mode == INTFACELOOT then begin
+      if ExpandInventory > 1 andAlso ExpandInventory <= 8 then begin
+         if read_int(0x519054) <= 6 then begin
+            ExpandInventory = 1;//inven_max_slots
+         end
+         else begin
+            ExpandInventory = 9;
+         end
+      end
+      show_steal_chance = 1;
+   end
    if game_mode == 0 then begin
       if steal_chance_win > 0 then begin
          set_global_script_type(3);
@@ -5662,9 +5673,6 @@ procedure GAMEMODECHANGE_HOOK begin
       end
    end
 
-   if game_mode == INTFACELOOT then begin
-      show_steal_chance = 1;
-   end
    //unwield and delete the weapon(or left hand item) if it was stolen
    if stealing_from_hands >= 0 andAlso lastgamemode == INTFACELOOT andAlso not(game_mode bwand COUNTERWIN) andAlso game_mode == 0 then begin
       if right_hand_stolen == 1 then begin

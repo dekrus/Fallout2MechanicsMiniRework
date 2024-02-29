@@ -3160,7 +3160,7 @@ procedure callback_electrical_chain_dmg begin
       attacker_team = has_trait(TRAIT_OBJECT, orig_attacker, OBJECT_TEAM_NUM);
       dmg = get_array(dmg_array,elec_tar_num);
       set_outline(target, OUTLINE_BLINKING_CYAN);
-      if orig_attacker != 123 andAlso attacker_team == target_team then begin
+      if orig_attacker != dude_obj andAlso attacker_team == target_team then begin
          dmg = random((dmg / 3), ((2 * dmg) / 3));
       end
       if target != orig_attacker orElse target_cur_hp > dmg then begin
@@ -3560,6 +3560,7 @@ procedure AFTERHITROLL begin
                set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, 0);
                call restore_weapon_proj_pid in 1;
             end
+            if attacker == dude_obj andAlso ElecAmmoCost > 1 andAlso weapon_cur_ammo >= ElecAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (ElecAmmoCost - base_ammo_cost));
             return;
          end
          if ElecForced <= 0 andAlso attacker != dude_obj then begin
@@ -3636,6 +3637,7 @@ procedure AFTERHITROLL begin
                   wrong = 1;
                end
                if wrong > 0 or (enemy_targets_count < 1) or (nearest_target_is_friend > 0 andAlso (enemy_targets_count / friendly_targets_count) < 2) then begin
+                  call restore_weapon_proj_pid;
                   call lvar_full_reset;
                   return;
                end
@@ -3652,7 +3654,7 @@ procedure AFTERHITROLL begin
             set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_electric_projectile);
             if missed_shot then call restore_weapon_proj_pid in 1;
          end
-         if ElecAmmoCost > 1 andAlso weapon_cur_ammo >= ElecAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - 1);
+         if ElecAmmoCost > 1 andAlso weapon_cur_ammo >= ElecAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (ElecAmmoCost - base_ammo_cost));
       end
       // electrical and EMP set new proj_pid and weapon_cur_ammo
 
@@ -3699,6 +3701,7 @@ procedure AFTERHITROLL begin
                   wrong = 1;
                end
                if wrong > 0 or (enemy_targets_count < 2 andAlso random(0,6)) or (friendly_targets_count > 0 andAlso (enemy_targets_count - 2) < friendly_targets_count) then begin
+                  call restore_weapon_proj_pid;
                   call lvar_full_reset;
                   return;
                end
@@ -3716,7 +3719,7 @@ procedure AFTERHITROLL begin
             if missed_shot then call restore_weapon_proj_pid in 1;
          end
 
-         if PlasmaAmmoCost > 1 andAlso weapon_cur_ammo >= PlasmaAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (PlasmaAmmoCost + base_ammo_cost));
+         if PlasmaAmmoCost > 1 andAlso weapon_cur_ammo >= PlasmaAmmoCost then set_object_data(weapon,OBJ_DATA_CUR_CHARGES, weapon_cur_ammo - (PlasmaAmmoCost - base_ammo_cost));
       end
       // plasma set new proj_pid and weapon_cur_ammo end
 

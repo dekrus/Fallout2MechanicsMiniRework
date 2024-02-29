@@ -1874,7 +1874,8 @@ procedure rest begin
                  end
                  else begin
                   if ShowModMSG > 0 then begin
-                  display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                     if Critter != real_dude_obj then
+                        display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
                   end
                  end
                end
@@ -2581,7 +2582,8 @@ procedure ModInTurnBased begin
               end
               else begin
                   if ShowModMSG > 0 then begin
-                  display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                     if Critter != real_dude_obj then
+                        display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
                   end
               end
          end
