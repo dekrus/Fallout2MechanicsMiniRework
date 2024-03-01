@@ -7,8 +7,9 @@
 ## Installation
 - Download `F2MechanicsMiniRework.zip` from the [latest release](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases) page.
 - Unpack the archive into the main game directory so that the files "F2MechanicsMiniRework.dat" and "F2MechanicsMiniRework.ini" are in the mods folder.
-- F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.4.0+ or 5.0.5.0+. it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
+- F2MechanicsMiniRework requires sfall (`ddraw.dll`) version 4.4.2+ (or 5.0.6.2+). it's shipped with the mod. If you have a newer version, you don't need to overwrite the dll when extracting the archive. 
 - If the file "mods_order.txt" exists in the mods folder, then F2MechanicsMiniRework.dat must be added to it.
+- In `ddraw.ini` set `AllowUnsafeScripting=` to 1 or 2.
 - Edit `mods/F2MechanicsMiniRework.ini` to enable, disable, or fine-tune components as you desire.
 - [SFALL v4 latest release](https://sourceforge.net/projects/sfall/files/)
 - [RUS SFALL v5 latest release](https://nuclear-grot.ucoz.net/forum/10-5-1)
@@ -37,6 +38,7 @@
 - [Stats Recalculation](#stats-recalculation)
 
 ### Secondary Attack
+**(Requires "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 This module adds an alternative fire mode to Laser, Plasma and Gauss weapons.
 - Alternate Fire mode is activated with an Aimed Shot to the torso.
 - All animations depend on combat speed settings, and I advise you to set the maximum combat speed for better results.
@@ -128,7 +130,7 @@ Skill2=1
 </details>
 
 ### Poison 
-**(Requires SpeedInterfaceCounterAnims = 2" in ddraw.ini)**  
+**(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 This is a rework of the original poison mechanics, designed to make it more dangerous for both the player and NPCs.
 
 - Now not only the player takes poison damage, but all creatures without poison immunity.
@@ -148,7 +150,7 @@ Replaces instant stimpak healing with healing over time.
 - Fast Metabolism (trait) enhances the effect of Stimpaks and Super Stimpaks;
 - Some monsters have passive health regeneration: wanamingos/centaurs (if enabled in the ".ini" file).
 - Fire and Plasma damage temporarily reduces the target's regeneration rate and may even stop it completely.
-- Added a new bonus perk called "Regeneration", which is automatically added if the player's base "healing rate" is greater than 5. This perk adds a "healing_rate" - based chance to heal crippled limbs when HP is restored. 
+- Added a new bonus perk called "Regeneration", which is automatically added if the player's base "healing rate" is greater than 5. This perk adds a "healing_rate"-based chance to heal crippled limbs when HP is restored. 
 
 ### Medical Tools
 Changes the way the First Aid Kit, Doctor's Bag, and Paramedic's Bag are used.
@@ -211,6 +213,7 @@ While the sneaking player is within sight of an observing NPC, that NPC will be 
 - Gray   - (Fog of War disabled) Player not detected, but will be detected if line of sight becomes unblocked.
 
 ### Steal
+**(Requires "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
 And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
 The new Steal skill mechanic is an attempt to fix these "features". 
@@ -288,9 +291,9 @@ When base intelligence increases (through perks and implants but not drugs), the
 #### Partial Compatibility
 - Partial compatibility with EcCo steal mod is enabled by setting FO2_ECCO=1 in the `mods/F2MechanicsMiniRework.ini` file.
 - Partial compatibility includes:  
-	- When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
+	- When the steal skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
 	- To peep into a target's pocket, you need to meet minimum skill requirements.
 
 
 ## Uninstallation
-Delete `mods/F2MechanicsMiniRework.*` files.
+Delete both `mods/F2MechanicsMiniRework.*` files.

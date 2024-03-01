@@ -173,6 +173,7 @@
    variable dude_must_die;
    variable dude_turn;
    variable dude_turn_critter_dies;
+   variable critter_poison_overdose;
 
    export variable tail_used;
 
@@ -276,16 +277,16 @@ procedure start begin
    end
       //after load
    else begin
+      if (dude_must_die > 0 or dude_turn_critter_dies > 0) andAlso not(game_ui_is_disabled) then begin
+         game_ui_disable2;
+         if dude_turn_critter_dies > 0 then
+            set_cursor_animated_watch;
+      end
       //(repeat ~50 game ticks with no FPS dependency)
       if not(combat_is_initialized) andAlso scr_repeat <= game_time then begin
          scr_repeat = game_time + game_ticks(5);
          call regenInRealTime();
          call poisonInRealTime();
-      end
-      if (dude_must_die > 0 or dude_turn_critter_dies > 0) andAlso not(game_ui_is_disabled) then begin
-         game_ui_disable2;
-         if dude_turn_critter_dies > 0 then
-            set_cursor_animated_watch;
       end
    end
 end
@@ -369,7 +370,8 @@ procedure show_death_msg begin
             end
          end
          else begin
-            critter_heal(target,-dmg_value);
+            call kill_dude;
+            //critter_heal(target,-dmg_value);
          end
       end
    end
@@ -466,19 +468,22 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
    //cause lethal POISON damage
    else begin
       if target == dude_obj then begin
-         set_global_script_type(3);
-         set_global_script_repeat(1);
-         dude_must_die = 1;
-         scr_repeat = 0;
-         set_obj_visibility(target, 1);
-         dead_attacker = create_object_sid(obj_pid(target), tile_num(target), elevation(target), -1);
-         anim(dead_attacker, ANIMATE_ROTATION, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
-         set_object_data(dead_attacker, OBJ_DATA_FID, obj_art_fid(target));
-         critter_heal(dead_attacker, -(get_critter_stat(dead_attacker, STAT_current_hp)-1));
-         call critter_inflict_poison_dmg(dead_attacker,dmg_value,1);
-         //call kill_dude in 1;
+         if dude_must_die <= 0 then begin
+            //anim(dead_attacker, ANIMETE_FR, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
+            //set_obj_visibility(target, 1);
+            set_global_script_type(3);
+            set_global_script_repeat(1);
+            scr_repeat *= 2;
+            dude_must_die = 1;
+            scr_repeat = 0;
+            //dead_attacker = create_object_sid(obj_pid(target), tile_num(target), elevation(target), -1);
+            //anim(dead_attacker, ANIMATE_ROTATION, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
+            //set_object_data(dead_attacker, OBJ_DATA_FID, obj_art_fid(target));
+            //critter_heal(dead_attacker, -(get_critter_stat(dead_attacker, STAT_current_hp)-1));
+            //call critter_inflict_poison_dmg(dead_attacker,dmg_value,1);
+         end
       end
-      else begin
+      //else begin
          new_death = 1;
          poisondeath = 0;
          //poison(target, -999);
@@ -533,9 +538,9 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
                end
                reg_anim_animate(target, death_anim_sf, -1);
                reg_anim_callback(show_death_msg);
-               if dude_must_die > 0 then begin
-                  reg_anim_callback(kill_dude);
-               end
+               //if dude_must_die > 0 then begin
+                  //reg_anim_callback(kill_dude);
+               //end
                reg_anim_end();
             end
          end
@@ -558,7 +563,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
                give_exp_points(get_critter_xp(target));
             end
          end
-      end
+      //end
    end
 end
 
@@ -1929,6 +1934,12 @@ procedure worldMapTravel begin
      mode_change_death = 1;
      call show_death_msg;
   end
+  if critter_poison_overdose > 0 then begin
+     call critter_inflict_poison_dmg(critter_poison_overdose, (get_critter_stat(critter_poison_overdose, STAT_max_hp) * 3),1);
+     //if critter_poison_overdose == dude_obj then
+        game_ui_enable;
+     //critter_poison_overdose = 0;
+  end
   if (lastgamemode == PCOMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == DIALOG andAlso gamemode == WORLDMAP) orElse (lastgamemode == LOADGAME andAlso gamemode == WORLDMAP) orElse (lastgamemode == COMBAT andAlso gamemode == WORLDMAP) orElse (lastgamemode == 0 andAlso gamemode == WORLDMAP) then begin
   if get_critter_stat(real_dude_obj, STAT_heal_rate) > 5 then begin
    dudeishealing = 1;
@@ -2673,8 +2684,13 @@ procedure ADJUSTPOISON begin
    if critter_in_party andAlso not(combat_is_initialized) then begin
       if critter == real_dude_obj then begin
          if get_game_mode bwand INVENTORY then begin
-            //poison(critter, (25 - get_poison(critter)));
-            critter_heal(critter, -9999);
+            if critter == dude_obj then begin
+               critter_poison_overdose = dude_obj;
+               tap_key(1);
+            end
+            else begin
+               critter_heal(Critter, -9999);
+            end
          end
          else begin
             //poison(critter, (25 - get_poison(critter)));
@@ -2690,8 +2706,13 @@ procedure ADJUSTPOISON begin
    else begin
       if critter == real_dude_obj then begin
          if get_game_mode bwand INVENTORY then begin
-            //poison(critter, (25 - get_poison(critter)));
-            critter_heal(critter, -9999);
+            if critter == dude_obj then begin
+               critter_poison_overdose = dude_obj;
+               tap_key(1);
+            end
+            else begin
+               critter_heal(Critter, -9999);
+            end
          end
          else begin
             //poison(critter, (25 - get_poison(critter)));
