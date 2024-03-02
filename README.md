@@ -52,10 +52,10 @@ Laser weapons:
 - Alternate mode increases armor penetration. ( All targets' laser defenses are multiplied by 0.5 )
 - Hit chance and critical hit chance are calculated separately for each target.
 
-Pulse & EMP ranged weapons(will be added in version 1.98):
+Pulse weapons(will be added in version 1.98):
 ![Secondary-Attack](images/PULSE_CHAIN.gif)  
 
-- Pulse weapons deal weapon damage (+ perks and critical effects) in a “chain” of 2 creatures closest to the main target.
+- Pulse and EMP ranged weapons deal weapon damage (+ perks and critical effects) in a “chain” of 2 creatures closest to the main target.
 - The maximum distance between targets and the maximum number of additional targets are configured in the "F2MechanicsMiniRework.ini" file.
 - The alternate firing mode consumes 3 microfusion cells/small energy cells.
 - Critical hit chance is calculated separately for each target.

@@ -148,6 +148,7 @@ variable placeholder;
 variable bonus_crit_power_roll;
 variable bonus_ranged_damage;
 variable living_anatomy;
+variable living_anatomy_bonus;
 variable night_vision;
 variable sniper;
 variable sharpshooter;
@@ -202,7 +203,6 @@ variable npc_orig_tar;
 variable elec_tar_num;
 variable obj_make_visible;
 variable lvar_cleared;
-
 
 
 procedure destroy_placeholder begin
@@ -585,21 +585,23 @@ procedure calc_dmg_electric(variable attacker, variable target) begin
       target_dt = get_critter_stat(target,STAT_dmg_thresh_emp);
       target_dr = get_critter_stat(target,STAT_dmg_resist_emp);
    end
-   if weapon_perk == PERK_weapon_penetrate then begin
-      target_dt = target_dt * 0.2;
-      target_dr = target_dr * 0.3;
-   end
-   // if YAAM ammo active
-   if ammo_dr_mod > 0 then begin
-      ammo_dr_mod = 0;
-      target_dt = target_dt - ammo_dr_mod;
-      if target_dt < ammo_dr_mod then begin
-         target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
-      end
-   end
    //Increase target_dr if it attacker has TRAIT_finesse
    if finesse then begin
       target_dr = target_dr + 30;
+   end
+   if weapon_damage_type != DMG_emp then begin
+      if weapon_perk == PERK_weapon_penetrate then begin
+         target_dt = target_dt * 0.2;
+         //target_dr = target_dr * 0.3;
+      end
+      // if YAAM ammo active
+      if ammo_dr_mod > 0 then begin
+         ammo_dr_mod = 0;
+         target_dt = target_dt - ammo_dr_mod;
+         if target_dt < ammo_dr_mod then begin
+            target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
+         end
+      end
    end
    // hit chance calculation start
    if ElecHitChance > 0 then begin
@@ -625,19 +627,21 @@ procedure calc_dmg_electric(variable attacker, variable target) begin
       if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
-         if crit_mult < 2 then begin
-            target_dt = target_dt * 0.8;
-            target_dr = target_dr * 0.8;
-         end
-         else begin
-            target_dt = target_dt * 0.2;
-            target_dr = target_dr * 0.2;
+         if weapon_damage_type != DMG_emp then begin
+            if crit_mult < 2 then begin
+               target_dt = target_dt * 0.8;
+               target_dr = target_dr * 0.8;
+            end
+            else begin
+               target_dt = target_dt * 0.2;
+               target_dr = target_dr * 0.2;
+            end
          end
       end
       if target_dt < 0 then target_dt = 0;
-      if target_dr > 90 then target_dr = 90;
+      if target_dr > 90 andAlso weapon_damage_type != DMG_emp then target_dr = 90;
       if target_dr < 0 then target_dr = 0;
-      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0)) + 5 * living_anatomy;
+      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0)) + living_anatomy_bonus * living_anatomy;
       if dmg < min_dmg then begin
          return 0;
       end
@@ -670,6 +674,10 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    variable dmg;
    if is_critter(target) then last_target_on_a_line = target;
    if is_multihex(target) then multihex_targets_count += 1;
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse then begin
+      target_dr = target_dr + 30;
+   end
    // if YAAM ammo active
    if ammo_dr_mod > 0 then begin
       ammo_dr_mod = 0;
@@ -681,7 +689,7 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    //guaranteed increase in laser armor-piercing when using an alternative firing mode
    if weapon_perk == PERK_weapon_penetrate then begin
       target_dt = target_dt * 0.2;
-      target_dr = target_dr * 0.2 + ammo_dr_mod;
+      target_dr = target_dr * 0.5 + ammo_dr_mod;
    end
    else begin
       if target_team != TEAM_PLAYER then begin
@@ -692,10 +700,6 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
          target_dt = target_dt * 0.8;
          target_dr = target_dr * 0.8 + ammo_dr_mod;
       end
-   end
-   //Increase target_dr if it attacker has TRAIT_finesse
-   if finesse then begin
-      target_dr = target_dr + 30;
    end
    // hit chance calculation start
    if LaserHitChance > 0 then begin
@@ -741,7 +745,7 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
       if target_dr < 0 then target_dr = 0;
       dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0));
       if dmg < min_dmg then dmg = 0;
-      dmg = dmg + 5 * living_anatomy;
+      dmg = dmg + living_anatomy_bonus * living_anatomy;
       if atk_rslt == MISS then begin
          new_main_target = target;
       end
@@ -766,9 +770,13 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
    variable hit_chance;
    variable miss_local;
    variable dmg;
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse then begin
+      target_dr = target_dr + 30;
+   end
    if weapon_perk == PERK_weapon_penetrate or Sonora > 0 then begin
       target_dt = target_dt * 0.2;
-      target_dr = target_dr * 0.2;
+      target_dr = target_dr * 0.7;
    end
    if is_critter(target) then last_target_on_a_line = target;
    if is_multihex(target) then multihex_targets_count += 1;
@@ -779,10 +787,6 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
       if target_dt < ammo_dr_mod then begin
          target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
       end
-   end
-   //Increase target_dr if it attacker has TRAIT_finesse
-   if finesse then begin
-      target_dr = target_dr + 30;
    end
 
    if new_targets_count < 3 andAlso has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then target_dt = target_dt * 0.8 - 2;
@@ -838,7 +842,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
       end
       if dmg < min_dmg then dmg = 0;
       last_dmg = dmg;
-      if new_targets_count == 1 then dmg = dmg + 5 * living_anatomy;
+      if new_targets_count == 1 then dmg = dmg + living_anatomy_bonus * living_anatomy;
       if new_main_target or target == orig_target then begin
          new_dmg_to_orig_target = round(dmg * crit_mult);
       end
@@ -2973,7 +2977,7 @@ procedure plasma_alt_explosion begin
          target_dr = get_critter_stat(new_tar,STAT_dmg_resist_plasma);
          if weapon_perk == PERK_weapon_penetrate then begin
             target_dt = target_dt * 0.2;
-            target_dr = target_dr * 0.2;
+            //target_dr = target_dr * 0.8;
          end
          critter_team = has_trait(TRAIT_OBJECT, new_tar, OBJECT_TEAM_NUM);
          //Increase target_dr if it attacker has TRAIT_finesse
@@ -3000,7 +3004,7 @@ procedure plasma_alt_explosion begin
             if distance > 1 then new_tar_dmg_mult = (new_tar_dmg_mult ^ (distance));
             if new_tar_dmg_mult < 0 then new_tar_dmg_mult = 0;
          end
-         dmg = 5 * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * new_tar_dmg_mult * crit_mult);
+         dmg = living_anatomy_bonus * living_anatomy + round((((random(weapon_min_dmg, weapon_max_dmg) - target_dt) * (100 - target_dr) / 100.0)) * new_tar_dmg_mult * crit_mult);
          if dmg < 0 then dmg = 0;
          //on a successful hit, the target becomes hostile
          if critter_team == TEAM_PLAYER then begin
@@ -3132,7 +3136,14 @@ procedure callback_electrical_chain_show_orig_target_dmg begin
    variable target_team;
    variable emp_expl;
    if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
-      if show_float_dmg > 0 then float_msg(target, "-"+combat_dmg, 2);
+      if show_float_dmg > 0 then begin
+         if combat_dmg > 0 then begin
+            float_msg(target, "-"+combat_dmg, 2);
+         end
+         else begin
+            float_msg(target, "0", 2);
+         end
+      end
       set_outline(target, OUTLINE_BLINKING_CYAN);
       if old_emp_expl > 0 then begin
          emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
@@ -3163,6 +3174,9 @@ procedure callback_electrical_chain_dmg begin
       if orig_attacker != dude_obj andAlso attacker_team == target_team then begin
          dmg = random((dmg / 3), ((2 * dmg) / 3));
       end
+         if living_anatomy > 0 andAlso dmg < living_anatomy * living_anatomy_bonus then begin
+            dmg = living_anatomy * living_anatomy_bonus;
+         end
       if target != orig_attacker orElse target_cur_hp > dmg then begin
          if random(0,1) then begin
             call critter_inflict_dmg(target, orig_attacker, dmg, DMG_emp, 1, tile_num(target));
@@ -3186,7 +3200,14 @@ procedure callback_electrical_chain_dmg begin
             move_obj_inven_to_obj(target, dead_attacker);
          end
       end
-      if show_float_dmg > 0 then float_msg(target, "-"+dmg, 2);
+      if show_float_dmg > 0 then begin
+         if dmg > 0 then begin
+            float_msg(target, "-"+dmg, 2);
+         end
+         else begin
+            float_msg(target, "0", 2);
+         end
+      end
       if old_emp_expl > 0 then begin
          emp_expl = create_object_sid(pid_emp_expl, tile_num(target), elevation(target), -1);
          set_outline(emp_expl, OUTLINE_BLINKING_CYAN);
@@ -4322,6 +4343,8 @@ variable i;
    if game_loaded then begin
       variable SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
       if SecondaryAttackMod > 0 then begin
+         living_anatomy_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|LivingAnatomyBonus");
+         if living_anatomy_bonus < 0 then living_anatomy_bonus = 5;
          Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          if Sonora > 0 then set_proto_data(pid_sonora_railgun, PROTO_WP_PROJ_PID, 0);
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
