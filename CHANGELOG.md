@@ -1,4 +1,4 @@
-### Version v1.98 in development
+### Version v1.98
 #####SecondaryAttack Mod
 - Added "chain shot" for PULSE and EMP ranged weapons.
 - Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.

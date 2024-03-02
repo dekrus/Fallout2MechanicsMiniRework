@@ -52,7 +52,7 @@ Laser weapons:
 - Alternate mode increases armor penetration. ( All targets' laser defenses are multiplied by 0.5 )
 - Hit chance and critical hit chance are calculated separately for each target.
 
-Pulse weapons(will be added in version 1.98):
+Pulse weapons:
 ![Secondary-Attack](images/PULSE_CHAIN.gif)  
 
 - Pulse and EMP ranged weapons deal weapon damage (+ perks and critical effects) in a “chain” of 2 creatures closest to the main target.
