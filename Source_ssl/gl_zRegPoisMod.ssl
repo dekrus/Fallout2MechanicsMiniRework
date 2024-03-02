@@ -375,13 +375,18 @@ procedure show_death_msg begin
          end
       end
    end
+   if (dude_must_die > 0 or dude_turn_critter_dies > 0) andAlso not(game_ui_is_disabled) then begin
+      game_ui_disable2;
+      if dude_turn_critter_dies > 0 then
+         set_cursor_animated_watch;
+   end
    if len_array(death_array) <= 0 then begin
       if dude_turn_critter_dies > 0 then begin
          dude_turn_critter_dies = 0;
          set_global_script_type(3);
          set_global_script_repeat(100);
       end
-      if dude_turn > 0 or not(combat_is_initialized) then begin
+      if (dude_turn > 0 or not(combat_is_initialized)) andAlso mode_change_death <= 0 then begin
          game_ui_enable;
       end
       mode_change_death = 0;

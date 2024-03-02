@@ -11,6 +11,7 @@ variable initial_player_lvl
 variable initial_player_en
 variable initial_player_iq
 variable dude_obj_pid;
+variable sfall_ver_maj;
 
 procedure GAMEMODECHANGE begin
    variable player_en;
@@ -25,10 +26,22 @@ procedure GAMEMODECHANGE begin
       player_en = get_pc_base_stat(STAT_en) + gifted;
       if player_en > 10 then player_en = 10;
       player_level = get_pc_stat(PCSTAT_level);
-      if en_recalculation > 2 andAlso initial_player_lvl != player_level andAlso (player_level % 2) == 0 andAlso (player_en % 2) != 0 then begin
-         player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
-         set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + 1);
-         initial_player_lvl = player_level;
+      if en_recalculation > 2 then begin
+         //if sfall_ver_maj >= 5 then begin
+            if (player_level % 2) then begin
+               if (player_en % 2) then set_hp_per_level_mod(3);
+            end
+            else begin
+               set_hp_per_level_mod(2);
+            end
+         //end
+         //else begin
+            //if initial_player_lvl != player_level andAlso (player_level % 2) == 0 andAlso (player_en % 2) != 0 then begin
+               //player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
+               //set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + 1);
+               //initial_player_lvl = player_level;
+            //end
+         //end
       end
       //en changed during the current game session
       if player_en != initial_player_en then begin
@@ -96,13 +109,16 @@ procedure start begin
    variable extra_hp_remainder;
    variable player_extra_max_hp_by_en;
    variable player_level_ups;
+   variable lifegiver_perk;
    if game_loaded then begin
       StatsRecalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|StatsRecalculation");
       if StatsRecalculation > 0 then begin
+         sfall_ver_maj = sfall_ver_major;
          if dude_obj > 0 then dude_obj_pid = obj_pid(dude_obj);
          en_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|en_recalculation");
          iq_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|iq_recalculation");
          if obj_pid(dude_obj) == dude_obj_pid then begin
+            lifegiver_perk = has_trait(TRAIT_PERK, dude_obj, PERK_lifegiver);
             gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
             if en_recalculation > 0 then begin
                initial_player_en = get_pc_base_stat(STAT_en) + gifted;
@@ -120,14 +136,26 @@ procedure start begin
                end
                //HP increase for odd endurance
                else if en_recalculation > 2 then begin
-                  player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2)) + ((player_level_ups / 2) * (initial_player_en % 2));
-                  if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                  player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2)) + (((player_level_ups+1) / 2) * (initial_player_en % 2));
+                  if player_extra_max_hp < player_extra_max_hp_by_en + (lifegiver_perk * 4 * (player_level_ups - 10)) then begin
                      if initial_player_en % 2 == 0 andAlso player_level_ups > 0 then begin
-                        extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                        if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                           extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                        end
+                        else begin
+                           extra_hp_remainder = player_extra_max_hp - player_extra_max_hp_by_en;
+                        end
                      end
                      else begin
-                        if player_level_ups > 0 then extra_hp_remainder = player_extra_max_hp % player_level_ups;
-                        extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
+                        if player_level_ups > 0 then begin
+                           if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                              extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                           end
+                           else begin
+                              extra_hp_remainder = player_extra_max_hp - player_extra_max_hp_by_en;
+                           end
+                        end
+                        //extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
                         if extra_hp_remainder < 0 then extra_hp_remainder = 1;
                      end
                      set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);

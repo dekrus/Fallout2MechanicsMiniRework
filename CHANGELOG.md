@@ -7,14 +7,15 @@
 - Fixed: Plasma explosion in alternative attack mode will no longer hit targets through walls and other non-shootable obstacles.
 - Reduced base energy consumption and increased the number of targets when using the alternative fire mode with laser weapons.
 ##### Steal mod
-- Added support for extended inventory for sfall version 5.0.6 and higher.
+- Added support for extended inventory (sfall version 5.0.6.0 and higher).
 - Fixed: NPCs who died while punishing a player for stealing from them will no longer come back from the dead to finish the job.
 ##### Regen & Poison mod
 - Fixed: The corpses of party members who died from poisoning while moving around the global map will no longer "haunt" the player.
 - Fixed: Dead NPCs will no longer express their displeasure when attempting to poison them with a poison syringe.
 ##### Sneak Detection Mod
 - The sneak detection now takes into account movement and is displayed 1 tile forward if the player is moving towards an NPC (or vice versa), allowing a little more time to react.
-
+##### Stats Recalculation Mod
+- Added support for sfall version 5.0.6.0 and higher.
 
 ### Latest Version  v1.96 
 ##### Steal mod
