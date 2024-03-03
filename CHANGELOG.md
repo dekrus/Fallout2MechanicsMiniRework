@@ -1,4 +1,4 @@
-### Version v1.98
+### Latest Version v1.98
 #####SecondaryAttack Mod
 - Added "chain shot" for PULSE and EMP ranged weapons.
 - Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.
@@ -17,7 +17,7 @@
 ##### Stats Recalculation Mod
 - Added support for sfall version 5.0.6.0 and higher.
 
-### Latest Version  v1.96 
+### Version  v1.96 
 ##### Steal mod
 - Fixed stealing chance at negative steal skill values.
 - Fixed crash on failed steal from some NPCs.
