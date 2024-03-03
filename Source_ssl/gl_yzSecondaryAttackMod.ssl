@@ -3241,6 +3241,7 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
    variable targets_array_key = -1;
    variable i;
    if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER then begin
+      call restore_weapon_proj_pid();
       call lvar_full_reset();
       return;
    end
@@ -3981,7 +3982,7 @@ procedure COMBATDAMAGE begin
       // electric chain dmg
       if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or (attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED)) andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
          //if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
+         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) or obj_type(target) != OBJ_TYPE_CRITTER then begin
             call restore_weapon_proj_pid;
             call lvar_full_reset;
             return;
@@ -4316,6 +4317,7 @@ procedure COMBATTURN begin
       end
    end
    if alt_fire_used or one_time_call or get_sfall_arg_at(0) <= 0 then begin
+      call restore_weapon_proj_pid;
       call lvar_full_reset();
    end
 end
