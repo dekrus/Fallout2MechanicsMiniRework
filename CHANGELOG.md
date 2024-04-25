@@ -10,6 +10,8 @@
 ##### MedicalToolsMod
 - Fixed the charge consumption of the entire stack of medical items(instead of one item) when used by NPCs (any method of use) and by the player (used on an any game object from the inventory).
 - NPCs will now use the FA Kit/Doctor's Bag with the lowest remaining charge first.
+##### Regen & Poison mod
+- Fixed: Duplicate message about player damage from poison outside of combat mode.
 
 ### Version v1.98
 #####SecondaryAttack Mod

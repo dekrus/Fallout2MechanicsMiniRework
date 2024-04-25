@@ -2324,7 +2324,9 @@ procedure poisonInRealTime begin
                   //end
                end
                if (get_critter_stat(critter, STAT_current_hp ) - PoisonTickDmg) > 0 andAlso (not(losblock) or HR_fog_of_war == 0) andAlso ShowModMSG > 0 then begin
-                  display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                  if critter != real_dude_obj then begin
+                     display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), tar_name, PoisonTickDmg));
+                  end
                end
             end
                if poisondeath == 0 then begin
