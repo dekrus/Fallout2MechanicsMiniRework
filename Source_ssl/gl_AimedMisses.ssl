@@ -7,6 +7,17 @@
 #define MISS                   1
 #define HIT                    2
 #define CRITICAL_HIT           3
+#define weapon_attack_mode1(pid)                        (get_proto_data(pid, PROTO_FLAG_EXT) bwand 0x0000000F)
+#define weapon_attack_mode2(pid)                        ((get_proto_data(pid, PROTO_FLAG_EXT) bwand 0x000000F0) / 0x10)
+#define weapon_attack_mode(pid, attackType)             (weapon_attack_mode1(pid) if (attackType == ATKTYPE_LWEP1 or attackType == ATKTYPE_RWEP1) else weapon_attack_mode2(pid))
+
+#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define is_multihex(critter_obj)  (get_flags(critter_obj) bwand FLAG_MULTIHEX)
+#define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
+                                       critter_fid == FID_NAPOWR or \
+                                       critter_fid == FID_HANPWR or \
+                                       critter_fid == FID_MABOSS)
+
 
 #include "define_extra.h"
 #include "DEFINE.H"
@@ -36,6 +47,50 @@ variable burst;
 variable grenade;
 variable pyro_bonus;
 
+
+procedure CALCAPCOST begin
+   variable critter = get_sfall_arg;
+   variable Atktype = get_sfall_arg;
+   variable is_aimed = get_sfall_arg;
+   variable default_ap_cost = get_sfall_arg;
+   variable wpn = get_sfall_arg;
+   variable wpn_atk_mode;
+   variable thrust;
+   variable wpnanim;
+   variable wpnpid;
+   if wpn <= 0 then
+      return;
+   wpnpid = obj_pid(wpn);
+   wpn_atk_mode = weapon_attack_mode(wpnpid, Atktype);
+   if (wpn_atk_mode == ATKMODE_PRI_THRUST andAlso wpn_atk_mode != ATKMODE_PRI_SWING) orElse (wpn_atk_mode == ATKMODE_SEC_THRUST andAlso wpn_atk_mode != ATKMODE_SEC_SWING) then begin
+      thrust = 1;
+   end
+
+   if thrust > 0 then begin
+      wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+      if Atktype % 2 then begin
+         if wpnanim == WPN_ANIM_SLEDGEHAMMER then begin
+            if get_proto_data(wpnpid, PROTO_WP_RANGE_2) < 3 then
+               set_proto_data(wpnpid, PROTO_WP_RANGE_2, 3);
+         end
+         else if wpnanim == WPN_ANIM_CLUB then begin
+            if get_proto_data(wpnpid, PROTO_WP_RANGE_2) < 2 then
+               set_proto_data(wpnpid, PROTO_WP_RANGE_2, 2);
+         end
+      end
+      else begin
+         if wpnanim == WPN_ANIM_SLEDGEHAMMER then begin
+            if get_proto_data(wpnpid, PROTO_WP_RANGE_1) < 3 then
+               set_proto_data(wpnpid, PROTO_WP_RANGE_1, 3);
+         end
+         else if wpnanim == WPN_ANIM_CLUB then begin
+            if get_proto_data(wpnpid, PROTO_WP_RANGE_1) < 2 then
+               set_proto_data(wpnpid, PROTO_WP_RANGE_1, 2);
+         end
+      end
+   end
+end
+
 procedure start begin
    if game_loaded then begin
       MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
@@ -44,7 +99,12 @@ procedure start begin
       if MissMod > 0 or BodyRndHit > 0 or SwingThrustTweak > 0 then begin
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, misstohit);
-         if SwingThrustTweak > 0 then register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
+
+
+         if SwingThrustTweak > 0 then begin
+            register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
+            register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+         end
          pyro_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
          if pyro_bonus < 0 then pyro_bonus = 5;
       end
@@ -53,26 +113,17 @@ procedure start begin
    end
 end
 
-//Checking Line of Sight is(not) blocked, taking into account the value of ddraw.ini "ObjCanSeeObj_ShootThru_Fix"
+//Checking Line of fire is(not) blocked
 procedure LOS_is_blocked(variable watcher_obj ,variable target_obj1 ) begin
    variable blocking_obj;
    variable last_blocking_obj;
    variable count = 0;
-   variable ddraw_ShootThru_Fix = 1;
    if obj_type(watcher_obj) == OBJ_TYPE_CRITTER andAlso obj_type(target_obj1) == OBJ_TYPE_CRITTER andAlso get_critter_stat(watcher_obj,STAT_current_hp) > 0 andAlso get_critter_stat(target_obj1,STAT_current_hp) > 0 then begin
-      if ddraw_ShootThru_Fix == 0 then begin
-         blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
-      end
-      if ddraw_ShootThru_Fix == 1 then begin
-         blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
-      end
+      blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
       if blocking_obj == target_obj1 then begin
          return false;
       end
       if blocking_obj andAlso not(ShootThru(blocking_obj)) then begin
-         return true;
-      end
-      if ddraw_ShootThru_Fix == 0 andAlso blocking_obj != target_obj1 then begin
          return true;
       end
       if blocking_obj andAlso blocking_obj != target_obj1 andAlso ShootThru(blocking_obj) then begin
@@ -80,22 +131,16 @@ procedure LOS_is_blocked(variable watcher_obj ,variable target_obj1 ) begin
             if watcher_obj == blocking_obj then begin
                return true;
             end
-            if ddraw_ShootThru_Fix == 0 then begin
-               blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+            last_blocking_obj = blocking_obj;
+            blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
+            if tile_num(last_blocking_obj) == tile_num(blocking_obj) then begin
                return true;
             end
-            if ddraw_ShootThru_Fix == 1 then begin
-               last_blocking_obj = blocking_obj;
-               blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
-               if tile_num(last_blocking_obj) == tile_num(blocking_obj) then begin
-                  return true;
-               end
-               if blocking_obj andAlso not(ShootThru(blocking_obj)) then begin
-                  return true;
-               end
-               if blocking_obj == target_obj1 then begin
-                  return false;
-               end
+            if blocking_obj andAlso not(ShootThru(blocking_obj)) then begin
+               return true;
+            end
+            if blocking_obj == target_obj1 then begin
+               return false;
             end
             count += 1;
             if count > 24 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs stand in the same tile
@@ -137,8 +182,8 @@ procedure SwingThrust begin
    variable rightHand;
    variable wpn;
    variable wpnanim;
-   variable swing = 0;
-   //variable thrust = 0;
+   variable swing;
+   //variable thrust;
    variable atkrskill;
    variable tarAg;
    variable Newhitch;
@@ -172,7 +217,7 @@ procedure SwingThrust begin
             wpn = leftHand;
             if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
             wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+            if wpnanim == WPN_ANIM_KNIFE or wpnanim == 14 then begin
                if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
                   swing = 1;
                end
@@ -182,11 +227,11 @@ procedure SwingThrust begin
             end
          end
          //if left hand second attack mode
-         if Atktype == ATKTYPE_LWEP2 then begin
+         else if Atktype == ATKTYPE_LWEP2 then begin
             wpn = leftHand;
             if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
             wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+            if wpnanim == WPN_ANIM_KNIFE or wpnanim == 14 then begin
                if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
                   swing = 1;
                end
@@ -203,7 +248,7 @@ procedure SwingThrust begin
             wpn = rightHand;
             if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
             wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+            if wpnanim == WPN_ANIM_KNIFE or wpnanim == 14 then begin
                if (wpn_flags bwand ATKMODE_PRI_SWING) == 3 then begin
                   swing = 1;
                end
@@ -213,11 +258,11 @@ procedure SwingThrust begin
             end
          end
          //if right hand second attack mode
-         if Atktype ==  ATKTYPE_RWEP2 then begin
+         else if Atktype ==  ATKTYPE_RWEP2 then begin
             wpn = rightHand;
             if wpn > 0 then wpnanim = get_proto_data(wpn, 36);
             wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-            if wpnanim == WPN_ANIM_KNIFE or wpn == 522 then begin
+            if wpnanim == WPN_ANIM_KNIFE or wpnanim == 14 then begin
                if (wpn_flags bwand ATKMODE_SEC_SWING) == 48 then begin
                   swing = 1;
                end
@@ -229,7 +274,7 @@ procedure SwingThrust begin
       end
 
       //New effect for swing and thust attacks
-      if tar andAlso swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522)  then begin // Wakizashi use unique animation so "wpn == 522"
+      if tar andAlso swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14)  then begin // Wakizashi use unique animation so 14
          atkrskill = has_skill(atkr, SKILL_MELEE);
          tarAg = get_critter_stat(tar, STAT_ag);
          Newhitch = hitch + tarAg + (atkrskill / 15); // increas hit chance
@@ -239,8 +284,6 @@ procedure SwingThrust begin
          set_sfall_return(Newhitch);
          set_sfall_arg(0, Newhitch);
       end
-      //if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
-      //end
    end
  end
 
@@ -248,11 +291,16 @@ procedure COMBATDAMAGE begin
    variable target = get_sfall_arg;
    variable attacker = get_sfall_arg;
    variable dmgtotar = get_sfall_arg;
-   variable weapon = get_sfall_arg_at(6);
+   variable dmgtoatk = get_sfall_arg;
+   variable tar_flags = get_sfall_arg;
+   variable atk_flags = get_sfall_arg;
+   variable weapon = get_sfall_arg;
+   variable knockback_distance = get_sfall_arg_at(10);
    variable atktype = get_sfall_arg_at(11);
    variable wpn_flags;
    variable attacker_melee_dmg;
    variable target_type;
+   variable target_kill_type;
    variable rnd;
    variable wpnpid;
    variable wpnanim;
@@ -263,9 +311,14 @@ procedure COMBATDAMAGE begin
    variable thrust;
    variable wpn_dmg_type;
    variable new_target_dist = -2;
+   variable tar_max_hp;
    variable tar_dt;
    variable tardt_extra;
    variable tardr_extra;
+   variable knockback_bonus_dmg;
+   variable knockback_tile;
+   variable knockback_tile_block;
+   variable knockback_tile_block_distance;
    if weapon > 0 then begin
       wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
       wpnpid = obj_pid(weapon);
@@ -284,6 +337,7 @@ procedure COMBATDAMAGE begin
          set_sfall_return(0);
          set_sfall_arg(5, 0);
          missed = -1;
+         return;
       end
    end
    if target then begin
@@ -327,39 +381,108 @@ procedure COMBATDAMAGE begin
       end
 
       //New effect for swing and thust attacks
-      if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-         tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
-         tar_dt = get_critter_stat(target, (STAT_dmg_thresh + dmg_type));
-         if tar_dt <= 3 then begin // more likely to deal maximum damage when attacking low armored target
-            wpnmaxdmg = get_proto_data(wpnpid, PROTO_WP_DMG_MAX);
-            wpnmindmg = 1 + get_proto_data(wpnpid, PROTO_WP_DMG_MIN);
-            attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
-            //inc min wpn dmg by half of diff max-min dmg
-            wpnmindmg += random(1,attacker_melee_dmg);
-            wpnmaxdmg += attacker_melee_dmg;
-            newdmg = random(wpnmindmg, wpnmaxdmg);
-            if tar_dt > 0 then begin
-               newdmg -= tar_dt;
+      if swing == 1 then begin
+         // knifes
+         if (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
+            tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
+            tar_dt = get_critter_stat(target, (STAT_dmg_thresh + dmg_type));
+            if tar_dt <= 3 then begin // more likely to deal maximum damage when attacking low armored target
+               wpnmaxdmg = get_proto_data(wpnpid, PROTO_WP_DMG_MAX);
+               wpnmindmg = 1 + get_proto_data(wpnpid, PROTO_WP_DMG_MIN);
+               attacker_melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
+               //inc min wpn dmg by half of diff max-min dmg
+               wpnmindmg += random(1,attacker_melee_dmg);
+               wpnmaxdmg += attacker_melee_dmg;
+               newdmg = random(wpnmindmg, wpnmaxdmg);
+               if tar_dt > 0 then begin
+                  newdmg -= tar_dt;
+               end
+               newdmg -= get_critter_stat(target, (STAT_dmg_resist + dmg_type)) * newdmg / 100;
+               newdmg += has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk) * 5;
+               if wpn_dmg_type == DMG_fire andAlso has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) then begin
+                  newdmg += pyro_bonus;
+               end
+               if dmgtotar < newdmg then begin
+                  set_sfall_return(newdmg);
+                  set_sfall_arg(2, newdmg);
+                  return;
+               end
             end
-            newdmg -= get_critter_stat(target, (STAT_dmg_resist + dmg_type)) * newdmg / 100;
-            newdmg += has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk) * 5;
-            if wpn_dmg_type == DMG_fire andAlso has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) then begin
-               newdmg += pyro_bonus;
+         end
+         //
+         else if wpnanim == WPN_ANIM_CLUB or wpnanim == WPN_ANIM_SLEDGEHAMMER then begin
+            if not(tar_flags bwand DAM_KNOCKED_DOWN) andAlso not(tar_flags bwand DAM_KNOCKED_OUT) then begin
+               rnd = random(0, 90);
+               target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+               tar_max_hp = get_critter_stat(target, STAT_max_hp);
+               if target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or power_armor_fid(obj_art_fid(target)) then begin
+                  knockback_distance *= 4;
+               end
+               else begin
+                  knockback_distance *= 7;
+               end
+               if dmgtotar > (tar_max_hp / 3) then begin
+                  rnd -= 20;
+               end
+               if knockback_distance > 40 then
+                  knockback_distance = 40;
+               set_sfall_return(dmgtotar);
+               set_sfall_arg(2, dmgtotar);
+               set_sfall_return(dmgtoatk);
+               set_sfall_arg(3, dmgtoatk);
+               if rnd < knockback_distance then begin
+                  set_sfall_return(tar_flags bwor DAM_KNOCKED_DOWN);
+                  set_sfall_arg(4, tar_flags bwor DAM_KNOCKED_DOWN);
+               end
+               else begin
+                  set_sfall_return(tar_flags);
+                  set_sfall_arg(4, tar_flags);
+               end
+               set_sfall_return(atk_flags);
+               set_sfall_arg(5, atk_flags);
+               set_sfall_return(0);
+               set_sfall_arg(10, 0);
             end
-            if dmgtotar < newdmg then begin
-               set_sfall_return(newdmg);
-               set_sfall_arg(2, newdmg);
+            else begin
+               set_sfall_return(dmgtotar);
+               set_sfall_arg(2, dmgtotar);
+               set_sfall_return(dmgtoatk);
+               set_sfall_arg(3, dmgtoatk);
+               set_sfall_return(tar_flags);
+               set_sfall_arg(4, tar_flags);
+               set_sfall_return(atk_flags);
+               set_sfall_arg(5, atk_flags);
+               set_sfall_return(0);
+               set_sfall_arg(10, 0);
             end
+            return;
          end
       end
-      if thrusthit == 1 andAlso thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnpid == 522) then begin
-         // return norman dr|dt valuesvariable dt_mod;
-         if dt_mod > 0 then begin
-            tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
-            set_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type), (tardt_extra + dt_mod));
+      if thrusthit == 1 andAlso thrust == 1 then begin
+         if (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
+            if dt_mod > 0 then begin
+               tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
+               set_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type), (tardt_extra + dt_mod));
+            end
+            tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + dmg_type));
+            set_critter_extra_stat(target, (STAT_dmg_resist + dmg_type), (tardr_extra + dr_mod));
          end
-         tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + dmg_type));
-         set_critter_extra_stat(target, (STAT_dmg_resist + dmg_type), (tardr_extra + dr_mod));
+         else if wpnanim == WPN_ANIM_SLEDGEHAMMER or wpnanim == WPN_ANIM_CLUB then begin
+            knockback_tile = tile_num_in_direction(tile_num(target),(rotation_to_tile(tile_num(target),tile_num(attacker)) + 3) % 6,knockback_distance);
+            knockback_tile_block = obj_blocking_line(target,knockback_tile,BLOCKING_TYPE_BLOCK);
+            if knockback_tile_block > 0 then begin
+               distance_objs(knockback_tile_block_distance, target, knockback_tile_block);
+               if dmgtotar > 0 then begin
+                  knockback_bonus_dmg = 2 * (knockback_distance - knockback_tile_block_distance);
+                  if knockback_bonus_dmg > dmgtotar / 2 then
+                     knockback_bonus_dmg = dmgtotar / 2;
+                  dmgtotar += knockback_bonus_dmg;
+                  set_sfall_return(dmgtotar);
+                  set_sfall_arg(2, dmgtotar);
+                  return;
+               end
+            end
+         end
       end
    end
 end
@@ -535,31 +658,34 @@ procedure misstohit begin
 
       //New effect for swing and thust attacks
    if SwingThrustTweak > 0 andAlso wpn > 0 then begin
-      //if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
+      //if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
       //end
-      if thrust == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpn == 522) then begin
+      if thrust == 1 then begin
          thrusthit = 0;
          if hitmiss > MISS then begin
-            wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
-            wpn_mindmg = get_proto_data(wpn, PROTO_WP_DMG_MIN);
-            wpn_perk = get_proto_data(wpn, PROTO_WP_PERK);
+            //armor pen for knife
             thrusthit = 1;
-            attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
-            if wpn_perk == PERK_weapon_penetrate then begin
-               dt_mod = 2;
-               dr_mod = 25;
+            if (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
+               wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
+               wpn_mindmg = get_proto_data(wpn, PROTO_WP_DMG_MIN);
+               wpn_perk = get_proto_data(wpn, PROTO_WP_PERK);
+               attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
+               if wpn_perk == PERK_weapon_penetrate then begin
+                  dt_mod = 2;
+                  dr_mod = 25;
+               end
+               else begin
+                  dt_mod = 1 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 7);
+                  dr_mod = 10 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 3);
+               end
+               if dt_mod > 0 then begin
+                  tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type));
+                  set_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type), (tardt_extra - dt_mod));
+               end
+               tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type));
+               set_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type), (tardr_extra - dr_mod));
             end
-            else begin
-               dt_mod = 1 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 7);
-               dr_mod = 10 + ((wpn_maxdmg + wpn_mindmg + attacker_meleedmg) / 3);
-            end
-            if dt_mod > 0 then begin
-               tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type));
-               set_critter_extra_stat(target, (STAT_dmg_thresh + wpn_dmg_type), (tardt_extra - dt_mod));
-            end
-            tardr_extra = get_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type));
-            set_critter_extra_stat(target, (STAT_dmg_resist + wpn_dmg_type), (tardr_extra - dr_mod));
-            if hitmiss == CRITICAL_HIT andAlso (random (0, 98) < ((get_critter_stat(attacker, STAT_crit_chance) + 1) / 2)) then begin
+            if hitmiss == HIT andAlso ((random (0, 98)) < ((get_critter_stat(attacker, STAT_crit_chance) + 1) / 2)) then begin
                set_sfall_return(CRITICAL_HIT); //  critical hit
                set_sfall_arg(0, CRITICAL_HIT);
                return;

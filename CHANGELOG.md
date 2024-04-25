@@ -1,4 +1,17 @@
-### Latest Version v1.98
+### WIP Version v1.99
+#####TraitsPlus
+- Added a new mod that adds additional unique properties to the character’s starting traits
+
+
+
+### Latest Version v1.98.1
+#####Swing&Thrust
+- Added effects for blunt melee weapons (sledgehammers, clubs, cattle prods).
+##### MedicalToolsMod
+- Fixed the charge consumption of the entire stack of medical items(instead of one item) when used by NPCs (any method of use) and by the player (used on an any game object from the inventory).
+- NPCs will now use the FA Kit/Doctor's Bag with the lowest remaining charge first.
+
+### Version v1.98
 #####SecondaryAttack Mod
 - Added "chain shot" for PULSE and EMP ranged weapons.
 - Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.

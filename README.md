@@ -254,15 +254,22 @@ Additional settings that can be activated include:
 - Complicated stealing from merchants.
 
 ### Swing&Thrust
-With the setting enabled, swing attacks and thrusts with a knife will now have different properties.
+With the setting enabled, swing attacks and thrusts will now have different properties.
 
-1.Swing attack:
-- Increases chance to hit based on the target's agility and the attacker's melee skill.
-- On lightly armored targets, a swing attack is more likely to deal maximum damage than minimum damage.
+1. **Knives**:
+   - **Swing Attack**:
+     - Increases the chance to hit based on the target's agility and the attacker's melee skill.
+     - On lightly armored targets, a swing attack is more likely to deal maximum damage than minimum damage.
+   - **Thrust Attack**:
+     - Penetrates some of the target's Damage Resistance (DR) and Damage Threshold (DT) based on the attacker's melee damage stat and maximum knife damage.
+     - Increases the base chance of a critical hit by 1.5 times.
 
-2. Thrust attack:
-- Penetrates some of the target's DR and DT based on the attacker's melee damage stat and maximum knife damage.
-- Increases the base chance of a critical hit by 1.5 times.
+2. **Sledgehammers, Clubs, Cattle Prods**:
+   - **Swing Attack**:
+     - Swings no longer have knockback but instead have a chance to knock down based on the damage dealt.
+   - **Thrust Attack**:
+     - Has increased attack range.
+     - Deals up to 40% more damage to targets that are pressed against another object (such as walls, creatures, or scenery) and cannot be knocked back further or if they hit an object while "sliding".
 
 ### AntiCritical
 If enabled, prevents status effects (crippling, blindness, knockout, and instant death) when receiving/dealing 0 damage on a critical hit (player and/or NPCs).

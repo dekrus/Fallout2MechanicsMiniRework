@@ -346,6 +346,34 @@ procedure inv_move begin
    end
 end
 
+procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid) begin
+   variable inv_count = inven_count(inven_obj);
+   variable inv_index;
+   variable item;
+   variable item_pid;
+   variable item_charge;
+   variable min_charge_obj = -1;
+   for (inv_index = 0; inv_index < inv_count; inv_index++) begin
+      item = inven_ptr(inven_obj, inv_index);
+      // Check if item exists and matches charged object PID
+      if item > 0 andAlso obj_pid(item) == charged_obj_pid then begin
+         // Get current charges of the item
+         item_charge = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+         // Update min_charge_obj if uninitialized or current item has fewer charges
+         if min_charge_obj == -1 orElse item_charge < get_object_data(min_charge_obj, OBJ_DATA_CUR_CHARGES) then begin
+            min_charge_obj = item;
+         end
+      end
+   end
+   // Return min_charge_obj if found, otherwise return result of (obj_carrying_pid_obj(inven_obj, charged_obj_pid))
+   if min_charge_obj > 0 then begin
+      return min_charge_obj;
+   end
+   else begin
+      return obj_carrying_pid_obj(inven_obj, charged_obj_pid);
+   end
+end
+
 procedure npc_combat_doc_use begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
@@ -381,7 +409,8 @@ procedure npc_combat_doc_use begin
          doc_used += 1;
          combat_med_tool_used = doc_used;
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
-         doc_item = obj_carrying_pid_obj(critter, doc_bag_pid);
+         //doc_item = obj_carrying_pid_obj(critter, doc_bag_pid);
+         doc_item = find_min_charge_obj(critter, doc_bag_pid);
          anim(critter, ANIM_magic_hands_middle, 1);
          set_self(critter);
          set_self(critter);
@@ -394,7 +423,8 @@ procedure npc_combat_doc_use begin
          doc_used += 1;
          combat_med_tool_used = doc_used;
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
-         doc_item = obj_carrying_pid_obj(critter, PID_PARAMEDICS_BAG);
+         //doc_item = obj_carrying_pid_obj(critter, PID_PARAMEDICS_BAG);
+         doc_item = find_min_charge_obj(critter, PID_PARAMEDICS_BAG);
          anim(critter, ANIM_magic_hands_middle, 1);
          set_self(critter);
          set_self(critter);
@@ -426,7 +456,8 @@ procedure npc_combat_doc_use begin
        // npc can use fa kit if it is in inventory
       if stim_used != 1 andAlso fa_kit_count > 0 andAlso fa_kit2_count <= 0 andAlso rnd < (3.5  * critter_int * critter_max_hp / critter_cur_hp) andAlso doc_used <= 0 then begin
          combat_med_tool_used = 1;
-         fa_item = obj_carrying_pid_obj(critter, PID_FIRST_AID_KIT);
+         //fa_item = obj_carrying_pid_obj(critter, PID_FIRST_AID_KIT);
+         fa_item = find_min_charge_obj(critter, PID_FIRST_AID_KIT);
          anim(critter, ANIM_magic_hands_middle, 1);
          set_self(critter);
          set_self(critter);
@@ -437,7 +468,8 @@ procedure npc_combat_doc_use begin
       // use can field medic kit if it is in inventory
       if stim_used != 1 andAlso fa_kit2_count > 0 andAlso rnd < (3.5  * critter_int * critter_max_hp / critter_cur_hp)  andAlso doc_used <= 0  then begin
          combat_med_tool_used = 1;
-         fa_item = obj_carrying_pid_obj(critter, PID_FIELD_MEDIC_KIT);
+         //fa_item = obj_carrying_pid_obj(critter, PID_FIELD_MEDIC_KIT);
+         fa_item = find_min_charge_obj(critter, PID_FIELD_MEDIC_KIT);
          anim(critter, ANIM_magic_hands_middle, 1);
          set_self(critter);
          set_self(critter);
@@ -446,6 +478,18 @@ procedure npc_combat_doc_use begin
          display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIELD_MEDIC_KIT, 1)));
       end
    end
+end
+
+procedure med_tool_split_and_set_charge(variable user, variable med_tool_obj, variable new_charges) begin
+   if med_tool_obj <= 0 then
+      return;
+
+   // Create a new medical tool object with the same PID
+   med_tool_obj = create_object(obj_pid(med_tool_obj), 0, 0);
+   // Set the new charges for the medical tool
+   set_object_data(med_tool_obj, OBJ_DATA_CUR_CHARGES, new_charges);
+   // Add the modified medical tool to the user's inventory
+   add_obj_to_inven(user, med_tool_obj);
 end
 
 procedure meditem_use begin
@@ -464,6 +508,7 @@ procedure meditem_use begin
    variable tar_lost_hp = tar_max_hp - tar_cur_hp;
    variable skill_bonus = first_aid_kit_bonus;
    variable obj_charges;
+   variable new_obj_charges;
    variable hp_healed;
    variable heal_cost = 1;
    variable heal_chance;
@@ -545,14 +590,17 @@ procedure meditem_use begin
          end
       end
       heal_cost = 1;
-      set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);
+      new_obj_charges = obj_charges - heal_cost;
+      //set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);//
       if not(get_game_mode bwand INVENTORY) then intface_redraw;
-      if obj_charges - heal_cost <= 0 then begin
+      if new_obj_charges <= 0 then begin
          if user == dude_obj then display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
          set_sfall_return(1);
       end
       else begin
-         set_sfall_return(0);
+         //set_sfall_return(0);
+         call med_tool_split_and_set_charge(user, obj, new_obj_charges);
+         set_sfall_return(1);
       end
    end
    //FA
@@ -601,15 +649,18 @@ procedure meditem_use begin
       if tar_cur_hp < tar_max_hp then begin
          critter_heal(target, hp_healed);
          if heal_cost > obj_charges then heal_cost = obj_charges;
-         set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);
+         //set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);
+         new_obj_charges = obj_charges - heal_cost;
          if not(get_game_mode bwand INVENTORY) then intface_redraw;
          if user == dude_obj then display_msg(parse_str_2(modmsg(msg_dude_heal), hp_healed, 0));
-         if obj_charges - heal_cost <= 0 then begin
+         if new_obj_charges <= 0 then begin
             if user == dude_obj then display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
             set_sfall_return(1);
          end
          else begin
-            set_sfall_return(0);
+            //set_sfall_return(0);
+            call med_tool_split_and_set_charge(user, obj, new_obj_charges);
+            set_sfall_return(1);
          end
       end
    end
