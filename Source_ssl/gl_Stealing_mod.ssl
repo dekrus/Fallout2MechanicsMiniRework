@@ -134,7 +134,8 @@
 
 
 #define modmsg(x) (message_str_game(new_steal_msg, x))
-#define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
+#define can_use_items(critter_type) (critter_type <= KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_big_boss)
+#define is_sentient(obj) (can_use_items(critter_kill_type(obj)) andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define NO_STEAL(obj)    (get_proto_data(obj_pid(obj), PROTO_CR_FLAGS) bwand CFLG_NOSTEAL)
 #define pe_div 2.5
 #define min_chance_for_success 50
@@ -4975,7 +4976,7 @@ procedure ANIM_sequence_get_caught_stealing begin
       set_global_var(GVAR_PLAYER_REPUTATION,(karma - 5));
       if Sonora > 0 then childkiller = berserker;
       foreach witness in witness_array begin
-         if witness > 0 andAlso (get_proto_data(obj_pid(witness),PROTO_CR_BODY_TYPE) == CR_BODY_BIPED) andAlso critter_state(witness) == CRITTER_IS_NORMAL andAlso (art_anim(obj_art_fid(witness)) == 0) andALso witness != dude_obj andAlso witness != target andAlso obj_is_visible_flag(witness) then begin
+         if witness > 0 andAlso (is_sentient(witness)) andAlso critter_state(witness) == CRITTER_IS_NORMAL andAlso (art_anim(obj_art_fid(witness)) == 0) andALso witness != dude_obj andAlso witness != target andAlso obj_is_visible_flag(witness) then begin
             blocking_obj = obj_blocking_line(witness, dude_hex, BLOCKING_TYPE_SHOOT);
             can_see = 0;
             witness_team = has_trait(TRAIT_OBJECT, witness, OBJECT_TEAM_NUM);

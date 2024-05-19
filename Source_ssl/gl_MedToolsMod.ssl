@@ -48,8 +48,9 @@
 #define military_fid(critter_obj)   (crit_fid(critter_obj) == 16777217 or crit_fid(critter_obj) == 16777226 or crit_fid(critter_obj) == 16777219 or crit_fid(critter_obj) == 16777309 or crit_fid(critter_obj) == 16777287)
 #define high_tec_fid(critter_obj)   (crit_fid(critter_obj) == 16777287 or crit_fid(critter_obj) == 16777301 or crit_fid(critter_obj) == 16777217)
 #define non_medic_fid(critter_obj)   (crit_fid(critter_obj) == 16777280 or crit_fid(critter_obj) == 16777279 or crit_fid(critter_obj) == 16777253 or crit_fid(critter_obj) == 16777249 or crit_fid(critter_obj) == 16777256 or crit_fid(critter_obj) == 16777261 or crit_fid(critter_obj) == 16777222 or crit_fid(critter_obj) == 16777243 or crit_fid(critter_obj) == 16777336 or crit_fid(critter_obj) == 16777259 or crit_fid(critter_obj) == 16777289 or crit_fid(critter_obj) == 16777288 or crit_fid(critter_obj) == 16777260 or crit_fid(critter_obj) == 16777245 or crit_fid(critter_obj) == 16777255 or crit_fid(critter_obj) == 16777293 or crit_fid(critter_obj) == 16777312 or crit_fid(critter_obj) == 16777258 or crit_fid(critter_obj) == 16777314 or crit_fid(critter_obj) == 16777257)
-#define is_medic(obj) ((get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED) andAlso get_critter_base_stat(obj,STAT_iq) > 4  andAlso ((has_skill(obj, SKILL_DOCTOR) > 35 ) or (has_skill(obj, SKILL_FIRST_AID) > 45 )))
-#define is_brainy(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_base_stat(obj,STAT_iq) > 6 andAlso get_critter_base_stat(obj,STAT_pe) > 6 )
+#define can_use_items(critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == KILL_TYPE_big_boss)
+#define is_medic(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 4  andAlso ((has_skill(obj, SKILL_DOCTOR) > 35 ) or (has_skill(obj, SKILL_FIRST_AID) > 45 )))
+#define is_brainy(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 6 andAlso get_critter_base_stat(obj,STAT_pe) > 6 )
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -71,6 +72,7 @@ variable healed_limbs;
 variable doc_bag_pid = PID_DOCTORS_BAG;
 variable sfall_mods_config;
 variable combat_direct_controll;
+variable fo2tweaks_ini_healing;
 
 export variable combat_med_tool_used;
 
@@ -249,7 +251,7 @@ procedure map_enter_p_proc begin
    variable critter_cur_hp;
    variable critter_int;
    variable critter_type;
-   variable critter_body_type;
+   //variable critter_body_type;
    variable doc_item;
    variable fa_item;
    variable rnd;
@@ -274,9 +276,9 @@ procedure map_enter_p_proc begin
                critter_in_party = is_in_array(critter, party);
                critter_cur_hp = get_critter_stat(critter, STAT_current_hp );
                critter_pid = obj_pid(critter);
-               critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
+               //critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
                critter_type = critter_kill_type(critter);
-            if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != dude_obj andAlso not(critter_in_party) andAlso critter_body_type == CR_BODY_BIPED andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+            if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != dude_obj andAlso not(critter_in_party) andAlso can_use_items(critter_type) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
                rnd = random(0, 100);
                doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
                paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
@@ -379,7 +381,7 @@ procedure npc_combat_doc_use begin
    variable critter = get_sfall_arg;
    variable critter_name = obj_name(critter);
    variable critter_pid = obj_pid(critter);
-   variable critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
+   //variable critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
    variable critter_int = get_critter_stat(critter, STAT_iq);
    variable critter_type = critter_kill_type(critter);
    variable critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
@@ -400,7 +402,7 @@ procedure npc_combat_doc_use begin
    combat_med_tool_used = 0;
    doc_used = 0;
    // npc use doctor's bag if cripled
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso (is_disabled(critter) or (critter_cur_hp < (critter_max_hp/2 ))) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso critter!= dude_obj andAlso turn_status == 1 andAlso (is_disabled(critter) or (critter_cur_hp < (critter_max_hp/2 ))) andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
       paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
       rnd = random(0, 100);
@@ -434,7 +436,7 @@ procedure npc_combat_doc_use begin
       end
    end
    // npc uses fa item if wounded
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1  andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1  andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
       fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
       stim_count = obj_is_carrying_obj_pid(critter, PID_STIMPAK);
@@ -598,9 +600,15 @@ procedure meditem_use begin
          set_sfall_return(1);
       end
       else begin
-         //set_sfall_return(0);
-         call med_tool_split_and_set_charge(user, obj, new_obj_charges);
-         set_sfall_return(1);
+         if leftHand != obj andAlso rightHand != obj then begin
+            call med_tool_split_and_set_charge(user, obj, new_obj_charges);
+            set_sfall_return(1);
+         end
+         else begin
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES,new_obj_charges);
+            set_sfall_return(0);
+            intface_redraw;
+         end
       end
    end
    //FA
@@ -658,9 +666,16 @@ procedure meditem_use begin
             set_sfall_return(1);
          end
          else begin
-            //set_sfall_return(0);
-            call med_tool_split_and_set_charge(user, obj, new_obj_charges);
-            set_sfall_return(1);
+            //
+            if leftHand != obj andAlso rightHand != obj then begin
+               call med_tool_split_and_set_charge(user, obj, new_obj_charges);
+               set_sfall_return(1);
+            end
+            else begin
+               set_object_data(obj, OBJ_DATA_CUR_CHARGES,new_obj_charges);
+               set_sfall_return(0);
+               intface_redraw;
+            end
          end
       end
    end

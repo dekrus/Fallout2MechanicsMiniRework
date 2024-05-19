@@ -2081,7 +2081,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
       dmg_source_tile = tile_num(attacker);
    end
    //chance to set who hit the target if they are from different teams
-   if attacker_team != target_team andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 or not(random(0,2))) then begin
+   if attacker_team != target_team andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 orElse dmg_value >= target_cur_hp orElse not(random(0,2))) then begin
       set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
    end
    //cause non-lethal damage
@@ -3427,7 +3427,7 @@ procedure CALCAPCOST begin
       if pistol_double_tap_in_process andAlso pistol_double_tap_target_selected andAlso not(is_aimed) then begin
          if critter_inven_obj(dude_obj, 2 - active_hand) == pistol_double_tap_weapon then begin
             set_sfall_return(pistol_double_tap_ap_cost);
-            set_sfall_arg(default_ap_cost, pistol_double_tap_ap_cost);
+            set_sfall_arg(3, pistol_double_tap_ap_cost);
          end
       end
       if pistol_double_tap_visual andAlso pistol_double_tap_target_selected andAlso pistol_double_tap_taps < pistol_double_tap_max_taps andAlso not(is_aimed) then begin
@@ -3437,7 +3437,7 @@ procedure CALCAPCOST begin
                pistol_double_tap_miss = 0;
             end
             set_sfall_return(pistol_double_tap_ap_cost);
-            set_sfall_arg(default_ap_cost, pistol_double_tap_ap_cost);
+            set_sfall_arg(3, pistol_double_tap_ap_cost);
          end
          else begin
             pistol_double_tap_in_process = 0;
@@ -3746,7 +3746,7 @@ procedure AFTERHITROLL begin
       // plasma set new proj_pid and weapon_cur_ammo end
 
       // pistols double tap
-      if PistolSecondaryAttackMod andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
+      if PistolSecondaryAttackMod andAlso attacker == dude_obj andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
          alt_fire_used = 1;
          pistol_double_tap_target = real_orig_target;
          if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO andAlso attack_result <= 1 then begin
@@ -3952,254 +3952,209 @@ procedure COMBATDAMAGE begin
    variable target_is_wearing_power_armor;
    variable stonewall_perk;
    variable returned;
-   orig_attacker = attacker;
-   combat_dmg = dmgtotar;
-   first_combat_dmg = -1;
-   attacker_frm = anim_busy(attacker);
-   if ShotgunForced > 0 andAlso weapon > 0 then begin
-      weapon_pid = obj_pid(weapon);
-      weapon_caliber = get_proto_data(weapon_pid, PROTO_WP_CALIBER);
+   variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable actual_attack;
+   if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
+      actual_attack = 1;
    end
-   if missed_shot andAlso target != real_orig_target andAlso target != attacker andAlso weapon_caliber != shotgun_caliber then begin
-      if weapon_damage_type == DMG_laser then begin
-         combat_dmg = calc_dmg_laser(attacker,target);
-      end
-      else if weapon_damage_type == DMG_normal_dam then begin
-         combat_dmg = calc_dmg_gauss(attacker,target,random(weapon_min_dmg, weapon_max_dmg));
-      end
-      if combat_dmg < 0 then combat_dmg = 0;
-      first_combat_dmg = combat_dmg;
-
-      returned = 1;
-      set_sfall_return(combat_dmg);
-      set_sfall_arg(2, combat_dmg);
-      //return;
-   end
-   if attacker andAlso attacker_frm == 0 andAlso one_time_call <= 0 then begin
+   if actual_attack > 0 then begin
+      orig_attacker = attacker;
       combat_dmg = dmgtotar;
-      COMBATDAMAGE_target = target;
-
-      // electric chain dmg
-      if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or (attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED)) andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
-         //if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) or obj_type(target) != OBJ_TYPE_CRITTER then begin
-            call restore_weapon_proj_pid;
-            call lvar_full_reset;
-            return;
-         end
-         if get_proto_data(weapon_pid, PROTO_WP_PROJ_PID) <= 0 then begin
-            proj_pid_changed = 1;
-            set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_electric_projectile);
-         end
-         orig_target = target;
-         one_time_call = 1;
-         call electrical_chain_dmg(attacker,target);
+      first_combat_dmg = -1;
+      attacker_frm = anim_busy(attacker);
+      if ShotgunForced > 0 andAlso weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         weapon_caliber = get_proto_data(weapon_pid, PROTO_WP_CALIBER);
       end
-      // electric chain dmg end
+      if missed_shot andAlso target != real_orig_target andAlso target != attacker andAlso weapon_caliber != shotgun_caliber then begin
+         if weapon_damage_type == DMG_laser then begin
+            combat_dmg = calc_dmg_laser(attacker,target);
+         end
+         else if weapon_damage_type == DMG_normal_dam then begin
+            combat_dmg = calc_dmg_gauss(attacker,target,random(weapon_min_dmg, weapon_max_dmg));
+         end
+         if combat_dmg < 0 then combat_dmg = 0;
+         first_combat_dmg = combat_dmg;
 
-      // plasma aoe dmg
-      if PlasmaSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or PlasmaSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or PlasmaForced > 0 or (attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED)) andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= PlasmaAmmoCost andAlso weapon_range > 1 then begin
-         //if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (PlasmaForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
-            call restore_weapon_proj_pid;
-            call lvar_full_reset;
-            return;
-         end
-         orig_target = target;
-         one_time_call = 1;
-         if combat_dmg > 0 andAlso has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then begin
-            combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
-            set_sfall_return(combat_dmg);
-            set_sfall_arg(2, combat_dmg);
-         end
-         call plasma_aoe_dmg(attacker,target);
+         returned = 1;
+         set_sfall_return(combat_dmg);
+         set_sfall_arg(2, combat_dmg);
+         //return;
       end
-      // plasma aoe dmg end
+      if attacker andAlso attacker_frm == 0 andAlso one_time_call <= 0 then begin
+         combat_dmg = dmgtotar;
+         COMBATDAMAGE_target = target;
 
-      //shotgun alt fire(knockback)
-      if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or ((attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED) andAlso is_single_shot andAlso not(random(0,2)))) then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
-            call restore_weapon_proj_pid;
-            call lvar_full_reset;
-            return;
+         // electric chain dmg
+         if ElecSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or ElecSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or ElecForced > 0 or (attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED)) andAlso weapon andAlso (weapon_damage_type == DMG_electrical or weapon_damage_type == DMG_emp) andAlso weapon_cur_ammo >= ElecAmmoCost andAlso weapon_range > 1 then begin
+            //if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (ElecForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count > enemy_targets_count) then begin
+            if target == attacker orElse (atk_flags bwand DAM_BACKWASH) or obj_type(target) != OBJ_TYPE_CRITTER then begin
+               call restore_weapon_proj_pid;
+               call lvar_full_reset;
+               return;
+            end
+            if get_proto_data(weapon_pid, PROTO_WP_PROJ_PID) <= 0 then begin
+               proj_pid_changed = 1;
+               set_proto_data(weapon_pid, PROTO_WP_PROJ_PID, pid_electric_projectile);
+            end
+            orig_target = target;
+            one_time_call = 1;
+            call electrical_chain_dmg(attacker,target);
          end
-         distance_objs(attacker_target_distance, attacker, target);
-         knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-         if has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
-            if target == dude_obj then begin
-               target_is_wearing_power_armor = player_wearing_power_armor;
-               stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+         // electric chain dmg end
+
+         // plasma aoe dmg
+         if PlasmaSecondaryAttackMod > 0 andAlso is_single_shot andAlso (attacker == dude_obj or PlasmaSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso target == orig_target andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or PlasmaForced > 0 or (attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED)) andAlso weapon andAlso weapon_damage_type == DMG_plasma andAlso weapon_cur_ammo >= PlasmaAmmoCost andAlso weapon_range > 1 then begin
+            //if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (PlasmaForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+            if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
+               call restore_weapon_proj_pid;
+               call lvar_full_reset;
+               return;
             end
-            if target_is_wearing_power_armor then begin
-               knockback_distance = 1;
-               rnd = 5;
+            orig_target = target;
+            one_time_call = 1;
+            if combat_dmg > 0 andAlso has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then begin
+               combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
+               set_sfall_return(combat_dmg);
+               set_sfall_arg(2, combat_dmg);
             end
-            else if stonewall_perk then begin
-               if random(0, 1) then begin
-                  knockback_distance = 0;
-                  rnd = 10;
+            call plasma_aoe_dmg(attacker,target);
+         end
+         // plasma aoe dmg end
+
+         //shotgun alt fire(knockback)
+         if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == shotgun_caliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or ((attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED) andAlso is_single_shot andAlso not(random(0,2)))) then begin
+            if target == attacker orElse (atk_flags bwand DAM_BACKWASH) then begin
+               call restore_weapon_proj_pid;
+               call lvar_full_reset;
+               return;
+            end
+            distance_objs(attacker_target_distance, attacker, target);
+            knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
+            if has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
+               if target == dude_obj then begin
+                  target_is_wearing_power_armor = player_wearing_power_armor;
+                  stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+               end
+               if target_is_wearing_power_armor then begin
+                  knockback_distance = 1;
+                  rnd = 5;
+               end
+               else if stonewall_perk then begin
+                  if random(0, 1) then begin
+                     knockback_distance = 0;
+                     rnd = 10;
+                  end
+                  else begin
+                     knockback_distance = knockback_distance / 2;
+                     rnd = random(0, 20 + 10 * ShotgunForced);
+                  end
                end
                else begin
-                  knockback_distance = knockback_distance / 2;
-                  rnd = random(0, 20 + 10 * ShotgunForced);
+                  rnd = random(0, 10 + 10 * ShotgunForced);
                end
             end
             else begin
-               rnd = random(0, 10 + 10 * ShotgunForced);
+               target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+               if power_armor_fid(critter_art_fid(target)) then target_is_wearing_power_armor = 1;
+               if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or target_is_wearing_power_armor then begin
+                  if knockback_distance > 1 then knockback_distance = random(1, knockback_distance / 2);
+                  rnd = random(0, 4 + (6 * ShotgunForced));
+               end
+               else begin
+                  knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
+                  rnd = random(0, 2 + (3 * ShotgunForced));
+               end
+            end
+            if knockback_distance < 1 then knockback_distance = 1;
+            if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
+               set_sfall_return(dmgtotar);
+               set_sfall_arg(2, dmgtotar);
+               set_sfall_return(dmgtoatk);
+               set_sfall_arg(3, dmgtoatk);
+               if rnd <= 0 then begin
+                  set_sfall_return(tar_flags bwor DAM_KNOCKED_DOWN);
+                  set_sfall_arg(4, tar_flags bwor DAM_KNOCKED_DOWN);
+               end
+               else begin
+                  set_sfall_return(tar_flags);
+                  set_sfall_arg(4, tar_flags);
+               end
+               set_sfall_return(atk_flags);
+               set_sfall_arg(5, atk_flags);
+               set_sfall_return(knockback_distance);
+               set_sfall_arg(10, knockback_distance);
             end
          end
-         else begin
-            target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-            if power_armor_fid(critter_art_fid(target)) then target_is_wearing_power_armor = 1;
-            if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or target_is_wearing_power_armor then begin
-               if knockback_distance > 1 then knockback_distance = random(1, knockback_distance / 2);
-               rnd = random(0, 4 + (6 * ShotgunForced));
-            end
-            else begin
-               knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-               rnd = random(0, 2 + (3 * ShotgunForced));
-            end
-         end
-         if knockback_distance < 1 then knockback_distance = 1;
-         if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
-            set_sfall_return(dmgtotar);
-            set_sfall_arg(2, dmgtotar);
-            set_sfall_return(dmgtoatk);
-            set_sfall_arg(3, dmgtoatk);
-            if rnd <= 0 then begin
-               set_sfall_return(tar_flags bwor DAM_KNOCKED_DOWN);
-               set_sfall_arg(4, tar_flags bwor DAM_KNOCKED_DOWN);
-            end
-            else begin
-               set_sfall_return(tar_flags);
-               set_sfall_arg(4, tar_flags);
-            end
-            set_sfall_return(atk_flags);
-            set_sfall_arg(5, atk_flags);
-            set_sfall_return(knockback_distance);
-            set_sfall_arg(10, knockback_distance);
-         end
-      end
-      //shotgun alt fire(knockback) end
+         //shotgun alt fire(knockback) end
 
-      // pistols double tap
-      if PistolSecondaryAttackMod andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
-         alt_fire_used = 1;
-         if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO then begin
-            pistol_double_tap_current_target = real_orig_target;
-            if pistol_double_tap_in_process_missed == 0 then begin
-               if pistol_double_tap_taps <= 0 then pistol_double_tap_taps = 0;
-               pistol_double_tap_taps += 1;
+         // pistols double tap
+         if PistolSecondaryAttackMod andAlso attacker == dude_obj andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
+            alt_fire_used = 1;
+            if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO then begin
+               pistol_double_tap_current_target = real_orig_target;
+               if pistol_double_tap_in_process_missed == 0 then begin
+                  if pistol_double_tap_taps <= 0 then pistol_double_tap_taps = 0;
+                  pistol_double_tap_taps += 1;
+               end
+               pistol_double_tap_in_process_missed = 0;
+               if target_bodypart == BODY_UNCALLED then pistol_double_tap_in_process = 1;
+               if pistol_double_tap_taps > pistol_double_tap_max_taps then begin
+                  pistol_double_tap_activated = 0;
+                  pistol_double_tap_target = -1;
+               end
             end
-            pistol_double_tap_in_process_missed = 0;
-            if target_bodypart == BODY_UNCALLED then pistol_double_tap_in_process = 1;
-            if pistol_double_tap_taps > pistol_double_tap_max_taps then begin
-               pistol_double_tap_activated = 0;
-               pistol_double_tap_target = -1;
-            end
-         end
-         if target_bodypart == BODY_HIT_TORSO then begin
-            pistol_double_tap_taps = 0;
-            pistol_double_tap_in_process = 0;
-            if target == real_orig_target then begin
-               set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
-            end
-            if is_critter(target) andAlso target == real_orig_target andAlso dmgtotar < get_critter_stat(target,STAT_current_hp) andAlso weapon_cur_ammo >= 2  then begin
-               pistol_double_tap_weapon_last_ammo = 0;
-               pistol_double_tap_attacker_tile = tile_num(dude_obj);
-               pistol_double_tap_weapon = weapon;
-               pistol_double_tap_activated = 1;
-               pistol_double_tap_target_selected = 1;
-               if pistol_double_tap_activated == 1 andAlso weapon_cur_ammo >= 2 then begin
-                  unwield_slot(dude_obj, (2 - active_hand));
-                  wield_obj_critter(dude_obj, weapon);
-                  pistol_double_tap_visual = 1;
-                  intface_redraw;
+            if target_bodypart == BODY_HIT_TORSO then begin
+               pistol_double_tap_taps = 0;
+               pistol_double_tap_in_process = 0;
+               if target == real_orig_target then begin
+                  set_critter_current_ap(attacker, get_critter_current_ap(attacker) + 1);
+               end
+               if is_critter(target) andAlso target == real_orig_target andAlso dmgtotar < get_critter_stat(target,STAT_current_hp) andAlso weapon_cur_ammo >= 2  then begin
+                  pistol_double_tap_weapon_last_ammo = 0;
+                  pistol_double_tap_attacker_tile = tile_num(dude_obj);
+                  pistol_double_tap_weapon = weapon;
+                  pistol_double_tap_activated = 1;
+                  pistol_double_tap_target_selected = 1;
+                  if pistol_double_tap_activated == 1 andAlso weapon_cur_ammo >= 2 then begin
+                     unwield_slot(dude_obj, (2 - active_hand));
+                     wield_obj_critter(dude_obj, weapon);
+                     pistol_double_tap_visual = 1;
+                     intface_redraw;
+                  end
                end
             end
          end
-      end
-      // pistols double tap end
+         // pistols double tap end
 
-      // laser alt dmg
-      if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 1 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (LaserForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
-            call restore_weapon_proj_pid;
-            call lvar_full_reset;
-            return;
-         end
-         one_time_call = 1;
-         // get new targets if missed;
-         //if missed_shot > 0 then begin
-            if LaserLineWidth then begin
-               targets_array = 0;
-               laser_curr_ammo = 999;
-               call get_targets_on_wide_line_laser(attacker, target);
+         // laser alt dmg
+         if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod > 1) andAlso weapon andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso target == orig_target andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or LaserForced > 0 or attacker != dude_obj) andAlso weapon_cur_ammo >= 1 andAlso weapon_range > 1 andAlso weapon_damage_type == DMG_laser then begin
+            if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (LaserForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+               call restore_weapon_proj_pid;
+               call lvar_full_reset;
+               return;
             end
-            else begin
-               targets_array = 0;
-               laser_curr_ammo = 999;
-               call get_targets_on_thin_line_laser(attacker, target);
-            end
-         //end
-         // dmg new targets
-         call laser_line_dmg(attacker, target);
-         if (new_dmg_to_orig_target <= 0 or (target == orig_target andAlso missed_shot)) andAlso ShootThru(target) then begin
-            if returned <= 0 then begin
-               set_sfall_return(0);
-               set_sfall_arg(2, 0);
-            end
-            set_sfall_return(0);
-            set_sfall_arg(3, 0);
-            set_sfall_return(0);
-            set_sfall_arg(4, 0);
-            if missed_shot then begin
-               set_sfall_return(0);
-               set_sfall_arg(5, 0);
-            end
-            else begin
-               set_sfall_return(DAM_HIT);
-               set_sfall_arg(5, DAM_HIT);
-            end
-            combat_dmg = 0;
-         end
-         else begin
-            if returned <= 0 then begin
-               set_sfall_return(new_dmg_to_orig_target);
-               set_sfall_arg(2, new_dmg_to_orig_target);
-               combat_dmg = new_dmg_to_orig_target;
-            end
-         end
-      end
-      // laser alt dmg end
-
-      //gauss alt dmg
-      if GaussSecondaryAttackMod > 0 andAlso (attacker == dude_obj or GaussSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or GaussForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_range > 1  andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora > 0 andAlso weapon_pid == pid_sonora_railgun)) then begin
-         if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (GaussForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
-            call restore_weapon_proj_pid;
-            call lvar_full_reset;
-            return;
-         end
-         one_time_call = 1;
-         // get new targets if missed;
-         if atk_rslt == MISS then begin
-            line_length = 50;
-            if GaussLineWidth then begin
-               call get_targets_on_wide_line_gauss(attacker, target);
-            end
-            else begin
-               call get_targets_on_thin_line_gauss(attacker, target,line_length);
-               while not(is_in_array(target,targets_array)) andAlso line_length > 40 do begin
-                  line_length -= 1;
-                  call get_targets_on_thin_line_gauss(attacker, target,line_length);
+            one_time_call = 1;
+            // get new targets if missed;
+            //if missed_shot > 0 then begin
+               if LaserLineWidth then begin
+                  targets_array = 0;
+                  laser_curr_ammo = 999;
+                  call get_targets_on_wide_line_laser(attacker, target);
                end
-            end
-         end
-
-            call gauss_line_dmg(attacker, target);
-            if (new_dmg_to_orig_target <= 0 or (missed_shot)) andAlso ShootThru(target) then begin
-               set_sfall_return(0);
-               set_sfall_arg(2, 0);
+               else begin
+                  targets_array = 0;
+                  laser_curr_ammo = 999;
+                  call get_targets_on_thin_line_laser(attacker, target);
+               end
+            //end
+            // dmg new targets
+            call laser_line_dmg(attacker, target);
+            if (new_dmg_to_orig_target <= 0 or (target == orig_target andAlso missed_shot)) andAlso ShootThru(target) then begin
+               if returned <= 0 then begin
+                  set_sfall_return(0);
+                  set_sfall_arg(2, 0);
+               end
                set_sfall_return(0);
                set_sfall_arg(3, 0);
                set_sfall_return(0);
@@ -4215,14 +4170,66 @@ procedure COMBATDAMAGE begin
                combat_dmg = 0;
             end
             else begin
-               set_sfall_return(new_dmg_to_orig_target);
-               set_sfall_arg(2, new_dmg_to_orig_target);
-               combat_dmg = new_dmg_to_orig_target;
+               if returned <= 0 then begin
+                  set_sfall_return(new_dmg_to_orig_target);
+                  set_sfall_arg(2, new_dmg_to_orig_target);
+                  combat_dmg = new_dmg_to_orig_target;
+               end
             end
+         end
+         // laser alt dmg end
+
+         //gauss alt dmg
+         if GaussSecondaryAttackMod > 0 andAlso (attacker == dude_obj or GaussSecondaryAttackMod > 1) andAlso (target_bodypart == BODY_HIT_TORSO or (attack_is_aimed andAlso target == orig_target andAlso obj_type(target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) or GaussForced > 0 or attacker != dude_obj) andAlso weapon andAlso weapon_range > 1  andAlso (weapon_ammo_pid == PID_2MM_EC_AMMO or (Sonora > 0 andAlso weapon_pid == pid_sonora_railgun)) then begin
+            if target == attacker orElse (atk_flags bwand DAM_BACKWASH) orElse (GaussForced <= 0 andALso attacker != dude_obj andAlso friendly_targets_count >= enemy_targets_count) then begin
+               call restore_weapon_proj_pid;
+               call lvar_full_reset;
+               return;
+            end
+            one_time_call = 1;
+            // get new targets if missed;
+            if atk_rslt == MISS then begin
+               line_length = 50;
+               if GaussLineWidth then begin
+                  call get_targets_on_wide_line_gauss(attacker, target);
+               end
+               else begin
+                  call get_targets_on_thin_line_gauss(attacker, target,line_length);
+                  while not(is_in_array(target,targets_array)) andAlso line_length > 40 do begin
+                     line_length -= 1;
+                     call get_targets_on_thin_line_gauss(attacker, target,line_length);
+                  end
+               end
+            end
+
+               call gauss_line_dmg(attacker, target);
+               if (new_dmg_to_orig_target <= 0 or (missed_shot)) andAlso ShootThru(target) then begin
+                  set_sfall_return(0);
+                  set_sfall_arg(2, 0);
+                  set_sfall_return(0);
+                  set_sfall_arg(3, 0);
+                  set_sfall_return(0);
+                  set_sfall_arg(4, 0);
+                  if missed_shot then begin
+                     set_sfall_return(0);
+                     set_sfall_arg(5, 0);
+                  end
+                  else begin
+                     set_sfall_return(DAM_HIT);
+                     set_sfall_arg(5, DAM_HIT);
+                  end
+                  combat_dmg = 0;
+               end
+               else begin
+                  set_sfall_return(new_dmg_to_orig_target);
+                  set_sfall_arg(2, new_dmg_to_orig_target);
+                  combat_dmg = new_dmg_to_orig_target;
+               end
+         end
+         //gauss alt dmg end
       end
-      //gauss alt dmg end
+      orig_target = target;
    end
-   orig_target = target;
 end
 
 
@@ -4262,9 +4269,9 @@ procedure TARGETOBJECT begin
    if is_attacking andAlso can_be_attacked then begin
       if lvar_cleared <= 0 then begin
          call restore_weapon_proj_pid();
-         call lvar_full_reset();
+         if pistol_double_tap_activated <= 0 then call lvar_full_reset();
       end
-      lvar_cleared = 0;
+      if pistol_double_tap_activated <= 0 then lvar_cleared = 0;
       orig_target = target;
       if is_critter(target) then real_orig_target = target;
    end

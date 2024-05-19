@@ -1,7 +1,8 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
 #define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define is_wall(obj)   obj_type(obj) == OBJ_TYPE_WALL
-#define is_sentient(obj) (get_proto_data(obj_pid(obj), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso get_critter_stat(obj,STAT_iq) > 3 )
+#define can_use_items(critter_type) (critter_type <= KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_big_boss)
+#define is_sentient(obj) (can_use_items(critter_kill_type(obj)) andAlso get_critter_stat(obj,STAT_iq) > 3 )
 #define crit_is_walking(critter_obj) (art_anim(obj_art_fid(critter_obj)) == ANIM_walk)
 #define crit_is_running(critter_obj) (art_anim(obj_art_fid(critter_obj)) == ANIM_running)
 #define crit_is_moving(critter_obj)   (crit_is_walking(critter_obj) or crit_is_running(critter_obj))
@@ -17,7 +18,8 @@
 #define YELLOW_ZONE_HEXES 3
 #define ORANGE_ZONE_HEXES 1
 #define pe_div 2.5
-#define combat_mult 1.15
+#define combat_mult 1.3
+#define combat_mult_rear 2.6
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -482,8 +484,8 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
                orig_dist = 1.2 * watcher_pe;
                perception_range = 1.2 * watcher_pe;
                if combat_started then begin
-                  perception_range = 2.4 * watcher_pe;
-                  orig_dist = 2.4 * watcher_pe;
+                  perception_range = combat_mult_rear * watcher_pe;
+                  orig_dist = combat_mult_rear * watcher_pe;
                end
             end
             // from back
@@ -491,8 +493,8 @@ procedure critter_ountline(variable watcher,variable target,variable target_tile
                orig_dist = 1.2 * watcher_pe;
                perception_range = 1.2 * watcher_pe;
                if combat_started then begin
-                  perception_range = 2.4 * watcher_pe;
-                  orig_dist = 2.4 * watcher_pe;
+                  perception_range = combat_mult_rear * watcher_pe;
+                  orig_dist = combat_mult_rear * watcher_pe;
                end
             end
             // perception penalty if target is blind
@@ -723,14 +725,14 @@ procedure perception_handler begin
                if watcher_rot == (watcher_rot_to_tar+2)%6 or watcher_rot == (watcher_rot_to_tar+4)%6 then begin
                   perception_range = 1.2 * watcher_pe;
                   if combat_started then begin
-                     perception_range = 2.4 * watcher_pe;
+                     perception_range = combat_mult_rear * watcher_pe;
                   end
                end
                // from back
                if watcher_rot == (watcher_rot_to_tar+3)%6 then begin
                   perception_range = 1.2 * watcher_pe;
                   if combat_started then begin
-                     perception_range = 2.4 * watcher_pe;
+                     perception_range = combat_mult_rear * watcher_pe;
                   end
                end
                // perception penalty if target is blind

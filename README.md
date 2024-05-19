@@ -139,6 +139,7 @@ This is a rework of the original poison mechanics, designed to make it more dang
 - If you (or NPC) accumulate more than 100 units of poison, instant death occurs.
 - Now the tails of radscorpions can be used to apply poison to the player’s or Сompanions' piercing and cutting weapons.
 - NPCs and Companions can apply poison to their weapons themselves if they have a radscorpion tail in their inventory.
+- NPCs and Companions, when poisoned, can use an antidote if it's available in their inventory. They can use it both in and out of combat, as well as during movement on the global map and while resting.
 - Added a new perk "Poison Mastery", available from level 6 and requiring science above 50 or naturalist skill above 70. This perk adds poison damage when using Needler's ammunition and also increases the effectiveness of all poisoned weapons.
 
 ### Healing 
@@ -287,7 +288,7 @@ When base intelligence increases (through perks and implants but not drugs), the
 
 ## Compatibility
 - All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
-- Сompatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
+- Fully compatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
 - All components except for the [Steal](#steal) mod are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
 ### Setting up compatibility with the EcCo Steal mod

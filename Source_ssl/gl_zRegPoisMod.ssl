@@ -1,3 +1,4 @@
+#define can_use_items(critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == KILL_TYPE_big_boss)
 #define SFALL_SC_EVALUATION  (true) // short - circuit evaluation
 #define critcrippled(crit)          (critter_state(crit) BWAND (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND))
 #define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
@@ -72,10 +73,17 @@
 #define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
 #define art_exists_death_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000 + 0x10000000))) // knockdown and death   20-35
 #define art_exists_basic_anim(critter_obj,ANIM_num)  (art_exists((obj_art_fid(critter_obj) bwand 0xFF00FFFF) bwor (ANIM_num * 0x10000)))
+#define combat_delete_critter(critter) call_offset_v1(0x426DDC, critter)
 #define game_ui_disable2 call_offset_v1(0x443BFC,1)
 #define reg_anim_set_priority call_offset_v1(0x413C20, 1)
 #define days_since_visited_in_ticks read_int(0x00631D8C)
 #define set_cursor_animated_watch call_offset_v1(0x44C840,26)
+#define pid_laser_projectile (0x05000009)
+#define critter_anim_fid(objFid, animType, rot)       ((rot * 0x10000000) bwor ((animType * 0x10000) bwand 0xFF0000) bwor (objFid bwand 0xF00FFFF))
+#define Sonora_doc_bag_pid 50
+#define new_max_hr 40
+#define min_hr_to_regen 5
+#define poison_overdose_damage(critter) (get_critter_stat(critter, STAT_max_hp) * 3)
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -101,8 +109,16 @@
    procedure stimrestore;
    procedure newperks;
    procedure cripheal;
-   procedure death;
+   procedure DEATHANIM2;
    procedure map_enter_p_proc_handler;
+   procedure DRUGSEFFECT;
+   procedure show_death_msg;
+   procedure critter_inflict_poison_dmg(variable target, variable dmg_value, variable animate);
+   procedure impact_delay(variable attacker,variable weapon,variable attack_type, variable target);
+   procedure validate_critter_anim(variable critter, variable animType);
+   procedure check_poison_healing_item(variable critter, variable critter_max_hp, variable critter_cur_hp, variable critter_poison);
+   //procedure check_poison_overdose(variable target);
+   //procedure AFTERHITROLL;
 
    variable new_regpois_msg;
    variable RegenMod;
@@ -110,6 +126,9 @@
    variable HealingRateMult;
    variable HealingRateDiv;
    variable PoisonMod;
+   variable Poison_overdose;
+   variable Poison_overdose_max_hp_value;
+   variable Poison_overdose_max_hp_div;
    variable ShowModMSG;
    variable ShowFloatMSG;
    variable PoisonMaxHPpercentMult;
@@ -174,10 +193,25 @@
    variable dude_turn;
    variable dude_turn_critter_dies;
    variable critter_poison_overdose;
+   //variable allow_anim;
+   variable scripts_disabled;
+   variable after_rest_disable;
+
+   variable WAHR;
+   variable TWAHR;
+   variable WAQHR;
+   variable CENHR;
+   variable MCENHR;
+
+   variable sfall_ver_maj;
+   variable array_add_poison;
+   variable NPCsUseMedTools;
+   variable doc_bag_pid = PID_DOCTORS_BAG;
 
    export variable tail_used;
 
    import variable combat_med_tool_used;
+
 
 procedure start begin
    if (game_loaded) then begin
@@ -185,6 +219,7 @@ procedure start begin
       PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
       if RegenMod > 0 or PoisonMod > 0 then begin
          UnsafeRegenModScripting = 1;
+         sfall_ver_maj = sfall_ver_major;
          new_regpois_msg = add_extra_msg_file("gl_RegPoisMod.msg");
          sfall_unsafescripting = get_ini_setting ("ddraw.ini|Debugging|AllowUnsafeScripting");
          if UnsafeRegenModScripting > 0 then begin
@@ -195,7 +230,7 @@ procedure start begin
                exit;
             end
             else begin
-               set_stat_max(STAT_heal_rate, 40);
+               set_stat_max(STAT_heal_rate, new_max_hr);
             end
          end
          combat_diff = (combat_difficulty + 1);
@@ -203,15 +238,15 @@ procedure start begin
          register_hook_proc_spec(HOOK_ADJUSTPOISON, ADJUSTPOISON);
          register_hook_proc(HOOK_RESTTIMER, rest);
          register_hook_proc(HOOK_USESKILL, USESKIL);
-         register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc(HOOK_USEOBJ, USEOBJ);
          register_hook_proc(HOOK_USEOBJON, USEOBJON);
          register_hook_proc(HOOK_GAMEMODECHANGE, worldMapTravel);
-         //register_hook_proc_spec(HOOK_DEATHANIM2, death);
+         register_hook_proc_spec(HOOK_DEATHANIM2, DEATHANIM2);
          register_hook_proc(HOOK_STDPROCEDURE, map_enter_p_proc_handler);
          set_global_script_type(3);
          set_global_script_repeat(100);
-         if get_proto_data(PID_SMALL_TAIL, PROTO_IT_INV_FID) == 117440914 then PID_SMALL_SCORPION_TAIL = PID_SMALL_TAIL;
+         if get_proto_data(PID_SMALL_TAIL, PROTO_IT_INV_FID) == 0x7000192 then PID_SMALL_SCORPION_TAIL = PID_SMALL_TAIL;
          Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
          Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          Resurrection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Resurrection");
@@ -221,11 +256,19 @@ procedure start begin
          if sfall_mods_config <= 0 then sfall_mods_config = "";
          combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
          if RegenMod > 0 then begin
-            RegenMaxHPpercentMult = atof(get_ini_string ("mods\\F2MechanicsMiniRework.ini|Regeneration|RegenMaxHPpercentMult"));
+             WAHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR");
+             TWAHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR");
+             WAQHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAQHR");
+             CENHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|CENHR");
+             MCENHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|MCENHR");
+            if sfall_ver_maj >= 5 then begin
+               register_hook_proc(49, DRUGSEFFECT); // HOOK_DRUGSEFFECT
+            end
+            RegenMaxHPpercentMult = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Regeneration|RegenMaxHPpercentMult"));
             if RegenMaxHPpercentMult <= 0 then RegenMaxHPpercentMult = 1.0;
-            HealingRateMult = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult");
+            HealingRateMult = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateMult"));
             if HealingRateMult <= 0 then HealingRateMult = 7;
-            HealingRateDiv = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateDiv");
+            HealingRateDiv = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Regeneration|HealingRateDiv"));
             if HealingRateDiv <= 0 then HealingRateDiv = 10;
             StimUninjure = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|StimUninjure");
             //UnsafeRegenModScripting = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Regeneration|UnsafeRegenModScripting");
@@ -234,17 +277,48 @@ procedure start begin
          ShowModMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowMSG");
          ShowFloatMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowFloatMSG");
          if PoisonMod > 0 then begin
+            if get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod") > 0 then begin
+               NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
+               if Sonora > 0 then begin
+                  doc_bag_pid = Sonora_doc_bag_pid;
+               end
+            end
+            array_add_poison = create_array_map;
+            //disabling the dependence of the poison timer on poison amount
+            if read_byte(0x42D2AB) != 0x31 orElse read_byte(0x42D2AC) != 0xC0 then begin
+               //change the amount of current poison in calculations to 0
+               write_byte(0x42D2AB, 0x31); // add eax, change to xor eax,
+               write_byte(0x42D2AC, 0xC0);// ,edx change to ,eax
+               if sfall_ver_maj < 5 then begin
+                  //disable original poison dmg message
+                  write_byte(0x42D33A, 0xB9); //MISC.MSG ¹3001 change to MISC.MSG ¹47545
+               end
+               //disable original poison dmg proccedure
+               //write_byte(0x42D318, 0xC3);
+            end
+            Poison_overdose = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonOverdose");
+            //if Poison_overdose < 0 then Poison_overdose = 0x10000000;
+
+            Poison_overdose_max_hp_value = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonOverdoseMaxHPMult"));
+            //if Poison_overdose_max_hp_value < 0 then Poison_overdose_max_hp_value = 0;
+
+            Poison_overdose_max_hp_div = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonOverdoseMaxHPDiv"));
+            if Poison_overdose_max_hp_div == 0 then begin
+               Poison_overdose_max_hp_value = 0;
+               Poison_overdose_max_hp_div = 1;
+            end
+
             PoisonMaxHPpercentMult2 = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonMaxHPpercentMult"));
             if (PoisonMaxHPpercentMult2 <= 0) then PoisonMaxHPpercentMult2 = 1.5;
             if combat_diff <= 2 then PoisonMaxHPpercentMult = (0.5 * PoisonMaxHPpercentMult2) * combat_diff;
             if combat_diff > 2 then PoisonMaxHPpercentMult = (1.25 * PoisonMaxHPpercentMult2);
             EnemyPoisonMult = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|EnemyPoisonMult"));
             if EnemyPoisonMult <= 0 then EnemyPoisonMult = 1.5;
-            PoisonLevelMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult");
+            PoisonLevelMult = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelMult"));
             if PoisonLevelMult <= 0 then PoisonLevelMult = 1;
-            PoisonLevelDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv");
+            PoisonLevelDiv = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonLevelDiv"));
             if PoisonLevelDiv <= 0 then PoisonLevelDiv = 2;
-            PoisonDecayDiv = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv");
+            PoisonDecayDiv = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|Poison|PoisonDecayDiv"));
             if PoisonDecayDiv <= 0 then PoisonDecayDiv = 10;
          end
          NPCsUsePoisonTails = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Poison|NPCsUsePoisonTails");
@@ -279,8 +353,10 @@ procedure start begin
    else begin
       if (dude_must_die > 0 or dude_turn_critter_dies > 0) andAlso not(game_ui_is_disabled) then begin
          game_ui_disable2;
-         if dude_turn_critter_dies > 0 then
+         if dude_turn_critter_dies > 0 then begin
             set_cursor_animated_watch;
+            call show_death_msg in 2;
+         end
       end
       //(repeat ~50 game ticks with no FPS dependency)
       if not(combat_is_initialized) andAlso scr_repeat <= game_time then begin
@@ -290,6 +366,343 @@ procedure start begin
       end
    end
 end
+
+procedure scr_enable begin
+   if scripts_disabled > 0 then begin
+      call_offset_v0(0x4A53E0); // critters
+      call_offset_v0(0x4A53A8);
+      scripts_disabled = 0;
+   end
+end
+
+procedure scr_disable begin
+   //if scripts_disabled <= 0 then begin
+      call_offset_v0(0x4A53D0);
+      call_offset_v0(0x4A53F0);//critt
+      scripts_disabled = 1;
+   //end
+end
+
+procedure calc_regen_tick(variable critter, variable new_heal_rate) begin
+   variable critter_max_hp = get_critter_stat(critter,STAT_max_hp);
+   variable critter_cur_hp = get_critter_stat(critter,STAT_current_hp);
+   variable critter_healing_rate = new_heal_rate;
+   variable local_RegenTickHP;
+   if critter_healing_rate > new_max_hr then begin
+      critter_healing_rate = new_max_hr;
+   end
+   else if critter_healing_rate <= 0 then begin
+      critter_healing_rate = get_critter_stat(critter,STAT_heal_rate);
+   end
+   if critter_healing_rate <= min_hr_to_regen then
+      return 0;
+
+   local_RegenTickHP = round(critter_max_hp / 100.00000 * RegenMaxHPpercentMult * (critter_healing_rate * HealingRateMult / HealingRateDiv));
+   if (local_RegenTickHP < 1) then begin
+      local_RegenTickHP = 1;
+   end
+   if critter_cur_hp + local_RegenTickHP > critter_max_hp then begin
+      local_RegenTickHP = critter_max_hp - critter_cur_hp;
+   end
+   return local_RegenTickHP;
+end
+
+procedure critter_regen_heal(variable critter,variable show_heal_msg, variable new_healing_rate) begin
+   variable critter_healing_rate;
+   variable local_RegenTickHP;
+   variable tar_name;
+   variable losblock;
+   if new_healing_rate > 0 then begin
+      critter_healing_rate = new_healing_rate;
+   end
+   else begin
+      critter_healing_rate = get_critter_stat(critter,STAT_heal_rate);
+   end
+   if critter_healing_rate >= 5 orElse new_healing_rate > 0 then begin
+      local_RegenTickHP = calc_regen_tick(critter, critter_healing_rate);
+      tar_name = obj_name(critter);
+      critter_heal(critter, local_RegenTickHP);
+      if critter == real_dude_obj then begin
+         if has_fake_perk(regen_perk_name) > 0 andAlso critcrippled(real_dude_obj) then begin
+            call cripheal();
+         end
+      end
+      if show_heal_msg > 0 then begin
+         if ShowModMSG > 0 andAlso local_RegenTickHP > 0 andAlso critter == real_dude_obj then begin
+            if local_RegenTickHP == 1 then begin
+               display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name,local_RegenTickHP));
+            end
+            else begin
+               display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name,local_RegenTickHP));
+            end
+         end
+         losblock = obj_blocking_line(real_dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
+         if ShowModMSG > 0 andAlso local_RegenTickHP > 0 andAlso critter != real_dude_obj andAlso not(is_dead(critter)) andAlso (not(losblock) or HR_fog_of_war == 0) then begin
+            if local_RegenTickHP == 1 then begin
+               display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name,local_RegenTickHP));
+            end
+            else begin
+               display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name,local_RegenTickHP));
+            end
+         end
+      end
+   end
+end
+
+procedure calc_poison_overdose(variable critter) begin
+   variable poison_overdose_value;
+   variable critter_max_hp = get_critter_stat(critter, STAT_max_hp);
+   //variable critter_team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+   poison_overdose_value = (Poison_overdose + round(Poison_overdose_max_hp_value * critter_max_hp / (Poison_overdose_max_hp_div * 1.0)));
+   if poison_overdose_value <= 0 then poison_overdose_value = 100;
+   return poison_overdose_value;
+end
+
+procedure calc_poison_dmg(variable critter) begin
+   variable critter_max_hp = get_critter_stat(critter,STAT_max_hp);
+   variable party = party_member_list(0);
+   variable critter_in_party = is_in_array(critter, party);
+   variable critter_cur_poison = get_poison(critter);
+   variable local_PoisonTickDmg;
+   if critter_cur_poison >= calc_poison_overdose(critter) then begin
+      local_PoisonTickDmg = poison_overdose_damage(critter);
+   end
+   else begin
+      if combat_diff <= 2 then PoisonMaxHPpercentMult = (0.5 * PoisonMaxHPpercentMult2) * combat_diff;
+      if combat_diff > 2 then PoisonMaxHPpercentMult = (1.25 * PoisonMaxHPpercentMult2);
+      if not(critter_in_party) andAlso critter != real_dude_obj andAlso (PoisonMaxHPpercentMult < PoisonMaxHPpercentMult2 * EnemyPoisonMult) then PoisonMaxHPpercentMult = PoisonMaxHPpercentMult2 * EnemyPoisonMult;
+      local_PoisonTickDmg = round(critter_max_hp / 100.0 * PoisonMaxHPpercentMult * (critter_cur_poison * PoisonLevelMult / PoisonLevelDiv));
+      if local_PoisonTickDmg < min_poison_dmg then begin
+         local_PoisonTickDmg = min_poison_dmg;
+      end
+   end
+
+   return local_PoisonTickDmg;
+end
+
+
+procedure critter_use_item(variable critter,variable item,variable animate) begin
+   variable item_count;
+   //variable
+   if critter <= 0 orElse item <= 0 orElse obj_type(item) != OBJ_TYPE_ITEM then begin
+      return;
+   end
+   item_count = obj_is_carrying_obj(critter, item);
+   display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(critter), obj_name(item)));
+   //stim = obj_carrying_pid_obj(critter, PID_STIMPAK);
+   //if has_super_stim > 0 andAlso (has_stim <= 0 or (critcurpoison > 20)) then stim = obj_carrying_pid_obj(critter, PID_SUPER_STIMPAK);
+   if animate > 0 then begin
+      if combat_is_initialized then begin
+         anim(critter, ANIM_magic_hands_middle, 1);
+      end
+      else begin
+         reg_anim_clear(critter);
+         reg_anim_begin();
+         reg_anim_animate(critter, ANIM_magic_hands_middle, -1);
+         reg_anim_animate(critter, ANIM_stand, -1);
+         reg_anim_end();
+      end
+   end
+   set_self(critter);
+   set_self(critter);
+   use_obj_on_obj(item, critter);
+   set_self(0);
+end
+
+procedure decrease_poison(variable critter) begin
+   poison(critter, - (min_poison_decay + round(get_poison(Critter) * 0.10  * 10 / PoisonDecayDiv)));
+end
+
+procedure DRUGSEFFECT begin
+   variable critter = get_sfall_arg;
+   variable drug_pid = get_sfall_arg;
+   variable time = get_sfall_arg;
+   variable drug_resistant;
+   if drug_pid == PID_STIMPAK then begin
+      if time == (stim_duration * ONE_GAME_MINUTE) orElse time == (stim_duration * 300) then begin
+         set_sfall_return(150);
+         set_sfall_arg(2, 150);
+      end
+      else if time == (stim_penalty_duration * ONE_GAME_MINUTE) orElse time == (stim_penalty_duration * 300) then begin
+         set_sfall_return(600);
+         set_sfall_arg(2, 600);
+      end
+      else if time == (stim_penalty_duration_fast_meta * ONE_GAME_MINUTE) orElse time == (stim_penalty_duration_fast_meta * 300) then begin
+         set_sfall_return(450);
+         set_sfall_arg(2, 450);
+      end
+   end
+   else if drug_pid == PID_HEALING_POWDER then begin
+      if critter == dude_obj then begin
+         drug_resistant = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_drug_resistant);
+         if drug_resistant > 0 then time *= 2;
+      end
+      if (time == (ONE_GAME_MINUTE) orElse time == (300))then begin
+         set_sfall_return(100);
+         set_sfall_arg(2, 100);
+      end
+      else if time == (2 * ONE_GAME_MINUTE) orElse time == (ONE_GAME_MINUTE) then begin
+         set_sfall_return(250);
+         set_sfall_arg(2, 250);
+      end
+   end
+end
+
+
+procedure delayed_add_poison begin
+   variable critter;
+   variable poison_amount;
+   variable effective_poison;
+   foreach critter:poison_amount in array_add_poison begin
+      if critter <= 0 orElse poison_amount <= 0 orElse is_critter_dead(critter) then begin
+         continue;
+      end
+
+      effective_poison = (poison_amount - ((poison_amount * get_critter_stat(critter, STAT_poison_resist)) / 100));
+      if get_poison(critter) + effective_poison >= calc_poison_overdose(critter) then begin
+         float_msg(critter, "-" + poison_overdose_damage(critter), FLOAT_MSG_LIGHT_RED);
+         display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), obj_name(critter), 0));
+      end
+      else begin
+         poison(critter, poison_amount);
+      end
+   end
+   clear_array(array_add_poison);
+end
+
+procedure delayed_apply_burn begin
+   variable critter;
+   variable poison_amount;
+   variable effective_poison;
+   foreach critter:poison_amount in array_add_poison begin
+      if critter <= 0 orElse poison_amount <= 0 orElse is_critter_dead(critter) then begin
+         continue;
+      end
+
+      effective_poison = (poison_amount - ((poison_amount * get_critter_stat(critter, STAT_poison_resist)) / 100));
+      if get_poison(critter) + effective_poison >= calc_poison_overdose(critter) then begin
+         float_msg(critter, "-" + poison_overdose_damage(critter), FLOAT_MSG_LIGHT_RED);
+         display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), obj_name(critter), 0));
+         //if critter == dude_obj then begin
+            //display_msg(parse_str_2(modmsg(msg_player_poison_dmg), obj_name(critter),get_critter_stat(critter, STAT_max_hp)));
+         //end
+         //else begin
+            //display_msg(parse_str_2(modmsg(msg_npc_poison_dmg), obj_name(critter), get_critter_stat(critter, STAT_max_hp)));
+         //end
+
+      end
+      else begin
+         poison(critter, poison_amount);
+      end
+   end
+   //clear_array(array_add_poison);
+end
+
+procedure get_attack_anim(variable weapon,variable attack_type) begin
+   variable attack_anim;
+   variable attack_anim_arr;
+   variable index;
+   if attack_type >= ATKTYPE_LWEP_RELOAD andAlso attack_type <= ATKTYPE_RWEP_RELOAD then begin
+      return -1;
+   end
+   //kick
+   if attack_type == ATKTYPE_KICK orElse (attack_type >= ATKTYPE_STRONGKICK andAlso attack_type <= ATKTYPE_PIERCINGKICK) then begin
+      return ANIM_kick_leg;
+   end
+   //punch
+   if weapon <= 0 then begin
+      return ANIM_throw_punch;
+   end
+   attack_anim_arr = [ANIM_stand, ANIM_throw_punch, ANIM_kick_leg, ANIM_swing_anim, ANIM_thrust_anim, ANIM_throw_anim, ANIM_fire_single, ANIM_fire_burst, ANIM_fire_continuous];
+   if attack_type == ATKTYPE_LWEP1 OrElse attack_type == ATKTYPE_RWEP1 then begin
+      index = get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x0000000F;
+   end
+   else begin
+      index = (get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x000000F0) / 16;
+   end
+   attack_anim = attack_anim_arr[index];
+   return attack_anim;
+end
+
+procedure is_hit_from_front(variable attacker_tile,variable target) begin
+   variable tar_rot = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
+   variable rot_to_atk = rotation_to_tile(tile_num(target), attacker_tile);
+   if tar_rot == rot_to_atk or (tar_rot + 1)%6 == rot_to_atk or (tar_rot + 5)%6 == rot_to_atk then begin
+      return true;
+   end
+   else begin
+      return false;
+   end
+end
+
+//by Phobos2077 https://github.com/phobos2077/fo2_ecco/blob/f5df1e4edfe03c2df30fcf26f38ce8e2bdae4a4c/scripts_src/_pbs_main/gl_pbs_damage_mod.ssl#L515
+procedure validate_critter_anim(variable critter, variable animType) begin
+   variable objFid := obj_art_fid(critter);
+   //variable rot := objFid bwand 0x70000000;
+   // This is based on vanilla logic from art_id_()
+   if (animType != ANIM_fire_dance and animType >= ANIM_fall_back and animType <= ANIM_fall_front_blood) then begin
+      if (art_exists(critter_anim_fid(objFid, animType, 1))) then
+         return true;
+   end
+   return art_exists(critter_anim_fid(objFid, animType, 0));
+end
+
+procedure impact_delay(variable attacker,variable weapon,variable attack_type, variable target) begin
+   variable attacker_tile = tile_num(attacker);
+   variable attacker_elevation = elevation(attacker);
+   variable target_tile = tile_num(target);
+   variable rot_atk_to_tar = rotation_to_tile(attacker_tile, target_tile);
+   variable start_tile = tile_num_in_direction(attacker_tile, rot_atk_to_tar, 1);
+   variable impostor;
+   variable impostor_projectile;
+   variable impostor_projectile_pid;
+   variable timer;
+   variable attack_anim = get_attack_anim(weapon, attack_type);
+
+   if weapon > 0 then begin
+      impostor_projectile_pid = get_proto_data(obj_pid(weapon), PROTO_WP_PROJ_PID);
+   end
+   //impostor = create_object_sid(pid_laser_projectile, tile_num_in_direction(attacker_tile, 3, 10), attacker_elevation, -1);
+   impostor = create_object_sid(pid_laser_projectile, 0, attacker_elevation, -1);
+   anim(impostor, ANIMATE_ROTATION, rot_atk_to_tar);
+   set_obj_visibility(impostor, 1);
+   set_object_data(impostor, OBJ_DATA_FID, obj_art_fid(attacker));
+   if impostor_projectile_pid > 0 andAlso not(attack_anim < ANIM_fire_single andAlso attack_anim != ANIM_throw_anim) then begin
+      impostor_projectile = create_object_sid(impostor_projectile_pid, 0, attacker_elevation, -1);
+      anim(impostor_projectile, ANIMATE_ROTATION, rot_atk_to_tar);
+      set_obj_visibility(impostor_projectile, 1);
+      move_to(impostor_projectile, start_tile, attacker_elevation);
+      timer = create_object_sid(impostor_projectile_pid, 0, attacker_elevation, -1);
+      set_obj_visibility(timer, 1);
+   end
+   reg_anim_combat_check(0);
+   reg_anim_clear(impostor);
+   reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+   if attack_anim < ANIM_fire_single andAlso attack_anim != ANIM_throw_anim then begin
+      reg_anim_animate(impostor, attack_anim, -1);
+   end
+   else if attack_anim == ANIM_throw_anim then begin
+      reg_anim_animate(impostor, attack_anim, -1);
+      reg_anim_animate(timer, ANIM_stand, 8);
+      reg_anim_animate_and_move(impostor_projectile, target_tile, ANIMATE_RUN, 0);
+   end
+   else begin
+      reg_anim_animate(impostor, ANIM_point, -1);
+      reg_anim_animate(impostor, attack_anim, -1);
+      if impostor_projectile_pid > 0 then begin
+         reg_anim_animate(timer, ANIM_stand, 0);
+         reg_anim_animate_and_move(impostor_projectile, target_tile, ANIMATE_RUN, 0);
+      end
+      reg_anim_animate(impostor, ANIM_unpoint, -1);
+   end
+   reg_anim_destroy(impostor);
+   reg_anim_callback(delayed_add_poison);
+   if impostor_projectile > 0 then reg_anim_destroy(impostor_projectile);
+   if timer > 0 then reg_anim_destroy(timer);
+   reg_anim_end();
+end
+
+
 
 procedure callback_ui_disable begin
    game_ui_disable2;
@@ -316,6 +729,11 @@ procedure show_poison_dmg_combat_msg(variable target,variable dmg_value) begin
       end
       //dead
       else begin
+         if get_poison(target) >= calc_poison_overdose(target) then begin
+            dmg_value = poison_overdose_damage(target);
+            float_msg(target, "-" + dmg_value, FLOAT_MSG_LIGHT_RED);
+            display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), target_name, 0));
+         end
          display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), target_name, dmg_value));
       end
    end
@@ -331,9 +749,15 @@ procedure show_poison_dmg_combat_msg(variable target,variable dmg_value) begin
 end
 
 procedure kill_dude begin
-   dude_must_die = 0;
-   game_ui_enable;
-   critter_heal(dude_obj, -(get_critter_stat(dude_obj, STAT_current_hp)));
+   variable target_frm = art_anim(obj_art_fid(dude_obj));
+   if (target_frm >= ANIM_bad_landing_sf andAlso target_frm <= ANIM_fall_front_blood_sf) then begin
+      dude_must_die = 0;
+      game_ui_enable;
+      critter_heal(dude_obj, -(get_critter_stat(dude_obj, STAT_current_hp)));
+   end
+   else begin
+      call critter_inflict_poison_dmg(dude_obj, (get_critter_stat(dude_obj, STAT_max_hp) * 3),1);
+   end
 end
 
 procedure show_death_msg begin
@@ -347,7 +771,7 @@ procedure show_death_msg begin
          set_array(death_array, target, 0);
          target_sid = get_object_data(target, OBJ_DATA_SID);
          call show_poison_dmg_combat_msg(target, dmg_value);
-         poison(target, -999);
+         poison(target, -(get_poison(target) * 2));
          if target_sid > 0 then begin
             //set_obj_script_fixed_value(target_sid, dmg_value);
             //exec_obj_script_proc(target_sid, damage_proc);
@@ -392,6 +816,10 @@ procedure show_death_msg begin
       mode_change_death = 0;
       new_death = 0;
       free_array(death_array);
+   end
+   if game_ui_is_disabled andAlso dude_turn > 0 then begin
+      //call_offset_v0(0x425E3C);
+      call show_death_msg in 1;
    end
 end
 
@@ -472,20 +900,13 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
    end
    //cause lethal POISON damage
    else begin
+      call scr_disable();
       if target == dude_obj then begin
          if dude_must_die <= 0 then begin
-            //anim(dead_attacker, ANIMETE_FR, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
-            //set_obj_visibility(target, 1);
             set_global_script_type(3);
             set_global_script_repeat(1);
             scr_repeat *= 2;
             dude_must_die = 1;
-            scr_repeat = 0;
-            //dead_attacker = create_object_sid(obj_pid(target), tile_num(target), elevation(target), -1);
-            //anim(dead_attacker, ANIMATE_ROTATION, has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT));
-            //set_object_data(dead_attacker, OBJ_DATA_FID, obj_art_fid(target));
-            //critter_heal(dead_attacker, -(get_critter_stat(dead_attacker, STAT_current_hp)-1));
-            //call critter_inflict_poison_dmg(dead_attacker,dmg_value,1);
          end
       end
       //else begin
@@ -494,6 +915,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
          //poison(target, -999);
          //party_remove(target);
          //if animate > 0 then begin
+         //combat_delete_critter(target);
          if 1 then begin
             if get_game_mode bwand WORLDMAP then begin
                map_exit = 1;
@@ -543,6 +965,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
                end
                reg_anim_animate(target, death_anim_sf, -1);
                reg_anim_callback(show_death_msg);
+               reg_anim_callback(scr_enable);
                //if dude_must_die > 0 then begin
                   //reg_anim_callback(kill_dude);
                //end
@@ -632,7 +1055,6 @@ procedure map_enter_p_proc_handler begin
             //set_proto_data(crit_pid, CRITTER_PROTO_DT, 0);
             //set_proto_data(crit_pid, CRITTER_PROTO_DR, 0);
             //critter_dmg(critter, PoisonTickDmg, DMG_plasma);
-            //display_msg(game_time+"ERE!="+days_since_visited_in_ticks);
             if days_since_visited_in_ticks < game_time - game_ticks(90) then begin
                critter_sid = get_object_data(critter, OBJ_DATA_SID);
                party_remove(critter);
@@ -673,10 +1095,25 @@ procedure map_enter_p_proc_handler begin
    end
 end
 
-//procedure death begin
+procedure DEATHANIM2 begin
    //variable wpnpid = get_sfall_arg;
    //variable attacker = get_sfall_arg;
-   //variable target = get_sfall_arg;
+   variable target = get_sfall_arg_at(2);
+   variable poison_to_add = get_array(array_add_poison, target);
+   if target > 0 andAlso poison_to_add > 0 then begin
+      if (get_poison(target) + (poison_to_add - ((poison_to_add * get_critter_stat(target,STAT_poison_resist)) / 100)) >= calc_poison_overdose(target)) then begin
+         if (get_proto_data(obj_pid(target), PROTO_CR_FLAGS) bwand CFLG_SPECIAL) != 0 then
+            return;
+         if validate_critter_anim(target,ANIM_fall_back) > 0 then begin
+            set_sfall_return(ANIM_fall_back);
+            set_sfall_arg(4, ANIM_fall_back);
+         end
+         else begin
+            set_sfall_return(ANIM_fall_front);
+            set_sfall_arg(4, ANIM_fall_front);
+         end
+      end
+   end
    //variable dmgtotar = get_sfall_arg;
    //variable deathanim = get_sfall_arg;
    //variable tardt = 0;
@@ -697,7 +1134,7 @@ end
          //set_sfall_arg(4, ANIM_exploded_to_nothing);
          //set_sfall_return(ANIM_exploded_to_nothing);
       //end
-      // OUTLINE for fix death animation if fog of war is enabled
+       //OUTLINE for fix death animation if fog of war is enabled
       //if HR_fog_of_war then set_outline(target, OUTLINE_NEW_RED);
       //poison(target, - 999);
       //tardt = get_proto_data(crit_pid, CRITTER_PROTO_DT);
@@ -710,7 +1147,7 @@ end
       //end
       //poisondeath = 0;
    //end
-//end
+end
 
 procedure newperks begin
   variable Tox = has_fake_perk(perk_poison_mastery_name);
@@ -788,6 +1225,8 @@ procedure COMBATDAMAGE begin
    variable flagfortar = get_sfall_arg;
    variable flagforatkr = get_sfall_arg;
    variable weapon = get_sfall_arg;
+   variable atk_type = get_sfall_arg_at(11);
+   //variable C_ATTACK = get_sfall_arg_at(12);
    variable leftHand;
    variable rightHand;
    variable pyromaniac;
@@ -813,213 +1252,287 @@ procedure COMBATDAMAGE begin
    variable atk_kill_type;
    variable party = party_member_list(0);
    variable attacker_in_party = is_in_array(attacker, party);
-   if PID_SMALL_SCORPION_TAIL > 0 then has_small_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SMALL_SCORPION_TAIL);
-   tar_kill_type = critter_kill_type(target);
-   if critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND) then begin
-      leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
-      lhname = proto_data(leftHand, 1);
+   variable poison_to_add;
+   variable poison_to_add_attacker;
+   variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable actual_attack;
+   if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
+      actual_attack = 1;
    end
-   if critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND) then begin
-      rightHand = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND));
-      rhname = proto_data(rightHand, 1);
-   end
-   if attacker_in_party or attacker == real_dude_obj then begin
-      if attacker == real_dude_obj then pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
-      Tox = has_fake_perk_npc(attacker, perk_poison_mastery_name);
-      lhpoison = has_fake_perk_npc(attacker, (envenomed_msg + lhname));
-      rhpoison = has_fake_perk_npc(attacker, (envenomed_msg + rhname));
-   end
-   if player_level > 30 then player_level = 30;
-   if weapon > 0 then begin
-      wpnpid = obj_pid(weapon);
-      wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
-      wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
-      caliber = get_proto_data(wpnpid, PROTO_WP_CALIBER);
-   end
-   if dmgtotar > 0 then begin
-      atk_kill_type = critter_kill_type(attacker);
-      // all centaurs and floaters
-      if (ET_TU or Resurrection or Nevada or Sonora or target != real_dude_obj) andAlso (atk_kill_type == KILL_TYPE_floater_kills or atk_kill_type == KILL_TYPE_centaur_kills) andAlso random(0,2) then begin
-         if target != real_dude_obj then begin
-            poison(target, random(1,7));
+   if actual_attack > 0 then begin
+      if attacker_in_party or attacker == real_dude_obj then begin
+         if critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND) then begin
+            leftHand  = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND));
+            lhname = proto_data(leftHand, 1);
          end
-         else begin
-            poison(target, random(3,6) + player_level / 9);
+         if critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND) then begin
+            rightHand = obj_pid(critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND));
+            rhname = proto_data(rightHand, 1);
+         end
+         if attacker == real_dude_obj then pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
+         Tox = has_fake_perk_npc(attacker, perk_poison_mastery_name);
+         lhpoison = has_fake_perk_npc(attacker, (envenomed_msg + lhname));
+         rhpoison = has_fake_perk_npc(attacker, (envenomed_msg + rhname));
+      end
+      if player_level > 30 then player_level = 30;
+      if weapon > 0 then begin
+         wpnpid = obj_pid(weapon);
+         wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+         wpndmgtype = metarule(METARULE_W_DAMAGE_TYPE, weapon);
+         caliber = get_proto_data(wpnpid, PROTO_WP_CALIBER);
+      end
+      if dmgtotar > 0 then begin
+         tar_kill_type = critter_kill_type(target);
+         atk_kill_type = critter_kill_type(attacker);
+         // all centaurs and floaters
+         if (ET_TU or Resurrection or Nevada or Sonora or target != real_dude_obj) andAlso (atk_kill_type == KILL_TYPE_floater_kills or atk_kill_type == KILL_TYPE_centaur_kills or atk_kill_type == KILL_TYPE_radscorpion_kills) andAlso random(0,2) then begin
+            if target != real_dude_obj then begin
+               poison_to_add += get_array(array_add_poison, target) + random(1, 7);
+               //poison_attacker = attacker;
+               //poison(target, random(1,7));
+            end
+            else begin
+               if atk_kill_type != KILL_TYPE_radscorpion_kills then
+                  poison_to_add +=  get_array(array_add_poison, target) + random(3,6) + player_level / 9;
+               //poison_attacker = attacker;
+               //poison(target, random(3,6) + player_level / 9);
+            end
+         end
+         // poison atk for plant npc-attacker
+         if tar_kill_type != KILL_TYPE_robot_kills andAlso atk_kill_type == KILL_TYPE_plant_kills andAlso random(0,1) then begin
+            poison_to_add += (get_array(array_add_poison, target) + random(1,3));
+            //poison_attacker = attacker;
+            //poison(target, random(1,3));
          end
       end
-      // poison atk for plant npc-attacker
-      if tar_kill_type != KILL_TYPE_robot_kills andAlso atk_kill_type == KILL_TYPE_plant_kills andAlso random(0,1) then poison(target, random(1,3));
-   end
-   if dmgtotar > 0 andAlso weapon > 0 andAlso tar_kill_type != KILL_TYPE_robot_kills  then begin
-      // needler poison dmg
-      if Tox > 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
-         poison(target, 14);
-      end
-      // poison atk for npc-attacker
-      if attacker != dude_obj then begin
-         // all non-companion npc attackers with Needler pistol
-         if caliber == CALIBER_HN_NEEDLER andAlso (not(attacker_in_party) or has_skill(attacker,SKILL_SCIENCE) > 72) then begin
-            poison(target, 2 + player_level / 3);
+      if (dmgtotar > 0 orElse dmgtoatkr > 0 ) andAlso weapon > 0 andAlso tar_kill_type != KILL_TYPE_robot_kills then begin
+         // needler poison dmg
+         if dmgtotar > 0 andAlso Tox > 0 andAlso caliber == CALIBER_HN_NEEDLER then begin
+            poison_to_add += get_array(array_add_poison, target) + (random(9,16) * Tox);
+            //poison_attacker = attacker;
+            //poison(target, 14);
          end
-         // all non-companion npc attackers who carry radscorp tails
-         has_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SCORPION_TAIL);
-         if (has_scorp_tail > 0 or has_small_scorp_tail > 0) andAlso not(attacker_in_party) andAlso (wpnanim == 1 or wpnanim == 4) andAlso wpndmgtype == DMG_normal_dam then begin
-            poison(target, random(1,5) + player_level / 3);
+         // poison atk for npc-attacker
+         if attacker != dude_obj then begin
+            // all non-companion npc attackers with Needler pistol
+            if caliber == CALIBER_HN_NEEDLER andAlso (not(attacker_in_party) or has_skill(attacker,SKILL_SCIENCE) > 72) then begin
+               poison_to_add += get_array(array_add_poison, target) + 2 + player_level / 3;
+               //poison_attacker = attacker;
+               //poison(target, 2 + player_level / 3);
+            end
+            // all non-companion npc attackers who carry radscorp tails
+            has_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SCORPION_TAIL);
+            if PID_SMALL_SCORPION_TAIL > 0 then has_small_scorp_tail = obj_is_carrying_obj_pid(attacker, PID_SMALL_SCORPION_TAIL);
+            if (has_scorp_tail > 0 or has_small_scorp_tail > 0) andAlso not(attacker_in_party) andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam then begin
+               if dmgtotar > 0 then poison_to_add += get_array(array_add_poison, target) + random(1,5) + player_level / 3;
+               if dmgtoatkr > 0 then poison_to_add_attacker += get_array(array_add_poison, target) + random(1,5) + player_level / 3;
+               //poison_attacker = attacker;
+               //poison(target, random(1,5) + player_level / 3);
+            end
+            // poison atk for companion npc-attacker
+            if rhpoison > 0 then begin
+               if dmgtotar > 0 then poison_to_add += get_array(array_add_poison, target) + (rhpoison + random(1, 4));
+               if dmgtoatkr > 0 then poison_to_add_attacker += get_array(array_add_poison, target) + (rhpoison + random(1, 4));
+               //poison_attacker = attacker;
+               //poison(target, (rhpoison + random(1, 4)));
+               if random(0, 4) == 0 then begin
+                  set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
+               end
+            end
          end
-         // poison atk for companion npc-attacker
-         if rhpoison > 0 then begin
-         poison(target, (rhpoison + random(1, 4)));
-            if random(0, 4) == 0 then begin
-               set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
+         // poison atk for player
+         if attacker == dude_obj then begin
+            acthnd = active_hand;
+            if acthnd == 0 andAlso lhpoison > 0 then begin
+               if dmgtotar > 0 then poison_to_add += (get_array(array_add_poison, target) + ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
+               if dmgtoatkr > 0 then poison_to_add_attacker += (get_array(array_add_poison, attacker) + ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
+               //poison_attacker = attacker;
+               //poison(target, ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
+               if random(0, 2 + (5 * Tox)) == 0 then begin
+                  set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
+               end
+            end
+            else if acthnd == 1 andAlso rhpoison > 0 then begin
+               if dmgtotar > 0 then poison_to_add += (get_array(array_add_poison, target) + ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
+               if dmgtoatkr > 0 then poison_to_add_attacker += (get_array(array_add_poison, attacker) + ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
+               //poison_attacker = attacker;
+               //poison(target, ((rhpoison / 3) + random(2, 5) + (Tox * 4)));
+               if random(0, 2 + (5 * Tox)) == 0 then begin
+                  set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
+               end
             end
          end
       end
-      // poison atk for player
-      if attacker == dude_obj then begin
-         acthnd = active_hand;
-         if acthnd == 0 andAlso lhpoison > 0 then begin
-         poison(target, ((lhpoison / 3) + random(2, 5) + (Tox * 4)));
-            if random(0, 2 + (5 * Tox)) == 0 then begin
-               set_fake_perk_npc(attacker, (envenomed_msg + lhname), (lhpoison - 1), 23, envenomed_description_msg);
+      // scorch effect from fire dmg ( reduce healing rate )
+      if RegenMod > 0 andAlso weapon > 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
+        tarhr = get_critter_stat(target, STAT_heal_rate);
+        atkrhr = get_critter_stat(attacker, STAT_heal_rate);
+        //scorch effect for target(s)
+        if dmgtotar > 2 then begin
+         for (burncount = -1; burncount < (dmgtotar / 8) ; burncount++) begin
+           if tarhr > 5 then begin
+            call stimtoburn();
+            burn = create_object_sid(40, 0, 0, -1);
+            add_mult_objs_to_inven(target, burn, 1);
+            set_self(target);
+            set_self(target);
+            use_obj_on_obj(burn, target);
+            set_self(0);
+            if (pyromaniac > 0 or wpnpid == 159) andAlso attacker == real_dude_obj then begin
+              burn = create_object_sid(40, 0, 0, -1);
+              add_mult_objs_to_inven(target, burn, 1);
+              set_self(target);
+              set_self(target);
+              use_obj_on_obj(burn, target);
+              set_self(0);
             end
-         end
-         else if acthnd == 1 andAlso rhpoison > 0 then begin
-         poison(target, ((rhpoison / 3) + random(2, 5) + (Tox * 4)));
-            if random(0, 2 + (5 * Tox)) == 0 then begin
-               set_fake_perk_npc(attacker, (envenomed_msg + rhname), (rhpoison - 1), 23, envenomed_description_msg);
-            end
-         end
-      end
-   end
-   // scorch effect from fire dmg ( reduce healing rate )
-   if RegenMod > 0 andAlso weapon > 0 andAlso (wpndmgtype == DMG_fire or wpnpid == 159) then begin
-     tarhr = get_critter_stat(target, STAT_heal_rate);
-     atkrhr = get_critter_stat(attacker, STAT_heal_rate);
-     //scorch effect for target(s)
-     if dmgtotar > 2 then begin
-      for (burncount = -1; burncount < (dmgtotar / 8) ; burncount++) begin
-        if tarhr > 5 then begin
-         call stimtoburn();
-         burn = create_object_sid(40, 0, 0, -1);
-         add_mult_objs_to_inven(target, burn, 1);
-         set_self(target);
-         set_self(target);
-         use_obj_on_obj(burn, target);
-         set_self(0);
-         if (pyromaniac > 0 or wpnpid == 159) andAlso attacker == real_dude_obj then begin
-           burn = create_object_sid(40, 0, 0, -1);
-           add_mult_objs_to_inven(target, burn, 1);
-           set_self(target);
-           set_self(target);
-           use_obj_on_obj(burn, target);
-           set_self(0);
+           end
          end
         end
-      end
-     end
-   //scorch effect for attacker
-   if dmgtoatkr > 8 then begin
-   call stimtoburn();
-      if pyromaniac > 0 then begin
-      //nothing :-)
-      end
-        else begin
-         if atkrhr > 5 then begin
-         burn = create_object_sid(40, 0, 0, -1);
-         add_mult_objs_to_inven(attacker, burn, 1);
-         set_self(attacker);
-         set_self(attacker);
-         use_obj_on_obj(burn, attacker);
-         set_self(0);
+      //scorch effect for attacker
+      if dmgtoatkr > 8 then begin
+      call stimtoburn();
+         if pyromaniac > 0 then begin
+         //nothing :-)
          end
-        end
-      end
-   call stimrestore();
-   end
-   // scorch effect from plasma dmg
-   if RegenMod > 0 andAlso wpndmgtype == DMG_plasma then begin
-     tarhr = get_critter_stat(target, STAT_heal_rate);
-     atkrhr = get_critter_stat(attacker, STAT_heal_rate);
-     //scorch effect for target(s)
-     if dmgtotar > 16 andAlso tarhr > 5 then begin
-      for (burncount = 0; burncount < (dmgtotar / 16) ; burncount++) begin
-        if tarhr > 5 then begin
-         call stimtoburn();
-         burn = create_object_sid(40, 0, 0, -1);
-         add_mult_objs_to_inven(target, burn, 1);
-         set_self(target);
-         set_self(target);
-         use_obj_on_obj(burn, target);
-         set_self(0);
-         if pyromaniac > 0 andAlso attacker == real_dude_obj then begin
-           burn = create_object_sid(40, 0, 0, -1);
-           add_mult_objs_to_inven(target, burn, 1);
-           set_self(target);
-           set_self(target);
-           use_obj_on_obj(burn, target);
-           set_self(0);
+           else begin
+            if atkrhr > 5 then begin
+            burn = create_object_sid(40, 0, 0, -1);
+            add_mult_objs_to_inven(attacker, burn, 1);
+            set_self(attacker);
+            set_self(attacker);
+            use_obj_on_obj(burn, attacker);
+            set_self(0);
+            end
+           end
          end
+      call stimrestore();
+      end
+      // scorch effect from plasma dmg
+      if RegenMod > 0 andAlso wpndmgtype == DMG_plasma then begin
+        tarhr = get_critter_stat(target, STAT_heal_rate);
+        atkrhr = get_critter_stat(attacker, STAT_heal_rate);
+        //scorch effect for target(s)
+        if dmgtotar > 16 andAlso tarhr > 5 then begin
+         for (burncount = 0; burncount < (dmgtotar / 16) ; burncount++) begin
+           if tarhr > 5 then begin
+            call stimtoburn();
+            burn = create_object_sid(40, 0, 0, -1);
+            add_mult_objs_to_inven(target, burn, 1);
+            set_self(target);
+            set_self(target);
+            use_obj_on_obj(burn, target);
+            set_self(0);
+            if pyromaniac > 0 andAlso attacker == real_dude_obj then begin
+              burn = create_object_sid(40, 0, 0, -1);
+              add_mult_objs_to_inven(target, burn, 1);
+              set_self(target);
+              set_self(target);
+              use_obj_on_obj(burn, target);
+              set_self(0);
+            end
 
-        end
-      end
-     end
-   //scorch effect for attacker
-   if dmgtoatkr > 20 then begin
-      if pyromaniac > 0 then begin
-      //nothing :-)
-      end
-        else begin
-         if atkrhr > 5 then begin
-         call stimtoburn();
-         burn = create_object_sid(40, 0, 0, -1);
-         add_mult_objs_to_inven(attacker, burn, 1);
-         set_self(attacker);
-         set_self(attacker);
-         use_obj_on_obj(burn, attacker);
-         set_self(0);
+           end
          end
         end
+      //scorch effect for attacker
+      if dmgtoatkr > 20 then begin
+         if pyromaniac > 0 then begin
+         //nothing :-)
+         end
+           else begin
+            if atkrhr > 5 then begin
+            call stimtoburn();
+            burn = create_object_sid(40, 0, 0, -1);
+            add_mult_objs_to_inven(attacker, burn, 1);
+            set_self(attacker);
+            set_self(attacker);
+            use_obj_on_obj(burn, attacker);
+            set_self(0);
+            end
+           end
+         end
+      call stimrestore();
       end
-   call stimrestore();
+      //add poison with delay
+      if ((poison_to_add > 0 andAlso dmgtotar > 0) orElse (poison_to_add_attacker > 0 andAlso dmgtoatkr > 0)) then begin
+         if (flagfortar bwand (DAM_DEAD)) == 0 andAlso get_critter_stat(target, STAT_current_hp) > dmgtotar then begin
+              if dmgtotar > 0 andAlso is_in_array(target, party) > 0 then begin
+                 if target != dude_obj then begin
+                    poison_to_add = (combat_diff) * poison_to_add / (1 + combat_diff);
+                    if poison_to_add <= 0 then poison_to_add = 1;
+                 end
+              end
+            if poison_to_add > 0 andAlso dmgtotar > 0 then set_array(array_add_poison, target, poison_to_add);
+            if poison_to_add_attacker > 0 andAlso dmgtoatkr > 0 then set_array(array_add_poison, attacker, poison_to_add_attacker);
+            //poison_attacker = attacker;
+            //poison overdose death
+            if dmgtotar > 0 andAlso poison_to_add > 0 andAlso (get_poison(target) + (poison_to_add - ((poison_to_add * get_critter_stat(target,STAT_poison_resist)) / 100)) >= calc_poison_overdose(target)) then begin
+               flagfortar = DAM_KNOCKED_OUT bwor DAM_DEAD;
+               flagforatkr = DAM_HIT;
+               if target == dude_obj then begin
+                  dmgtotar = get_critter_stat(dude_obj, STAT_max_hp);
+               end
+               set_sfall_return(dmgtotar);
+               set_sfall_arg(2, dmgtotar);
+               set_sfall_return(dmgtoatkr);
+               set_sfall_arg(3, dmgtoatkr);
+               set_sfall_return(flagfortar);
+               set_sfall_arg(4, flagfortar);
+               set_sfall_return(flagforatkr);
+               set_sfall_arg(5, flagforatkr);
+               //set_sfall_return(0);
+               //set_sfall_arg(10, 0);
+            end
+
+
+
+         end
+      end
+      //The animation is called only during an attack, but not during the calculation of AI additional targets
+      if target > 0 andAlso target == get_object_data(combat_data, C_ATTACK_TARGET) andAlso len_array(array_add_poison) > 0 then begin
+         call impact_delay(attacker, weapon, atk_type, target);
+      end
    end
 end
 
 procedure stimtoburn begin // turning stimpak to burn debuff
 variable rnd = 0;
-rnd = random(1, 4);
+   rnd = random(0, 4);
    stimburn = 1;
    if UnsafeRegenModScripting > 0 andAlso sfall_unsafescripting > 0 then begin
-     rnd = rnd + 3;
-   set_proto_data(40, PROTO_DR_STAT_A, 0);
-   set_proto_data(40, PROTO_DR_STAT_B, 0);
-   set_proto_data(40, PROTO_DR_STAT_C, 14);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
-   set_proto_data(40, PROTO_DR_DURATION_1, 2);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
-   set_proto_data(40, PROTO_DR_DURATION_2, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
+      rnd = rnd + 3;
+      set_proto_data(40, PROTO_DR_STAT_A, 0);
+      set_proto_data(40, PROTO_DR_STAT_B, 0);
+      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
+      set_proto_data(40, PROTO_DR_DURATION_1, 3);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
+      set_proto_data(40, PROTO_DR_DURATION_2, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
    end
-   if UnsafeRegenModScripting <= 0 then begin
-   set_proto_data(40, PROTO_DR_STAT_A, 0);
-   set_proto_data(40, PROTO_DR_STAT_B, 0);
-   set_proto_data(40, PROTO_DR_STAT_C, 14);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
-   set_proto_data(40, PROTO_DR_DURATION_1, 1);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
-   set_proto_data(40, PROTO_DR_DURATION_2, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
-   set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
+   else if UnsafeRegenModScripting <= 0 then begin
+      if rnd <= 0 then rnd = 1;
+      set_proto_data(40, PROTO_DR_STAT_A, 0);
+      set_proto_data(40, PROTO_DR_STAT_B, 0);
+      set_proto_data(40, PROTO_DR_STAT_C, 14);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_1_C, - rnd);
+      set_proto_data(40, PROTO_DR_DURATION_1, 1);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_2_C, rnd);
+      set_proto_data(40, PROTO_DR_DURATION_2, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_A, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_B, 0);
+      set_proto_data(40, PROTO_DR_AMOUNT_3_C, 0);
   end
 end
 
@@ -1280,6 +1793,7 @@ procedure USEOBJON begin
      if (target_in_party or target == real_dude_obj) then rhpoison = has_fake_perk_npc(target, (envenomed_msg + rhname));
    end
    //divides the duration of drug by 4 (examle: from 1 min to 15 sec)
+   if sfall_ver_maj < 5 then begin
    //if UnsafeRegenModScripting != 0 andAlso sfall_unsafescripting != 0 then begin
       // return memory to normal if was modified
       if read_int(0x479BD4) != 280509755 then begin // return to normal memory adress stat
@@ -1290,9 +1804,11 @@ procedure USEOBJON begin
          write_int(0x479BE8, -288292236);
       end
       if tar_cur_hp > 0 andAlso tar_state != CRITTER_IS_DEAD then begin
-         if objpid == PID_STIMPAK or objpid == PID_HEALING_POWDER then begin// only for stimpak and healing powder, other drugs unaffected (can be used for any drug item if needed)
-            write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹1
-            write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹2
+         if objpid == PID_STIMPAK orElse objpid == PID_HEALING_POWDER then begin// only for stimpak and healing powder, other drugs unaffected (can be used for any drug item if needed)
+            //write_int(0x479BD4, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹1
+            //write_int(0x479BE8, read_int(0x479BEA)); // drug duration logical right shift by 1 ¹2
+            write_int(0x479BD4, -343281967); // shr     esi, 1 ¹1
+            write_int(0x479BE8, -343281967); // shr     esi, 1¹2
          end
       end
    //end
@@ -1306,24 +1822,25 @@ procedure USEOBJON begin
       //end
    //end
    //
+   end
   if objpid == PID_HYPO_POISON andAlso tar_cur_hp > 0 andAlso tar_state != CRITTER_IS_DEAD andAlso user_in_party andAlso target_obj_type == OBJ_TYPE_CRITTER andAlso not(target_in_party) then begin
-    if obj_can_see_obj(target, user) andAlso (random(30, target_pe * 30) > random(0, (has_skill(user, SKILL_FIRST_AID) + has_skill(user, SKILL_DOCTOR) + has_skill(user, SKILL_SNEAK)))) andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) != CR_BODY_ROBOTIC then begin
+    if obj_can_see_obj(target, user) andAlso (random(30, target_pe * 30) > random(0, (has_skill(user, SKILL_FIRST_AID) + has_skill(user, SKILL_DOCTOR) + has_skill(user, SKILL_SNEAK)))) andAlso tar_type != KILL_TYPE_robot_kills then begin
      tar_fid = critter_art_fid(target);
      //if using_skill(dude_obj, SKILL_SNEAK) then begin
         //display_msg(failed_sneak_use_msg);
      //end
-     if random(0,1) andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso get_proto_data(obj_pid(target), PROTO_CR_BODY_TYPE) == CR_BODY_BIPED andAlso tar_type != KILL_TYPE_children_kills andAlso tar_fid != FID_NFBRLP andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
+     if random(0,1) andAlso not(combat_is_initialized) andAlso get_critter_stat(target, STAT_iq) > 3 andAlso can_use_items(tar_type) andAlso tar_type != KILL_TYPE_children_kills andAlso tar_fid != FID_NFBRLP andAlso tar_fid != 16777336 andAlso tar_fid != 16777325 then begin
         float_msg(target, modmsg(random(msg_failedPoisoning1,msg_failedPoisoning4)), FLOAT_COLOR_AFRAID);
         set_sfall_return(0);
      end
      else begin
-        //if get_poison(target) + Poison_amt * get_critter_stat(target, STAT_poison_resist) / 100 < 99 then begin
-        display_msg(failed_sneak_use_msg);
-        attack_setup(target,user);
+        if get_poison(target) + (Poison_amt - (Poison_amt * get_critter_stat(target, STAT_poison_resist) / 100)) <= calc_poison_overdose(target) then begin
+           display_msg(failed_sneak_use_msg);
+           attack_setup(target,user);
         //set_self(target);
         //attack(user);
         //set_self(0);
-        //end
+        end
      end
    end
   end
@@ -1410,7 +1927,6 @@ procedure USEOBJON begin
          if SShphealed < SShpdmg then begin
            SShpdmg = SShphealed;
          end
-         // display_msg("SShpdmg=" + SShpdmg);
          set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_A, STAT_current_hp);
          set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_B, STAT_heal_rate);
          //set_proto_data(PID_SUPER_STIMPAK, PROTO_DR_STAT_C, -1);
@@ -1558,10 +2074,12 @@ procedure USESKIL begin
   variable target = get_sfall_arg;
   variable skill = get_sfall_arg;
   variable skill_bonus = get_sfall_arg;
+  //if is_dead(target) then
+     //return;
   dudehrcount = 0;
   healfromskill = 0;
   deadtarget = 0;
-  if (RegenMod > 0  or PoisonMod > 0) andAlso (skill == SKILL_FIRST_AID or skill == SKILL_DOCTOR) andAlso get_critter_stat(target, STAT_current_hp) > 0 then begin
+  if (RegenMod > 0 or PoisonMod > 0) andAlso (skill == SKILL_FIRST_AID or skill == SKILL_DOCTOR) andAlso get_critter_stat(target, STAT_current_hp) > 0 then begin
    healfromskill = target;
    call rest;
    if deadtarget > 0 then begin
@@ -1582,27 +2100,41 @@ procedure map_exit_p_proc begin
   variable critwaspoisoned = 0;
   variable tardt = 0;
   variable critter;
-  variable party = party_member_list(0);
+  variable party = party_member_list(1);
   variable critter_in_party;
   variable critcurpoison;
   variable critcurhp;
   variable critmaxhp;
   variable dudehrexitmap;
-  variable critter_body_type;
+  //variable critter_body_type;
+  variable critter_type;
   variable has_antidote;
   variable has_super_antidote;
   variable antidote;
+  variable stim;
+  variable stim_count;
+  variable hr;
+  if PoisonMod > 0 then begin
+     clear_array(array_add_poison);
+     if scripts_disabled > 0 then call scr_enable();
+  end
   map_exit = 1;
   if new_death > 0 then call show_death_msg;
   if game_ui_is_disabled then game_ui_enable;
   if get_critter_stat(real_dude_obj, STAT_heal_rate) > 5 then begin
-  RegenTickHP = round(get_critter_stat(real_dude_obj, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(real_dude_obj, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
-  DudeRegenTickHP = RegenTickHP;
+     RegenTickHP = calc_regen_tick(real_dude_obj,-1);
+     DudeRegenTickHP = RegenTickHP;
   end
-  foreach critter in list_as_array(0) begin
+  foreach critter in list_as_array(LIST_CRITTERS) begin
    poisondeath = 0;
    PoisonTickDmg = 0;
    critter_in_party = is_in_array(critter, party);
+   //remove the dead creature from the party so the dead don't haunt player
+   if critter_in_party andAlso obj_is_visible_flag(critter) andAlso (is_dead(critter) orElse get_critter_stat(critter,STAT_current_hp) <= 0) then begin
+      party_remove(critter);
+      //destroy_object(critter);
+   end
+
    // regen if not poisoned (exept dude and party)
    if RegenMod > 0  andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp) andAlso get_poison(Critter) < 1 andAlso critter != real_dude_obj andAlso not(critter_in_party) then begin
      if (RegenMaxHPpercentMult < 1) then begin
@@ -1623,8 +2155,10 @@ procedure map_exit_p_proc begin
       // npc use antidote oute of combat
       if PoisonMod > 0 andAlso Critter != real_dude_obj andAlso critcurpoison > 5 andAlso critcurhp > 0 andAlso not(is_dead(critter)) then begin
          //critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
-         critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
-         if not(is_prone(critter)) andAlso critter_body_type == CR_BODY_BIPED then begin
+         //critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+         tail_used = 0;
+         critter_type = critter_kill_type(critter);
+         if not(is_prone(critter)) andAlso can_use_items(critter_type) then begin
             has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
             if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);
             if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_in_party andAlso ((critcurpoison > 10 andAlso critcurhp < (critmaxhp / 4)) or critcurpoison > 25 or critcurhp < 14)) or (not(critter_in_party) andAlso ((random(10,50)) < critcurpoison or critcurhp <= 13 or critcurhp < (critmaxhp / 5))) ) then begin
@@ -1637,6 +2171,25 @@ procedure map_exit_p_proc begin
                set_self(0);
                if critter_in_party andAlso critcurpoison > 30 then poison(critter, -(get_poison(Critter) / 2));
                //display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, proto_data(PID_ANTIDOTE, 1)));
+            end
+            // heal isted of antidote
+            if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
+               tail_used = 1;
+               stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+               if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
+                  stim_count = obj_is_carrying_obj(critter, stim);
+                  hr = get_critter_stat(critter, STAT_heal_rate);
+                  tail_used = 1;
+                  call critter_use_item(critter, stim,false);
+                  if hr < get_critter_stat(critter, STAT_heal_rate) then begin
+                     if hr < 5 then begin
+                        call critter_regen_heal(critter,true,-1);
+                     end
+                     else begin
+                        call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate)- hr));
+                     end
+                  end
+               end
             end
          end
       end
@@ -1669,7 +2222,8 @@ procedure map_exit_p_proc begin
       end
      end
      if poisondeath == 0 then begin
-        poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+        call decrease_poison(critter);
+        //poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10  * 10 / PoisonDecayDiv))));
         critter_heal(Critter, - PoisonTickDmg);
      end
      PoisonTickDmg = round(get_critter_stat(Critter, STAT_max_hp) / 100.00000 * PoisonMaxHPpercentMult * (get_poison(Critter) * PoisonLevelMult / PoisonLevelDiv));
@@ -1716,14 +2270,22 @@ procedure rest begin
   //variable party = party_member_list(0);
   //variable critter_in_party;
   variable critter_team;
-  variable critter_body_type;
+  //variable critter_body_type;
+  variable critter_type;
   variable has_antidote;
   variable has_super_antidote;
   variable critmaxhp;
   variable antidote;
+  variable stim;
+  variable stim_count;
+  variable hr;
   RegenTickHP2 = 0;
   gameticks = get_sfall_arg;
   eventtype = get_sfall_arg;
+  if new_death > 0 andAlso eventtype != 0 andAlso game_ui_is_disabled then begin
+     after_rest_disable = 1;
+     game_ui_enable;
+  end
   for (i = 0; i < 20; i++) begin
    foreach (critter in list_as_array(0)) begin
      poisondeath = 0;
@@ -1732,7 +2294,7 @@ procedure rest begin
      critter_team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
      crit_pid = obj_pid(critter);
            // regen while resting/time skipping
-              if RegenMod > 0  andAlso ((critter != real_dude_obj andAlso (get_poison(Critter) < 1 or  PoisonMod <= 0) ) or critter == real_dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp)) or (critcrippled(real_dude_obj) andAlso critter == real_dude_obj andAlso has_fake_perk(regen_perk_name) > 0) then begin
+              if RegenMod > 0 andAlso ((critter != real_dude_obj andAlso (get_poison(Critter) < 1 or  PoisonMod <= 0) ) or critter == real_dude_obj) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso  get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp ) < get_critter_stat(critter, STAT_max_hp)) or (critcrippled(real_dude_obj) andAlso critter == real_dude_obj andAlso has_fake_perk(regen_perk_name) > 0) then begin
                if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
                RegenTickHP = ( round(get_critter_stat(critter, STAT_max_hp) / 100.0 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
                if (RegenTickHP < 1) then begin RegenTickHP = 1; end
@@ -1779,9 +2341,11 @@ procedure rest begin
                critmaxhp = get_critter_stat(critter, STAT_max_hp );
                // npc use antidote oute of combat
                if PoisonMod > 0 andAlso Critter != real_dude_obj andAlso critcurpoison > 5 andAlso critcurhp > 0 andAlso not(is_dead(critter)) then begin
+                  tail_used = 0;
                   //critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
-                  critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
-                  if not(is_prone(critter)) andAlso critter_body_type == CR_BODY_BIPED then begin
+                  //critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+                  critter_type = critter_kill_type(critter);
+                  if not(is_prone(critter)) andAlso can_use_items(critter_type) then begin
                      has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
                      if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);
                      if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_team == TEAM_PLAYER andAlso ((critcurpoison > 10 andAlso critcurhp < (critmaxhp / 4)) or critcurpoison > 25 or critcurhp < 14)) or (critter_team != TEAM_PLAYER andAlso ((random(10,50)) < critcurpoison or critcurhp <= 13 or critcurhp < (critmaxhp / 5))) ) then begin
@@ -1795,6 +2359,26 @@ procedure rest begin
                         if critter_team == TEAM_PLAYER  andAlso critcurpoison > 30 then poison(critter, -(get_poison(Critter) / 2));
                         display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, proto_data(PID_ANTIDOTE, 1)));
                      end
+                     // heal isted of antidote
+                     if tail_used <= 0 andAlso (is_in_array(critter, party_member_list(0)) orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
+                        tail_used = 1;
+                        stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                        if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
+                           stim_count = obj_is_carrying_obj(critter, stim);
+                           hr = get_critter_stat(critter, STAT_heal_rate);
+                           tail_used = 1;
+                           call critter_use_item(critter, stim,false);
+                           //if hr < get_critter_stat(critter, STAT_heal_rate) then begin
+                              //if hr < 5 then begin
+                                 //call critter_regen_heal(critter,true,-1);
+                              //end
+                              //else begin
+                                 //call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate)- hr));
+                              //end
+                           //end
+                        end
+                     end
+
                   end
                end
 
@@ -1843,14 +2427,15 @@ procedure rest begin
                if PoisonTickDmg > 0 andAlso ShowModMSG > 0 andAlso Critter == real_dude_obj then begin
                  display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
                end
-               poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+               call decrease_poison(critter);
+               //poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10  * 10 / PoisonDecayDiv))));
                if PoisonTickDmg > 0 andAlso Critter != real_dude_obj then begin
                  if get_critter_stat(critter, STAT_current_hp) <= PoisonTickDmg then begin
                   if critter == healfromskill then begin
                   deadtarget += 1;
                   end
                   if critter_team == TEAM_PLAYER then begin
-                     poison(critter, -(get_poison(critter) + 1));
+                     //poison(critter, -(get_poison(critter) + 1));
                      //reg_anim_clear(critter);
 
                      //party_remove(critter);
@@ -1860,7 +2445,7 @@ procedure rest begin
                      //display_msg(parse_str_2(modmsg(msg_npc_poison_dmg_deadly), tar_name, PoisonTickDmg));
                   end
                   else begin
-                     poison(critter, -(get_poison(critter) + 1));
+                     //poison(critter, -(get_poison(critter) + 1));
                      //reg_anim_clear(critter);
                      //tardt = get_proto_data(crit_pid, CRITTER_PROTO_DT);
                      //tardr = get_proto_data(crit_pid, CRITTER_PROTO_DR);
@@ -1918,11 +2503,20 @@ procedure worldMapTravel begin
   variable critcurhp;
   variable critmaxhp;
   variable dudehrexitmap;
-  variable critter_body_type;
+  //variable critter_body_type;
+  variable critter_type;
   variable has_antidote;
   variable has_super_antidote;
   variable antidote;
   variable tmp;
+  variable stim;
+  variable stim_count;
+  variable stim_pid;
+  variable new_stim;
+  variable misc_charge;
+  variable hr;
+  variable stim_regen_counter;
+  variable pseudo_healing_rate;
   if lastgamemode bwand OPTIONS then begin
      combat_diff = (combat_difficulty + 1);
   end
@@ -1936,8 +2530,12 @@ procedure worldMapTravel begin
    call newperks;
   end
   if new_death > 0 then begin
+     if after_rest_disable > 0 then begin
+        game_ui_disable2;
+     end
      mode_change_death = 1;
      call show_death_msg;
+     if scripts_disabled > 0 then call scr_enable in 4;
   end
   if critter_poison_overdose > 0 then begin
      call critter_inflict_poison_dmg(critter_poison_overdose, (get_critter_stat(critter_poison_overdose, STAT_max_hp) * 3),1);
@@ -1992,27 +2590,93 @@ procedure worldMapTravel begin
                            critcurpoison = get_poison(Critter);
                            critcurhp = get_critter_stat(critter, STAT_current_hp );
                            critmaxhp = get_critter_stat(critter, STAT_max_hp );
-                           // npc use antidote oute of combat
+                           // npc use antidote out of combat
                            if PoisonMod > 0 andAlso Critter != real_dude_obj andAlso critcurpoison > 5 andAlso critcurhp > 0 andAlso not(is_dead(critter)) then begin
                               //critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
-                              critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
-                              if not(is_prone(critter)) andAlso critter_body_type == CR_BODY_BIPED then begin
+                              //critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+                              critter_type = critter_kill_type(critter);
+                              tail_used = 0;
+                              if not(is_prone(critter)) andAlso can_use_items(critter_type) then begin
                                    has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
                                  if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);
                                  if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_in_party andAlso ((critcurpoison > 10 andAlso critcurhp < (critmaxhp / 4)) or critcurpoison > 25 or critcurhp < 14)) or (not(critter_in_party) andAlso ((random(10,50)) < critcurpoison or critcurhp <= 13 or critcurhp < (critmaxhp / 5))) ) andAlso get_critter_stat(critter, STAT_current_hp ) > 0 then begin
                                     tail_used = 1;
                                     antidote = obj_carrying_pid_obj(critter, PID_ANTIDOTE);
                                     if Nevada > 0 andAlso has_super_antidote > 0 andAlso (critcurpoison > 25 or (has_antidote <= 0 andAlso critcurpoison > 15)) then antidote = obj_carrying_pid_obj(critter, 53);
-                                    set_self(critter);
-                                    set_self(critter);
-                                    use_obj_on_obj(antidote, critter);
-                                    set_self(0);
+                                    //set_self(critter);
+                                    //set_self(critter);
+                                    //use_obj_on_obj(antidote, critter);
+                                    //set_self(0);
+                                    display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, obj_name(antidote)));
                                     tmp = rm_mult_objs_from_inven(critter, antidote, 1);
-                                    if critter_in_party andAlso critcurpoison > 30 then poison(critter, -(get_poison(Critter) / 2));
-                                    display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, proto_data(PID_ANTIDOTE, 1)));
+                                    if critter_in_party andAlso critcurpoison > 40 then begin
+                                       poison(critter, -((18 + get_poison(Critter) / 2) + 20 * has_super_antidote));
+                                    end
+                                    else begin
+                                       poison(critter, -(random(18,28) + 20 * has_super_antidote));
+                                    end
+                                 end
+                                 // stimpack use
+                                 hr = get_critter_stat(critter, STAT_heal_rate);
+                                 if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
+                                    stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                                    if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
+                                       stim_count = obj_is_carrying_obj(critter, stim);
+                                       tail_used = 1;
+                                       //call critter_use_item(critter, stim);
+                                       stim_pid = obj_pid(stim);
+                                       display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, obj_name(stim)));
+                                       if stim_pid == PID_STIMPAK andAlso RegenMod > 0 then begin
+                                          stim_regen_counter += 3;
+                                          if stim_regen_counter > 6 then stim_regen_counter = 6;
+                                          tmp = rm_mult_objs_from_inven(critter, stim, 1);
+                                       end
+                                       else if obj_item_subtype(stim) == item_type_misc_item then begin
+                                          misc_charge = get_weapon_ammo_count(stim);
+                                          if misc_charge == 1 then begin
+                                             critter_heal(critter, random(10, has_skill(critter,SKILL_FIRST_AID)));
+                                             tmp = rm_mult_objs_from_inven(critter, stim, 1);
+                                          end
+                                          else if misc_charge > 1 then begin
+                                             new_stim = create_object(stim_pid, 0, 0);
+                                             add_obj_to_inven(critter, new_stim);
+                                             tmp = rm_mult_objs_from_inven(critter, stim, 1);
+                                             critter_heal(critter, random(10, has_skill(critter,SKILL_FIRST_AID)));
+                                             set_weapon_ammo_count(new_stim, (misc_charge - 1));
+                                          end
+                                       end
+                                       else if obj_item_subtype(stim) == item_type_drug then begin
+                                          if stim_pid == PID_STIMPAK then begin
+                                             critter_heal(critter, 20);
+                                          end
+                                          else if stim_pid == PID_SUPER_STIMPAK then begin
+                                             critter_heal(critter, 75);
+                                          end
+                                          else if stim_pid == PID_HEALING_POWDER then begin
+                                             critter_heal(critter, 13);
+                                          end
+                                          else if stim_pid == 525 then begin
+                                             critter_heal(critter, 100);
+                                          end
+                                          tmp = rm_mult_objs_from_inven(critter, stim, 1);
+                                       end
+                                    end
                                  end
                               end
                            end
+                        //pseudo stim regen
+                        //pseudo_healing_rate = 0;
+                        //if stim_regen_counter > 0 andAlso hr < new_max_hr then begin
+                           //pseudo_healing_rate = 20 + 20 * stim_regen_counter / 4;
+                           //stim_regen_counter -= (1 + stim_regen_counter / 4);
+                           //if hr < 5 then begin
+                              //call critter_regen_heal(critter,true,pseudo_healing_rate);
+                           //end
+                           //else begin
+                              //call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate) - pseudo_healing_rate));
+                           //end
+                        //end
+//
                         if RegenMod > 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) or (critter == real_dude_obj andAlso has_fake_perk(regen_perk_name) > 0 andAlso critcrippled(critter))) then begin
                         if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
                         RegenTickHP = round(get_critter_stat(critter, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(critter, STAT_heal_rate) * HealingRateMult / HealingRateDiv));
@@ -2070,7 +2734,8 @@ procedure worldMapTravel begin
                           else begin
                              critter_heal(Critter, -PoisonTickDmg);
                           end
-                          poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+                          call decrease_poison(critter);
+                          //poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10  * 10 / PoisonDecayDiv))));
                           if PoisonTickDmg > 0 andAlso Critter != real_dude_obj then begin
 
                            //if get_critter_stat(critter, STAT_current_hp ) < 1 then begin
@@ -2102,6 +2767,109 @@ procedure worldMapTravel begin
   end
 end
 
+// check for a healing item based on the critter's poison lvl (no antidote))
+procedure check_poison_healing_item(variable critter,variable critter_max_hp,variable critter_cur_hp,variable critter_poison) begin
+   variable healing_item;
+   variable healing_item_pid;
+   variable has_stim;
+   variable has_super_stim;
+   variable has_hypo;
+   variable has_healing_powder;
+   variable has_doc_item;
+   variable has_fa_item;
+   variable has_super_doc_item;
+   variable has_super_fa_item;
+   variable next_poison_tick_dmg = calc_poison_dmg(critter);
+   variable next_regen_tick;
+   variable critter_hr;
+   variable new_critter_hr;
+   // If the critter is not poisoned or the current HP is safe, exit the function
+   if critter_poison <= 0 orElse critter_cur_hp >= critter_max_hp orElse (critter_cur_hp - 3) > (3 * next_poison_tick_dmg) then begin
+      return 0;
+   end
+   // Check for stims
+   has_stim = obj_is_carrying_obj_pid(Critter, PID_STIMPAK);
+   if has_stim > 0 then begin
+      if RegenMod > 0 then begin
+         critter_hr = get_critter_stat(critter, STAT_heal_rate);
+         if critter_hr < new_max_hr then begin
+            healing_item_pid = PID_STIMPAK;
+         end
+         new_critter_hr = get_critter_base_stat(critter, STAT_heal_rate) + get_critter_extra_stat(critter, STAT_heal_rate) + 20;
+         if new_critter_hr > new_max_hr then begin
+            new_critter_hr = new_max_hr;
+         end
+         if critter_hr >= min_hr_to_regen then begin
+            next_regen_tick = calc_regen_tick(critter, (new_critter_hr));
+         end
+      end
+      else begin
+         healing_item_pid = PID_STIMPAK;
+         next_regen_tick = 9;
+      end
+      // If the regeneration is not sufficient, check for super stimpacks
+      if next_poison_tick_dmg > (critter_cur_hp + next_regen_tick) then begin
+         has_super_stim = obj_is_carrying_obj_pid(Critter, PID_SUPER_STIMPAK);
+         if has_super_stim > 0 then begin
+            healing_item_pid = PID_SUPER_STIMPAK;
+         end
+         else begin
+            has_hypo = obj_is_carrying_obj_pid(Critter, 525);
+            //hypo
+            if has_hypo > 0 then begin
+               healing_item_pid = 525;
+            end
+         end
+      end
+   end
+   else begin
+      if NPCsUseMedTools >= 2 orElse (NPCsUseMedTools == 1 andAlso not(is_in_array(critter, party_member_list(0)))) then begin
+         has_doc_item = obj_is_carrying_obj_pid(Critter, doc_bag_pid);
+         if Sonora <= 0 then begin
+            has_fa_item = obj_is_carrying_obj_pid(Critter, PID_FIRST_AID_KIT);
+            has_super_doc_item = obj_is_carrying_obj_pid(Critter, PID_PARAMEDICS_BAG);
+            has_super_fa_item = obj_is_carrying_obj_pid(Critter, PID_FIELD_MEDIC_KIT);
+         end
+         if has_fa_item > 0 then begin
+            healing_item_pid = PID_FIRST_AID_KIT;
+         end
+         else if has_super_fa_item > 0 then begin
+            healing_item_pid = PID_FIELD_MEDIC_KIT;
+         end
+         else if has_doc_item > 0 then begin
+            healing_item_pid = doc_bag_pid;
+         end
+         else if has_super_doc_item > 0 then begin
+            healing_item_pid = PID_PARAMEDICS_BAG;
+         end
+      end
+   end
+   if healing_item_pid <= 0 andAlso has_stim <= 0 then begin
+      has_super_stim = obj_is_carrying_obj_pid(Critter, PID_SUPER_STIMPAK);
+      if has_super_stim > 0 then begin
+         healing_item_pid = PID_SUPER_STIMPAK;
+      end
+      else if Sonora <= 0 then begin
+         has_hypo = obj_is_carrying_obj_pid(Critter, 525);
+         //hypo
+         if has_hypo > 0 then begin
+            healing_item_pid = 525;
+         end
+         else begin
+            has_healing_powder = obj_is_carrying_obj_pid(Critter, PID_HEALING_POWDER);
+            if has_healing_powder > 0 then begin
+               healing_item_pid = PID_HEALING_POWDER;
+            end
+         end
+      end
+   end
+   if healing_item_pid > 0 then begin
+      healing_item = obj_carrying_pid_obj(critter, healing_item_pid);
+   end
+   return healing_item;
+end
+
+
 procedure poisonInRealTime begin
    variable leftHand_obj;
    variable rightHand_obj;
@@ -2122,10 +2890,14 @@ procedure poisonInRealTime begin
    variable critmaxhp;
    variable critcurhp;
    variable critter_cur_frm;
-   variable critter_body_type;
+   //variable critter_body_type;
+   variable critter_type;
    variable has_antidote;
    variable has_super_antidote;
    variable antidote;
+   variable stim;
+   variable hr;
+   variable stim_count;
    // weapon poisonBuff deacay for dude & party members
    foreach (critter in party) begin
       if PoisonMod > 0 andAlso (get_game_mode == 0 or get_game_mode == 1) andAlso random(0, 2) >= (2 * Tox) then begin
@@ -2263,15 +3035,19 @@ procedure poisonInRealTime begin
             critmaxhp = get_critter_stat(critter, STAT_max_hp );
             // npc use antidote out of combat
             if PoisonMod > 0 andAlso Critter != real_dude_obj andAlso critcurpoison > 5 andAlso critcurhp > 0 andAlso not(is_dead(critter)) then begin
+               tail_used = 0;
                //critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
-               critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
-               if not(is_prone(critter)) andAlso critter_body_type == CR_BODY_BIPED then begin
+               //critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+               critter_type = critter_kill_type(critter);
+               if not(is_prone(critter)) andAlso can_use_items(critter_type) andAlso get_array(death_array,critter) <= 0 then begin
                   has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
                   if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);
+                  //antidoe use
                   if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_in_party andAlso ((critcurpoison > 10 andAlso critcurhp < (critmaxhp / 4)) or critcurpoison > 25 or critcurhp < 14)) or (not(critter_in_party) andAlso ((random(10,50)) < critcurpoison or critcurhp <= 13 or critcurhp < (critmaxhp / 5))) ) then begin
                      tail_used = 1;
                      antidote = obj_carrying_pid_obj(critter, PID_ANTIDOTE);
                      if Nevada > 0 andAlso has_super_antidote > 0 andAlso (critcurpoison > 25 or (has_antidote <= 0 andAlso critcurpoison > 15)) then antidote = obj_carrying_pid_obj(critter, 53);
+                     display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, proto_data(obj_pid(antidote), 1)));
                      reg_anim_clear(critter);
                      reg_anim_begin();
                      reg_anim_animate(critter, ANIM_magic_hands_middle, -1);
@@ -2282,7 +3058,24 @@ procedure poisonInRealTime begin
                      use_obj_on_obj(antidote, critter);
                      set_self(0);
                      if critter_in_party andAlso critcurpoison > 30 then poison(critter, -(get_poison(Critter) / 2));
-                     display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, proto_data(PID_ANTIDOTE, 1)));
+                  end
+                  // stimpack use
+                  if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
+                     stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                     if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
+                        stim_count = obj_is_carrying_obj(critter, stim);
+                        hr = get_critter_stat(critter, STAT_heal_rate);
+                        tail_used = 1;
+                        call critter_use_item(critter, stim,true);
+                        if hr < get_critter_stat(critter, STAT_heal_rate) then begin
+                           if hr < 5 then begin
+                              call critter_regen_heal(critter,true,-1);
+                           end
+                           else begin
+                              call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate)- hr));
+                           end
+                        end
+                     end
                   end
                end
             end
@@ -2332,7 +3125,8 @@ procedure poisonInRealTime begin
                if poisondeath == 0 then begin
                   critter_heal(Critter, - PoisonTickDmg);
                end
-            poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10 ) * 10 / PoisonDecayDiv)));
+               call decrease_poison(critter);
+            //poison(critter, - (min_poison_decay + (round(get_poison(Critter) * 0.10  * 10 / PoisonDecayDiv))));
          end
       end
    end
@@ -2406,7 +3200,8 @@ procedure ModInTurnBased begin
    variable has_small_scorp_tail;
    variable has_antidote;
    variable has_super_antidote;
-   variable critter_body_type;
+   //variable critter_body_type;
+   variable critter_type;
    variable wpn;
    variable wpnpid;
    variable wpnname;
@@ -2419,10 +3214,12 @@ procedure ModInTurnBased begin
    tail_used = 0;
    dude_turn = 0;
    if Critter == dude_obj then begin
-      if CritterTurnStatus == 1 andAlso dude_turn_critter_dies > 0 then begin
+      if CritterTurnStatus == 1 then begin
          dude_turn = 1;
-         set_global_script_type(3);
-         set_global_script_repeat(1);
+         if dude_turn_critter_dies > 0 then begin
+            set_global_script_type(3);
+            set_global_script_repeat(1);
+         end
       end
    end
 
@@ -2470,10 +3267,11 @@ procedure ModInTurnBased begin
      if wpnpid > 0 then wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
      if wpnpid > 0 then wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
      critter_int = get_critter_stat(critter, STAT_iq);
-     critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+     //critter_body_type = get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE);
+     critter_type = critter_kill_type(critter);
      critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
      //npc use antidote if poisoned (if not direct control enabled)
-     if PoisonMod > 0 andAlso combat_direct_controll != 1 andAlso critcurpoison > 5 andAlso tail_used <= 0 andAlso critcurhp > 0 andAlso combat_med_tool_used <= 0 andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != real_dude_obj andAlso critter_body_type == CR_BODY_BIPED andAlso CritterTurnStatus == 1 then begin
+     if PoisonMod > 0 andAlso combat_direct_controll != 1 andAlso critcurpoison > 5 andAlso tail_used <= 0 andAlso critcurhp > 0 andAlso combat_med_tool_used <= 0 andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != real_dude_obj andAlso can_use_items(critter_type) andAlso CritterTurnStatus == 1 then begin
          has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
          if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(Critter, 53);
          if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_in_party andAlso ((critcurpoison > 9 andAlso critcurhp < (critmaxhp / 2)) or critcurpoison > 15)) or (not(critter_in_party) andAlso (random(20,50) - critter_int) < critcurpoison) or not(random(0,2))) then begin
@@ -2490,7 +3288,7 @@ procedure ModInTurnBased begin
          end
      end
      // enemy npc radscorpion tail if not crippled and not fleeing
-     if NPCsUsePoisonTails != 0 andAlso combat_direct_controll != 1 andAlso tail_used <= 0 andAlso combat_med_tool_used <= 0 andAlso not(critter_in_party) andAlso critter_cur_frm == 0 andAlso not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
+     if NPCsUsePoisonTails != 0 andAlso combat_direct_controll != 1 andAlso tail_used <= 0 andAlso combat_med_tool_used <= 0 andAlso not(critter_in_party) andAlso critter_cur_frm == 0 andAlso not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
         has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
         if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data (PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SMALL_SCORPION_TAIL);
         if has_scorp_tail >= 2 then begin
@@ -2509,7 +3307,7 @@ procedure ModInTurnBased begin
         end
      end
        // companion npc use radscorpion tail if not crippled and not fleeing
-     if NPCsUsePoisonTails >= 2 andAlso (combat_direct_controll != 1 andAlso combat_direct_controll != 2) andAlso combat_med_tool_used <= 0 andAlso tail_used <= 0 andAlso critter_in_party andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso critter_body_type == CR_BODY_BIPED andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
+     if NPCsUsePoisonTails >= 2 andAlso (combat_direct_controll != 1 andAlso combat_direct_controll != 2) andAlso combat_med_tool_used <= 0 andAlso tail_used <= 0 andAlso critter_in_party andAlso critter_cur_frm == 0 andAlso  not(is_dead(critter)) andAlso critcurhp > 0 andAlso Critter != dude_obj andAlso not(critcrippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso can_use_items(critter_type) andAlso (wpnanim == 1 or wpnanim == 4) andAlso CritterTurnStatus == 1 andAlso wpndmgtype == DMG_normal_dam then begin
         rhpoison = has_fake_perk_npc(Critter, (envenomed_msg + wpnname));
         has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
         if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data (PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SMALL_SCORPION_TAIL);
@@ -2534,13 +3332,14 @@ procedure ModInTurnBased begin
         end
      end
       if CritterTurnStatus == 0 andAlso CritterTurnStatus != -2 andAlso CritterTurnStatus != -1 andAlso (critcurpoison > 0) andAlso critcurhp > 0 then begin
-      if combat_diff <= 2 then PoisonMaxHPpercentMult = (0.5 * PoisonMaxHPpercentMult2) * combat_diff;
-      if combat_diff > 2 then PoisonMaxHPpercentMult = (1.25 * PoisonMaxHPpercentMult2);
-      if not(critter_in_party) andAlso critter!= real_dude_obj andAlso (PoisonMaxHPpercentMult < PoisonMaxHPpercentMult2 * EnemyPoisonMult) then PoisonMaxHPpercentMult = PoisonMaxHPpercentMult2 * EnemyPoisonMult;
-          PoisonTickDmg = round(critmaxhp / 100.0 * PoisonMaxHPpercentMult * (critcurpoison * PoisonLevelMult / PoisonLevelDiv));
-         if PoisonTickDmg < min_poison_dmg then begin
-           PoisonTickDmg = min_poison_dmg;
-         end
+      //if combat_diff <= 2 then PoisonMaxHPpercentMult = (0.5 * PoisonMaxHPpercentMult2) * combat_diff;
+      //if combat_diff > 2 then PoisonMaxHPpercentMult = (1.25 * PoisonMaxHPpercentMult2);
+      //if not(critter_in_party) andAlso critter!= real_dude_obj andAlso (PoisonMaxHPpercentMult < PoisonMaxHPpercentMult2 * EnemyPoisonMult) then PoisonMaxHPpercentMult = PoisonMaxHPpercentMult2 * EnemyPoisonMult;
+          //PoisonTickDmg = round(critmaxhp / 100.0 * PoisonMaxHPpercentMult * (critcurpoison * PoisonLevelMult / PoisonLevelDiv));
+         //if PoisonTickDmg < min_poison_dmg then begin
+           //PoisonTickDmg = min_poison_dmg;
+         //end
+         PoisonTickDmg = calc_poison_dmg(critter);
          losblock = obj_blocking_line(real_dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
          if ShowFloatMSG > 0 andAlso (not(losblock) or HR_fog_of_war == 0) then begin
            if PoisonTickDmg > 0 andAlso RegenMod > 0  then begin
@@ -2605,8 +3404,8 @@ procedure ModInTurnBased begin
                   end
               end
          end
-
-         poison(critter, - (min_poison_decay + (round(critcurpoison * 0.10 ) * 10 / PoisonDecayDiv)));
+         call decrease_poison(critter);
+         //poison(critter, - (min_poison_decay + (round(critcurpoison * 0.10 ) * 10 / PoisonDecayDiv)));
          if get_critter_stat(Critter, STAT_current_hp) > PoisonTickDmg then begin
             critter_heal(Critter, - PoisonTickDmg);
          end
@@ -2632,12 +3431,12 @@ procedure ADJUSTPOISON begin
   variable companion = 0;
   variable OriginalPoisonDecay = 0;
   variable OriginalPoisonDMG = 0;
-  variable newpoisondmg = 0;
+  variable poison_amount = 0;
+  variable new_poison_amount = 0;
   variable PoisonTickDmg = 0;
-  variable PoisonEcxessLevel = 0;
   variable pseudoPoisonLevel = 0;
   variable pseudoCurrentHP = 0;
-  variable poisonres = 0;
+  variable poisonres;
   variable repeat = 0;
   variable crit_pid= 0;
   variable tardt = 0;
@@ -2647,48 +3446,85 @@ procedure ADJUSTPOISON begin
   variable party;
   variable critter_in_party;
   variable companion_in_party;
+  variable companion_kill_type;
+  variable cur_poison_end_count;
+  variable poison_overdose_amount;
+  variable critcurpoison;
+  variable critcurhp;
+  variable critmaxhp;
+  //variable critter_body_type;
+  variable has_antidote;
+  variable has_super_antidote;
+  variable antidote;
+  variable tmp;
+  variable stim;
+  variable stim_count;
+  variable hr;
+  variable stim_pid;
+  variable stim_regen_counter;
+  variable misc_charge;
+  variable new_stim;
+  variable pseudo_healing_rate;
   if PoisonMod > 0 then begin
   Critter = get_sfall_arg;
   originalPoisonDecay = get_sfall_arg;
   originalPoisonDMG = get_sfall_arg;
   if Critter > 0 then begin
      poisonres = get_critter_stat(critter, STAT_poison_resist );
-     if poisonres <= 0 then poisonres = 1;
      pseudoPoisonLevel = get_poison(critter);
      pseudoCurrentHP = get_critter_stat(critter, STAT_current_hp );
      party = party_member_list(0);
      critter_in_party = is_in_array(critter, party);
      tar_name = obj_name(Critter);
      kill_type = critter_kill_type(critter);
+     if originalPoisonDecay > 0 then begin
+        poison_amount = originalPoisonDecay - (originalPoisonDecay * poisonres / 100);
+     end
+     else begin
+        poison_amount = originalPoisonDecay;
+     end
+     new_poison_amount = poison_amount;
+     poison_overdose_amount = calc_poison_overdose(critter);
   end
-  // preventing robots from getting poison level
+  // prevent robots from being poisoned
   if kill_type == KILL_TYPE_robot_kills then begin
       if originalPoisonDecay > 0 then begin
          set_sfall_return(0);
-         set_sfall_arg(0, 1);
+         set_sfall_arg(1, 0);
+         new_poison_amount = 0;
       end
       return;
   end
   else if (critter_in_party) then begin
-     if originalPoisonDecay > 0 then begin
-        if critter != dude_obj then begin
-           newpoisondmg = ((3 * originalPoisonDecay * (100 - poisonres)) / 400);
-           if newpoisondmg <= 0 then newpoisondmg = 1;
-           set_sfall_return(newpoisondmg);
-           set_sfall_arg(newpoisondmg, 1);
-        end
-        //dude poison
-        else begin
-            if ((originalPoisonDecay * poisonres) / 100) >= 100 then begin
-               set_sfall_return(99);
-               set_sfall_arg(99, 1);
-            end
-        end
+     if poison_amount > 0 then begin
+         //Preventing death from sudden poisoning by huge amounts of poison
+         if poison_amount >= poison_overdose_amount then begin
+            //new_poison_amount = floor2((poison_overdose_amount-1) / (100.0 - poisonres) * 100);
+            //if new_poison_amount <= 0 then new_poison_amount = 1;
+            new_poison_amount = poison_overdose_amount - 1;
+            if new_poison_amount <= 0 then new_poison_amount = 1;
+            set_sfall_return(new_poison_amount);
+            set_sfall_arg(1, new_poison_amount);
+            new_poison_amount = poison_overdose_amount - 1;
+            if new_poison_amount <= 0 then new_poison_amount = 1;
+         end
+         if critter != dude_obj then begin
+            new_poison_amount = (combat_diff) * new_poison_amount / (1 + combat_diff);
+            if new_poison_amount <= 0 then new_poison_amount = 1;
+            set_sfall_return(new_poison_amount);
+            set_sfall_arg(1, new_poison_amount);
+         end
+
      end
   end
-  if (critter == real_dude_obj) andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == real_dude_obj) or ((get_poison(critter) + originalPoisonDecay * poisonres / 100) >= 100 andAlso critter != real_dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) then begin
-   display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), tar_name, pseudoPoisonLevel));
-   if critter_in_party andAlso not(combat_is_initialized) then begin
+  cur_poison_end_count = pseudoPoisonLevel + new_poison_amount;
+
+  if cur_poison_end_count < 0 then cur_poison_end_count = 0;
+  //if (critter == real_dude_obj) andAlso pseudoCurrentHP > 0 andAlso ( ((get_poison(critter) + originalPoisonDecay * poisonres / 100 ) >= 100 andAlso critter == real_dude_obj) or ((get_poison(critter) + originalPoisonDecay * poisonres / 100) >= 100 andAlso critter != real_dude_obj) or (originalPoisonDecay * poisonres / 100) >= 100) then begin
+   if originalPoisonDecay > 0 andAlso pseudoCurrentHP > 0 andAlso cur_poison_end_count >= poison_overdose_amount then begin
+   combat_delete_critter(critter);
+   //display_msg(parse_str_2(modmsg(msg_npc_reach_poison_lethal_value), tar_name, pseudoPoisonLevel));
+   //if critter_in_party andAlso not(combat_is_initialized) then begin
       if critter == real_dude_obj then begin
          if get_game_mode bwand INVENTORY then begin
             if critter == dude_obj then begin
@@ -2696,37 +3532,40 @@ procedure ADJUSTPOISON begin
                tap_key(1);
             end
             else begin
-               critter_heal(Critter, -9999);
+               critter_heal(Critter, -99999);
             end
          end
          else begin
             //poison(critter, (25 - get_poison(critter)));
-            call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 3),1);
+            call critter_inflict_poison_dmg(critter, poison_overdose_damage(critter), 1);
+            poisondeath = 1;
          end
       end
       else begin
          //poison(critter, (25 - get_poison(critter)));
-         call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 3),1);
+         call critter_inflict_poison_dmg(critter, poison_overdose_damage(critter), 1);
+         poisondeath = 1;
          //critter_heal(Critter, - pseudoCurrentHP * 2);
       end
-   end
-   else begin
-      if critter == real_dude_obj then begin
-         if get_game_mode bwand INVENTORY then begin
-            if critter == dude_obj then begin
-               critter_poison_overdose = dude_obj;
-               tap_key(1);
-            end
-            else begin
-               critter_heal(Critter, -9999);
-            end
-         end
-         else begin
+   //end
+   //else begin
+      //if critter == real_dude_obj then begin
+         //if get_game_mode bwand INVENTORY then begin
+            //if critter == dude_obj then begin
+               //critter_poison_overdose = dude_obj;
+               //tap_key(1);
+            //end
+            //else begin
+               //critter_heal(Critter, -9999);
+            //end
+         //end
+         //else begin
             //poison(critter, (25 - get_poison(critter)));
-            call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 3),1);
-         end
-      end
-      else begin
+            //call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 3),1);
+            //poisondeath = 1;
+         //end
+      //end
+      //else begin
          //crit_pid = obj_pid(Critter);
          //tardt = get_proto_data(crit_pid, CRITTER_PROTO_DT);
          //tardr = get_proto_data(crit_pid, CRITTER_PROTO_DR);
@@ -2739,19 +3578,19 @@ procedure ADJUSTPOISON begin
          //set_proto_data(crit_pid, CRITTER_PROTO_DT, 0);
          //set_proto_data(crit_pid, CRITTER_PROTO_DR, 0);
          //critter_dmg(critter, pseudoCurrentHP, DMG_plasma);
-
+//
          //if get_game_mode bwand WORLDMAP then begin
             //critter_heal(critter, - (get_critter_stat(critter, STAT_max_hp) * 2));
          //end
          //else begin
          //poison(critter, -get_poison(critter));
-         call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 2),1);
-         poisondeath = 1;
+         //call critter_inflict_poison_dmg(critter, (get_critter_stat(critter, STAT_max_hp) * 2),1);
+         //poisondeath = 1;
          //end
          //set_proto_data(crit_pid, CRITTER_PROTO_DT, tardt);
          //set_proto_data(crit_pid, CRITTER_PROTO_DR, tardr);
-      end
-   end
+      //end
+   //end
 
   end
   if originalPoisonDecay == -2 andAlso OriginalPoisonDMG == -1 andAlso not(combat_is_initialized) then begin
@@ -2760,7 +3599,99 @@ procedure ADJUSTPOISON begin
     companion_in_party = is_in_array(companion, party);
     tar_name = obj_name(companion);
     if companion_in_party then begin
-     while PoisonMod > 0 andAlso companion != real_dude_obj andAlso get_poison(companion) > 0  andAlso get_critter_stat(companion, STAT_current_hp ) > 0 do begin
+       critcurpoison = get_poison(companion);
+       critcurhp = get_critter_stat(companion, STAT_current_hp );
+     while PoisonMod > 0 andAlso companion != real_dude_obj andAlso critcurpoison > 0  andAlso critcurhp > 0 do begin
+         critcurpoison = get_poison(companion);
+         critcurhp = get_critter_stat(companion, STAT_current_hp );
+         critmaxhp = get_critter_stat(companion, STAT_max_hp );
+         // npc use antidote out of combat
+         if PoisonMod > 0 andAlso companion != real_dude_obj andAlso critcurpoison > 5 andAlso critcurhp > 0 andAlso not(is_dead(companion)) then begin
+            //critter_cur_frm = get_object_data(companion, OBJ_DATA_CUR_FRM);
+            //critter_body_type = get_proto_data(obj_pid(companion), PROTO_CR_BODY_TYPE);
+            companion_kill_type = critter_kill_type(companion);
+            if not(is_prone(companion)) andAlso can_use_items(companion_kill_type) then begin
+                 has_antidote = obj_is_carrying_obj_pid(companion, PID_ANTIDOTE);
+               if Nevada > 0 then has_super_antidote = obj_is_carrying_obj_pid(companion, 53);
+               tail_used = 0;
+               if (has_antidote > 0 or (Nevada > 0 andAlso has_super_antidote)) andAlso ((critter_in_party andAlso ((critcurpoison > 10 andAlso critcurhp < (critmaxhp / 4)) or critcurpoison > 25 or critcurhp < 14)) or (not(critter_in_party) andAlso ((random(10,50)) < critcurpoison or critcurhp <= 13 or critcurhp < (critmaxhp / 5))) ) andAlso get_critter_stat(companion, STAT_current_hp ) > 0 then begin
+                  tail_used = 1;
+                  antidote = obj_carrying_pid_obj(companion, PID_ANTIDOTE);
+                  if Nevada > 0 andAlso has_super_antidote > 0 andAlso (critcurpoison > 25 or (has_antidote <= 0 andAlso critcurpoison > 15)) then antidote = obj_carrying_pid_obj(companion, 53);
+                  //set_self(companion);
+                  //set_self(companion);
+                  //use_obj_on_obj(antidote, companion);
+                  //set_self(0);
+                  display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, obj_name(antidote)));
+                  tmp = rm_mult_objs_from_inven(companion, antidote, 1);
+                  if critter_in_party andAlso critcurpoison > 40 then begin
+                     poison(companion, -((18 + critcurpoison / 2) + 20 * has_super_antidote));
+                  end
+                  else begin
+                     poison(companion, -(random(18,28) + 20 * has_super_antidote));
+                  end
+               end
+               hr = get_critter_stat(companion, STAT_heal_rate);
+               // stimpack use
+               if tail_used <= 0 then begin
+                  stim = check_poison_healing_item(companion, critmaxhp, critcurhp, critcurpoison);
+                  if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
+                     stim_count = obj_is_carrying_obj(companion, stim);
+                     tail_used = 1;
+                     //call critter_use_item(companion, stim);
+                     stim_pid = obj_pid(stim);
+                     display_msg(parse_str_2(modmsg(msg_npc_use_item), tar_name, obj_name(stim)));
+                     if stim_pid == PID_STIMPAK andAlso RegenMod > 0 then begin
+                        stim_regen_counter += 3;
+                        if stim_regen_counter > 6 then stim_regen_counter = 6;
+                        tmp = rm_mult_objs_from_inven(companion, stim, 1);
+                     end
+                     else if obj_item_subtype(stim) == item_type_misc_item then begin
+                        misc_charge = get_weapon_ammo_count(stim);
+                        if misc_charge == 1 then begin
+                           critter_heal(companion, random(10, has_skill(companion,SKILL_FIRST_AID)));
+                           tmp = rm_mult_objs_from_inven(companion, stim, 1);
+                        end
+                        else if misc_charge > 1 then begin
+                           new_stim = create_object(stim_pid, 0, 0);
+                           add_obj_to_inven(companion, new_stim);
+                           tmp = rm_mult_objs_from_inven(companion, stim, 1);
+                           critter_heal(companion, random(10, has_skill(companion,SKILL_FIRST_AID)));
+                           set_weapon_ammo_count(new_stim, (misc_charge - 1));
+                        end
+                     end
+                     else if obj_item_subtype(stim) == item_type_drug then begin
+                        if stim_pid == PID_STIMPAK then begin
+                           critter_heal(companion, 20);
+                        end
+                        else if stim_pid == PID_SUPER_STIMPAK then begin
+                           critter_heal(companion, 75);
+                        end
+                        else if stim_pid == PID_HEALING_POWDER then begin
+                           critter_heal(companion, 13);
+                        end
+                        else if stim_pid == 525 then begin
+                           critter_heal(companion, 100);
+                        end
+                        tmp = rm_mult_objs_from_inven(companion, stim, 1);
+                     end
+                  end
+               end
+            end
+         end
+         //pseudo stim regen
+         pseudo_healing_rate = 0;
+         if stim_regen_counter > 0 andAlso hr < new_max_hr then begin
+            pseudo_healing_rate = 20 + 20 * stim_regen_counter / 4;
+            stim_regen_counter -= (1 + stim_regen_counter / 4);
+            if hr < 5 then begin
+               call critter_regen_heal(companion,true,pseudo_healing_rate);
+            end
+            else begin
+               call critter_regen_heal(companion,false,(get_critter_stat(companion, STAT_heal_rate) - pseudo_healing_rate));
+            end
+         end
+
       if RegenMod > 0  andAlso get_critter_stat(companion, STAT_current_hp ) > 0 andAlso get_critter_stat(companion, STAT_heal_rate) > 5 then begin
       if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
       RegenTickHP = (1 * round(get_critter_stat(companion, STAT_max_hp) / 100.00000 * RegenMaxHPpercentMult * (get_critter_stat(companion, STAT_heal_rate) * HealingRateMult / HealingRateDiv)));
@@ -2774,7 +3705,8 @@ procedure ADJUSTPOISON begin
          if PoisonTickDmg < min_poison_dmg then begin
            PoisonTickDmg = min_poison_dmg;
          end
-        poison(companion, - (min_poison_decay + (round(get_poison(companion) * 0.10 ) * 10 / PoisonDecayDiv)));
+         call decrease_poison(companion);
+        //poison(companion, - (min_poison_decay + (round(get_poison(companion) * 0.10 ) * 10 / PoisonDecayDiv)));
         if PoisonTickDmg > 0 andAlso companion != real_dude_obj then begin
          if (get_critter_stat(companion, STAT_current_hp ) <= PoisonTickDmg) then begin
            poison(companion, - 999);
@@ -2803,7 +3735,7 @@ procedure ADJUSTPOISON begin
             if PoisonTickDmg < min_poison_dmg then begin
               PoisonTickDmg = min_poison_dmg;
             end
-           pseudoPoisonLevel = pseudoPoisonLevel - (min_poison_decay + round((pseudoPoisonLevel * 0.10 ) * 10 / PoisonDecayDiv));
+           pseudoPoisonLevel = pseudoPoisonLevel - (min_poison_decay + round(pseudoPoisonLevel * 0.10  * 10 / PoisonDecayDiv));
            if PoisonTickDmg > 0 andAlso Critter == real_dude_obj then begin
             display_msg(parse_str_2(modmsg(msg_player_poison_dmg), tar_name,PoisonTickDmg));
            end
@@ -2855,7 +3787,7 @@ procedure ADJUSTPOISON begin
   end
   if PoisonMod > 0 andAlso critter == real_dude_obj andAlso get_poison(critter) < 1 andAlso OriginalPoisonDMG == -1 then begin
    display_msg(parse_str_2(modmsg(msg_player_after_poison_effect), tar_name, OriginalPoisonDMG));
-   critter_heal(critter, random(-1, 1));
+   critter_heal(critter, random(-1,0));
   end
   RegenTickHP = 0;
   repeat = 0;
@@ -2864,10 +3796,10 @@ end
 procedure map_enter_p_proc begin
    variable critter;
    variable critter_cur_hp;
-   variable critter_int;
+   //variable critter_int;
    variable critter_outdoorsman;
    variable critter_type;
-   variable critter_body_type;
+   //variable critter_body_type;
    variable rnd;
    variable critter_pid;
    variable has_scorp_tail;
@@ -2905,22 +3837,22 @@ procedure map_enter_p_proc begin
          party_member_remove = 0;
       end
       //add radscorpion tail to npc at first map loading
-      if ((PoisonMod > 0 andAlso NPCsUsePoisonTails > 0) or RegenMod > 0 ) andAlso (metarule(METARULE_TEST_FIRSTRUN,0) or days_since_visited > 50) then begin
+      if ((PoisonMod > 0 andAlso NPCsUsePoisonTails > 0) or RegenMod > 0 ) andAlso (metarule(METARULE_TEST_FIRSTRUN,0) or days_since_visited > 40) then begin
          party = party_member_list(0);
          foreach (critter in list_as_array(LIST_CRITTERS)) begin
                critter_in_party = is_in_array(critter, party);
                critter_cur_hp = get_critter_stat(critter, STAT_current_hp );
                critter_pid = obj_pid(critter);
-               critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
+               //critter_body_type = get_proto_data(critter_pid, PROTO_CR_BODY_TYPE);
                critter_type = critter_kill_type(critter);
-            if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != real_dude_obj andAlso not(critter_in_party) andAlso critter_body_type == CR_BODY_BIPED andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+            if obj_is_visible_flag(critter) andAlso not(is_dead(critter)) andAlso critter_cur_hp > 0 andAlso critter != real_dude_obj andAlso not(critter_in_party) andAlso critter_type != KILL_TYPE_robot_kills andAlso can_use_items(critter_type) then begin
                has_stim = obj_is_carrying_obj_pid(Critter, PID_STIMPAK);
                if RegenMod > 0  andAlso has_stim <= 0 then begin
-                   rnd = random(0, 1000);
-                  if (rnd < critter_cur_hp - 50) or (military_fid(critter) andAlso rnd < 75) then begin
+                  rnd = random(0, 1000);
+                  if (rnd < critter_cur_hp - 50) orElse (military_fid(critter) andAlso rnd < 75) then begin
                      stim = create_object_sid(PID_STIMPAK, 0, 0, -1);
                      if Sonora <= 0 andAlso military_fid(critter) then begin
-                        add_mult_objs_to_inven(critter, stim, random(1,3));
+                        add_mult_objs_to_inven(critter, stim, random(1,2));
                         stim = create_object_sid(PID_PLASMA_GRENADE, 0, 0, -1);
                         add_mult_objs_to_inven(critter, stim, random(0,2));
                      end
@@ -2941,7 +3873,7 @@ procedure map_enter_p_proc begin
                if game_time > ONE_GAME_DAY * 19 then begin
                   has_antidote = obj_is_carrying_obj_pid(Critter, PID_ANTIDOTE);
                   if PoisonMod > 0 andAlso has_antidote <= 0 then begin
-                      rnd = random(0,120);
+                     rnd = random(0,120);
                      if rnd < 1 then begin
                         antidote = create_object_sid(PID_ANTIDOTE, 0, 0, -1);
                         add_mult_objs_to_inven(critter, antidote, random(1,3));
@@ -2950,12 +3882,22 @@ procedure map_enter_p_proc begin
                end
                has_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SCORPION_TAIL);
                if PID_SMALL_SCORPION_TAIL > 0 andAlso get_proto_data (PID_SMALL_SCORPION_TAIL, PROTO_IT_INV_FID) == 117440914 then has_small_scorp_tail = obj_is_carrying_obj_pid(Critter, PID_SMALL_SCORPION_TAIL);
-               critter_int = get_critter_stat(critter, STAT_iq);
+               //critter_int = get_critter_stat(critter, STAT_iq);
                wpn = critter_inven_obj2(critter, INVEN_TYPE_RIGHT_HAND);
+               new_wpn = 1;
                //if the weapon is not equipped, try to find it in the inventory
-               if wpn <= 0 then begin
-               count = inven_count(critter);
-               invenArr = temp_array_list(count);
+               if wpn > 0 then begin
+                  wpnpid = obj_pid(wpn);
+                  wpnname = obj_name(wpn);
+                  if wpnpid > 0 then begin
+                     wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
+                     wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
+                  end
+               end
+               //if wpn <= 0 then begin
+               else begin
+                  count = inven_count(critter);
+                  invenArr = temp_array_list(count);
                   for (i = 0; i < count; i++) begin
                      invenArr[i] = inven_ptr(critter, i);
                   end
@@ -2964,26 +3906,20 @@ procedure map_enter_p_proc begin
                         wpnpid = obj_pid(item);
                         wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
                         wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
-                        if (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam then begin
+                        if (wpnanim == WPN_ANIM_KNIFE orElse wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam then begin
                            wpn = item;
-                            new_wpn = 3;
+                           new_wpn = 3;
+                           wpnname = obj_name(wpn);
                            break;
                         end
                      end
                   end
                end
-               if wpn then begin
-                  wpnpid = obj_pid(wpn);
-                  wpnname = obj_name(wpn);
-               end
-               if wpnpid then begin
-                  wpnanim = get_proto_data(wpnpid, PROTO_WP_ANIM);
-                  wpndmgtype = get_proto_data(wpnpid, PROTO_WP_DMG_TYPE);
-               end
                 // add npc radscorpion tail
-               if NPCsUsePoisonTails > 0 andAlso has_scorp_tail <= 1 andAlso has_small_scorp_tail <= 1 then begin
+               if wpn > 0 andAlso NPCsUsePoisonTails > 0 andAlso has_scorp_tail <= 1 andAlso has_small_scorp_tail <= 1 then begin
                   critter_outdoorsman = has_skill(critter, SKILL_OUTDOORSMAN);
                   if critter_outdoorsman < 40 then critter_outdoorsman = 40;
+                  if new_wpn <= 0 then new_wpn = 1;
                   critter_outdoorsman = critter_outdoorsman / new_wpn;
                   rnd = random(0, 80);
                   if (rnd <= critter_outdoorsman andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == WPN_ANIM_SPEAR) andAlso wpndmgtype == DMG_normal_dam) then begin
@@ -3108,15 +4044,13 @@ procedure map_enter_p_proc begin
       set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_A, 2);
       set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_B, 4);
       set_proto_data(PID_HEALING_POWDER, PROTO_DR_AMOUNT_3_C, 1);
-      set_proto_data(16777458, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR"));
-      set_proto_data(16777459, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR"));
-      if  ET_TU <= 0 then set_proto_data(16777570, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAQHR"));
-      set_proto_data(16777464, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|CENHR"));
-      set_proto_data(16777465, 232, get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|MCENHR"));
+      set_proto_data(16777458, PROTO_CR_BONUS_HEALING_RATE, WAHR);
+      set_proto_data(16777459, PROTO_CR_BONUS_HEALING_RATE, TWAHR);
+      if  ET_TU <= 0 then set_proto_data(16777570, PROTO_CR_BONUS_HEALING_RATE, WAQHR);
+      set_proto_data(16777464, PROTO_CR_BONUS_HEALING_RATE, CENHR);
+      set_proto_data(16777465, PROTO_CR_BONUS_HEALING_RATE, MCENHR);
       if Nevada <= 0 andAlso ET_TU <= 0 andAlso Resurrection <= 0 then begin
-         set_proto_data(PID_END_BOSS, 304, 30); // set Frank Horrigan poison res to 80%(base 50 + bonus 30%)
-         set_proto_data(PID_END_BOSS, PROTO_CR_BONUS_DR(DMG_laser), 65); // set Frank Horrigan laser res to 65 %
-         set_proto_data(PID_END_BOSS, PROTO_CR_BONUS_DR(DMG_electrical), 45); // set Frank Horrigan elec res to 66 %
+         set_proto_data(PID_END_BOSS, PROTO_CR_BONUS_POISON_DR, 30); // set Frank Horrigan poison res to 90%(base 50 + bonus 90%)
       end
    end
 
@@ -3129,16 +4063,16 @@ procedure map_enter_p_proc begin
      set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_B, 1);
      // iguana
      set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_STAT_C, STAT_poison_resist);
-     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 2);
-     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -2);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 3);
+     set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -3);
      set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_3_C , 0);
      // pretty & glamour care kit
      set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
      set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
      // iguana bits
      set_proto_data(103, PROTO_DR_STAT_C, STAT_poison_resist);
-     set_proto_data(103, PROTO_DR_AMOUNT_1_C, 5);
-     set_proto_data(103, PROTO_DR_AMOUNT_2_C , -5);
+     set_proto_data(103, PROTO_DR_AMOUNT_1_C, 7);
+     set_proto_data(103, PROTO_DR_AMOUNT_2_C , -7);
      // nuka heal
      set_proto_data(106, PROTO_DR_AMOUNT_1_A, 1);
      // water
@@ -3146,16 +4080,15 @@ procedure map_enter_p_proc begin
       set_proto_data(126, PROTO_DR_STAT_B, STAT_current_poison);
       set_proto_data(126, PROTO_DR_STAT_C, STAT_current_rad);
       set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
-      set_proto_data(126, PROTO_DR_AMOUNT_1_B, -2);
-      set_proto_data(126, PROTO_DR_AMOUNT_1_C, -1);
-      set_proto_data(126, PROTO_DR_AMOUNT_1_A, 2);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_B, -4);
+      set_proto_data(126, PROTO_DR_AMOUNT_1_C, -3);
       //clear water  8
       set_proto_data(212, PROTO_DR_STAT_A, STAT_current_hp);
       set_proto_data(212, PROTO_DR_STAT_B, STAT_current_poison);
       set_proto_data(212, PROTO_DR_STAT_C, STAT_current_rad);
       set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
-      set_proto_data(212, PROTO_DR_AMOUNT_1_B, -5);
-      set_proto_data(212, PROTO_DR_AMOUNT_1_C, -5);
+      set_proto_data(212, PROTO_DR_AMOUNT_1_B, -7);
+      set_proto_data(212, PROTO_DR_AMOUNT_1_C, -7);
      // the ashes of the forefather poison for 6, not 25
      set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
      //meat jerky

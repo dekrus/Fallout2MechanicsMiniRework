@@ -2,9 +2,20 @@
 #####TraitsPlus
 - Added a new mod that adds additional unique properties to the character’s starting traits
 
+### Latest Version v1.98.2
+- Geckos and plants are no longer considered intelligent creatures and cannot use drugs or objects on themselves.
+##### Regen & Poison mod
+- Fixed possible disabling of the game interface in some cases.
+- Fixed an issue with Stimpak and healing powder duration for sfall version 5+.
+- Poisoned intelligent creatures can now use stimpaks and various healing items to save their lives if they do not have an antidote.
+- Poisoning the target during an attack now occurs after the attack animation, and not at its beginning.
+- A critical miss dealing damage from a poisoned weapon to the attacker now poisons the attacker.
+- The amount of poisoning received by companions depends on the ingame combat difficulty settings (50%,75%,100%).
+- The maximum poison level for instant death is now configurable in the .ini file and can be completely disabled.
+##### SecondaryAttackMod
+- Fixed unwielding of items from the player's hands if the NPC uses an alternative attack with a pistol/SMG.
 
-
-### Latest Version v1.98.1
+### Version v1.98.1
 #####Swing&Thrust
 - Added effects for blunt melee weapons (sledgehammers, clubs, cattle prods).
 ##### MedicalToolsMod

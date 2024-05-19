@@ -169,152 +169,159 @@ procedure COMBATDAMAGE begin
    variable attacker_in_party = is_in_array(attacker, party);
    variable player_mult = 1;
    variable combat_diff = combat_difficulty;
+   variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable actual_attack;
+   if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
+      actual_attack = 1;
+   end
    dropping = 0;
-   if weapon > 0 then begin
-      wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
-      wpnpid = obj_pid(weapon);
-   end
-   if target then begin
-      target_type = obj_type(target);
-      if target_type == OBJ_TYPE_CRITTER then begin
-         critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   if actual_attack > 0 then begin
+      if weapon > 0 then begin
+         wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
+         wpnpid = obj_pid(weapon);
       end
-   end
-//chance to cripple limbs with explosion
-   if CrippleMod > 0 then begin // mod activation
-      if target_in_party or target == dude_obj then begin
-         player_mult = CripDiv;
+      if target then begin
+         target_type = obj_type(target);
+         if target_type == OBJ_TYPE_CRITTER then begin
+            critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+         end
+      end
+   //chance to cripple limbs with explosion
+      if CrippleMod > 0 then begin // mod activation
+         if target_in_party or target == dude_obj then begin
+            player_mult = CripDiv;
+            if combat_diff == 0 then player_mult = CripDiv * 3;
+         end
+         if weapon > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
+               target_curhp = get_critter_stat(target, STAT_current_hp);
+            // cripple for non robot target
+            if player_mult > 0 andAlso (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso critter_type != 10 andAlso ((dmgtotar > (target_curhp / 7)) or (dmgtotar > 0 andAlso not(random(0,200)))) then begin
+               target_en = get_critter_stat(target, STAT_en);
+               target_st = get_critter_stat(target, STAT_st);
+               target_pe = get_critter_stat(target, STAT_pe);
+               rnd = random(0, ((60 + target_en * 4) * player_mult ));
+               if rnd <= RLcrip then begin
+                  critter_injure(target, DAM_CRIP_LEG_RIGHT);
+               end
+               rnd = random(0, ((60 + target_en * 4) * player_mult ));
+               if rnd <= LLcrip then begin
+                  critter_injure(target, DAM_CRIP_LEG_LEFT);
+               end
+               rnd = random(0, ((60 + target_st * 3) * player_mult ));
+               if rnd <= RAcrip then begin
+                  critter_injure(target, DAM_CRIP_ARM_RIGHT);
+                  if random(0,4) andAlso dmgtotar < target_curhp then begin
+                     dropping = 1;
+                     if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
+                  end
+               end
+               rnd = random(0, ((60 + target_st * 4) * player_mult ));
+               if rnd <= LAcrip then begin
+                  critter_injure(target, DAM_CRIP_ARM_LEFT);
+                   if random(0,4) andAlso dmgtotar < target_curhp then begin
+                     dropping = 1;
+                     if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
+                  end
+               end
+               rnd = random(0, ((60 + target_pe * 4) * player_mult ));
+               if rnd <= Icrip then begin
+                  critter_injure(target, DAM_BLIND);
+               end
+            end
+            // criple for robot target
+            if ((dmgtotar > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtotar > (target_curhp / 4) andAlso (wpn_dmg_type == DMG_explosion))) andAlso critter_type == 10 then begin
+               rnd = random(0, ((60 + target_en * 4) * player_mult ));
+               if rnd <= RLcrip then begin
+                  critter_injure(target, DAM_CRIP_LEG_RIGHT);
+               end
+               rnd = random(0, ((60 + target_en * 4) * player_mult ));
+               if rnd <= LLcrip then begin
+                  critter_injure(target, DAM_CRIP_LEG_LEFT);
+               end
+               rnd = random(0, ((60 + target_st * 4) * player_mult ));
+               if rnd <= RAcrip then begin
+                  critter_injure(target, DAM_CRIP_ARM_RIGHT);
+                  if random(0,1) andAlso dmgtotar < target_curhp then begin
+                     dropping = 1;
+                     if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
+                  end
+               end
+               rnd = random(0, ((60 + target_st * 4) * player_mult ));
+               if rnd <= LAcrip then begin
+                  critter_injure(target, DAM_CRIP_ARM_LEFT);
+                  if random(0,1) andAlso dmgtotar < target_curhp then begin
+                     dropping = 1;
+                     if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
+                  end
+               end
+               rnd = random(0, ((60 + target_pe * 4) * player_mult ));
+               if rnd < (1 + Icrip)  then begin
+                  critter_injure(target, DAM_BLIND);
+               end
+            end
+         end
+         attacker_curhp = get_critter_stat(attacker, STAT_current_hp);
+         player_mult = 1;
+         if attacker_in_party or attacker == dude_obj then begin
+            player_mult = CripDiv;
          if combat_diff == 0 then player_mult = CripDiv * 3;
-      end
-      if weapon > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
-            target_curhp = get_critter_stat(target, STAT_current_hp);
-         // cripple for non robot target
-         if player_mult > 0 andAlso (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso critter_type != 10 andAlso ((dmgtotar > (target_curhp / 7)) or (dmgtotar > 0 andAlso not(random(0,200)))) then begin
-            target_en = get_critter_stat(target, STAT_en);
-            target_st = get_critter_stat(target, STAT_st);
-            target_pe = get_critter_stat(target, STAT_pe);
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd <= RLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd <= LLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + target_st * 3) * player_mult ));
-            if rnd <= RAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_RIGHT);
-               if random(0,4) andAlso dmgtotar < target_curhp then begin
-                  dropping = 1;
-                  if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
-               end
-            end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd <= LAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_LEFT);
-                if random(0,4) andAlso dmgtotar < target_curhp then begin
-                  dropping = 1;
-                  if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
-               end
-            end
-            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
-            if rnd <= Icrip then begin
-               critter_injure(target, DAM_BLIND);
-            end
          end
-         // criple for robot target
-         if ((dmgtotar > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtotar > (target_curhp / 4) andAlso (wpn_dmg_type == DMG_explosion))) andAlso critter_type == 10 then begin
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd <= RLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((60 + target_en * 4) * player_mult ));
-            if rnd <= LLcrip then begin
-               critter_injure(target, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd <= RAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_RIGHT);
-               if random(0,1) andAlso dmgtotar < target_curhp then begin
-                  dropping = 1;
-                  if not(is_in_array(target,exp_rh_wpn_drop_critters_array)) then set_array(exp_rh_wpn_drop_critters_array, len_array(exp_rh_wpn_drop_critters_array), target);
+      // criple for non robot attacker
+         if player_mult > 0 andAlso weapon > 0 andAlso (not(attacker_in_party) or (attacker_in_party andAlso combat_diff > 0)) then begin
+            attaker_type = metarule(METARULE_CRITTER_KILL_TYPE, attacker);
+            if (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso dmgtoatkr > (attacker_curhp / 6) andAlso wpnpid != 159 andAlso attaker_type != 10 then begin
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < RLcrip then begin
+                  critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < LLcrip then begin
+                  critter_injure(attacker, DAM_CRIP_LEG_LEFT);
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < RAcrip then begin
+                  critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < LAcrip then begin
+                  critter_injure(attacker, DAM_CRIP_ARM_LEFT);
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < Icrip then begin
+                  critter_injure(attacker, DAM_BLIND);
                end
             end
-            rnd = random(0, ((60 + target_st * 4) * player_mult ));
-            if rnd <= LAcrip then begin
-               critter_injure(target, DAM_CRIP_ARM_LEFT);
-               if random(0,1) andAlso dmgtotar < target_curhp then begin
-                  dropping = 1;
-                  if not(is_in_array(target,exp_lh_wpn_drop_critters_array)) then set_array(exp_lh_wpn_drop_critters_array, len_array(exp_lh_wpn_drop_critters_array), target);
-               end
-            end
-            rnd = random(0, ((60 + target_pe * 4) * player_mult ));
-            if rnd < (1 + Icrip)  then begin
-               critter_injure(target, DAM_BLIND);
-            end
-         end
-      end
-      attacker_curhp = get_critter_stat(attacker, STAT_current_hp);
-      player_mult = 1;
-      if attacker_in_party or attacker == dude_obj then begin
-         player_mult = CripDiv;
-      if combat_diff == 0 then player_mult = CripDiv * 3;
-      end
-   // criple for non robot attacker
-      if player_mult > 0 andAlso weapon > 0 andAlso (not(attacker_in_party) or (attacker_in_party andAlso combat_diff > 0)) then begin
-         attaker_type = metarule(METARULE_CRITTER_KILL_TYPE, attacker);
-         if (wpn_dmg_type == DMG_explosion or wpnpid == 26) andAlso dmgtoatkr > (attacker_curhp / 6) andAlso wpnpid != 159 andAlso attaker_type != 10 then begin
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < RLcrip then begin
+      // criple for robot attacker
+            if ((dmgtoatkr > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtoatkr > (attacker_curhp / 3) andAlso (wpn_dmg_type == DMG_explosion))) andAlso attaker_type == 10 then begin
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < RLcrip then begin
                critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < LLcrip then begin
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < LLcrip then begin
                critter_injure(attacker, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < RAcrip then begin
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < RAcrip then begin
                critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < LAcrip then begin
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < LAcrip then begin
                critter_injure(attacker, DAM_CRIP_ARM_LEFT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < Icrip then begin
+               end
+               rnd = random(0, ((80) * player_mult ));
+               if rnd < (1 + Icrip) then begin
                critter_injure(attacker, DAM_BLIND);
-            end
-         end
-   // criple for robot attacker
-         if ((dmgtoatkr > 5 andAlso wpn_dmg_type == DMG_emp) or (dmgtoatkr > (attacker_curhp / 3) andAlso (wpn_dmg_type == DMG_explosion))) andAlso attaker_type == 10 then begin
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < RLcrip then begin
-            critter_injure(attacker, DAM_CRIP_LEG_RIGHT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < LLcrip then begin
-            critter_injure(attacker, DAM_CRIP_LEG_LEFT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < RAcrip then begin
-            critter_injure(attacker, DAM_CRIP_ARM_RIGHT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < LAcrip then begin
-            critter_injure(attacker, DAM_CRIP_ARM_LEFT);
-            end
-            rnd = random(0, ((80) * player_mult ));
-            if rnd < (1 + Icrip) then begin
-            critter_injure(attacker, DAM_BLIND);
+               end
             end
          end
       end
-   end
-   if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == target then begin
-      combat_dmg = dmgtotar;
-      target_who_can_drop_hp = get_critter_stat(target_who_can_drop, STAT_current_hp);
-      if combat_dmg >= target_who_can_drop_hp then begin
-         call clear_lvars();
+      if (target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso target_who_can_drop == target then begin
+         combat_dmg = dmgtotar;
+         target_who_can_drop_hp = get_critter_stat(target_who_can_drop, STAT_current_hp);
+         if combat_dmg >= target_who_can_drop_hp then begin
+            call clear_lvars();
+         end
       end
    end
 end
