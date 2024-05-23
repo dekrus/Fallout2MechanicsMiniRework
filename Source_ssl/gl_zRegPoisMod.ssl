@@ -775,7 +775,9 @@ procedure show_death_msg begin
          if target_sid > 0 then begin
             //set_obj_script_fixed_value(target_sid, dmg_value);
             //exec_obj_script_proc(target_sid, damage_proc);
+            call scr_enable;
             exec_obj_script_proc(target_sid, destroy_proc);
+            call scr_disable;
          end
          set_outline(target,  OUTLINE_NONE);
          //critter_heal(target,-dmg_value);
