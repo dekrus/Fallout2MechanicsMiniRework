@@ -2,7 +2,13 @@
 #####TraitsPlus
 - Added a new mod that adds additional unique properties to the character’s starting traits
 
-### Latest Version v1.98.2
+
+### Latest Version v1.98.3
+##### Regen & Poison mod
+- Fixing a bug introduced in v1.98.2 where destroy_p_proc did not proc for creatures that died from poison.
+ 
+
+### Version v1.98.2
 - Geckos and plants are no longer considered intelligent creatures and cannot use drugs or objects on themselves.
 ##### Regen & Poison mod
 - Fixed possible disabling of the game interface in some cases.
