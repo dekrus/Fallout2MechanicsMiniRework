@@ -112,6 +112,7 @@
    procedure DEATHANIM2;
    procedure map_enter_p_proc_handler;
    procedure DRUGSEFFECT;
+   procedure WITHINPERCEPTION;
    procedure show_death_msg;
    procedure critter_inflict_poison_dmg(variable target, variable dmg_value, variable animate);
    procedure impact_delay(variable attacker,variable weapon,variable attack_type, variable target);
@@ -194,8 +195,8 @@
    variable dude_turn_critter_dies;
    variable critter_poison_overdose;
    //variable allow_anim;
-   variable scripts_disabled;
    variable after_rest_disable;
+   variable enemy_perception_disabled;
 
    variable WAHR;
    variable TWAHR;
@@ -277,6 +278,7 @@ procedure start begin
          ShowModMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowMSG");
          ShowFloatMSG = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|ShowFloatMSG");
          if PoisonMod > 0 then begin
+            register_hook_proc_spec(HOOK_WITHINPERCEPTION, WITHINPERCEPTION);
             if get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod") > 0 then begin
                NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
                if Sonora > 0 then begin
@@ -367,20 +369,20 @@ procedure start begin
    end
 end
 
-procedure scr_enable begin
-   if scripts_disabled > 0 then begin
-      call_offset_v0(0x4A53E0); // critters
-      call_offset_v0(0x4A53A8);
-      scripts_disabled = 0;
+procedure WITHINPERCEPTION begin
+   if enemy_perception_disabled > 0 then begin
+      if get_sfall_arg_at(1) == dude_obj then begin
+         set_sfall_return(0);
+      end
    end
 end
 
-procedure scr_disable begin
-   //if scripts_disabled <= 0 then begin
-      call_offset_v0(0x4A53D0);
-      call_offset_v0(0x4A53F0);//critt
-      scripts_disabled = 1;
-   //end
+procedure perception_disable begin
+   enemy_perception_disabled = 1;
+end
+
+procedure perception_enable begin
+   enemy_perception_disabled = 0;
 end
 
 procedure calc_regen_tick(variable critter, variable new_heal_rate) begin
@@ -775,9 +777,7 @@ procedure show_death_msg begin
          if target_sid > 0 then begin
             //set_obj_script_fixed_value(target_sid, dmg_value);
             //exec_obj_script_proc(target_sid, damage_proc);
-            call scr_enable;
             exec_obj_script_proc(target_sid, destroy_proc);
-            call scr_disable;
          end
          set_outline(target,  OUTLINE_NONE);
          //critter_heal(target,-dmg_value);
@@ -902,7 +902,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
    end
    //cause lethal POISON damage
    else begin
-      call scr_disable();
+      call perception_disable;
       if target == dude_obj then begin
          if dude_must_die <= 0 then begin
             set_global_script_type(3);
@@ -967,7 +967,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
                end
                reg_anim_animate(target, death_anim_sf, -1);
                reg_anim_callback(show_death_msg);
-               reg_anim_callback(scr_enable);
+               reg_anim_callback(perception_enable);
                //if dude_must_die > 0 then begin
                   //reg_anim_callback(kill_dude);
                //end
@@ -2118,7 +2118,7 @@ procedure map_exit_p_proc begin
   variable hr;
   if PoisonMod > 0 then begin
      clear_array(array_add_poison);
-     if scripts_disabled > 0 then call scr_enable();
+     if enemy_perception_disabled > 0 then call perception_enable;
   end
   map_exit = 1;
   if new_death > 0 then call show_death_msg;
@@ -2537,7 +2537,7 @@ procedure worldMapTravel begin
      end
      mode_change_death = 1;
      call show_death_msg;
-     if scripts_disabled > 0 then call scr_enable in 4;
+     if enemy_perception_disabled > 0 then call perception_enable in 4;
   end
   if critter_poison_overdose > 0 then begin
      call critter_inflict_poison_dmg(critter_poison_overdose, (get_critter_stat(critter_poison_overdose, STAT_max_hp) * 3),1);
