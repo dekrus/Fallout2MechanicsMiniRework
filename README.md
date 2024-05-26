@@ -291,16 +291,20 @@ When base intelligence increases (through perks and implants but not drugs), the
 - Fully compatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks)  
 - All components except for the [Steal](#steal) mod are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
-### Setting up compatibility with the EcCo Steal mod
-#### Partial Compatibility
+### Setting up compatibility with the EcCo 
+####Steal mod
+##### Partial Compatibility
 - For the [Steal](#steal) mod to work fully with the EcCo mod for Fallout 2, you need to download the file "gl_pbs_steal.int" from the link: [drive.google.com](https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing)
 - Place the file "gl_pbs_steal.int" in ...\Fallout 2\data\scripts (this will disable the EcCo's stealing mod. To enable it again, simply delete the file "gl_pbs_steal.int" from the scripts folder.
 - Set "FO2_ECCO=0" in the file `mods/F2MechanicsMiniRework.ini`
-#### Partial Compatibility
+##### Partial Compatibility
 - Partial compatibility with EcCo steal mod is enabled by setting FO2_ECCO=1 in the `mods/F2MechanicsMiniRework.ini` file.
 - Partial compatibility includes:  
 	- When the steal skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal weapons and items from the hands of the NPC.
 	- To peep into a target's pocket, you need to meet minimum skill requirements.
+#### Healing Mod
+- Set "healing_skill_max=0" in "misc.ini" (Fallout 2\mods\ecco folder).
+
 
 
 ## Uninstallation
