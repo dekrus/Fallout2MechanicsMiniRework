@@ -24,3 +24,6 @@
 {24}{}{You receive %1% experience for successful use of Doctor skill.}
 {25}{}{Due to your inept handling, you take %2% damage.}
 {26}{}{Due to your inept handling, %1% takes %2% damage.}
+
+
+{310}{}{ It has supplies for %d/%d uses.}

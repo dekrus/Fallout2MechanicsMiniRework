@@ -293,18 +293,23 @@ When base intelligence increases (through perks and implants but not drugs), the
 
 ### Setting up compatibility with the EcCo 
 #### Healing Mod
-In "misc.ini" (Fallout 2\mods\ecco folder
-- Set "skill_use_mod=0" (or set "MedToolsMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
-- Set "healing_skill_max=0"
+In the "misc.ini" (Fallout 2\mods\ecco folder)
+[HEALING_DRUGS]
+- Set "healing_skill_max=0" (or set "RegenMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
+[HEALING_SKILLS]
+- Set "skill_use_mod=0"
 - Set "skill_item_91=0" 
 - Set "skill_item_47=0" 
 - Set "skill_item_409=0" 
-- Set "skill_item_408=0"  (or set "RegenMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
+- Set "skill_item_408=0" (or set "MedToolsMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
 #### Steal mod
 ##### Full compatibility
-- For the [Steal](#steal) mod to work fully with the EcCo mod for Fallout 2, you need to download the file "gl_pbs_steal.int" from the link: [drive.google.com](https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing)
-- Place the file "gl_pbs_steal.int" in ...\Fallout 2\data\scripts (this will disable the EcCo's stealing mod. To enable it again, simply delete the file "gl_pbs_steal.int" from the scripts folder.
-- Set "FO2_ECCO=0" in the file `mods/F2MechanicsMiniRework.ini`
+In the "misc.ini" (Fallout 2\mods\ecco folder)
+[STEAL]
+- Set "enable_tweaks=0" 
+In the "mods/F2MechanicsMiniRework.ini"
+[MAIN]
+- Set "FO2_ECCO=0"
 ##### Partial Compatibility
 - Partial compatibility with EcCo steal mod is enabled by setting FO2_ECCO=1 in the `mods/F2MechanicsMiniRework.ini` file.
 - Partial compatibility includes:  

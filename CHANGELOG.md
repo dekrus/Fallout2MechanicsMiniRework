@@ -1,6 +1,9 @@
-### WIP Version v1.99
+### WIP Version 
 #####TraitsPlus
 - Added a new mod that adds additional unique properties to the character’s starting traits
+##### MedicalToolsMod
+- Added number of remaining/maximum uses to the description of FA Kit/Doctor's Bag/e.t.c. (Copied from EcCo mod)
+
 
 
 ### Latest Version v1.98.3

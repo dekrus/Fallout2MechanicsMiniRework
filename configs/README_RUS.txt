@@ -10,13 +10,32 @@
 
 ## Совместимость
 - Совместим со всеми играми на основе Fallout 2. Совместимость с Nevada, Sonora или Fallout et tu можно включить в `mods/F2MechanicsMiniRework.ini`
-- Совместим с "FO2tweaks" и "EcCo 0.9+" (с EcCo не совместим мод на кражи, нужно выключить один из них)
-- Для полной работы мода на кражи при установленном моде EcCo для Fallout 2 необходимо скачать файл "gl_pbs_steal.int"  по ссылке(https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing).
-- Закинуть файл "gl_pbs_steal.int" в ...\Fallout 2\data\scripts  (это отключит встоенный в EcCo мод на кражу, для включения просто удалить файл "gl_pbs_steal.int" из папки scripts)
-- Выставить FO2_ECCO=0 в файле `mods/F2MechanicsMiniRework.ini`
-
-- Частичная совместимость включается выставлением FO2_ECCO=1 в файле `mods/F2MechanicsMiniRework.ini`.
-- Будет работать возможность красть оружие из рук и промерка минимально навыка кражи чтобы заглянуть в карман цели.
+- Полностью совместим с "FO2tweaks" и "EcCo 0.9+" 
+- Для совместимости с EcCo неоюбходимо следующее:
+### Настройка совместимости с EcCo
+#### Мод на лечение препаратами и предметами
+В «misc.ini» (папка Fallout 2\mods\ecco)
+[HEALING_DRUGS]
+- Установите «healing_skill_max=0» (или установите «RegenMod=0» в «F2MechanicsMiniRework.ini», чтобы отключить мой мод)
+[HEALING_SKILLS]
+- Установите «skill_use_mod=0»
+- Установите «skill_item_91=0»
+- Установите «skill_item_47=0»
+- Установите «skill_item_409=0»
+- Установите «skill_item_408=0» (или установите «MedToolsMod=0» в «F2MechanicsMiniRework.ini», чтобы отключить мой мод)
+#### Мод на кражи
+##### Полная совместимость
+В «misc.ini» (папка Fallout 2\mods\ecco)
+[STEAL]
+- Установите «enable_tweaks=0»
+В "mods/F2MechanicsMiniRework.ini"
+[MAIN]
+- Установить "FO2_ECCO=0"
+##### Частичная совместимость
+- Частичная совместимость с модом кражи EcCo включается установкой FO2_ECCO=1 в файле `mods/F2MechanicsMiniRework.ini`.
+- Частичная совместимость включает в себя:
+  - Когда навык воровства превышает 155+ (текущее восприятие цели х 5), становится возможным красть оружие и предметы из рук NPC.
+  - Чтобы заглянуть в карман цели, вам необходимо соответствовать минимальным требованиям к навыку.
 
 ### Альтернативный режим стрельбы
 (Требуется выставить "AllowUnsafeScripting = 1 или 2" в ddraw.ini)!!!
