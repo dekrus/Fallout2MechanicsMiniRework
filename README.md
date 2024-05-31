@@ -293,8 +293,13 @@ When base intelligence increases (through perks and implants but not drugs), the
 
 ### Setting up compatibility with the EcCo 
 #### Healing Mod
-- Set "skill_use_mod=0" in "misc.ini" (Fallout 2\mods\ecco folder). (or set "MedToolsMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
-- Set "healing_skill_max=0" in "misc.ini" (Fallout 2\mods\ecco folder). (or set "RegenMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)  
+In "misc.ini" (Fallout 2\mods\ecco folder
+- Set "skill_use_mod=0" (or set "MedToolsMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
+- Set "healing_skill_max=0"
+- Set "skill_item_91=0" 
+- Set "skill_item_47=0" 
+- Set "skill_item_409=0" 
+- Set "skill_item_408=0"  (or set "RegenMod=0" in "F2MechanicsMiniRework.ini" to disable my tweak)
 #### Steal mod
 ##### Full compatibility
 - For the [Steal](#steal) mod to work fully with the EcCo mod for Fallout 2, you need to download the file "gl_pbs_steal.int" from the link: [drive.google.com](https://drive.google.com/file/d/1Kc9oeojrrPEh-LIEh0DubZBGQfDY99GR/view?usp=sharing)
