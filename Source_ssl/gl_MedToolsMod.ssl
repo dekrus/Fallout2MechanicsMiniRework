@@ -26,6 +26,7 @@
 #define msg_exp 24
 #define msg_critical_miss_dude 25
 #define msg_critical_miss_tar 26
+#define msg_uses_left 310
 #define all_disabilities (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT bwor DAM_CRIP_LEG_LEFT bwor DAM_CRIP_LEG_RIGHT bwor DAM_BLIND)
 #define is_disabled(x) (critter_state(x) bwand all_disabilities)
 #define first_aid_kit_bonus 20
@@ -221,6 +222,38 @@ procedure med_item_charges_restore begin
          end
       end
    end
+end
+
+procedure med_item_get_or_restore_charges(variable item) begin
+   variable item_pid;
+   variable cur_charges;
+   variable new_charges;
+   if item <= 0 then
+      return;
+
+   item_pid = obj_pid(item);
+   if item_pid == PID_FIRST_AID_KIT then begin
+      cur_charges = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+      new_charges = random(min_charges,max_charges);
+   end
+   else if item_pid == PID_FIELD_MEDIC_KIT then begin
+      cur_charges = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+      new_charges = random(doc_min_charges_t2,doc_max_charges_t2);
+   end
+   else if item_pid == doc_bag_pid then begin
+      cur_charges = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+      new_charges = random(doc_min_charges,doc_max_charges);
+   end
+   else if item_pid == PID_PARAMEDICS_BAG then begin
+      cur_charges = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+      new_charges = random(doc_min_charges_t2,doc_max_charges_t2);
+   end
+
+   if new_charges > 0 andAlso (cur_charges <= 0 orElse cur_charges > new_charges)then begin
+      set_object_data(item, OBJ_DATA_CUR_CHARGES, new_charges);
+      cur_charges = new_charges;
+   end
+   return cur_charges;
 end
 
 //Changes AP cost of FA and DOC items
@@ -699,6 +732,22 @@ procedure use_skill_on_dead_handler begin
    end
 end
 
+//copied from Phobos2077 ecco mod https://github.com/phobos2077/fo2_ecco/blob/master/scripts_src/_pbs_main/gl_pbs_healing_skills.ssl
+procedure descriptionobj_hook begin
+   variable
+      obj := get_sfall_arg,
+      objPid := obj_pid(obj),
+      str, curCharges, maxCharges;
+
+   if (obj_type(obj) != OBJ_TYPE_ITEM) then
+      return;
+   curCharges = med_item_get_or_restore_charges(obj);
+   if (curCharges <= 0 ) then
+      return;
+   str := string_format(modmsg(msg_uses_left), curCharges, get_proto_data(objPid, PROTO_MI_CHARGES));
+   set_sfall_return(proto_data(objPid, it_description) + str);
+end
+
 procedure start begin
    if game_loaded then begin
       MedToolsMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
@@ -720,6 +769,9 @@ procedure start begin
          register_hook_proc(HOOK_COMBATTURN, npc_combat_doc_use);
          register_hook_proc(HOOK_REMOVEINVENOBJ, inv_move);
          register_hook_proc(HOOK_GAMEMODECHANGE, med_item_charges_restore);
+
+         register_hook_proc(HOOK_DESCRIPTIONOBJ, descriptionobj_hook);
+
          new_mod_msg = add_extra_msg_file(msg_file);
          call map_enter_p_proc();
          call med_item_charges_restore;
