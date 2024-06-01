@@ -5764,8 +5764,6 @@ procedure STEAL_HOOK begin
    variable isSuccess = 0;
    variable min_skill_needed = 0;
    variable sneak_bonus;
-   variable user_state = critter_state(dude_obj);
-   variable taget_state = critter_state(target);
    variable distance;
    variable ally_state = -1;
    variable ally_cur_frm = -1;
@@ -5846,7 +5844,6 @@ procedure STEAL_HOOK begin
             isSuccess = 0;
             if not(critter_state(target) BWAND DAM_KNOCKED_DOWN) andAlso not(critter_state(target) BWAND DAM_KNOCKED_OUT) then begin
                call add_timed_event_TURN_BACK(target,game_ticks(random(1,4) + (time_skip / 2)));
-               anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(dude_obj)));
                //if obj_can_see_obj(target,dude_obj) then begin
                   target_sid = get_object_data(target, OBJ_DATA_SID);
                   if target_sid > 0 then begin
@@ -5860,6 +5857,7 @@ procedure STEAL_HOOK begin
                      call create_arrays_last_pickpocket_targets_and_add_target(target,value_caught_stealing);
                      call set_anim_tar_obj(target,target_rot);
                   end
+               anim(target, ANIMATE_ROTATION, rotation_to_tile(tile_num(target), tile_num(dude_obj)));
                //end
                //else begin
                   //add_global_timer_event(game_ticks(1), fixed_param_steal);
@@ -5922,7 +5920,7 @@ procedure STEAL_HOOK begin
          last_loot_obj_inv_offset = 0;
       end
    end
-   if team != TEAM_PLAYER andAlso not(target_in_party) then begin
+   if not(target_in_party) then begin
       if StealRebalance == 2 andAlso steal_count == 0 andAlso isSuccess == 0 then begin
          display_msg(parse_str_2(modmsg(msg_steal_caught_original+stype*2), item_name, 0) + parse_str_2(modmsg(msg_cant_steal2+stype), min_skill_needed, 0));
          steal_count = 0;
