@@ -208,6 +208,8 @@
    variable array_add_poison;
    variable NPCsUseMedTools;
    variable doc_bag_pid = PID_DOCTORS_BAG;
+   variable npc_overhealed;
+   variable npc_overhealed_stimpak_amount;
 
    export variable tail_used;
 
@@ -1732,6 +1734,41 @@ procedure USEOBJ begin
   end
 end
 
+procedure npc_max_hr_add_stim begin
+   variable critter = npc_overhealed;
+   variable stim_amount = npc_overhealed_stimpak_amount;
+   variable stim;
+   if critter <= 0 orElse stim_amount <= 0 then
+      return;
+
+   if combat_is_initialized andAlso art_anim(obj_art_fid(critter)) == ANIM_magic_hands_middle then begin
+      call npc_max_hr_add_stim in 1;
+      return;
+   end
+   stim = create_object_sid(PID_STIMPAK, 0, 0,-1);
+   add_mult_objs_to_inven(critter, stim, stim_amount);
+   npc_overhealed = 0;
+   npc_overhealed_stimpak_amount = 0;
+end
+
+procedure npc_max_hr_rm_stim(variable critter) begin
+   variable stim_amount = obj_is_carrying_obj_pid(critter, PID_STIMPAK);
+   variable sitm_ptr;
+   variable tmp;
+   call npc_max_hr_add_stim;
+   if stim_amount > 0 then begin
+      npc_overhealed = critter;
+      npc_overhealed_stimpak_amount = stim_amount;
+      if npc_overhealed_stimpak_amount > 1 andAlso not(combat_is_initialized) then begin
+         npc_overhealed_stimpak_amount -= 1;
+      end
+      sitm_ptr = obj_carrying_pid_obj(critter, PID_STIMPAK);
+      tmp = rm_mult_objs_from_inven(critter, sitm_ptr, (stim_amount));
+   end
+   call npc_max_hr_add_stim in 3;
+end
+
+
 procedure USEOBJON begin
    variable target = get_sfall_arg;
    variable user = get_sfall_arg;
@@ -1779,7 +1816,14 @@ procedure USEOBJON begin
       tar_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       tar_state = critter_state(target);
    end
-   if user == dude_obj then Tox = has_fake_perk(perk_poison_mastery_name);
+   if user == dude_obj then begin
+      Tox = has_fake_perk(perk_poison_mastery_name);
+   end
+   else begin
+      if RegenMod > 0 andAlso objpid == PID_STIMPAK andAlso user == target andAlso tarHR + stim_hr_increase >= new_max_hr then begin
+         call npc_max_hr_rm_stim(target);
+      end
+   end
    if leftHand_obj then begin
      leftHand = obj_pid(critter_inven_obj2(target, INVEN_TYPE_LEFT_HAND));
      leftHanddmgtype = get_proto_data(leftHand, PROTO_WP_DMG_TYPE);
@@ -2121,6 +2165,7 @@ procedure map_exit_p_proc begin
      if enemy_perception_disabled > 0 then call perception_enable;
   end
   map_exit = 1;
+
   if new_death > 0 then call show_death_msg;
   if game_ui_is_disabled then game_ui_enable;
   if get_critter_stat(real_dude_obj, STAT_heal_rate) > 5 then begin
@@ -2522,6 +2567,9 @@ procedure worldMapTravel begin
   if lastgamemode bwand OPTIONS then begin
      combat_diff = (combat_difficulty + 1);
   end
+   if npc_overhealed > 0 then begin
+      call npc_max_hr_add_stim;
+   end
   gamemode = get_game_mode;
   RegenTickHP2 = 0;
   dudehrcount2 = 0;
@@ -3224,8 +3272,22 @@ procedure ModInTurnBased begin
          end
       end
    end
-
+   else begin
+      if RegenMod > 0 andAlso critcurhp > 0 andAlso dude_hp > 0 then begin
+         if CritterTurnStatus <= 0 then begin
+            if npc_overhealed > 0 then begin
+               call npc_max_hr_add_stim;
+            end
+         end
+         else begin
+            if crithr >= new_max_hr then begin
+               call npc_max_hr_rm_stim(critter);
+            end
+         end
+      end
+   end
    if RegenMod > 0 andAlso critcurhp > 0 andAlso dude_hp > 0 then begin
+
    if RegenMaxHPpercentMult < 1 then begin RegenMaxHPpercentMult = 1; end
      RegenTickHP = round(critmaxhp / 100.0 * RegenMaxHPpercentMult * (crithr * HealingRateMult / HealingRateDiv));
      if RegenTickHP < 1 then begin RegenTickHP = 1; end
