@@ -4,13 +4,14 @@
 
 
 ### Latest Version v1.98.4
+##### Regen & Poison mod
+- Fixed an issue where NPCs used stimpaks excessively, even after their healing rate had reached the maximum.
 ##### MedicalToolsMod
 - Added number of remaining uses to the description of FA Kit/Doctor's Bag/e.t.c. (Copied from EcCo mod)
 ##### Steal mod
 - Fixed display of messages about successful steal from allies who are not in the player’s party.
 - Fixed a possible crash when stealthily stealing from an initially hostile NPC.
-##### Regen & Poison mod
-- Fixed an issue where NPCs used stimpaks excessively, even after their healing rate had reached the maximum.
+
 
 
 ### Version v1.98.3
