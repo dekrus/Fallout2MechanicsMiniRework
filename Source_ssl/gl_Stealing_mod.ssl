@@ -430,7 +430,7 @@ end
 
 procedure scr_enable begin
    if (get_game_mode bwand COMBAT) == COMBAT then begin
-      set_game_time(real_game_time + game_ticks(1));
+      set_game_time(real_game_time);
    end
    else begin
       set_game_time(real_game_time + game_ticks(6));
@@ -2598,41 +2598,48 @@ end
 procedure clear_gvars begin
    variable i;
    variable lvar_value;
-   variable uniq_id = get_unique_id(anim_tar_obj);
+   variable uniq_id;
    variable target_frm;
    variable target_sid;
-   variable last_target_tile = tile_num(anim_tar_obj);
-   variable last_target_rot = has_trait(TRAIT_OBJECT, anim_tar_obj, OBJECT_CUR_ROT);
-   variable last_target_elevation = elevation(anim_tar_obj);
-   variable last_obj_vis = obj_is_visible_flag(anim_tar_obj);
-   if dude_will_die <= 0 andAlso dude_unwield > 0 andAlso dude_wpn > 0 then begin
-      wield_obj_critter(dude_obj, dude_wpn);
-      refresh_pc_art;
-      intface_redraw;
-      dude_wpn = -1;
-      dude_unwield = -1;
-   end
-   add_global_timer_event(game_ticks(2), fixed_param_steal);
-   reg_anim_clear(anim_tar_obj);
-   call scr_enable;
-   if anim_tar_is_dead > 0 or critter_state(anim_tar_obj) == CRITTER_IS_DEAD then begin
-      target_sid = get_object_data(anim_tar_obj, OBJ_DATA_SID);
-      if target_sid > 0 then begin
-         if dude_is_source > 0 then begin
-            inc_kill_count(anim_tar_kill_type);
-            if get_critter_xp(anim_tar_obj) > 0 then begin
-               give_xp(get_critter_xp(anim_tar_obj));
-            end
-            if witness_count > 0 then begin
-               set_obj_script_objects(target_sid, dude_obj, anim_tar_obj);
-               exec_obj_script_proc(target_sid, damage_proc);
-            end
-         end
-         exec_obj_script_proc(target_sid, destroy_proc);
-         set_outline(anim_tar_obj, OUTLINE_NONE);
-         kill_critter(anim_tar_obj, target_frm);
+   variable last_target_tile;
+   variable last_target_rot;
+   variable last_target_elevation;
+   variable last_obj_vis;
+   if anim_tar_obj > 0 then begin
+      uniq_id = get_unique_id(anim_tar_obj);
+      last_target_tile = tile_num(anim_tar_obj);
+      last_target_rot = has_trait(TRAIT_OBJECT, anim_tar_obj, OBJECT_CUR_ROT);
+      last_target_elevation = elevation(anim_tar_obj);
+      last_obj_vis = obj_is_visible_flag(anim_tar_obj);
+      if dude_will_die <= 0 andAlso dude_unwield > 0 andAlso dude_wpn > 0 then begin
+         wield_obj_critter(dude_obj, dude_wpn);
+         refresh_pc_art;
+         intface_redraw;
+         dude_wpn = -1;
+         dude_unwield = -1;
       end
-      anim_tar_is_dead = 0;
+      add_global_timer_event(game_ticks(2), fixed_param_steal);
+      reg_anim_clear(anim_tar_obj);
+      call scr_enable;
+      if anim_tar_is_dead > 0 or critter_state(anim_tar_obj) == CRITTER_IS_DEAD then begin
+         target_sid = get_object_data(anim_tar_obj, OBJ_DATA_SID);
+         if target_sid > 0 then begin
+            if dude_is_source > 0 then begin
+               inc_kill_count(anim_tar_kill_type);
+               if get_critter_xp(anim_tar_obj) > 0 then begin
+                  give_xp(get_critter_xp(anim_tar_obj));
+               end
+               if witness_count > 0 then begin
+                  set_obj_script_objects(target_sid, dude_obj, anim_tar_obj);
+                  exec_obj_script_proc(target_sid, damage_proc);
+               end
+            end
+            exec_obj_script_proc(target_sid, destroy_proc);
+            set_outline(anim_tar_obj, OUTLINE_NONE);
+            kill_critter(anim_tar_obj, target_frm);
+         end
+         anim_tar_is_dead = 0;
+      end
    end
    witness_count = 0;
    dude_is_source = 0;

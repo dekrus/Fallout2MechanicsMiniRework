@@ -1,20 +1,22 @@
 ### WIP Version 
 #####TraitsPlus
 - Added a new mod that adds additional unique properties to the character’s starting traits
+
+
+### Latest Version v1.98.4
 ##### MedicalToolsMod
 - Added number of remaining uses to the description of FA Kit/Doctor's Bag/e.t.c. (Copied from EcCo mod)
 ##### Steal mod
-- Fixed display of messages about successful steal from allies not in the player's party.
+- Fixed display of messages about successful steal from allies who are not in the player’s party.
+- Fixed a possible crash when stealthily stealing from an initially hostile NPC.
 ##### Regen & Poison mod
-- Fixed an issue where NPCs used stimpaks excessively, even after their healing rate had reached the maximum
+- Fixed an issue where NPCs used stimpaks excessively, even after their healing rate had reached the maximum.
 
 
-
-### Latest Version v1.98.3
+### Version v1.98.3
 ##### Regen & Poison mod
 - Fixing a bug introduced in v1.98.2 where destroy_p_proc did not proc for creatures that died from poison.
  
-
 ### Version v1.98.2
 - Geckos and plants are no longer considered intelligent creatures and cannot use drugs or objects on themselves.
 ##### Regen & Poison mod
@@ -29,7 +31,7 @@
 - Fixed unwielding of items from the player's hands if the NPC uses an alternative attack with a pistol/SMG.
 
 ### Version v1.98.1
-#####Swing&Thrust
+##### Swing&Thrust
 - Added effects for blunt melee weapons (sledgehammers, clubs, cattle prods).
 ##### MedicalToolsMod
 - Fixed the charge consumption of the entire stack of medical items(instead of one item) when used by NPCs (any method of use) and by the player (used on an any game object from the inventory).
@@ -38,7 +40,7 @@
 - Fixed: Duplicate message about player damage from poison outside of combat mode.
 
 ### Version v1.98
-#####SecondaryAttack Mod
+##### SecondaryAttack Mod
 - Added "chain shot" for PULSE and EMP ranged weapons.
 - Added a mode that allows NPCs to use alternative weapon attacks, the frequency and "adequacy" of use depend on the intelligence of the NPC.
 - Added a mode where each single attack (and for shotguns also a burst) will cause the effect of an alternative attack (without targeted shots to the torso).
