@@ -1,3 +1,4 @@
+#define KILL_TYPE_big_boss 18
 #define can_use_items(critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == KILL_TYPE_big_boss)
 #define SFALL_SC_EVALUATION  (true) // short - circuit evaluation
 #define critcrippled(crit)          (critter_state(crit) BWAND (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND))
@@ -117,7 +118,7 @@
    procedure critter_inflict_poison_dmg(variable target, variable dmg_value, variable animate);
    procedure impact_delay(variable attacker,variable weapon,variable attack_type, variable target);
    procedure validate_critter_anim(variable critter, variable animType);
-   procedure check_poison_healing_item(variable critter, variable critter_max_hp, variable critter_cur_hp, variable critter_poison);
+   procedure check_poison_healing_item(variable critter, variable critter_max_hp, variable critter_cur_hp, variable critter_poison, variable set_false_hr);
    //procedure check_poison_overdose(variable target);
    //procedure AFTERHITROLL;
 
@@ -2222,7 +2223,7 @@ procedure map_exit_p_proc begin
             // heal isted of antidote
             if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
                tail_used = 1;
-               stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+               stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison,0);
                if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
                   stim_count = obj_is_carrying_obj(critter, stim);
                   hr = get_critter_stat(critter, STAT_heal_rate);
@@ -2409,7 +2410,7 @@ procedure rest begin
                      // heal isted of antidote
                      if tail_used <= 0 andAlso (is_in_array(critter, party_member_list(0)) orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
                         tail_used = 1;
-                        stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                        stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison,0);
                         if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
                            stim_count = obj_is_carrying_obj(critter, stim);
                            hr = get_critter_stat(critter, STAT_heal_rate);
@@ -2669,7 +2670,7 @@ procedure worldMapTravel begin
                                  // stimpack use
                                  hr = get_critter_stat(critter, STAT_heal_rate);
                                  if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
-                                    stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                                    stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison, pseudo_healing_rate);
                                     if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
                                        stim_count = obj_is_carrying_obj(critter, stim);
                                        tail_used = 1;
@@ -2715,17 +2716,18 @@ procedure worldMapTravel begin
                               end
                            end
                         //pseudo stim regen
-                        //pseudo_healing_rate = 0;
-                        //if stim_regen_counter > 0 andAlso hr < new_max_hr then begin
-                           //pseudo_healing_rate = 20 + 20 * stim_regen_counter / 4;
-                           //stim_regen_counter -= (1 + stim_regen_counter / 4);
-                           //if hr < 5 then begin
-                              //call critter_regen_heal(critter,true,pseudo_healing_rate);
-                           //end
-                           //else begin
-                              //call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate) - pseudo_healing_rate));
-                           //end
-                        //end
+                        stim = 0;
+                        pseudo_healing_rate = 0;
+                        if stim_regen_counter > 0 andAlso hr < new_max_hr then begin
+                           pseudo_healing_rate = 20 + 20 * stim_regen_counter / 4;
+                           stim_regen_counter -= (1 + stim_regen_counter / 4);
+                           if hr < 5 then begin
+                              call critter_regen_heal(critter,true,pseudo_healing_rate);
+                           end
+                           else begin
+                              call critter_regen_heal(critter,false,(get_critter_stat(critter, STAT_heal_rate) - pseudo_healing_rate));
+                           end
+                        end
 //
                         if RegenMod > 0 andAlso get_critter_stat(critter, STAT_current_hp ) > 0 andAlso get_critter_stat(critter, STAT_heal_rate) > 5 andAlso (get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) or (critter == real_dude_obj andAlso has_fake_perk(regen_perk_name) > 0 andAlso critcrippled(critter))) then begin
                         if (RegenMaxHPpercentMult < 1) then begin RegenMaxHPpercentMult = 1; end
@@ -2818,7 +2820,7 @@ procedure worldMapTravel begin
 end
 
 // check for a healing item based on the critter's poison lvl (no antidote))
-procedure check_poison_healing_item(variable critter,variable critter_max_hp,variable critter_cur_hp,variable critter_poison) begin
+procedure check_poison_healing_item(variable critter,variable critter_max_hp,variable critter_cur_hp,variable critter_poison, variable set_false_hr) begin
    variable healing_item;
    variable healing_item_pid;
    variable has_stim;
@@ -2846,7 +2848,7 @@ procedure check_poison_healing_item(variable critter,variable critter_max_hp,var
             healing_item_pid = PID_STIMPAK;
          end
          new_critter_hr = get_critter_base_stat(critter, STAT_heal_rate) + get_critter_extra_stat(critter, STAT_heal_rate) + 20;
-         if new_critter_hr > new_max_hr then begin
+         if new_critter_hr + set_false_hr > new_max_hr then begin
             new_critter_hr = new_max_hr;
          end
          if critter_hr >= min_hr_to_regen then begin
@@ -3111,7 +3113,7 @@ procedure poisonInRealTime begin
                   end
                   // stimpack use
                   if tail_used <= 0 andAlso (critter_in_party orElse (random(0,get_critter_stat(critter,STAT_iq)) - 3)) then begin
-                     stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison);
+                     stim = check_poison_healing_item(critter, critmaxhp, critcurhp, critcurpoison,0);
                      if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
                         stim_count = obj_is_carrying_obj(critter, stim);
                         hr = get_critter_stat(critter, STAT_heal_rate);
@@ -3698,7 +3700,7 @@ procedure ADJUSTPOISON begin
                hr = get_critter_stat(companion, STAT_heal_rate);
                // stimpack use
                if tail_used <= 0 then begin
-                  stim = check_poison_healing_item(companion, critmaxhp, critcurhp, critcurpoison);
+                  stim = check_poison_healing_item(companion, critmaxhp, critcurhp, critcurpoison,pseudo_healing_rate);
                   if stim > 0 andAlso obj_type(stim) == OBJ_TYPE_ITEM then begin
                      stim_count = obj_is_carrying_obj(companion, stim);
                      tail_used = 1;
@@ -3744,6 +3746,7 @@ procedure ADJUSTPOISON begin
             end
          end
          //pseudo stim regen
+         stim = 0;
          pseudo_healing_rate = 0;
          if stim_regen_counter > 0 andAlso hr < new_max_hr then begin
             pseudo_healing_rate = 20 + 20 * stim_regen_counter / 4;
