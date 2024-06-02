@@ -354,7 +354,7 @@ procedure start begin
          register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE_HOOK);
          register_hook_proc_spec(HOOK_USESKILL, USESKILL_HOOK);
          register_hook_proc_spec(HOOK_REMOVEINVENOBJ, REMOVEINVENOBJ_HOOK);
-         register_hook_proc_spec(HOOK_BARTERPRICE, BARTERPRICE_HOOK);
+         register_hook_proc(HOOK_BARTERPRICE, BARTERPRICE_HOOK);
          register_hook_proc_spec(HOOK_STDPROCEDURE, STDPROCEDURE_HOOK);
          register_hook_proc_spec(HOOK_USEOBJON, USEOBJON_HOOK);
          register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN_HOOK);
