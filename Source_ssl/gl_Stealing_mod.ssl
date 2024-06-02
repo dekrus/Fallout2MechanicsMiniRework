@@ -115,15 +115,18 @@
 #define msg_supmut_aggressive random(310, 314)
 #define msg_supmut_threat random(320, 324)
 #define msg_supmut_attack random(330, 334)
+#define msg_supmut_attack_first_time random(332, 334)
 #define msg_supmut_flee random(340, 344)
 #define msg_supmut_non_combat_attack random(380, 386)
 #define msg_robot_normal random(1000, 1004)
 #define msg_robot_aggressive random(1010, 1014)
 #define msg_robot_threat random(1020, 1024)
 #define msg_robot_attack random(1030, 1034)
+#define msg_robot_attack_first_time random(1032, 1034)
 #define msg_robot_flee random(1040, 1044)
 #define msg_tough_human_threat random(120, 124)
 #define msg_tough_human_attack random(130, 137)
+#define msg_tough_human_attack_first_time random(132, 136)
 #define msg_tough_human_flee random(140, 144)
 #define msg_tough_human_non_combat_attack random(180, 186)
 #define msg_tough_human_name_calling random(190, 195)
@@ -2694,6 +2697,23 @@ procedure get_tile_with_free_path(variable target) begin
    end
    clear_array(path);
    return end_tile;
+end
+
+procedure show_float_msg_attack_combat_init(variable target) begin
+   variable target_kill_type;
+   if target > 0 then target_kill_type = critter_kill_type(target);
+   if target_kill_type == KILL_TYPE_super_mutant_kills then begin
+      float_msg(target, modmsg(msg_supmut_attack_first_time), FLOAT_MSG_RED);
+   end
+   else if target_kill_type == KILL_TYPE_children_kills then begin
+      float_msg(target, modmsg(msg_child_attack), FLOAT_MSG_RED);
+   end
+   else if target_kill_type == KILL_TYPE_robot_kills then begin
+      float_msg(target, modmsg(msg_robot_attack_first_time), FLOAT_MSG_RED);
+   end
+   else begin
+      float_msg(target, modmsg(msg_tough_human_attack_first_time), FLOAT_MSG_RED);
+   end
 end
 
 procedure show_float_msg_attack(variable target) begin
@@ -5676,6 +5696,9 @@ procedure GAMEMODECHANGE_HOOK begin
          end
       end
       else if (game_mode bwand COMBAT) andAlso not(lastgamemode bwand COMBAT) then begin
+         if anim_tar_obj > 0 then begin
+            call show_float_msg_attack_combat_init(anim_tar_obj);
+         end
          call clear_gvars;
       end
    end

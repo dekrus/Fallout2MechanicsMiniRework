@@ -242,8 +242,8 @@
 
 ##supermutant attack floats
 {330}{}{It is you again!? DIE, HUMAN!!!}
-{331}{}{Prepare to meet your end!}
-{332}{}{I tried bein' reasonable, but now it's time for some big mutant justice!}
+{331}{}{I tried bein' reasonable, but now it's time for some big mutant justice!}
+{332}{}{Prepare to meet your end!}
 {333}{}{You will suffer, suffer great!!}
 {334}{}{Die Human Fool!}
 
@@ -287,10 +287,10 @@
 {1024}{}{Intruder detected. Leave now or become the target of my termination sequence.}
 
 ##robot attack floats
-{1030}{}{Initiating elimination sequence. Resistance is futile.}
+{1030}{}{Warning ignored. Combat mode activated.}
 {1031}{}{Warning disregarded. Commencing termination procedures.}
-{1032}{}{Hostile actions confirmed. Initiating eradication sequence.}
-{1033}{}{Warning ignored. Combat mode activated.}
+{1032}{}{Initiating elimination sequence. Resistance is futile.}
+{1033}{}{Hostile actions confirmed. Initiating eradication sequence.}
 {1034}{}{Recklessness noted. Commencing elimination process.}
 
 ##robot flee floats
