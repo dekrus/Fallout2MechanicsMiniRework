@@ -361,7 +361,7 @@ When base intelligence increases (through perks and implants but not drugs), the
 
 ## Compatibility
 - All components are compatible with most "Fallout 2"-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
-- Fully compatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks) and Fallout 2: Weapons Redone 2.3d.
+- Fully compatible with [__FO2tweaks__](https://github.com/BGforgeNet/FO2tweaks) and [__Fallout 2: Weapons Redone 2.3d__](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
 - All components except for the [Steal](#steal), [Healing](#healing) and [MedToolsMod](#medical-tools) are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 
 ### Setting up compatibility with the EcCo 
