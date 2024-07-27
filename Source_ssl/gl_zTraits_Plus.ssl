@@ -987,8 +987,7 @@ procedure COMBATDAMAGE begin
 end
 
 procedure ONDEATH begin
-   variable critter;
-   if main_attacker == dude_obj then begin
+   if bloody_mess > 0 andAlso main_attacker == dude_obj then begin
       call give_ap_for_kills(dude_obj);
    end
 end
