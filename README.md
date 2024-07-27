@@ -286,7 +286,7 @@ While the sneaking player is within sight of an observing NPC, that NPC will be 
 - Gray   - (Fog of War disabled) Player not detected, but will be detected if line of sight becomes unblocked.
 
 ### Steal
-**(Requires "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
+**(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
 Another frustrating aspect of the original pickpocketing mechanics was that failing to pickpocket would trigger a battle involving every city resident.
 The new Steal skill mechanic is an attempt to remedy these issues.

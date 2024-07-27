@@ -2,6 +2,7 @@
 #define DODGER_DODGE 5
 #define JINXED_MISS 5
 #define ONE_HANDER_HIT_BONUS 20
+#define ONE_HANDER_CRIT_ROLL_BONUS 5
 #define SKILLED_HIT_BONUS 4
 #define DRUG_MAX_STATS 18
 #define NumEffects 0
@@ -89,9 +90,11 @@
 
 variable traits_plus_cur_version = "1.0";
 variable traits_plus_cur_version_Sonora = "Sonora 1.0";
+variable traits_plus_cur_version_et_tu = "et_tu 1.0";
 
 variable Nevada;
 variable Sonora;
+variable et_tu;
 variable TraitsPlus;
 variable RegenMod;
 variable Lvar_wpn_max_dmg;
@@ -203,7 +206,7 @@ procedure one_hander_bonus_remove begin
    if get_sfall_global_int(one_hander_stat_bonus) <= 0 then begin
       return;
    end
-   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) - 5));
+   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) - ONE_HANDER_CRIT_ROLL_BONUS));
    set_sfall_global(one_hander_stat_bonus, 0);
 end
 
@@ -211,7 +214,7 @@ procedure one_hander_bonus_add begin
    if get_sfall_global_int(one_hander_stat_bonus) > 0 then begin
       return;
    end
-   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) + 5));
+   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) + ONE_HANDER_CRIT_ROLL_BONUS));
    set_sfall_global(one_hander_stat_bonus, 1);
 end
 
@@ -2382,6 +2385,9 @@ procedure set_traits_desc begin
       if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
          new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
       end
+      else if et_tu > 0 andAlso trait_num == TRAIT_skilled then begin
+         new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
+      end
       trait_desc = get_ini_string(trait_ini_path_desc);
       //if new_version <= 0 then begin
          trait_ini_path_desc_plus = perks_ini_path + "|t" + trait_num + "|Traits_plus_desc_is_set";
@@ -2541,6 +2547,15 @@ procedure game_close begin
    signal_end_game;
 end
 
+procedure set_ddraw_ini begin
+   if get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod") > 0 orElse get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod") > 0 orElse get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod") > 0 orElse get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance") > 0  then begin
+      if get_ini_setting("ddraw.ini|Misc|SpeedInterfaceCounterAnims") != 2 then
+         set_ini_setting("ddraw.ini|Misc|SpeedInterfaceCounterAnims", 2);
+      if get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting") <= 0 then
+         set_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting", 1);
+   end
+end
+
 procedure check_ini_path begin
    variable perks_ini_not_set;
    variable drugs_ini_not_set;
@@ -2600,6 +2615,7 @@ procedure check_ini_path begin
 
    ini_was_set += check_traits_desc + check_drugs_pid;
    if ini_was_set > 0 then begin
+      call set_ddraw_ini;
       call game_close in 0;
    end
 end
@@ -2950,6 +2966,10 @@ procedure start begin
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
       if Sonora > 0 then begin
          traits_plus_cur_version = traits_plus_cur_version_Sonora;
+      end
+      et_tu = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
+      if et_tu  > 0 then begin
+         traits_plus_cur_version = traits_plus_cur_version_et_tu;
       end
       ver_major = sfall_ver_major;
       ver_minor = sfall_ver_minor;

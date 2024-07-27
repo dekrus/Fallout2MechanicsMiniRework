@@ -48,3 +48,5 @@
 #
 {1008}{}{Hot Blood}
 {2008}{}{By some strange twist of fate, critical failures become more dangerous, and everyone dies in the worst way possible. But at least you know Spanish, and each kill restores some of your AP.}
+{1014}{}{Skilled}
+{2014}{}{Since you spent more time improving your skills than a normal person, you gain an increased maximum hit chance and start with better skill levels. Stronger perks become available earlier, but you gain a perk every four levels.}
