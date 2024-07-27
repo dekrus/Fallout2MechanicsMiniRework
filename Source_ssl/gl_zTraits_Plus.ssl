@@ -898,7 +898,8 @@ procedure COMBATDAMAGE begin
       actual_dude_attack = 1;
    end
    if actual_dude_attack > 0 then begin
-      wpn_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
+      if weapon > 0 then
+         wpn_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
       //TRAIT_heavy_handed knock down
       if dmg_to_tar > 0 andAlso weapon_is_grenade(weapon,atk_type) == 0 then begin
          if weapon <= 0 orElse wpn_anim <= WPN_ANIM_SPEAR orElse wpn_anim == 14 orElse wpn_anim == 11 orElse wpn_anim == 12 then begin
