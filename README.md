@@ -101,65 +101,65 @@ Enhances base starting traits with new properties without altering their core me
 All new trait properties are scripted and will function even if the traits themselves have been modified by the player or other mods.
 Each new property for a specific trait can be enabled, disabled, or forcibly activated, even if the player does not possess the trait, when the option is enabled in the .ini settings file.
 
-Fast Metabolism New Properties:
-++ All food and chems remove 33% more poison and radiation.
-+- All food and chems heal/remove 33% more HP.
-+- All food and chems take effect and wear off twice as fast.
-+- If "RegenMod" is enabled, health regeneration is increased by 33%. However, if the player is poisoned, its effectiveness is reduced by 50%. The reduction depends on poison resistance. For instance, with 90% resistance, the regeneration strength decreases by only 5%.
-Bruiser New Properties:
+Fast Metabolism:
+- ++ All food and chems remove 33% more poison and radiation.
+- +- All food and chems heal/remove 33% more HP.
+- +- All food and chems take effect and wear off twice as fast.
+- +- If "RegenMod" is enabled, health regeneration is increased by 33%. However, if the player is poisoned, its effectiveness is reduced by 50%. The reduction depends on poison resistance. For instance, with 90% resistance, the regeneration strength decreases by only 5%.
+Bruiser:
 (Damage changes are displayed in the inventory only for sfall 5.0.8+)
-++ Maximum damage from unarmed, melee, and throwing weapons (excluding grenades) is doubled.
-The 'Melee Damage' attribute now affects the maximum damage of throwing weapons
+- ++ Maximum damage from unarmed, melee, and throwing weapons (excluding grenades) is doubled.
+- ++ The 'Melee Damage' attribute now affects the maximum damage of throwing weapons
 
-Small Frame New Properties:
-++ Maximum chance to hit a player reduced by 10%, accounting for any other reductions from other mods/perks.
-++ Sneak skill is 10% more effective.
+Small Frame:
+- ++ Maximum chance to hit a player reduced by 10%, accounting for any other reductions from other mods/perks.
+- ++ Sneak skill is 10% more effective.
 
-One-Hander New Properties:
-++ One-handed unarmed attacks now also receive a +20% hit chance bonus.
-++ Ability to attack with one-handed weapons even when both arms are injured (hit chance bonus does not apply when both arms are injured).
-++ Bonus: +5 on the critical hit table roll.
-++ One-handed weapons require 3 less strength to use correctly.
+One-Hander:
+- ++ One-handed unarmed attacks now also receive a +20% hit chance bonus.
+- ++ Ability to attack with one-handed weapons even when both arms are injured (hit chance bonus does not apply when both arms are injured).
+- ++ Bonus: +5 on the critical hit table roll.
+- ++ One-handed weapons require 3 less strength to use correctly.
 
-Finesse New Properties:
-++ Player's area damage attacks can now deal critical damage, penetrate armor, and incapacitate additional targets.
-++ Affects all types of area attacks: burst fire, grenades, flamethrowers, and alternative fire modes.
+Finesse:
+- ++ Player's area damage attacks can now deal critical damage, penetrate armor, and incapacitate additional targets.
+- ++ Affects all types of area attacks: burst fire, grenades, flamethrowers, and alternative fire modes.
 
-Kamikaze New Properties:
+Kamikaze:
 (Compatible with "AutoMoveToAttack" sfall 5.0+)
-++ Player can "attack on the move," reducing attack cost by 1 AP for every 2 steps, down to a minimum of 1 AP for non-targeted and 2 AP for targeted attacks.
-++ Sequence is increased by 10.
-++ Pistol's alternative firing mode does not interrupt movement.
--- Each step taken reduces hit chance by 3%. After attack and at the end of the turn, accuracy penalty resets to zero.
+- ++ Player can "attack on the move," reducing attack cost by 1 AP for every 2 steps, down to a minimum of 1 AP for non-targeted and 2 AP for targeted attacks.
+- ++ Sequence is increased by 10.
+- ++ Pistol's alternative firing mode does not interrupt movement.
+- -- Each step taken reduces hit chance by 3%. After attack and at the end of the turn, accuracy penalty resets to zero.
 
-Heavy-Handed New Properties:
+Heavy-Handed:
 (Damage changes are displayed in the inventory only for sfall 5.0.8+)
-++ "Melee Damage" is added to the minimum damage for unarmed, melee, and thrown weapon damage (excluding grenades).
-++ The "Melee Damage" attribute now affects the maximum damage of throwing weapons
-++ Every non-critical melee and throwing weapon attack has a chance to knock down the target. This chance is influenced by factors such as the attack's damage, the player's strength, the weapon's weight, and the opponent's endurance and species.
-++ The severity of a player's critical miss is reduced by 30%.
+- ++ "Melee Damage" is added to the minimum damage for unarmed, melee, and thrown weapon damage (excluding grenades).
+- ++ The "Melee Damage" attribute now affects the maximum damage of throwing weapons
+- ++ Every non-critical melee and throwing weapon attack has a chance to knock down the target. This chance is influenced by factors such as the attack's damage, the player's strength, the weapon's weight, and the opponent's endurance and species.
+- ++ The severity of a player's critical miss is reduced by 30%.
 
-Bloody mess New Properties:
-++ The first kill each turn restores 2 AP to the player; each subsequent kill in the same turn restores 1 AP.
-+- Critical miss severity is increased by 30% for everyone, including the player.
+Bloody mess:
+- ++ The first kill each turn restores 2 AP to the player; each subsequent kill in the same turn restores 1 AP.
+- +- Critical miss severity is increased by 30% for everyone, including the player.
 
-Jinxed New Properties:
-+- Reduces the maximum hit chance of both players and NPCs by 5%.
-+- The time limit is disabled, allowing critical misses to occur from the start of the game.
+Jinxed:
+- +- Reduces the maximum hit chance of both players and NPCs by 5%.
+- +- The time limit is disabled, allowing critical misses to occur from the start of the game.
 
-Chem Reliant New Properties:
-+- Positive and negative effects of chems and food are increased by 50%, rounded to the nearest integer (-1 -> -2, +1 -> +2).
+Chem Reliant:
+- +- Positive and negative effects of chems and food are increased by 50%, rounded to the nearest integer (-1 -> -2, +1 -> +2).
 
-Chem Resistant New Properties:
-++ Food and chems no longer cause addiction
-++ Stats return to normal immediately after the first effect of chems and food wears off.
-++ You can take half more doses, rounded up.
-+- Positive and negative effects of chems and food are reduced by 50%, rounded up (-1 -> 0, +1 -> +1).
+Chem Resistant:
+- ++ Food and chems no longer cause addiction
+- ++ Stats return to normal immediately after the first effect of chems and food wears off.
+- ++ You can take half more doses, rounded up.
+- +- Positive and negative effects of chems and food are reduced by 50%, rounded up (-1 -> 0, +1 -> +1).
 
-Skilled New Properties:
-++ Increases maximum hit chance by 4%.
-++ 50% chance that critical miss becomes a normal miss.
-++ Reduces the level requirement for selecting perks by 4. Perks requiring level 9 can be taken at level 5, and perks requiring level 12 can be taken at level 8.
+Skilled:
+- ++ Increases maximum hit chance by 4%.
+- ++ 50% chance that critical miss becomes a normal miss.
+- ++ Reduces the level requirement for selecting perks by 4. Perks requiring level 9 can be taken at level 5, and perks requiring level 12 can be taken at level 8.
 
 
 ### Skill Books
