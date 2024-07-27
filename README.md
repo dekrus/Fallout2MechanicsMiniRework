@@ -94,12 +94,12 @@ Shotguns:
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
 
 ### Traits Plus
-Requires setting "AllowUnsafeScripting = 1 or 2" in ddraw.ini!!!
-When you first launch the mod after installing it, you need to load any game save for the new trait descriptions to take effect.
+**(Requires "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
+When you first launch the mod after installing it, you need to load any saved game for the new trait descriptions to take effect.
 
-Enhances base starting traits with new properties without altering their core mechanics.
-All new trait properties are scripted and will function even if the traits themselves have been modified by the player or other mods.
-Each new property for a specific trait can be enabled, disabled, or forcibly activated, even if the player does not possess the trait, when the option is enabled in the .ini settings file.
+Enhances base starting traits with new properties without altering their core mechanics.  
+All new trait properties are scripted and will function even if the traits themselves have been modified by the player or other mods.  
+Each new property for a specific trait can be enabled, disabled, or forcibly activated, even if the player does not possess the trait, when the option is enabled in the .ini settings file.  
 
 Fast Metabolism:
 - ++ All food and chems remove 33% more poison and radiation.
