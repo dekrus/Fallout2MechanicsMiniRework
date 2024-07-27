@@ -1,9 +1,29 @@
-### WIP Version 
-#####TraitsPlus
-- Added a new mod that adds additional unique properties to the character’s starting traits
+### Latest Version v1.99.0
+##### TraitsPlus
+- Added a mod that adds new unique properties to the character's starting traits.
+##### Sneak Detection Mod
+- Sneak mode is retained when moving to a new location. On the global map, sneak mode is only retained if the player has the "Silent Running" perk or if both the outdoorsman and sneak skills are above 100.
+##### Regen & Poison mod
+- The "healing_rate" value is now shown ranging from -40 to 40 in the character menu..
+- An HP regeneration bonus of 1-4 HP per tick, depending on the "healing_rate" value, is always added to the HP regeneration rate. This bonus enhances healing in the early stages of the game and when the character has low maximum health.
+- Poisoned wanamingos and centaurs regenerate less health.
+- The Super Stimpak now restores health based on the critter's maximum HP and the current "healing_rate," but not less than 60 HP (previously always 60 HP without scaling).
+- The delayed damage from the Super Stimpak is proportional to the amount of actual HP restored and the difference between the current "healing_rate" and the healing cost.
+##### SecondaryAttackMod
+- Alternative attacks no longer critically hit additional targets by default. This can be re-enabled in the ".ini" file. If "TraitsPlus=1" is enabled and the player has the 'Finesse' trait, critical hits are possible with alternative attacks.
+##### Steal mod
+- NPCs and players turn to face each other during conversation. (Can be disabled in options with "FaceToFaceDialog")
+- Added support for extended inventory (sfall version 4.4.4 and higher).
+- During the "scene" of an unsuccessful pickpocket, critical hits can injure the player.
+- Penalties for failed pickpocket attempts when interacting with the victim and witnesses take effect immediately, while other townspeople learn about it with a delay of 5 in-game minutes.
+- Witnesses of a failed pickpocket become suspicious of the player and react more harshly to subsequent attempts to steal from them.
+- Killing all witnesses of a failed pickpocket before rumors spread prevents the increase of penalties in the town.
+- The total number of unsuccessful thefts now has a greater impact on NPC reactions in the town.
+- An NPC about to attack the player will follow the player with its gaze as long as the player is within its line of sight.
+##### Swing&Thrust
+- Fixed the display of damage numbers when attacking creatures immune to knockback.
 
-
-### Latest Version v1.98.4
+###  Version v1.98.4
 ##### Regen & Poison mod
 - Fixed an issue where NPCs used stimpaks excessively, even after their healing rate had reached the maximum.
 ##### MedicalToolsMod

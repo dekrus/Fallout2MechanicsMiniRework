@@ -75,6 +75,7 @@
 #define DMG_BURST 16
 #define DMG_BURST_HEAVY 32
 #define OUTLINE_BLINKING_CYAN 0xEBF0
+#define DAM_FLAGS_MULT 100000
 
 #include "define_extra.h"
 #include "DEFINE.H"
@@ -144,7 +145,6 @@ variable last_target_on_a_line;
 variable remainder;
 variable one_time_call;
 variable proj_pid_changed;
-variable placeholder;
 variable bonus_crit_power_roll;
 variable bonus_ranged_damage;
 variable living_anatomy;
@@ -204,10 +204,11 @@ variable elec_tar_num;
 variable obj_make_visible;
 variable lvar_cleared;
 
-
-procedure destroy_placeholder begin
-   if placeholder then destroy_object(placeholder);
-end
+variable traits_plus;
+variable kamikaze;
+variable allow_critical;
+variable kamikaze_plus;
+variable finesse_plus;
 
 //procedure disable_ui begin
    //if not(game_ui_is_disabled) then begin
@@ -453,6 +454,7 @@ procedure lvar_full_reset begin
    target_bodypart = -1;
    atk_rslt = -1;
    finesse = 0;
+   kamikaze = 0;
    bloody_mess = 0;
    one_hander = 0;
    weapon_handling = 0;
@@ -552,7 +554,7 @@ procedure get_crit_mult(variable crit_power_roll,variable target) begin
    else if crit_power_roll <= 90 then begin
       crit_mult = 2.0;
    end
-   else if crit_power_roll >= 91 then begin
+   else if crit_power_roll > 90 then begin
       crit_mult = 3.0;
    end
    //if boss kill type
@@ -576,6 +578,7 @@ procedure calc_dmg_electric(variable attacker, variable target) begin
    variable hit_chance;
    variable miss_local;
    variable dmg;
+   variable flags = 1;
    if ElecDmgMin >= ElecDmgMax then ElecDmgMin = ElecDmgMax;
    if weapon_damage_type == DMG_electrical then begin
       target_dt = get_critter_stat(target,STAT_dmg_thresh_electrical);
@@ -624,15 +627,22 @@ procedure calc_dmg_electric(variable attacker, variable target) begin
    //else begin
       crit_power_roll = 0;
       //PERK_sniper crit chance bonus
-      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
+      if allow_critical > 0 andAlso(crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu)) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
+
+         //crit dmg reduction
+         //if crit_mult > 2 then crit_mult = 2;
+         flags = 1 bwor DAM_CRITICAL;
          if weapon_damage_type != DMG_emp then begin
             if crit_mult < 2 then begin
                target_dt = target_dt * 0.8;
                target_dr = target_dr * 0.8;
             end
             else begin
+               if not(random(0,2)) then begin
+                  flags = flags bwor DAM_KNOCKED_DOWN;
+               end
                target_dt = target_dt * 0.2;
                target_dr = target_dr * 0.2;
             end
@@ -641,17 +651,18 @@ procedure calc_dmg_electric(variable attacker, variable target) begin
       if target_dt < 0 then target_dt = 0;
       if target_dr > 90 andAlso weapon_damage_type != DMG_emp then target_dr = 90;
       if target_dr < 0 then target_dr = 0;
-      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0)) + living_anatomy_bonus * living_anatomy;
+      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult) + living_anatomy_bonus * living_anatomy;
+      flags = flags * DAM_FLAGS_MULT;
       if dmg < min_dmg then begin
          return 0;
       end
       if miss_local > 0 then begin
          dmg = round(random((ElecDmgMin / 2), ElecDmgMin) * dmg / 100.0);
-         return dmg;
+         return (dmg + flags);
       end
       else begin
          dmg = round(random(ElecDmgMin, ElecDmgMax) * dmg / 100.0);
-         return dmg;
+         return (dmg + flags);
       end
 
    //end
@@ -728,7 +739,7 @@ procedure calc_dmg_laser(variable attacker, variable target) begin
    else begin
       crit_power_roll = 0;
       //PERK_sniper crit chance bonus
-      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
+      if allow_critical > 0 andAlso(crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu)) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
          if crit_mult < 2 then begin
@@ -816,7 +827,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable weapon_dmg
    //if hit
    else begin
       crit_power_roll = 0;
-      if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
+      if allow_critical > 0 andAlso(crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu)) then begin
          crit_power_roll = random(1, (100 + bonus_crit_power_roll));
          crit_mult = get_crit_mult(crit_power_roll,target);
          if crit_mult < 2 then begin
@@ -1872,6 +1883,18 @@ procedure show_dmg_combat_msg(variable target,variable attacker,variable dmg_val
    variable target_name;
    variable combat_msg_num;
    variable target_cur_hp;
+   variable flags;
+   variable is_crit;
+   variable is_KO;
+   variable str_end = ".";
+   flags = dmg_value / DAM_FLAGS_MULT;
+   dmg_value = dmg_value % DAM_FLAGS_MULT;
+   if flags > 1 then begin
+      //if flags bwand DAM_CRITICAL != 0 then
+         //is_crit = 1;
+      if flags bwand DAM_KNOCKED_DOWN != 0 then
+         is_KO = 1;
+   end
    //return if no target
    if target <= 0 then return;
    target_cur_hp = get_critter_stat(target, STAT_current_hp);
@@ -1890,10 +1913,16 @@ procedure show_dmg_combat_msg(variable target,variable attacker,variable dmg_val
    // dmg msg
    if dmg_value > 1 then begin
       combat_msg_num += combat_msg_hit_dmg;
+      if is_crit > 0 then begin
+         combat_msg_num += 7;
+      end
    end
    // 1 dmg msg
    else if dmg_value == 1 then begin
       combat_msg_num += combat_msg_hit_1_dmg;
+      if is_crit > 0 then begin
+         combat_msg_num += 1;
+      end
    end
    //no dmg msg
    else begin
@@ -1901,7 +1930,9 @@ procedure show_dmg_combat_msg(variable target,variable attacker,variable dmg_val
    end
    //show msg
    if target_cur_hp > dmg_value then begin
-      display_msg(sprintf2(modmsg(combat_msg_num), target_name, dmg_value)+".");
+      if is_KO > 0 then
+         str_end = modmsg(msg_dmg_KO);
+      display_msg(sprintf2(modmsg(combat_msg_num), target_name, dmg_value)+str_end);
    end
    //show death msg
    else begin
@@ -1926,9 +1957,14 @@ procedure show_death_msg begin
          call show_dmg_combat_msg(target, -1, dmg_value);
          set_outline(target,  OUTLINE_NONE);
          if target != dude_obj then begin
-            kill_critter(target, target_frm);
+            // kill_critter without programStack
+            reg_anim_clear(target);
+            call_offset_v1(0x426DDC, target);//remove from combat
+            call_offset_v3(0x42DA64, target, target_frm, true);//kill critter
+            //kill_critter(target, target_frm);
          end
          else begin
+            dmg_value = dmg_value % DAM_FLAGS_MULT;
             critter_heal(target,-dmg_value);
          end
       end
@@ -1953,6 +1989,8 @@ procedure get_death_anim(variable target, variable attacker, variable dmg_value,
    else begin
       set_array(death_array, target, dmg_value);
    end
+   //remove flags from dmg
+   dmg_value = dmg_value % DAM_FLAGS_MULT;
    //Death animation for Horrigan
    if target > 0 andAlso obj_pid(target) == PID_END_BOSS then begin
       death_anim = ANIM_exploded_to_nothing;
@@ -2062,6 +2100,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    variable attacker_weapon;
    variable combat_xp_bonus;
    variable in_combat;
+   variable flags;
    //check if the target exists and is a creature
    if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER orElse attacker <= 0 orElse get_array(death_array,target) > 0 then begin
       return;
@@ -2084,6 +2123,8 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    if attacker_team != target_team andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 orElse dmg_value >= target_cur_hp orElse not(random(0,2))) then begin
       set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
    end
+   //set flags
+   flags = animate * DAM_FLAGS_MULT;
    //cause non-lethal damage
    if target_cur_hp > dmg_value then begin
       //party_remove(target);
@@ -2096,20 +2137,36 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
          exec_obj_script_proc(target_sid, damage_proc);
       end
       if animate > 0 andAlso target_cur_anim != ANIM_fall_back andAlso target_cur_anim != ANIM_fall_front then begin
-         reg_anim_combat_check(0);
-         reg_anim_clear(target);
-         reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
-         if is_hit_from_front(dmg_source_tile, target) or not(art_exists_basic_anim(target,ANIM_hit_from_back)) then begin
-            reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_front,snd_contact),0);
-            reg_anim_animate(target, ANIM_hit_from_front, 0);
+         if animate bwand DAM_KNOCKED_DOWN != 0 then begin
+            reg_anim_combat_check(0);
+            reg_anim_clear(target);
+            reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+            if is_hit_from_front(dmg_source_tile, target) or (not(art_exists_death_anim(target,ANIM_fall_front)) andAlso not(art_exists_basic_anim(target,ANIM_fall_front)) andAlso not(art_exists_death_anim(target,ANIM_fall_front_sf)) andAlso not(art_exists_basic_anim(target,ANIM_fall_front_sf))) then begin
+               reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_back,snd_knock_down),0);
+               reg_anim_animate(target, ANIM_fall_back, 0);
+            end
+            else begin
+               reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_fall_front,snd_knock_down),0);
+               reg_anim_animate(target, ANIM_fall_front, 0);
+            end
+            reg_anim_end();
          end
          else begin
-            reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_back,snd_contact),0);
-            reg_anim_animate(target, ANIM_hit_from_back, 0);
+            reg_anim_combat_check(0);
+            reg_anim_clear(target);
+            reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+            if is_hit_from_front(dmg_source_tile, target) or not(art_exists_basic_anim(target,ANIM_hit_from_back)) then begin
+               reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_front,snd_contact),0);
+               reg_anim_animate(target, ANIM_hit_from_front, 0);
+            end
+            else begin
+               reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_hit_from_back,snd_contact),0);
+               reg_anim_animate(target, ANIM_hit_from_back, 0);
+            end
+            reg_anim_end();
          end
-         reg_anim_end();
       end
-      call show_dmg_combat_msg(target, attacker, dmg_value);
+      call show_dmg_combat_msg(target, attacker, (dmg_value + flags));
       critter_heal(target, -dmg_value);
    end
    //cause lethal damage
@@ -2121,7 +2178,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
          exec_obj_script_proc(target_sid, damage_proc);
       end
       if animate > 0 then begin
-         death_anim = get_death_anim(target,attacker,dmg_value,dmg_type,dmg_source_tile);
+         death_anim = get_death_anim(target,attacker,(dmg_value + flags),dmg_type,dmg_source_tile);
          reg_anim_combat_check(0);
          reg_anim_clear(target);
          reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
@@ -2193,6 +2250,7 @@ procedure STDPROCEDURE begin
    variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    variable orig_target_team = has_trait(TRAIT_OBJECT, real_orig_target, OBJECT_TEAM_NUM);
    variable in_combat = combat_is_initialized;
+   combat_dmg = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
    if in_combat andAlso one_time_call == 1 andAlso targets_array != 0 then begin
       attacker = orig_attacker;
       party = party_member_list(0);
@@ -2291,39 +2349,43 @@ procedure STDPROCEDURE begin
                                     if crit_mult == 3 then begin
                                        critter_injure(new_tar, DAM_KNOCKED_OUT);
                                     end
-                                    //non crittical + low_crittical dmg msg
+                                    //non critical + low_critical dmg msg
                                     if crit_mult < 2 then begin
                                        // 1 hp dmg
                                        if dmg == 1 then begin
-                                          //non crittical 1 hp dmg msg
+                                          //non critical 1 hp dmg msg
                                           if crit_mult == 1 then begin
                                              display_msg(parse_str_2(modmsg(msg_hit_1_hp), obj_name(new_tar), dmg));
                                           end
                                           // critical 1 hp dmg not KO
                                           else begin
-                                             display_msg(parse_str_2(modmsg(msg_critical_hit_1_hp), obj_name(new_tar), dmg));
+                                             display_msg(parse_str_2(modmsg(msg_hit_1_hp), obj_name(new_tar), dmg));
+                                             //display_msg(parse_str_2(modmsg(msg_critical_hit_1_hp), obj_name(new_tar), dmg));
                                           end
                                        end
                                        // > 1 hp dmg
                                        else begin
-                                          //non crittical dmg msg
+                                          //non critical dmg msg
                                           if crit_mult == 1 then begin
                                              display_msg(parse_str_2(modmsg(msg_hit), obj_name(new_tar), dmg));
                                           end
                                           // critical dmg not KO
                                           else begin
-                                             display_msg(parse_str_2(modmsg(msg_critical_hit), obj_name(new_tar), dmg));
+                                             display_msg(parse_str_2(modmsg(msg_hit), obj_name(new_tar), dmg));
+                                             //display_msg(parse_str_2(modmsg(msg_critical_hit), obj_name(new_tar), dmg));
                                           end
                                        end
                                     end
                                     else begin
                                        // critical 1 hp dmg KO
                                        if dmg == 1 then begin
-                                          display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
+                                          display_msg(parse_str_2(modmsg(msg_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
+                                          //display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
                                        end
                                        // critical dmg KO
                                        else begin
-                                          display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
+                                          display_msg(parse_str_2(modmsg(msg_hit_add), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
+                                          //display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_dmg_KO));
                                        end
                                     end
                                     //call dmg_p_proc in critter script
@@ -2389,13 +2451,15 @@ procedure STDPROCEDURE begin
                                        end
                                        // critical death msg
                                        else begin
-                                          // critical death 1 hp dmg msg
+                                         //critical death 1 hp dmg msg
                                          if dmg == 1 then begin
-                                             display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_death));
+                                             display_msg(parse_str_2(modmsg(msg_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_death));
+                                             //display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_death));
                                           end
-                                          // critical death >1 hp dmg msg
+                                           //critical death >1 hp dmg msg
                                           else begin
-                                             display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_death));
+                                             display_msg(parse_str_2(modmsg(msg_hit_add), obj_name(new_tar), dmg) + modmsg(msg_death));
+                                             //display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_death));
                                           end
                                        end
                                     end
@@ -2403,11 +2467,13 @@ procedure STDPROCEDURE begin
                                     else begin
                                        // instant death 1 hp dmg msg
                                        if dmg == 1 then begin
-                                          display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
+                                          display_msg(parse_str_2(modmsg(msg_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
+                                          //display_msg(parse_str_2(modmsg(msg_critical_hit_add_1_hp), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
                                        end
                                        // instant death >1 hp dmg msg
                                        else begin
-                                          display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
+                                          display_msg(parse_str_2(modmsg(msg_hit_add), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
+                                          //display_msg(parse_str_2(modmsg(msg_critical_hit_add), obj_name(new_tar), dmg) + modmsg(msg_instant_death));
                                        end
                                     end
                                     if new_tar != orig_target then critter_heal(new_tar, -tar_cur_hp);
@@ -2452,7 +2518,7 @@ procedure laser_line_dmg(variable attacker,variable target) begin
    variable dmg;
    variable i;
    variable projectile;
-   //variable projectile;
+   variable placeholder;
    variable timer;
    variable new_tar_tile;
    variable new_tar_cur_hp;
@@ -2733,6 +2799,7 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
    variable crit_mult = 1;
    variable new_tar_cur_hp;
    variable atkr_tile = tile_num(attacker);
+   variable placeholder;
    placeholder = create_object_sid(pid_laser_projectile, 0, elevation(attacker), -1);
    set_obj_visibility(placeholder, 1);
    set_object_data(placeholder, OBJ_DATA_FID, obj_art_fid(attacker));
@@ -2870,9 +2937,9 @@ procedure gauss_line_dmg(variable attacker,variable target) begin
          end
       end
    end
+   reg_anim_destroy(placeholder);
    reg_anim_callback(restore_weapon_proj_pid);
    reg_anim_callback(STDPROCEDURE);
-   reg_anim_callback(destroy_placeholder);
    reg_anim_end();
 end
 
@@ -2909,8 +2976,10 @@ procedure plasma_alt_explosion begin
    variable is_blocked;
    variable count;
    variable dmg_to_attacker = -1;
-
+   variable animate = true;
+   variable flags = animate;
    if tar_is_critter <= 0 then test_tile = tile_num_in_direction(tar_tile,target_rot_to_attacker,1);
+   combat_dmg = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
    exlposion = create_object(pid, tar_tile, target_elevation);
    reg_anim_combat_check(0);
    reg_anim_begin();
@@ -2933,6 +3002,8 @@ procedure plasma_alt_explosion begin
       end
    end
    foreach new_tar in array_critters_in_radius begin
+      if new_tar <= 0 then
+         continue;
       new_tar_cur_hp = get_critter_stat(new_tar, STAT_current_hp);
       if new_tar != orig_target andAlso new_tar != dead_attacker andAlso new_tar_cur_hp > 0 andAlso not(is_dead(new_tar)) andAlso obj_is_visible_flag(new_tar) then begin
          //BLOCKING_TYPE_SHOOT check
@@ -2970,6 +3041,8 @@ procedure plasma_alt_explosion begin
                if is_blocked then continue;
             end
          end
+         if new_tar <= 0 then
+            continue;
          new_tar_dmg_mult = PlasmaDamagePercentage + 0.1;
          distance = 0;
          //new_tar_pid = obj_pid(new_tar);
@@ -2986,14 +3059,22 @@ procedure plasma_alt_explosion begin
          end
          if target_dr > 90 then target_dr = 90;
          crit_roll = random(1, 100);
-         if crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu) then begin
+         flags = animate;
+         //add ini setting to engable|disable crit dmg and finess trait
+         if allow_critical > 0 andAlso(crit_roll <= critical_chance or (sniper andAlso random(1,10) <= attacker_lu)) then begin
             crit_power_roll = random(1, (100 + bonus_crit_power_roll));
             crit_mult = get_crit_mult(crit_power_roll,new_tar);
+
+            flags = animate bwor DAM_CRITICAL;
             if crit_mult < 2 then begin
                target_dt = target_dt * 0.75;
                target_dr = target_dr * 0.75;
             end
             else begin
+               //KO check
+               if random(0,1) then begin
+                  flags = animate bwor DAM_KNOCKED_DOWN;
+               end
                target_dt = target_dt * 0.4;
                target_dr = target_dr * 0.4;
             end
@@ -3019,7 +3100,7 @@ procedure plasma_alt_explosion begin
             dmg_to_attacker = dmg;
          end
          if new_tar != attacker andAlso new_tar != orig_target then begin
-            call critter_inflict_dmg(new_tar, attacker, dmg, DMG_plasma, 1, tar_tile);
+            call critter_inflict_dmg(new_tar, attacker, dmg, DMG_plasma, flags, tar_tile);
             //critter_dmg(new_tar, dmg, (DMG_plasma bwor DMG_BYPASS_ARMOR));
             new_tar_count += 1;
          end
@@ -3031,6 +3112,7 @@ procedure plasma_alt_explosion begin
                float_msg(new_tar,"0", 2);
             end
          end
+         new_tar = 0;
       end
    end
    if dmg_to_attacker >= 0 then begin
@@ -3064,6 +3146,7 @@ procedure plasma_aoe_dmg(variable attacker,variable target) begin
    variable start_tile = tile_num_in_direction(attacker_tile, rot_atk_to_tar, 1);
    variable projectile;
    variable timer;
+   variable placeholder;
    orig_target = target;
    placeholder = create_object_sid(pid_laser_projectile, 0, attacker_elev, -1);
    set_obj_visibility(placeholder, 1);
@@ -3087,12 +3170,12 @@ procedure plasma_aoe_dmg(variable attacker,variable target) begin
    reg_anim_animate(timer, ANIM_stand, 0);
    reg_anim_animate_and_move(projectile, target_tile, ANIMATE_RUN, 0);
    reg_anim_callback(plasma_alt_explosion);
-   reg_anim_callback(restore_weapon_proj_pid);
+   if placeholder then reg_anim_destroy(placeholder);
    if projectile then reg_anim_destroy(projectile);
    if timer then reg_anim_destroy(timer);
+   reg_anim_callback(restore_weapon_proj_pid);
    reg_anim_callback(STDPROCEDURE);
    reg_anim_callback(lvar_full_reset);
-   reg_anim_callback(destroy_placeholder);
    reg_anim_end();
 end
 
@@ -3136,6 +3219,7 @@ procedure callback_electrical_chain_show_orig_target_dmg begin
    variable target_team;
    variable emp_expl;
    if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
+      combat_dmg = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
       if show_float_dmg > 0 then begin
          if combat_dmg > 0 then begin
             float_msg(target, "-"+combat_dmg, 2);
@@ -3165,11 +3249,14 @@ procedure callback_electrical_chain_dmg begin
    variable dmg;
    variable dead_attacker;
    variable emp_expl;
+   variable flags;
    if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
       target_cur_hp = get_critter_stat(target, STAT_current_hp);
       target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
       attacker_team = has_trait(TRAIT_OBJECT, orig_attacker, OBJECT_TEAM_NUM);
       dmg = get_array(dmg_array,elec_tar_num);
+      flags = dmg / DAM_FLAGS_MULT;
+      dmg = dmg % DAM_FLAGS_MULT;
       set_outline(target, OUTLINE_BLINKING_CYAN);
       if orig_attacker != dude_obj andAlso attacker_team == target_team then begin
          dmg = random((dmg / 3), ((2 * dmg) / 3));
@@ -3179,12 +3266,13 @@ procedure callback_electrical_chain_dmg begin
          end
       if target != orig_attacker orElse target_cur_hp > dmg then begin
          if random(0,1) then begin
-            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_emp, 1, tile_num(target));
+            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_emp, flags, tile_num(target));
          end
          else begin
-            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_electrical, 1, tile_num(target));
+            call critter_inflict_dmg(target, orig_attacker, dmg, DMG_electrical, flags, tile_num(target));
          end
       end
+      //deadly dmg
       else begin
          set_obj_visibility(target, 1);
          dead_attacker = create_object_sid(obj_pid(target), tile_num(target), elevation(target), -1);
@@ -3240,6 +3328,7 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
    variable rnd_tar_dmg;
    variable targets_array_key = -1;
    variable i;
+   variable placeholder;
    if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER then begin
       call restore_weapon_proj_pid();
       call lvar_full_reset();
@@ -3297,7 +3386,7 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
          targets_array_key = len_array(targets_array);
          set_array(targets_array, targets_array_key, rnd_tar);
          rnd_tar_dmg = calc_dmg_electric(attacker, rnd_tar);
-         rnd_tar_dmg = round(rnd_tar_dmg * get_crit_mult(crit_power_roll,rnd_tar));
+         //rnd_tar_dmg = round(rnd_tar_dmg * get_crit_mult(crit_power_roll,rnd_tar));
          set_array(dmg_array, targets_array_key, rnd_tar_dmg);
          if rnd_tar_dmg <= 0 then break;
       end
@@ -3346,9 +3435,9 @@ procedure electrical_chain_dmg(variable attacker,variable target) begin
    reg_anim_animate_reverse(timer, ANIM_stand, -1);
    reg_anim_animate(timer, ANIM_stand, -1);
    reg_anim_callback(callback_refresh_outline);
+   if placeholder then reg_anim_destroy(placeholder);
    if projectile then reg_anim_destroy(projectile);
    reg_anim_callback(lvar_full_reset);
-   reg_anim_callback(destroy_placeholder);
    reg_anim_end();
    move_to(projectile, start_tile, attacker_elev);
 end
@@ -3372,15 +3461,20 @@ end
 
 procedure MOVECOST begin
    if pistol_double_tap_activated andAlso pistol_double_tap_attacker_tile != tile_num(dude_obj) then begin
-      pistol_double_tap_activated = 0;
-      pistol_double_tap_in_process = 0;
-      pistol_double_tap_visual = 0;
-      pistol_double_tap_taps = 0;
-      pistol_double_tap_target_selected = 0;
-      pistol_double_tap_target = -1;
-      pistol_double_tap_weapon_last_ammo = 0;
-      pistol_double_tap_in_process_missed = 0;
-      intface_redraw;
+      if kamikaze <= 0 then begin
+         pistol_double_tap_activated = 0;
+         pistol_double_tap_in_process = 0;
+         pistol_double_tap_visual = 0;
+         pistol_double_tap_taps = 0;
+         pistol_double_tap_target_selected = 0;
+         pistol_double_tap_target = -1;
+         pistol_double_tap_weapon_last_ammo = 0;
+         pistol_double_tap_in_process_missed = 0;
+         intface_redraw;
+      end
+      else begin
+         pistol_double_tap_attacker_tile = tile_num(dude_obj);
+      end
    end
 end
 
@@ -3521,6 +3615,14 @@ procedure AFTERHITROLL begin
             weapon = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
          end
          finesse = has_trait(TRAIT_TRAIT, attacker, TRAIT_finesse);
+         if traits_plus > 0 andAlso allow_critical <= 1 then begin
+            if attacker == dude_obj andAlso (finesse > 0 orElse finesse_plus > 1) then begin
+               allow_critical = 1;
+            end
+            else begin
+               allow_critical = 0;
+            end
+         end
          bloody_mess = has_trait(TRAIT_TRAIT, attacker, TRAIT_bloody_mess);
          one_hander = has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander);
          weapon_handling = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
@@ -3748,6 +3850,9 @@ procedure AFTERHITROLL begin
       // pistols double tap
       if PistolSecondaryAttackMod andAlso attacker == dude_obj andAlso weapon andAlso (weapon_anim == WPN_ANIM_PISTOL or weapon_anim == WPN_ANIM_SMG) andAlso weapon_damage_type == DMG_normal_dam andAlso weapon_ammo_pid != PID_2MM_EC_AMMO then begin
          alt_fire_used = 1;
+         if traits_plus > 0 andAlso kamikaze_plus > 0 andAlso kamikaze_plus <= 1 then begin
+            kamikaze = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_kamikaze);
+         end
          pistol_double_tap_target = real_orig_target;
          if pistol_double_tap_activated == 1 andAlso target_bodypart != BODY_HIT_TORSO andAlso attack_result <= 1 then begin
             pistol_double_tap_in_process_missed = 1;
@@ -3951,9 +4056,9 @@ procedure COMBATDAMAGE begin
    variable line_length;
    variable target_is_wearing_power_armor;
    variable stonewall_perk;
-   variable returned;
    variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
    variable actual_attack;
+   variable dmgtotar_was_return;
    if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
       actual_attack = 1;
    end
@@ -3967,18 +4072,22 @@ procedure COMBATDAMAGE begin
          weapon_caliber = get_proto_data(weapon_pid, PROTO_WP_CALIBER);
       end
       if missed_shot andAlso target != real_orig_target andAlso target != attacker andAlso weapon_caliber != shotgun_caliber then begin
-         if weapon_damage_type == DMG_laser then begin
-            combat_dmg = calc_dmg_laser(attacker,target);
+         if alt_fire_used > 0 then begin
+            if weapon_damage_type == DMG_plasma then begin
+               combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
+            end
+            else if weapon_damage_type == DMG_normal_dam then begin
+               combat_dmg = calc_dmg_gauss(attacker,target,random(weapon_min_dmg, weapon_max_dmg));
+            end
+            else if weapon_damage_type == DMG_laser then begin
+               combat_dmg = calc_dmg_laser(attacker,target);
+            end
+            if combat_dmg < 0 then combat_dmg = 0;
+            first_combat_dmg = combat_dmg;
+            set_sfall_return(combat_dmg);
+            set_sfall_arg(2, combat_dmg);
+            dmgtotar_was_return = 1;
          end
-         else if weapon_damage_type == DMG_normal_dam then begin
-            combat_dmg = calc_dmg_gauss(attacker,target,random(weapon_min_dmg, weapon_max_dmg));
-         end
-         if combat_dmg < 0 then combat_dmg = 0;
-         first_combat_dmg = combat_dmg;
-
-         returned = 1;
-         set_sfall_return(combat_dmg);
-         set_sfall_arg(2, combat_dmg);
          //return;
       end
       if attacker andAlso attacker_frm == 0 andAlso one_time_call <= 0 then begin
@@ -4015,8 +4124,10 @@ procedure COMBATDAMAGE begin
             one_time_call = 1;
             if combat_dmg > 0 andAlso has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) != TEAM_PLAYER then begin
                combat_dmg = random(5,8) + ceil(combat_dmg * 1.15);
-               set_sfall_return(combat_dmg);
-               set_sfall_arg(2, combat_dmg);
+               if dmgtotar_was_return <= 0 then begin
+                  set_sfall_return(combat_dmg);
+                  set_sfall_arg(2, combat_dmg);
+               end
             end
             call plasma_aoe_dmg(attacker,target);
          end
@@ -4068,8 +4179,10 @@ procedure COMBATDAMAGE begin
             end
             if knockback_distance < 1 then knockback_distance = 1;
             if (attacker_target_distance < 10 or attacker_target_distance <= weapon_range / 2) then begin
-               set_sfall_return(dmgtotar);
-               set_sfall_arg(2, dmgtotar);
+               if dmgtotar_was_return <= 0 then begin
+                  set_sfall_return(dmgtotar);
+                  set_sfall_arg(2, dmgtotar);
+               end
                set_sfall_return(dmgtoatk);
                set_sfall_arg(3, dmgtoatk);
                if rnd <= 0 then begin
@@ -4151,7 +4264,7 @@ procedure COMBATDAMAGE begin
             // dmg new targets
             call laser_line_dmg(attacker, target);
             if (new_dmg_to_orig_target <= 0 or (target == orig_target andAlso missed_shot)) andAlso ShootThru(target) then begin
-               if returned <= 0 then begin
+               if dmgtotar_was_return <= 0 then begin
                   set_sfall_return(0);
                   set_sfall_arg(2, 0);
                end
@@ -4170,7 +4283,7 @@ procedure COMBATDAMAGE begin
                combat_dmg = 0;
             end
             else begin
-               if returned <= 0 then begin
+               if dmgtotar_was_return <= 0 then begin
                   set_sfall_return(new_dmg_to_orig_target);
                   set_sfall_arg(2, new_dmg_to_orig_target);
                   combat_dmg = new_dmg_to_orig_target;
@@ -4204,8 +4317,10 @@ procedure COMBATDAMAGE begin
 
                call gauss_line_dmg(attacker, target);
                if (new_dmg_to_orig_target <= 0 or (missed_shot)) andAlso ShootThru(target) then begin
-                  set_sfall_return(0);
-                  set_sfall_arg(2, 0);
+                  if dmgtotar_was_return <= 0 then begin
+                     set_sfall_return(0);
+                     set_sfall_arg(2, 0);
+                  end
                   set_sfall_return(0);
                   set_sfall_arg(3, 0);
                   set_sfall_return(0);
@@ -4221,9 +4336,11 @@ procedure COMBATDAMAGE begin
                   combat_dmg = 0;
                end
                else begin
-                  set_sfall_return(new_dmg_to_orig_target);
-                  set_sfall_arg(2, new_dmg_to_orig_target);
-                  combat_dmg = new_dmg_to_orig_target;
+                  if dmgtotar_was_return <= 0 then begin
+                     set_sfall_return(new_dmg_to_orig_target);
+                     set_sfall_arg(2, new_dmg_to_orig_target);
+                     combat_dmg = new_dmg_to_orig_target;
+                  end
                end
          end
          //gauss alt dmg end
@@ -4353,11 +4470,34 @@ variable i;
       variable SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
       if SecondaryAttackMod > 0 then begin
          living_anatomy_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|LivingAnatomyBonus");
+
          if living_anatomy_bonus < 0 then living_anatomy_bonus = 5;
+
+         allow_critical = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AllowCriticalHits");
+         if allow_critical > 0 then begin
+            allow_critical = 10;
+         end
+         traits_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
+         if traits_plus > 0 then begin
+            kamikaze_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Kamikaze");
+            if kamikaze_plus <= 0 then begin
+               kamikaze_plus = -1;
+            end
+            else if kamikaze_plus > 1 then begin
+               kamikaze_plus = 10;
+            end
+            if allow_critical <= 0 then begin
+               finesse_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Finesse");
+               if finesse_plus <= 0 then begin
+                  finesse_plus = -1;
+               end
+            end
+         end
+
          Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          if Sonora > 0 then set_proto_data(pid_sonora_railgun, PROTO_WP_PROJ_PID, 0);
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");
-         AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAllowSniperPerk");
+         AllowSniperPerk = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AllowSniperPerk");
          LaserSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserSecondaryAttackMod");
          if LaserSecondaryAttackMod > 0 then begin
             LaserLineWidth = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserLineWidth");

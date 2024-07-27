@@ -1,0 +1,2999 @@
+#define SMALL_FRAME_DODGE 10
+#define DODGER_DODGE 5
+#define JINXED_MISS 5
+#define ONE_HANDER_HIT_BONUS 20
+#define SKILLED_HIT_BONUS 4
+#define DRUG_MAX_STATS 18
+#define NumEffects 0
+#define AddictTimeOff 1
+
+#define base_map_arr_num 1
+#define drug_arr_pid_offset 0
+#define drug_arr_numeff_offset 1
+#define drug_arr_addict_time_offset 2
+#define drug_arr_numeff_gvar_id 3
+#define drug_arr_addict_text_id 4
+#define drug_arr_addict_frm_id 5
+
+#define jinxed_roll_max_value_adress 0x4238BC
+
+#define kamikaze_tohit_penalty 3
+#define kamikaze_walk_div 2
+
+#define skilled_perk_level_bonus (4)
+
+#define fast_meta_duration_div (2)
+#define heavy_handed_luck_bonus (6)
+#define bloody_mess_luck_penalty (-7)
+#define bloody_mess_ap_bonus (1)
+#define bloody_mess_ap_bonus_kill (1)
+#define MAX_TRAITS 16
+#define flags_offset 100000
+
+
+
+#define STAT_drug_rnd -2
+//#define drug_addict_stats(drug_stat) ((drug_stat >= STAT_st andAlso drug_stat <= STAT_poison_resist andAlso drug_stat != STAT_max_move_points andAlso drug_stat != STAT_heal_rate andAlso drug_stat != STAT_max_hp) orElse drug_stat == STAT_drug_rnd)
+#define drug_addict_stats(drug_stat) ((drug_stat >= STAT_st andAlso drug_stat <= STAT_poison_resist andAlso drug_stat != STAT_heal_rate) orElse (RegenMod <= 0 andAlso drug_stat == STAT_heal_rate))
+
+#define drug_resist_stats(drug_stat) ((drug_stat >= STAT_st andAlso drug_stat <= STAT_poison_resist andAlso drug_stat != STAT_heal_rate) orElse (RegenMod <= 0 andAlso drug_stat == STAT_heal_rate))
+
+//#define drug_fast_meta_stats(drug_stat) ((drug_stat == STAT_current_hp orElse drug_stat == STAT_max_hp orElse drug_stat == STAT_max_move_points orElse drug_stat == STAT_heal_rate) andAlso drug_stat != STAT_drug_rnd)
+#define drug_fast_meta_stats(drug_stat) ((drug_stat >= STAT_current_hp andAlso drug_stat <= STAT_current_rad) orElse drug_stat == STAT_max_hp orElse drug_stat == STAT_heal_rate)
+
+#define new_msg_file "gl_traits_plus.msg"
+#define trait_name_offset 100
+#define trait_desc_offset 200
+
+#define one_week_in_min 10080
+
+#define get_combat_free_move sfall_func0("get_combat_free_move")
+
+#define trait_msg(x) message_str_game(traits_plus_msg_file, x)
+#define msg_traits_set 1
+#define msg_restart_game 2
+
+#define ddraw_perks_ini_path "ddraw.ini|Misc|PerksFile"
+#define ddraw_drugs_ini_path "ddraw.ini|Misc|DrugsFile"
+#define default_perks_ini_path "mods\\sfall\\perks.ini"
+#define default_drugs_ini_path "mods\\sfall\\drugs.ini"
+#define default_perks_ini_name "perks.ini"
+#define default_drugs_ini_name "drugs.ini"
+
+#define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
+                                       critter_fid == FID_NAPOWR or \
+                                       critter_fid == FID_HANPWR or \
+                                       critter_fid == FID_MABOSS)
+#define crit_is_moving(critter_obj)    ( (art_anim(obj_art_fid(critter_obj)) == ANIM_walk) or (art_anim(obj_art_fid(critter_obj)) == ANIM_running) )
+#define get_active_weapon(critter)  critter_inven_obj(critter, (2 - active_hand) if critter == dude_obj else INVEN_TYPE_RIGHT_HAND)
+#define signal_close_game                                       sfall_func0("signal_close_game")
+#define message_box_flags(text, flags)                          sfall_func2("message_box", text, flags)
+
+
+//Nevada drugs
+#define PID_MENTATS_AROM                    (338)
+#define PID_M_STMPK_RING                    (164)
+#define PID_M_MILASHKA                      (259)
+
+//sfall 5
+#define set_heave_ho_tweak_mod(mod)                             metarule3(202, mod, 0, 0)
+
+
+
+#include "define.h"
+#include "define_extra.h"
+#include "command.h"
+#include "sfall.h"
+
+variable traits_plus_cur_version = "1.0";
+variable traits_plus_cur_version_Sonora = "Sonora 1.0";
+
+variable Nevada;
+variable Sonora;
+variable TraitsPlus;
+variable RegenMod;
+variable Lvar_wpn_max_dmg;
+variable Lvar_wpn_min_dmg;
+
+variable dude_trait_1;
+variable dude_trait_2;
+
+
+variable traits_plus_msg_file;
+variable perks_ini_path;
+
+variable drugs_ini_path;
+variable array_drugs_ini;
+
+
+variable main_attacker;
+
+// TRAIT_fast_metabolism
+variable fast_metabolism;
+
+// TRAIT_drug_addict
+variable drug_addict;
+
+// TRAIT_drug_resistant
+variable drug_resistant;
+
+// TRAIT_bruiser
+variable bruiser;
+
+// TRAIT_small_frame
+variable small_frame;
+
+// TRAIT_one_hander
+variable one_hander;
+variable one_hander_stat_bonus = "TPOHTBST";
+variable one_hander_weapon_pid;
+variable one_hander_min_st;
+variable one_hander_uncripple_set;
+
+// TRAIT_heavy_handed
+variable heavy_handed;
+
+//skilled
+variable skilled;
+variable skilled_last_perk_level_bonus = -50;
+variable skilled_prevent_crit_fail;
+
+variable kamikaze;
+variable kamikaze_ap_used;
+variable kamikaze_hex_walked_num;
+variable kamikaze_last_tile;
+variable kamikaze_last_hand_items;
+
+//TRAIT_finesse
+variable finesse;
+
+
+//TRAIT_bloody_mess
+variable bloody_mess;
+variable bloody_mess_player_death_changed;
+variable bloody_mess_death_count;
+variable bloody_mess_last_ap_attack;
+variable bloody_mess_no_ap_end;
+variable bloody_mess_orig_mem;
+
+//TRAIT_jinxed
+variable jinxed;
+variable jinxed_removed;
+variable jinxed_unsafe_set_max_roll;
+
+variable living_anatomy_bonus;
+variable pyromaniac_bonus;
+
+variable unlucky_attacker;
+variable attacker_orig_extra_luck;
+variable AF_attack_result = -1;
+variable luck_min;
+variable luck_max = -1;
+variable last_lvl;
+
+variable modded_drug_pid;
+variable drug_orig_stats;
+variable disabled_traits_arr;
+
+variable ver_major;
+variable ver_minor;
+variable ver_build;
+variable sfall_508;
+variable AutoMoveToAttack;
+variable AutoMoveToAttack_move_dist;
+variable AutoMoveToAttack_start_hex;
+variable AutoMoveToAttack_last_wpn = -10;
+variable wpn_is_melee;
+variable wpn_range;
+
+procedure weapon_is_two_handed(variable weapon) begin
+   variable weapon_flags_ext;
+   variable is_two_handed;
+   if weapon <= 0 orElse obj_item_subtype(weapon) != item_type_weapon then begin
+      return -1;
+   end
+   if (get_proto_data(obj_pid(weapon),PROTO_FLAG_EXT) bwand WEAPON_2HAND) == WEAPON_2HAND then begin
+      is_two_handed = 1;
+   end
+   return is_two_handed;
+end
+
+procedure one_hander_bonus_remove begin
+   if get_sfall_global_int(one_hander_stat_bonus) <= 0 then begin
+      return;
+   end
+   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) - 5));
+   set_sfall_global(one_hander_stat_bonus, 0);
+end
+
+procedure one_hander_bonus_add begin
+   if get_sfall_global_int(one_hander_stat_bonus) > 0 then begin
+      return;
+   end
+   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) + 5));
+   set_sfall_global(one_hander_stat_bonus, 1);
+end
+
+procedure one_hander_weapon_bonus_remove begin
+   if one_hander_weapon_pid <= 0 then begin
+      return;
+   end
+   set_proto_data(one_hander_weapon_pid, PROTO_WP_MIN_ST, one_hander_min_st);
+   one_hander_min_st = 0;
+   one_hander_weapon_pid = 0;
+end
+
+procedure one_hander_weapon_bonus_add(variable weapon) begin
+   variable weapon_pid;
+   if weapon > 0 then begin
+      weapon_pid = obj_pid(weapon);
+   end
+   if weapon_pid <= 0 orElse weapon_pid == one_hander_weapon_pid then begin
+      return;
+   end
+
+   call one_hander_weapon_bonus_remove;
+
+   one_hander_weapon_pid = weapon_pid;
+   one_hander_min_st = get_proto_data(weapon_pid, PROTO_WP_MIN_ST);
+   if one_hander_min_st >= 4 then
+      set_proto_data(weapon_pid, PROTO_WP_MIN_ST, (one_hander_min_st - 3));
+   else
+      set_proto_data(weapon_pid, PROTO_WP_MIN_ST, 1);
+end
+
+procedure TOHIT begin
+   variable hit_capped = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable target = get_sfall_arg;
+   variable body_part = get_sfall_arg;
+   variable atk_type = get_sfall_arg_at(5);
+   variable hit_uncapped = get_sfall_arg_at(7);
+   variable dodger;
+   variable max_dodge;
+   variable new_hit_cap = 95;
+   variable new_hit_chance = hit_uncapped;
+   variable max_hit_cap = 95;
+   variable active_item;
+   if target == dude_obj then begin
+      dodger = has_trait(TRAIT_PERK, target, PERK_dodger);
+      if small_frame > 0 then begin
+         max_dodge += SMALL_FRAME_DODGE;
+      end
+   end
+   // get the maximum hit chance if it is != 95
+   if hit_capped > 95 orElse hit_capped < new_hit_chance then begin
+      max_hit_cap = hit_capped;
+   end
+
+   // Apply +20% bonus to hit chance for TRAIT_one_hander with bare fist
+   if attacker == dude_obj andAlso one_hander > 0 then begin
+      active_item = get_active_weapon(attacker);
+      if active_item <= 0 andAlso ((atk_type == ATKTYPE_PUNCH orElse (atk_type >= ATKTYPE_STRONGPUNCH andAlso atk_type <= ATKTYPE_PIERCINGSTRIKE))) then begin
+         new_hit_chance += ONE_HANDER_HIT_BONUS;
+      end
+      else begin
+         if active_item > 0 andAlso weapon_is_two_handed(active_item) == 0 then begin
+            //Penalty to hit chance of one-handed weapons if both hands are damaged
+            if (critter_state(attacker) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT)) != 0 then begin
+               new_hit_chance -= ONE_HANDER_HIT_BONUS;
+            end
+         end
+      end
+   end
+   // Apply a bonus to hit chance for skilled attacker
+   if attacker == dude_obj andAlso skilled > 0 then begin
+      new_hit_chance += SKILLED_HIT_BONUS;
+      hit_capped += SKILLED_HIT_BONUS;
+      max_hit_cap += SKILLED_HIT_BONUS;
+   end
+
+   // Calculate new max chance for target with small frame, dodger, and jinxed
+   if (max_dodge > 0 orElse dodger > 0 orElse jinxed > 0) andAlso hit_capped > 0 then begin
+      if jinxed > 0 then begin
+         max_dodge += JINXED_MISS;
+      end
+      max_dodge += DODGER_DODGE * dodger;
+      new_hit_cap = max_hit_cap - max_dodge;
+   end
+
+   // Set the new maximum hit chance within bounds
+   if new_hit_cap < 0 then begin
+      new_hit_cap = 0;
+   end
+   else if new_hit_cap > 99 then begin
+      if body_part == BODY_UNCALLED then begin
+         new_hit_cap = 100;
+      end
+      else begin
+         new_hit_cap = 99;
+      end
+   end
+
+   //kamikaze
+   if kamikaze_hex_walked_num > 0 then begin
+      new_hit_chance -= kamikaze_tohit_penalty * kamikaze_hex_walked_num;
+   end
+   if AutoMoveToAttack_move_dist > 0 then begin
+      new_hit_chance -= kamikaze_tohit_penalty * AutoMoveToAttack_move_dist;
+   end
+
+   // Set the maximum hit chance as the return value if it's higher than the base hit chance
+   if new_hit_chance >= new_hit_cap then begin
+      set_sfall_return(new_hit_cap);
+      set_sfall_arg(0, new_hit_cap);
+      set_sfall_arg(7, new_hit_chance);
+   end
+   else begin
+      if new_hit_chance != hit_uncapped then begin
+         set_sfall_return(new_hit_chance);
+         set_sfall_arg(0, new_hit_chance);
+         set_sfall_arg(7, new_hit_chance);
+      end
+   end
+end
+
+procedure jinxed_remove_and_get_roll begin
+   if jinxed_removed > 0 then
+      return;
+
+   if sfall_508 <= 0 andAlso (has_trait(TRAIT_TRAIT, dude_obj, TRAIT_jinxed) orElse has_trait(TRAIT_PERK, dude_obj, PERK_jinxed_perk)) then begin
+      jinxed_unsafe_set_max_roll = read_byte(jinxed_roll_max_value_adress);
+      write_byte(jinxed_roll_max_value_adress, 0x00);
+      jinxed_removed = 1;
+   end
+
+   return random(ROLL_CRITICAL_FAILURE, ROLL_FAILURE);
+end
+
+procedure jinxed_restore begin
+   if jinxed_removed <= 0 then
+      return;
+   if jinxed_unsafe_set_max_roll != 0 then begin
+      write_int(jinxed_roll_max_value_adress, jinxed_unsafe_set_max_roll);//restore random roll
+      jinxed_unsafe_set_max_roll = 0;
+   end
+end
+
+
+procedure get_luck_min_max begin
+   variable dude_extra_luck;
+   if luck_max != -1 then
+      return;
+
+   dude_extra_luck = get_critter_extra_stat(dude_obj, STAT_lu);
+   set_critter_extra_stat(dude_obj, STAT_lu, -100);
+   luck_min = dude_luck;
+   set_critter_extra_stat(dude_obj, STAT_lu, 100);
+   luck_max = dude_luck;
+   set_critter_extra_stat(dude_obj, STAT_lu, dude_extra_luck);
+end
+
+procedure remove_luck_penalty begin
+   if unlucky_attacker > 0 then begin
+      if luck_max == -1 then
+         call get_luck_min_max;
+
+      set_stat_min(STAT_lu, luck_min);
+      set_stat_max(STAT_lu, luck_max);
+      set_critter_extra_stat(unlucky_attacker, STAT_lu, attacker_orig_extra_luck);
+      unlucky_attacker = 0;
+      attacker_orig_extra_luck = 0;
+      AF_attack_result = -1;
+   end
+end
+
+// Increases the severity of the critical failure effect by "temporarily" reducing the luck value.
+// Formula for calculating the power of a critical miss within the game:
+// randomBetween(1, 100) - 5 * (attacker_LUCK - 5); weakest effect at <= 20, strongest effect at > 95
+procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable has_heavy_handed) begin
+   variable luck_penalty;
+   if attacker <= 0 orELSE obj_type(attacker) != OBJ_TYPE_CRITTER then
+      return;
+   if unlucky_attacker > 0 andAlso unlucky_attacker != attacker then begin
+      call remove_luck_penalty;
+   end
+   //add heavy handed bonus
+   if attacker == dude_obj andAlso has_heavy_handed > 0 then begin
+      luck_penalty += heavy_handed_luck_bonus;
+   end
+   //add bloody mess penalty
+   if has_bloody_mess > 0 then begin
+      luck_penalty += bloody_mess_luck_penalty;
+   end
+   if luck_penalty != 0 then begin
+      set_stat_min(STAT_lu, -20);
+      set_stat_max(STAT_lu, 20);
+      AF_attack_result = ROLL_CRITICAL_FAILURE;
+      unlucky_attacker = attacker;
+      attacker_orig_extra_luck = get_critter_extra_stat(attacker, STAT_lu);
+      set_critter_extra_stat(attacker, STAT_lu, (attacker_orig_extra_luck + luck_penalty));
+   end
+end
+
+
+
+
+procedure disable_zero_ap_end_turn begin
+   variable ap_to_end_turn = -10;
+   if bloody_mess_no_ap_end == 0 then begin
+      bloody_mess_no_ap_end = 1;
+      // end turn if AP is lower then ap_to_end_turn
+      write_int(0x42286A, (bloody_mess_orig_mem + (ap_to_end_turn * 0x1000000)));
+   end
+end
+
+procedure enable_zero_ap_end_turn begin
+   if bloody_mess_no_ap_end != 0 then begin
+      write_int(0x42286A, bloody_mess_orig_mem);
+      if combat_is_initialized andAlso get_critter_current_ap(dude_obj) <= 0 andAlso get_combat_free_move <= 0 then begin
+         tap_key(57); //DIK_SPACE
+      end
+      bloody_mess_no_ap_end = 0;
+   end
+end
+
+
+procedure get_wpn_range(variable weapon,variable attack_type) begin
+   variable weapon_range;
+   if weapon <= 0 orElse attack_type < ATKTYPE_LWEP1 then begin
+      return -1;
+   end
+
+   if attack_type % 2 then begin
+      weapon_range = get_proto_data(obj_pid(weapon), PROTO_WP_RANGE_2);
+   end
+   else begin
+      weapon_range = get_proto_data(obj_pid(weapon), PROTO_WP_RANGE_1);
+   end
+
+   return weapon_range;
+end
+
+procedure CALCAPCOST begin
+   variable critter = get_sfall_arg;
+   variable is_aimed;
+   variable orig_ap_cost;
+   variable new_ap_cost;
+   variable atk_type;
+   variable active_item;
+   variable cursor_mode;
+   if critter == dude_obj andAlso AutoMoveToAttack > 0 then begin
+      atk_type = get_sfall_arg_at(1);
+      is_aimed = get_sfall_arg_at(2);
+      wpn_is_melee = 0;
+      if atk_type <= ATKTYPE_RWEP2 then begin
+         active_item = get_active_weapon(critter);
+         if AutoMoveToAttack_last_wpn > -10 andAlso AutoMoveToAttack_last_wpn != active_item + is_aimed then begin
+            AutoMoveToAttack_move_dist = 0;
+            AutoMoveToAttack_start_hex = 0;
+            AutoMoveToAttack_last_wpn = 0;
+            cursor_mode = get_cursor_mode;
+            if cursor_mode == CURSOR_TARGETING then begin
+               set_cursor_mode((cursor_mode + 1) % 3);
+               set_cursor_mode(CURSOR_TARGETING);
+            end
+         end
+         if active_item > 0 andAlso obj_item_subtype(active_item) == item_type_weapon then begin
+            AutoMoveToAttack_last_wpn = active_item + is_aimed;
+            wpn_range = get_wpn_range(active_item,atk_type) - 1;
+
+            if wpn_range >= 0 andAlso wpn_range <= 2 then begin
+               wpn_is_melee = 1;
+            end
+            else begin
+               wpn_is_melee = 0;
+               AutoMoveToAttack_move_dist = 0;
+               AutoMoveToAttack_start_hex = 0;
+            end
+         end
+      end
+      else if atk_type != ATKTYPE_LWEP_RELOAD andAlso atk_type != ATKTYPE_RWEP_RELOAD then begin
+         if AutoMoveToAttack_last_wpn > -10 andAlso AutoMoveToAttack_last_wpn != atk_type + (is_aimed * 100) then begin
+            AutoMoveToAttack_move_dist = 0;
+            AutoMoveToAttack_start_hex = 0;
+            AutoMoveToAttack_last_wpn = 0;
+            cursor_mode = get_cursor_mode;
+            if cursor_mode == CURSOR_TARGETING then begin
+               set_cursor_mode((cursor_mode + 1) % 3);
+               set_cursor_mode(CURSOR_TARGETING);
+            end
+         end
+         AutoMoveToAttack_last_wpn = atk_type + (is_aimed * 100);
+         wpn_range = 0;
+         wpn_is_melee = 1;
+      end
+      if AutoMoveToAttack_move_dist > 0 andAlso combat_is_initialized then begin
+         if AutoMoveToAttack_start_hex == tile_num(dude_obj) then begin
+            orig_ap_cost = get_sfall_arg_at(3);
+            new_ap_cost = orig_ap_cost - AutoMoveToAttack_move_dist / kamikaze_walk_div - (kamikaze_hex_walked_num / kamikaze_walk_div);
+            if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
+               new_ap_cost -= (kamikaze_hex_walked_num / kamikaze_walk_div);
+            end
+            if new_ap_cost < 1 + is_aimed then begin
+               new_ap_cost = 1 + is_aimed;
+            end
+            set_sfall_return(new_ap_cost);
+         end
+         else begin
+            AutoMoveToAttack_move_dist = 0;
+            AutoMoveToAttack_start_hex = 0;
+         end
+      end
+   end
+   // restore LUCK
+   if AF_attack_result == ROLL_CRITICAL_FAILURE then begin
+      call remove_luck_penalty;
+   end
+   if jinxed_removed > 0 then begin
+      call jinxed_restore;
+   end
+   // kamikaze AP cost reduction
+   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
+      atk_type = get_sfall_arg_at(1);
+      if atk_type != ATKTYPE_LWEP_RELOAD orElse atk_type != ATKTYPE_RWEP_RELOAD then begin
+         active_item = get_active_weapon(critter);
+         if active_item == 0 orElse obj_item_subtype(active_item) == item_type_weapon then begin
+            is_aimed = get_sfall_arg_at(2);
+            orig_ap_cost = get_sfall_arg_at(3);
+            new_ap_cost = orig_ap_cost - (kamikaze_hex_walked_num / kamikaze_walk_div);
+            if new_ap_cost < 1 + is_aimed then begin
+               new_ap_cost = 1 + is_aimed;
+            end
+            set_sfall_return(new_ap_cost);
+            set_sfall_arg(3, new_ap_cost);
+            if kamikaze_ap_used > 0 then begin
+               kamikaze_ap_used = 0;
+               kamikaze_hex_walked_num = 0;
+               intface_redraw;
+            end
+         end
+      end
+   end
+
+   if critter == dude_obj then begin
+      if new_ap_cost > 0 then begin
+         orig_ap_cost = new_ap_cost;
+      end
+      else begin
+         orig_ap_cost = get_sfall_arg_at(3);
+      end
+      //one hander
+      if one_hander > 0 then begin
+         active_item = get_active_weapon(critter);
+         if active_item > 0 then begin
+            if weapon_is_two_handed(active_item) == 0 then begin
+               call one_hander_weapon_bonus_add(active_item);
+               call one_hander_bonus_add;
+            end
+            else begin
+               call one_hander_weapon_bonus_remove;
+               call one_hander_bonus_remove;
+            end
+         end
+         else begin
+            if (atk_type == ATKTYPE_PUNCH orElse (atk_type >= ATKTYPE_STRONGPUNCH andAlso atk_type <= ATKTYPE_PIERCINGSTRIKE)) then begin
+               call one_hander_bonus_add;
+            end
+            else begin
+               call one_hander_bonus_remove;
+            end
+         end
+      end
+      else begin
+         call one_hander_weapon_bonus_remove;
+         call one_hander_bonus_remove;
+      end
+      if bloody_mess > 0 andAlso get_combat_free_move <= 0 andAlso ((get_critter_current_ap(critter) - orig_ap_cost)) <= 0 then begin
+         bloody_mess_last_ap_attack = 1;
+      end
+   end
+   else begin
+      call one_hander_weapon_bonus_remove;
+   end
+end
+
+
+procedure get_crit_mult(variable crit_power_roll,variable target) begin
+   variable crit_mult = 2;
+   variable crit_flags = (DAM_BYPASS bwor DAM_HIT);
+   variable target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   if crit_power_roll <= 20 then begin
+      crit_mult = 3;
+      if random(0,2) then crit_flags = DAM_HIT;
+   end
+   else if crit_power_roll <= 45 then begin
+      crit_mult = 3;
+      if not(random(0,2)) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+   end
+   else if crit_power_roll <= 75 then begin
+      crit_mult = 4;
+      if random(0,1) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+   end
+   else if crit_power_roll <= 100 then begin
+      crit_mult = 5;
+      crit_flags = crit_flags bwor DAM_KNOCKED_OUT;
+   end
+   else begin
+      crit_mult = 6;
+      if crit_power_roll >= 111 then begin
+         crit_flags = crit_flags bwor DAM_DEAD;
+      end
+   end
+
+   if target_kill_type > 17 then begin
+      if crit_mult >= 4 then crit_mult = 3;
+
+      if crit_power_roll >= 100 then begin
+         crit_flags = (DAM_BYPASS bwor DAM_HIT bwor DAM_KNOCKED_DOWN);
+      end
+      if random(0,1) then crit_flags = DAM_HIT;
+   end
+   return crit_mult + (flags_offset * crit_flags);
+end
+
+procedure calc_crit_dmg(variable attacker, variable target, variable weapon, variable bullet_count) begin
+   variable crit_flags;
+   variable bonus_ranged_damage;
+   variable bonus_crit_power_roll = get_critter_stat(attacker,STAT_better_crit);
+   variable target_dt;
+   variable target_dr;
+   variable target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   variable rnd = random(0, 100);
+   variable tar_flags;
+   variable crit_mult = 1;
+   variable min_dmg = 0;
+   variable dmg;
+   variable weapon_perk;
+   variable crit_power_roll;
+   variable weapon_pid;
+   variable weapon_dmg;
+   variable weapon_anim;
+   variable weapon_min_dmg;
+   variable weapon_max_dmg;
+   variable weapon_damage_type;
+   variable weapon_ammo_pid;
+   variable ammo_dr_mod;
+   variable ammo_dmg_mult = 1;
+   variable ammo_dmg_div = 1;
+   variable living_anatomy = has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk);
+   variable pyromaniac;
+
+   if weapon > 0 then begin
+      weapon_pid = obj_pid(weapon);
+      if weapon_pid == PID_MOLOTOV_COCKTAIL then begin
+         weapon_damage_type = DMG_fire;
+      end
+      else begin
+         weapon_damage_type = get_proto_data(weapon_pid, PROTO_WP_DMG_TYPE);
+      end
+      if Lvar_wpn_min_dmg <= 0 then begin
+         weapon_min_dmg = get_proto_data(weapon_pid, PROTO_WP_DMG_MIN);
+      end
+      else begin
+         weapon_min_dmg = Lvar_wpn_min_dmg;
+      end
+      if Lvar_wpn_max_dmg <= 0 then begin
+         weapon_max_dmg = get_proto_data(weapon_pid, PROTO_WP_DMG_MAX);
+      end
+      else begin
+         weapon_max_dmg = Lvar_wpn_max_dmg;
+      end
+      weapon_perk = get_proto_data(weapon_pid, PROTO_WP_PERK);
+      weapon_ammo_pid = get_proto_data(weapon_pid, PROTO_WP_AMMO_PID);
+      weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      if weapon_ammo_pid > 0 then begin
+         ammo_dr_mod = get_proto_data(weapon_ammo_pid, PROTO_AM_DR_MOD);
+         ammo_dmg_mult = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_MULT);
+         ammo_dmg_div = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_DIV);
+      end
+      if (weapon_anim >= WPN_ANIM_PISTOL) or (weapon_damage_type != DMG_normal_dam andAlso weapon_anim <= 0) then begin
+         bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
+      end
+   end
+
+   if bullet_count <= 0 then bullet_count = 1;
+   weapon_dmg = random(weapon_min_dmg, weapon_max_dmg) * ammo_dmg_mult / ammo_dmg_div + 2 * bonus_ranged_damage;
+   weapon_dmg *= bullet_count;
+
+   target_dt = get_critter_stat(target,(STAT_dmg_thresh + weapon_damage_type));
+   target_dr = get_critter_stat(target,(STAT_dmg_resist + weapon_damage_type));
+   //Increase target_dr if it attacker has TRAIT_finesse
+   if finesse > 0 then begin
+      target_dr = target_dr + 30;
+   end
+   if weapon_perk == PERK_weapon_penetrate then begin
+      target_dt = target_dt * 0.2;
+      if weapon_damage_type != DMG_emp then target_dr = target_dr * 0.8;
+   end
+
+   // if YAAM ammo active
+   if (ammo_dr_mod > 0 andAlso ammo_dr_mod < 20) or (weapon_ammo_pid == PID_ROCKET_AP andAlso ammo_dr_mod == 20) then begin
+      ammo_dr_mod = 0;
+      target_dt = target_dt - ammo_dr_mod;
+      if target_dt < ammo_dr_mod then begin
+         target_dr = target_dr + (10 * (target_dt - ammo_dr_mod) / 100.0);
+      end
+   end
+   target_dr = target_dr + ammo_dr_mod;
+
+
+   //if crit_roll <= critical_chance then begin
+      crit_power_roll = random(1, (100 + bonus_crit_power_roll));
+      crit_mult = get_crit_mult(crit_power_roll,target);
+      tar_flags = crit_mult / flags_offset;
+      crit_mult = (crit_mult % flags_offset) / 2.0;
+      if weapon_damage_type != DMG_emp then begin
+         if (tar_flags bwand DAM_BYPASS) then begin
+            target_dt = target_dt * 0.2;
+            target_dr = target_dr * 0.2;
+         end
+         else begin
+            target_dt = target_dt * 0.8;
+            target_dr = target_dr * 0.8;
+         end
+      end
+   //end
+   if target_dt < 0 then target_dt = 0;
+   if target_dr > 90 andAlso weapon_damage_type != DMG_emp then target_dr = 90;
+   if target_dr < 0 then target_dr = 0;
+
+   if target_dr < 100 then begin
+      dmg = round(((weapon_dmg) - target_dt) * crit_mult * (100 - target_dr) / 100.0);
+   end
+   if dmg < min_dmg then dmg = min_dmg;
+
+   if target_kill_type != KILL_TYPE_robot_kills orElse target_kill_type != KILL_TYPE_alien_kills then begin
+      dmg += living_anatomy_bonus * living_anatomy;
+   end
+   if weapon_damage_type == DMG_fire orElse weapon_pid == PID_MOLOTOV_COCKTAIL then begin
+      pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
+      dmg += pyromaniac_bonus * pyromaniac;
+   end
+   tar_flags *= flags_offset;
+   return (dmg + tar_flags);
+
+end
+
+procedure AFTERHITROLL begin
+   variable attack_result = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable target = get_sfall_arg;
+   //variable bodypart = get_sfall_arg;
+   //variable hit_chance = get_sfall_arg;
+   variable new_attack_result = -1;
+   variable attacker_crit;
+   variable attacker_luck;
+   variable fail_roll;
+   variable sniper;
+   variable rnd;
+   main_attacker = attacker;
+   //kamikaze
+   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
+      kamikaze_ap_used = 1;
+   end
+
+   if jinxed > 0 then begin
+      if attack_result == ROLL_FAILURE then begin
+         fail_roll = jinxed_remove_and_get_roll;
+         if fail_roll <= ROLL_CRITICAL_FAILURE then begin
+            new_attack_result = ROLL_CRITICAL_FAILURE;
+            attack_result = new_attack_result;
+         end
+         else begin
+            skilled_prevent_crit_fail = ROLL_FAILURE;
+         end
+      end
+   end
+   // set critical miss bonus roll
+   if attack_result == ROLL_CRITICAL_FAILURE then begin
+      // bloody_mess increases the effect of a critical miss for an attacker by 30
+      //skilled reduces the effect of a critical miss for an attacker by 30
+      if skilled > 0 andAlso attacker == dude_obj andAlso random(0,1) then begin
+         new_attack_result = ROLL_FAILURE;
+      end
+      if bloody_mess > 0 orElse (heavy_handed > 0 andAlso attacker == dude_obj) then begin
+         call add_luck_penalty(attacker,bloody_mess,heavy_handed);
+      end
+   end
+
+
+   if new_attack_result >= ROLL_CRITICAL_FAILURE then begin
+      set_sfall_return(new_attack_result);
+      set_sfall_arg(0, new_attack_result);
+      new_attack_result = -1;
+      return;
+   end
+end
+
+procedure give_ap_for_kills(variable attacker) begin
+   //if bloody_mess_death_count >= 0 then begin
+      if bloody_mess_ap_bonus > 0 andALso bloody_mess_death_count <= 0 then begin
+         set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + bloody_mess_ap_bonus));
+      end
+      //else begin
+         set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + bloody_mess_ap_bonus_kill));
+      //end
+      bloody_mess_death_count ++;
+   //end
+   call enable_zero_ap_end_turn;
+end
+
+procedure get_attack_anim(variable weapon,variable attack_type) begin
+   variable attack_anim;
+   variable attack_anim_arr;
+   variable index;
+   if attack_type >= ATKTYPE_LWEP_RELOAD andAlso attack_type <= ATKTYPE_RWEP_RELOAD then begin
+      return -1;
+   end
+   //kick
+   if attack_type == ATKTYPE_KICK orElse (attack_type >= ATKTYPE_STRONGKICK andAlso attack_type <= ATKTYPE_PIERCINGKICK) then begin
+      return ANIM_kick_leg;
+   end
+   //punch
+   if weapon <= 0 then begin
+      return ANIM_throw_punch;
+   end
+   attack_anim_arr = [ANIM_stand, ANIM_throw_punch, ANIM_kick_leg, ANIM_swing_anim, ANIM_thrust_anim, ANIM_throw_anim, ANIM_fire_single, ANIM_fire_burst, ANIM_fire_continuous];
+   if attack_type == ATKTYPE_LWEP1 OrElse attack_type == ATKTYPE_RWEP1 then begin
+      index = get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x0000000F;
+   end
+   else begin
+      index = (get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x000000F0) / 16;
+   end
+   attack_anim = attack_anim_arr[index];
+   return attack_anim;
+end
+
+procedure weapon_is_grenade(variable weapon,variable attack_type) begin
+   variable attack_anim;
+   variable dmg_type;
+   variable is_grenade;
+   if weapon <= 0 orElse attack_type < ATKTYPE_LWEP1 orElse obj_item_subtype(weapon) != item_type_weapon then begin
+      return -1;
+   end
+
+   dmg_type = get_proto_data(obj_pid(weapon), PROTO_WP_DMG_TYPE);
+   if dmg_type == DMG_explosion orElse dmg_type ==  DMG_plasma orElse dmg_type == DMG_emp then begin
+      attack_anim = get_attack_anim(weapon, attack_type);
+      if attack_anim == ANIM_throw_anim then
+         is_grenade = 1;
+   end
+
+   return is_grenade;
+end
+
+procedure COMBATDAMAGE begin
+   variable target = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable dmg_to_tar = get_sfall_arg;
+   variable dmg_to_atkr = get_sfall_arg;
+   variable tar_flags = get_sfall_arg;
+   variable atk_flags = get_sfall_arg;
+   variable weapon = get_sfall_arg;
+   variable bullets_num = get_sfall_arg_at(9);
+   variable atk_type = get_sfall_arg_at(11);
+   variable c_atk_data = get_sfall_arg_at(12);
+   variable wpn_anim;
+   variable target_cur_hp;
+   variable new_dmg_to_tar;
+   variable new_tar_flags;
+   variable weapon_weight;
+   variable attacker_ko_score;
+   variable attacker_luck;
+   variable anti_ko;
+   variable target_kill_type;
+   variable attacker_crit;
+   variable sniper;
+   variable rnd;
+   variable finesse_arr_key;
+   variable is_aoe_crit;
+   variable actual_dude_attack;
+   variable was_returned;
+   if attacker == dude_obj then begin
+      actual_dude_attack = 1;
+   end
+   if actual_dude_attack > 0 then begin
+      wpn_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
+      //TRAIT_heavy_handed knock down
+      if dmg_to_tar > 0 andAlso weapon_is_grenade(weapon,atk_type) == 0 then begin
+         if weapon <= 0 orElse wpn_anim <= WPN_ANIM_SPEAR orElse wpn_anim == 14 orElse wpn_anim == 11 orElse wpn_anim == 12 then begin
+            if not(tar_flags bwand DAM_KNOCKED_DOWN) andAlso not(tar_flags bwand DAM_KNOCKED_OUT) then begin
+               if heavy_handed > 0 then begin
+                  anti_ko = (get_critter_stat(target, STAT_en) * 3 + get_critter_stat(target, STAT_st) * 2) * 3;
+                  target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+                  if target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or target_kill_type > 17 or power_armor_fid(obj_art_fid(target)) then begin
+                     anti_ko *= 2;
+                  end
+
+                  attacker_ko_score = dmg_to_tar + (2 * get_critter_stat(attacker, STAT_st) + get_critter_stat(attacker, STAT_melee_dmg)) * 2;
+                  if weapon > 0 then begin
+                     weapon_weight = get_proto_data(obj_pid(weapon), PROTO_IT_WEIGHT);
+                     attacker_ko_score += weapon_weight;
+                  end
+
+                  if attacker_ko_score > random(0,anti_ko) then begin
+                     tar_flags = (tar_flags bwor DAM_KNOCKED_DOWN);
+                     was_returned = 1;
+                     set_sfall_return(dmg_to_tar);
+                     set_sfall_arg(2, dmg_to_tar);
+                     set_sfall_return(dmg_to_atkr);
+                     set_sfall_arg(3, dmg_to_atkr);
+                     set_sfall_return(tar_flags);
+                     set_sfall_arg(4, tar_flags);
+                  end
+               end
+            end
+         end
+      end
+         //TRAIT_finesse aoe attack crit
+      if finesse > 0 then begin
+         //roll for aoe crit
+         if target != get_object_data(combat_data,C_ATTACK_TARGET) then begin
+            rnd = random(0, 100);
+            attacker_crit = get_critter_stat(attacker, STAT_crit_chance);
+            if attacker_crit >= rnd then begin
+               is_aoe_crit = 1;
+            end
+            else begin
+               if weapon > 0 then begin
+                  if (wpn_anim >= WPN_ANIM_PISTOL andAlso wpn_anim <= WPN_ANIM_ROCKET_LAUNCHER) orElse wpn_anim == 13 then begin
+                     sniper = has_trait(TRAIT_PERK, attacker, PERK_sniper);
+                  end
+                  if sniper > 0 then begin
+                     rnd = random(0, 10);
+                     attacker_luck = get_critter_stat(attacker, STAT_lu);
+                     if attacker_luck > rnd then begin
+                        is_aoe_crit = 1;
+                     end
+                  end
+               end
+            end
+         end
+         if target != get_object_data(combat_data,C_ATTACK_TARGET) orElse get_object_data(combat_data,C_ATTACK_AROUND_NUMBER) <= 0 andAlso target != attacker then begin
+            //set additional targets damage msg from hit to crit
+            if was_returned <= 0 andAlso is_aoe_crit > 0 then begin
+               new_dmg_to_tar = calc_crit_dmg(attacker, target, weapon, bullets_num);
+               new_tar_flags = new_dmg_to_tar / flags_offset;
+               new_dmg_to_tar = new_dmg_to_tar % flags_offset;
+               if new_dmg_to_tar > 0 then begin
+                  tar_flags = new_tar_flags;
+                  if new_dmg_to_tar > dmg_to_tar then begin
+                     dmg_to_tar = new_dmg_to_tar;
+                  end
+                  set_sfall_return(dmg_to_tar);
+                  set_sfall_arg(2, dmg_to_tar);
+                  set_sfall_return(dmg_to_atkr);
+                  set_sfall_arg(3, dmg_to_atkr);
+                  set_sfall_return(tar_flags);
+                  set_sfall_arg(4, tar_flags);
+               end
+            end
+         end
+      end
+      //check target will die
+      // check for bloody mess
+      if bloody_mess > 0 andAlso bloody_mess_last_ap_attack > 0 then begin
+         target_cur_hp = get_critter_stat(target,STAT_current_hp);
+         if target_cur_hp <= dmg_to_tar orElse ((tar_flags bwand DAM_DEAD) != 0) then begin
+            call disable_zero_ap_end_turn;
+         end
+      end
+   end
+end
+
+procedure ONDEATH begin
+   variable critter;
+   if main_attacker == dude_obj then begin
+      call give_ap_for_kills(dude_obj);
+   end
+end
+
+procedure ITEMDAMAGE begin
+   variable default_min_wpn_dmg;
+   variable default_max_wpn_dmg;
+   variable weapon;
+   variable attacker = get_sfall_arg_at(3);
+   variable atk_type;
+   variable wpn_pid;
+   variable wpn_anim;
+   variable new_max_wpn_dmg;
+   variable new_min_wpn_dmg;
+   variable melee_dmg;
+   variable wpn_max_dmg;
+   if (bruiser > 0 orElse heavy_handed > 0) andAlso attacker == dude_obj then begin
+      default_min_wpn_dmg = get_sfall_arg_at(0);
+      default_max_wpn_dmg = get_sfall_arg_at(1);
+      weapon = get_sfall_arg_at(2);
+      atk_type = get_sfall_arg_at(4);
+      if weapon > 0 then begin
+         wpn_pid = obj_pid(weapon);
+         wpn_anim = get_proto_data(wpn_pid, PROTO_WP_ANIM);
+         wpn_max_dmg = get_proto_data(wpn_pid, PROTO_WP_DMG_MAX);
+      end
+      if weapon <= 0 orElse (weapon_is_grenade(weapon, atk_type) == 0 andAlso (wpn_anim <= WPN_ANIM_SPEAR or wpn_anim == 0x0E or wpn_anim == 0x0B or wpn_anim == 0x0C)) then begin
+         melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
+         if melee_dmg < 1 then melee_dmg = 1;
+
+         if default_max_wpn_dmg < (wpn_max_dmg + melee_dmg) then begin
+            default_max_wpn_dmg = (wpn_max_dmg + melee_dmg);
+         end
+         new_min_wpn_dmg = default_min_wpn_dmg;
+         new_max_wpn_dmg = default_max_wpn_dmg;
+         //TRAIT_heavy_handed min dmg
+         if heavy_handed > 0 then begin
+            //new_min_wpn_dmg = default_min_wpn_dmg + (melee_dmg + 1) / 2; // ecco
+            new_min_wpn_dmg = default_min_wpn_dmg + melee_dmg;
+            new_max_wpn_dmg = default_max_wpn_dmg;
+         end
+         //TRAIT_bruiser max dmg
+         if bruiser > 0 then begin
+            new_max_wpn_dmg *= 2;
+         end
+
+         if new_min_wpn_dmg > new_max_wpn_dmg then begin
+            new_min_wpn_dmg = new_max_wpn_dmg;
+         end
+         default_min_wpn_dmg = new_min_wpn_dmg;
+         default_max_wpn_dmg = new_max_wpn_dmg;
+         set_sfall_return(new_min_wpn_dmg);
+         set_sfall_arg(0, new_min_wpn_dmg);
+         set_sfall_return(new_max_wpn_dmg);
+         set_sfall_arg(1, new_max_wpn_dmg);
+      end
+   end
+   if finesse > 0 then begin
+      Lvar_wpn_max_dmg = default_max_wpn_dmg;
+      Lvar_wpn_min_dmg = default_min_wpn_dmg;
+   end
+end
+
+
+procedure get_drugs_num_effects(variable drug_pid) begin
+   variable arr_key;
+   variable num_effect = -1;
+   arr_key = scan_array(array_drugs_ini, drug_pid);
+   if arr_key >= 0 then begin
+      num_effect = get_array(array_drugs_ini, (arr_key + drug_arr_numeff_offset)) - 1;
+      if num_effect >= 0 then begin
+         return num_effect;
+      end
+   end
+   return num_effect;
+end
+
+procedure get_drugs_addict_time(variable drug_pid) begin
+   variable arr_key;
+   variable addict_time = -1;
+   arr_key = scan_array(array_drugs_ini, drug_pid);
+   if arr_key >= 0 then begin
+      addict_time = get_array(array_drugs_ini, (arr_key + drug_arr_addict_time_offset)) - 1;
+      if addict_time >= 0 then
+         return addict_time;
+   end
+end
+
+procedure drug_restore begin
+   variable i;
+   variable drug_stat_offset;
+   variable drug_stat_value;
+   if modded_drug_pid <= 0 orElse len_array(drug_orig_stats) <= 0 then begin
+      return;
+   end
+
+   for (i = 0; i < DRUG_MAX_STATS-1; i++) begin
+      drug_stat_offset = (PROTO_DR_STAT_A + (i * 4));
+      drug_stat_value = get_array(drug_orig_stats, i);
+      set_proto_data(modded_drug_pid, drug_stat_offset,drug_stat_value);
+   end
+   set_drugs_data(NumEffects, modded_drug_pid, get_array(drug_orig_stats, DRUG_MAX_STATS));
+   modded_drug_pid = 0;
+   free_array(drug_orig_stats);
+end
+
+
+procedure drug_save(variable drug_obj) begin
+   variable drug_pid;
+   variable i;
+   variable drug_stat_value;
+   variable drug_stat_offset;
+   variable drug_num_effects;
+   if drug_obj <= 0 orElse obj_item_subtype(drug_obj) != item_type_drug then
+      return;
+
+   drug_pid = obj_pid(drug_obj);
+   if modded_drug_pid > 0 then begin
+      //if modded_drug_pid == drug_pid then begin
+//
+         //return;
+      //end
+      //else begin
+         call drug_restore;
+      //end
+   end
+   // ñreate array if it doesn't exist
+   if not(array_exists(drug_orig_stats)) then begin
+      drug_orig_stats = create_array_list((DRUG_MAX_STATS+1));
+   end
+   // save drug stats
+   for (i = 0; i < DRUG_MAX_STATS; i++) begin
+      drug_stat_offset = (PROTO_DR_STAT_A + (i * 4));
+      drug_stat_value = get_proto_data(drug_pid, drug_stat_offset);
+      if drug_pid != 0 then
+         set_array(drug_orig_stats, i, drug_stat_value);
+   end
+   set_array(drug_orig_stats, (DRUG_MAX_STATS - 1), drug_pid);
+   drug_num_effects = get_drugs_num_effects(drug_pid);
+   set_array(drug_orig_stats, DRUG_MAX_STATS, drug_num_effects);
+end
+
+
+
+// new stats for TRAIT_fast_metaboli
+procedure get_new_stat_fm(variable stat_value,variable stat) begin
+variable new_value = stat_value;
+   if stat_value != 0 then begin
+      //stat inc
+      if not(stat_value > 0 andAlso (stat == STAT_current_rad orElse stat == STAT_current_poison)) then begin
+         // ~33% stat inc
+         new_value = 4 * stat_value / 3;
+         if stat != STAT_max_move_points orElse drug_addict <= 0 then begin
+            if new_value == stat_value then begin
+               new_value = stat_value + 1 if stat_value > 0 else stat_value - 1;
+            end
+         end
+      end
+      //stat dec
+      //else begin
+         //nothing
+      //end
+   end
+   return new_value;
+end
+
+
+// new stats for TRAIT_drug_addict
+procedure get_new_stat_da(variable stat_value) begin
+variable new_value;
+   if stat_value != 0 then begin
+      // ~50% stat inc
+      new_value = 3 * stat_value / 2;
+      if new_value == stat_value then begin
+         new_value = 2 * stat_value;
+      end
+   end
+   return new_value;
+end
+
+// new stats for TRAIT_drug_resistant
+procedure get_new_stat_dr(variable stat_value,variable stat) begin
+   variable new_value = stat_value;
+   if stat <= STAT_poison_resist then begin
+      if RegenMod > 0 andAlso stat == STAT_heal_rate then begin
+         return new_value;
+      end
+      new_value = (ceil(stat_value / 2.0));
+   end
+   return new_value;
+end
+
+//all drug stats reduced
+procedure drug_modify_drug_resistant(variable drug_pid, variable user) begin
+   variable stat_a, stat_b, stat_c;
+   variable stat_a_1, stat_a_2, stat_a_3;
+   variable stat_b_1, stat_b_2, stat_b_3;
+   variable stat_c_1, stat_c_2, stat_c_3;
+   variable new_stat_a_1, new_stat_a_2, new_stat_a_3;
+   variable new_stat_b_1, new_stat_b_2, new_stat_b_3;
+   variable new_stat_c_1, new_stat_c_2, new_stat_c_3;
+   variable stat_2_abc, stat_3_abc;
+   variable stat_a_modded, stat_b_modded, stat_c_modded;
+   variable drug_time_1, drug_time_2;
+   variable new_drug_time_1, new_drug_time_2;
+   variable drug_num_effects, new_drug_num_effects;
+   variable addict_chance, new_addict_chance, new_addict_perk = -1;
+
+   // Check if the drug PID is valid
+   if drug_pid <= 0 then return;
+
+   // Modify addiction chance and perk
+   addict_chance = get_proto_data(drug_pid, PROTO_DR_ADDICT_CHANCE);
+   if addict_chance > 0 then begin
+      set_proto_data(drug_pid, PROTO_DR_ADDICT_CHANCE, new_addict_chance);
+      set_proto_data(drug_pid, PROTO_DR_ADDICT_PERK, new_addict_perk);
+   end
+   //set new stats
+   //get stat
+   stat_a = get_proto_data(drug_pid, PROTO_DR_STAT_A);
+   stat_a_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A);
+   stat_a_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A);
+   if stat_a_2 != 0 then begin
+      stat_2_abc += 1;
+   end
+   stat_a_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A);
+   if stat_a_3 != 0 then begin
+      stat_3_abc += 1;
+   end
+   else begin
+      stat_a_modded = 1;
+   end
+   new_stat_a_1 = stat_a_1;
+   new_stat_a_2 = stat_a_2;
+   new_stat_a_3 = stat_a_3;
+   // stat_B
+   stat_b = get_proto_data(drug_pid, PROTO_DR_STAT_B);
+   //get stat a_1
+   stat_b_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B);
+   stat_b_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B);
+   if stat_b_2 != 0 then begin
+      stat_2_abc += 1;
+   end
+   stat_b_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B);
+   if stat_b_3 != 0 then begin
+      stat_3_abc += 1;
+   end
+   else begin
+      stat_b_modded = 1;
+   end
+   new_stat_b_1 = stat_b_1;
+   new_stat_b_2 = stat_b_2;
+   new_stat_b_3 = stat_b_3;
+
+   if drug_resist_stats(stat_a) orElse (stat_a == STAT_drug_rnd andAlso drug_resist_stats(stat_b))then begin
+      // If stat_a_1 is not zero
+      if stat_a_1 != 0 then begin
+         new_stat_a_1 = get_new_stat_dr(stat_a_1, stat_a);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A, new_stat_a_1);
+         if (stat_a_1 + stat_a_2 + stat_a_3) == 0 then begin
+            new_stat_a_2 = -new_stat_a_1;
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            if stat_a_3 != 0 then begin
+               new_stat_a_3 = 0;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               stat_a_modded = 1;
+            end
+         end
+         // stat will be changed permanently
+         else begin
+            // check a_2 != 0
+            if stat_a_2 != 0 then begin
+               new_stat_a_2 = get_new_stat_dr(stat_a_2, stat_a);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+            // check a_3 != 0
+            if stat_a_3 != 0 then begin
+               new_stat_a_3 = get_new_stat_dr(stat_a_3, stat_a);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+            end
+         end
+      end
+      // If stat_a_1 == 0
+      else begin
+         if stat_a_2 != 0 then begin
+            new_stat_a_2 = get_new_stat_dr(stat_a_2, stat_a);
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            // check if stat return to normal
+            if (stat_a_2 + stat_a_3) == 0 then begin
+               new_stat_a_3 = -new_stat_a_2;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+            end
+            // stat will be changed permanently
+            else begin
+               // check a_3 != 0
+               if stat_a_3 != 0 then begin
+                  new_stat_a_3 = get_new_stat_dr(stat_a_3, stat_a);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+            end
+         end
+         // If stat_a_2 is zero
+         else begin
+            // check a_3 != 0
+            if stat_a_3 != 0 then begin
+               new_stat_a_3 = get_new_stat_dr(stat_a_3, stat_a);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+            end
+         end
+      end
+   end
+
+   // check stat_B
+   //stat_b = get_proto_data(drug_pid, PROTO_DR_STAT_B);
+   if drug_resist_stats(stat_b) then begin
+
+      // If stat_b_1 is not zero
+      if stat_b_1 != 0 then begin
+         new_stat_b_1 = get_new_stat_dr(stat_b_1, stat_b);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B, new_stat_b_1);
+         if (stat_b_1 + stat_b_2 + stat_b_3) == 0 then begin
+            new_stat_b_2 = -new_stat_b_1;
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            if stat_b_3 != 0 then begin
+               new_stat_b_3 = 0;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               stat_b_modded = 1;
+            end
+         end
+         // stat will be changed permanently
+         else begin
+            // check a_2 != 0
+            if stat_b_2 != 0 then begin
+               new_stat_b_2 = get_new_stat_dr(stat_b_2, stat_b);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+            // check a_3 != 0
+            if stat_b_3 != 0 then begin
+               new_stat_b_3 = get_new_stat_dr(stat_b_3, stat_b);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+            end
+         end
+      end
+      // If stat_b_1 == 0
+      else begin
+         if stat_b_2 != 0 then begin
+            new_stat_b_2 = get_new_stat_dr(stat_b_2, stat_b);
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+               // check if stat return to normal
+            if (stat_b_2 + stat_b_3) == 0 then begin
+               new_stat_b_3 = -new_stat_b_2;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+            end
+            // stat will be changed permanently
+            else begin
+               // check a_3 != 0
+               if stat_b_3 != 0 then begin
+                  new_stat_b_3 = get_new_stat_dr(stat_b_3, stat_b);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+            end
+         end
+         // If stat_b_2 is zero
+         else begin
+            // check a_3 != 0
+            if stat_b_3 != 0 then begin
+               new_stat_b_3 = get_new_stat_dr(stat_b_3, stat_b);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+            end
+         end
+      end
+   end
+   // stat_C
+   //get stat a_1
+   stat_c_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C);
+   stat_c_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C);
+   if stat_c_2 != 0 then begin
+      stat_2_abc += 1;
+   end
+   stat_c_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C);
+   if stat_c_3 != 0 then begin
+      stat_3_abc += 1;
+   end
+   else begin
+      stat_c_modded = 1;
+   end
+   new_stat_c_1 = stat_c_1;
+   new_stat_c_2 = stat_c_2;
+   new_stat_c_3 = stat_c_3;
+
+   stat_c = get_proto_data(drug_pid, PROTO_DR_STAT_C);
+   if drug_resist_stats(stat_c) then begin
+
+      // If stat_c_1 is not zero
+      if stat_c_1 != 0 then begin
+         new_stat_c_1 = get_new_stat_dr(stat_c_1, stat_c);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C, new_stat_c_1);
+         if (stat_c_1 + stat_c_2 + stat_c_3) == 0 then begin
+            new_stat_c_2 = -new_stat_c_1;
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            if stat_c_3 != 0 then begin
+               new_stat_c_3 = 0;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               stat_c_modded = 1;
+            end
+         end
+         // stat will be changed permanently
+         else begin
+            // check a_2 != 0
+            if stat_c_2 != 0 then begin
+               new_stat_c_2 = get_new_stat_dr(stat_c_2, stat_c);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+            // check a_3 != 0
+            if stat_c_3 != 0 then begin
+               new_stat_c_3 = get_new_stat_dr(stat_c_3, stat_c);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+            end
+         end
+      end
+      // If stat_c_1 == 0
+      else begin
+         if stat_c_2 != 0 then begin
+            new_stat_c_2 = get_new_stat_dr(stat_c_2, stat_c);
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+               // check if stat return to normal
+            if (stat_c_2 + stat_c_3) == 0 then begin
+               new_stat_c_3 = -new_stat_c_2;
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+            end
+            // stat will be changed permanently
+            else begin
+               // check a_3 != 0
+               if stat_c_3 != 0 then begin
+                  new_stat_c_3 = get_new_stat_dr(stat_c_3, stat_c);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+            end
+         end
+         // If stat_c_2 is zero
+         else begin
+            // check a_3 != 0
+            if stat_c_3 != 0 then begin
+               new_stat_c_3 = get_new_stat_dr(stat_c_3, stat_c);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+            end
+         end
+      end
+   end
+
+   drug_num_effects = get_drugs_num_effects(drug_pid);
+   if drug_num_effects > 0 then begin
+      drug_num_effects += (drug_num_effects + 1) / 2;
+      set_drugs_data(NumEffects, drug_pid, drug_num_effects);
+   end
+
+   if ((stat_a_modded > 0 or stat_a == -1) andAlso (stat_b_modded > 0 or stat_b == -1) andAlso (stat_c_modded > 0 or stat_c == -1)) orElse (stat_3_abc > 0 andAlso (stat_a_modded + stat_b_modded + stat_c_modded > 0)) then begin
+      drug_time_1 = get_proto_data(drug_pid, PROTO_DR_DURATION_1);
+      drug_time_2 = get_proto_data(drug_pid, PROTO_DR_DURATION_2);
+      //drug_num_effects = get_drugs_num_effects(drug_pid);
+      //remove 3rd effect
+      if drug_time_2 > 0 then begin
+         // reduce NumEffects if 3rd effect is erased
+         if new_stat_a_3 == 0 andAlso new_stat_b_3 == 0 andAlso new_stat_c_3 == 0 then begin
+            if stat_2_abc <= 0 andAlso drug_time_1 < drug_time_2 then begin
+               new_drug_time_1 = drug_time_2;
+               set_proto_data(drug_pid, PROTO_DR_DURATION_1, new_drug_time_1);
+            end
+
+            new_drug_time_2 = 0;
+            set_proto_data(drug_pid, PROTO_DR_DURATION_2, new_drug_time_2);
+            if drug_num_effects > 2 then begin
+               new_drug_num_effects = drug_num_effects / 2;
+               if new_drug_num_effects < 1 then
+                  new_drug_num_effects = 1;
+
+               drug_num_effects = new_drug_num_effects;
+               set_drugs_data(NumEffects, drug_pid, drug_num_effects);
+            end
+         end
+         else begin
+            if drug_num_effects > 0 then begin
+               drug_num_effects += (drug_num_effects + 1) / 2;
+               set_drugs_data(NumEffects, drug_pid, drug_num_effects);
+               if drug_time_2 > drug_time_1 * 2 then begin
+                  new_drug_time_2 = drug_time_1 * 2;
+                  set_proto_data(drug_pid, PROTO_DR_DURATION_2, new_drug_time_2);
+               end
+            end
+         end
+      end
+   end
+end
+
+procedure drug_modify_fast_meta(variable drug_pid) begin
+   variable stat_a, stat_b, stat_c;
+   variable stat_a_1, stat_a_2, stat_a_3;
+   variable stat_b_1, stat_b_2, stat_b_3;
+   variable stat_c_1, stat_c_2, stat_c_3;
+   variable new_stat_a_1, new_stat_a_2, new_stat_a_3;
+   variable new_stat_b_1, new_stat_b_2, new_stat_b_3;
+   variable new_stat_c_1, new_stat_c_2, new_stat_c_3;
+   variable drug_time_1, drug_time_2;
+   variable new_drug_time_1, new_drug_time_2;
+   variable addict_chance, drug_addict_delay, drug_addict_time;
+   variable new_drug_addict_time, new_drug_addict_delay;
+   if drug_pid <= 0 orElse (RegenMod > 0 andAlso drug_pid == PID_SUPER_STIMPAK) then
+      return;
+   //set new stats
+   //check addiction and reduce it duration
+   addict_chance = get_proto_data(drug_pid, PROTO_DR_ADDICT_CHANCE);
+   if addict_chance > 0 then begin
+      drug_addict_time = get_drugs_addict_time(drug_pid);
+      if drug_addict_time <= 0 then drug_addict_time = one_week_in_min;
+      new_drug_addict_time = drug_addict_time / fast_meta_duration_div;
+      if new_drug_addict_time <= 0 then new_drug_addict_time = 1;
+      set_drugs_data(AddictTimeOff, drug_pid, new_drug_addict_time);
+      // addictin emerge faster
+       drug_addict_delay = get_proto_data(drug_pid, PROTO_DR_ADDICT_DELAY);
+      if drug_addict_delay > 1 then begin
+         new_drug_addict_delay = drug_addict_delay / 2;
+         if new_drug_addict_delay <= 0 then new_drug_addict_delay = 1;
+         set_proto_data(drug_pid, PROTO_DR_ADDICT_DELAY, new_drug_addict_delay);
+      end
+   end
+   //duration drug duration 1
+   drug_time_1 = get_proto_data(drug_pid, PROTO_DR_DURATION_1);
+   drug_time_2 = get_proto_data(drug_pid, PROTO_DR_DURATION_2);
+   //reduce duration 1
+   if drug_time_1 >= fast_meta_duration_div then begin
+      new_drug_time_1 = drug_time_1 / fast_meta_duration_div;
+      set_proto_data(drug_pid, PROTO_DR_DURATION_1, new_drug_time_1);
+   end
+   //reduce duration 1 2
+   if drug_time_2 >= new_drug_time_1 + fast_meta_duration_div * 2 then begin
+      new_drug_time_2 = drug_time_2 / fast_meta_duration_div;
+      set_proto_data(drug_pid, PROTO_DR_DURATION_2, new_drug_time_2);
+   end
+
+   //DRUG STAT A
+   stat_a = get_proto_data(drug_pid, PROTO_DR_STAT_A);
+   //DRUG STAT B
+   stat_b = get_proto_data(drug_pid, PROTO_DR_STAT_B);
+   // Check if the drug has stats for fast_meta
+   if drug_fast_meta_stats(stat_a) orElse (stat_a == STAT_drug_rnd andAlso drug_fast_meta_stats(stat_b)) then begin
+      // Get stat_a_1
+      stat_a_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A);
+      new_stat_a_1 = stat_a_1;
+
+      // Update stat_a_1 if it's not zero
+      if stat_a_1 != 0 then begin
+         new_stat_a_1 = get_new_stat_fm(stat_a_1,stat_a);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A, new_stat_a_1);
+      end
+      //get stat a_2 & a_3
+      stat_a_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A);
+      stat_a_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A);
+      new_stat_a_2 = stat_a_2;
+      new_stat_a_3 = stat_a_3;
+
+
+      // Check if stat_a_3 is not zero so drug has all 3 timed effects
+      if stat_a_3 != 0 then begin
+         // Check if stat_a_2 is not zero
+         if stat_a_2 != 0 then begin
+            // Check if both stat_a_1 and stat_a_2 have the same sign OR stat_a_1 == 0
+            if (stat_a_1 * stat_a_2) >= 0 then begin
+               new_stat_a_2 = get_new_stat_fm(stat_a_2,stat_a);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+               // Check if all three stats have the same sign
+               if (stat_a_1 >= 0 andAlso stat_a_2 >= 0 andAlso stat_a_3 >= 0) or (stat_a_1 <= 0 andAlso stat_a_2 <= 0 andAlso stat_a_3 <= 0) then begin
+                  new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+               // If stat_a_3 does not have the same sign as stat_a_1 and stat_a_2
+               else begin
+                  if stat_a >= STAT_current_hp andAlso stat_a <= STAT_current_rad then begin
+                     new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                  end
+                  else begin
+                     if stat_a_1 + stat_a_2 + stat_a_3 == 0 then begin
+                        new_stat_a_3 = stat_a_3 + (stat_a_1 - new_stat_a_1) + (stat_a_2 - new_stat_a_2);
+                     end
+                     else begin
+                        new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+            end
+            // If stat_a_2 does not have the same sign as stat_a_1, adjust it
+            else begin
+              // set stat_a_2 and change stat_a_3
+               if stat_a >= STAT_current_hp andAlso stat_a <= STAT_current_rad then begin
+                  new_stat_a_2 = get_new_stat_fm(stat_a_2,stat_a);
+                  new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+               // Adjust only stat_a_2
+               else begin
+                  if stat_a_1 + stat_a_2 + stat_a_3 == 0 then begin
+                     new_stat_a_2 = stat_a_2 + (stat_a_1 - new_stat_a_1);
+                  end
+                  else begin
+                     new_stat_a_2 = get_new_stat_fm(stat_a_2,stat_a);
+                     new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                     set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+                  end
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+         end
+         // If stat_a_2 is zero, adjust only stat_a_3
+         else begin
+            if stat_a_3 != 0 then begin
+               // Check if both stat_a_1 and stat_a_3 have the same sign or stat_a_1 == 0
+               if (stat_a_1 * stat_a_3) >= 0 then begin
+                  new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+               // If stat_a_3 does not have the same sign as stat_a_1, adjust it
+               else begin
+                  if stat_a >= STAT_current_hp andAlso stat_a <= STAT_current_rad then begin
+                     new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                  end
+                  else begin
+                     if stat_a_1 + stat_a_2 + stat_a_3 == 0 then begin
+                        new_stat_a_3 = stat_a_3 + (stat_a_1 - new_stat_a_1);
+                     end
+                     else begin
+                        new_stat_a_3 = get_new_stat_fm(stat_a_3,stat_a);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+            end
+         end
+      end
+      // If stat_a_3 is zero, adjust stat_a_2
+      else begin
+         if stat_a_2 != 0 then begin
+            // Check if both stat_a_1 and stat_a_2 have the same sign OR! stat_a_1 == 0
+            if (stat_a_1 * stat_a_2) >= 0 then begin
+               new_stat_a_2 = get_new_stat_fm(stat_a_2,stat_a);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+            // If stat_a_2 does not have the same sign as stat_a_1, adjust it
+            else begin
+               if stat_a >= STAT_current_hp andAlso stat_a <= STAT_current_rad then begin
+                  new_stat_a_2 = get_new_stat_fm(stat_a_2,stat_a);
+               end
+               else begin
+                  new_stat_a_2 = stat_a_2 + (stat_a_1 - new_stat_a_1);
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+         end
+      end
+   end
+
+    //DRUG STAT B
+   //stat_b = get_proto_data(drug_pid, PROTO_DR_STAT_B);
+   // Check if the drug has stats for fast_meta
+   if drug_fast_meta_stats(stat_b) then begin
+      // Get stat_b_1
+      stat_b_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B);
+      new_stat_b_1 = stat_b_1;
+
+      // Update stat_b_1 if it's not zero
+      if stat_b_1 != 0 then begin
+         new_stat_b_1 = get_new_stat_fm(stat_b_1,stat_b);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B, new_stat_b_1);
+      end
+      //get stat a_2 & a_3
+      stat_b_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B);
+      stat_b_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B);
+      new_stat_b_2 = stat_b_2;
+      new_stat_b_3 = stat_b_3;
+
+      // Check if stat_b_3 is not zero so drug has all 3 timed effects
+      if stat_b_3 != 0 then begin
+         // Check if stat_b_2 is not zero
+         if stat_b_2 != 0 then begin
+            // Check if both stat_b_1 and stat_b_2 have the same sign OR stat_b_1 == 0
+            if (stat_b_1 * stat_b_2) >= 0 then begin
+               new_stat_b_2 = get_new_stat_fm(stat_b_2,stat_b);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+               // Check if all three stats have the same sign
+               if (stat_b_1 >= 0 andAlso stat_b_2 >= 0 andAlso stat_b_3 >= 0) or (stat_b_1 <= 0 andAlso stat_b_2 <= 0 andAlso stat_b_3 <= 0) then begin
+                  new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+               // If stat_b_3 does not have the same sign as stat_b_1 and stat_b_2
+               else begin
+                  if stat_b >= STAT_current_hp andAlso stat_b <= STAT_current_rad then begin
+                     new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                  end
+                  else begin
+                     if stat_b_1 + stat_b_2 + stat_b_3 == 0 then begin
+                        new_stat_b_3 = stat_b_3 + (stat_b_1 - new_stat_b_1) + (stat_b_2 - new_stat_b_2);
+                     end
+                     else begin
+                        new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+            end
+            // If stat_b_2 does not have the same sign as stat_b_1, adjust it
+            else begin
+              // set stat_b_2 and change stat_b_3
+               if stat_b >= STAT_current_hp andAlso stat_b <= STAT_current_rad then begin
+                  new_stat_b_2 = get_new_stat_fm(stat_b_2,stat_b);
+                  new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+               // Adjust only stat_b_2
+               else begin
+                  if stat_b_1 + stat_b_2 + stat_b_3 == 0 then begin
+                     new_stat_b_2 = stat_b_2 + (stat_b_1 - new_stat_b_1);
+                  end
+                  else begin
+                     new_stat_b_2 = get_new_stat_fm(stat_b_2,stat_b);
+                     new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                     set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+                  end
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+         end
+         // If stat_b_2 is zero, adjust only stat_b_3
+         else begin
+            if stat_b_3 != 0 then begin
+               // Check if both stat_b_1 and stat_b_3 have the same sign or stat_b_1 == 0
+               if (stat_b_1 * stat_b_3) >= 0 then begin
+                  new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+               // If stat_b_3 does not have the same sign as stat_b_1, adjust it
+               else begin
+                  if stat_b >= STAT_current_hp andAlso stat_b <= STAT_current_rad then begin
+                     new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                  end
+                  else begin
+                     if stat_b_1 + stat_b_2 + stat_b_3 == 0 then begin
+                        new_stat_b_3 = stat_b_3 + (stat_b_1 - new_stat_b_1);
+                     end
+                     else begin
+                        new_stat_b_3 = get_new_stat_fm(stat_b_3,stat_b);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+            end
+         end
+      end
+      // If stat_b_3 is zero, adjust stat_b_2
+      else begin
+         if stat_b_2 != 0 then begin
+            // Check if both stat_b_1 and stat_b_2 have the same sign OR! stat_b_1 == 0
+            if (stat_b_1 * stat_b_2) >= 0 then begin
+               new_stat_b_2 = get_new_stat_fm(stat_b_2,stat_b);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+            // If stat_b_2 does not have the same sign as stat_b_1, adjust it
+            else begin
+               if stat_b >= STAT_current_hp andAlso stat_b <= STAT_current_rad then begin
+                  new_stat_b_2 = get_new_stat_fm(stat_b_2,stat_b);
+               end
+               else begin
+                  new_stat_b_2 = stat_b_2 + (stat_b_1 - new_stat_b_1);
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+         end
+      end
+   end
+
+
+   //DRUG STAT C
+   stat_c = get_proto_data(drug_pid, PROTO_DR_STAT_C);
+   // Check if the drug has stats for fast_meta
+   if drug_fast_meta_stats(stat_c) then begin
+      // Get stat_c_1
+      stat_c_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C);
+      new_stat_c_1 = stat_c_1;
+
+      // Update stat_c_1 if it's not zero
+      if stat_c_1 != 0 then begin
+         new_stat_c_1 = get_new_stat_fm(stat_c_1,stat_c);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C, new_stat_c_1);
+      end
+      //get stat a_2 & a_3
+      stat_c_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C);
+      stat_c_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C);
+      new_stat_c_2 = stat_c_2;
+      new_stat_c_3 = stat_c_3;
+
+
+      // Check if stat_c_3 is not zero so drug has all 3 timed effects
+      if stat_c_3 != 0 then begin
+         // Check if stat_c_2 is not zero
+         if stat_c_2 != 0 then begin
+            // Check if both stat_c_1 and stat_c_2 have the same sign OR stat_c_1 == 0
+            if (stat_c_1 * stat_c_2) >= 0 then begin
+               new_stat_c_2 = get_new_stat_fm(stat_c_2,stat_c);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+               // Check if all three stats have the same sign
+               if (stat_c_1 >= 0 andAlso stat_c_2 >= 0 andAlso stat_c_3 >= 0) or (stat_c_1 <= 0 andAlso stat_c_2 <= 0 andAlso stat_c_3 <= 0) then begin
+                  new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+               // If stat_c_3 does not have the same sign as stat_c_1 and stat_c_2
+               else begin
+                  if stat_c >= STAT_current_hp andAlso stat_c <= STAT_current_rad then begin
+                     new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                  end
+                  else begin
+                     if stat_c_1 + stat_c_2 + stat_c_3 == 0 then begin
+                        new_stat_c_3 = stat_c_3 + (stat_c_1 - new_stat_c_1) + (stat_c_2 - new_stat_c_2);
+                     end
+                     else begin
+                        new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+            end
+            // If stat_c_2 does not have the same sign as stat_c_1, adjust it
+            else begin
+              // set stat_c_2 and change stat_c_3
+               if stat_c >= STAT_current_hp andAlso stat_c <= STAT_current_rad then begin
+                  new_stat_c_2 = get_new_stat_fm(stat_c_2,stat_c);
+                  new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+               // Adjust only stat_c_2
+               else begin
+                  if stat_c_1 + stat_c_2 + stat_c_3 == 0 then begin
+                     new_stat_c_2 = stat_c_2 + (stat_c_1 - new_stat_c_1);
+                  end
+                  else begin
+                     new_stat_c_2 = get_new_stat_fm(stat_c_2,stat_c);
+                     new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                     set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+                  end
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+         end
+         // If stat_c_2 is zero, adjust only stat_c_3
+         else begin
+            if stat_c_3 != 0 then begin
+               // Check if both stat_c_1 and stat_c_3 have the same sign or stat_c_1 == 0
+               if (stat_c_1 * stat_c_3) >= 0 then begin
+                  new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+               // If stat_c_3 does not have the same sign as stat_c_1, adjust it
+               else begin
+                  if stat_c >= STAT_current_hp andAlso stat_c <= STAT_current_rad then begin
+                     new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                  end
+                  else begin
+                     if stat_c_1 + stat_c_2 + stat_c_3 == 0 then begin
+                        new_stat_c_3 = stat_c_3 + (stat_c_1 - new_stat_c_1);
+                     end
+                     else begin
+                        new_stat_c_3 = get_new_stat_fm(stat_c_3,stat_c);
+                     end
+                  end
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+            end
+         end
+      end
+      // If stat_c_3 is zero, adjust stat_c_2
+      else begin
+         if stat_c_2 != 0 then begin
+            // Check if both stat_c_1 and stat_c_2 have the same sign OR! stat_c_1 == 0
+            if (stat_c_1 * stat_c_2) >= 0 then begin
+               new_stat_c_2 = get_new_stat_fm(stat_c_2,stat_c);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+            // If stat_c_2 does not have the same sign as stat_c_1, adjust it
+            else begin
+               if stat_c >= STAT_current_hp andAlso stat_c <= STAT_current_rad then begin
+                  new_stat_c_2 = get_new_stat_fm(stat_c_2,stat_c);
+               end
+               else begin
+                  new_stat_c_2 = stat_c_2 + (stat_c_1 - new_stat_c_1);
+               end
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+         end
+      end
+   end
+end
+
+
+
+procedure drug_modify_drug_addict(variable drug_pid) begin
+   variable stat_a, stat_b, stat_c;
+   variable stat_a_1, stat_a_2, stat_a_3;
+   variable stat_b_1, stat_b_2, stat_b_3;
+   variable stat_c_1, stat_c_2, stat_c_3;
+   variable new_stat_a_1, new_stat_a_2, new_stat_a_3;
+   variable new_stat_b_1, new_stat_b_2, new_stat_b_3;
+   variable new_stat_c_1, new_stat_c_2, new_stat_c_3;
+   variable drug_time_1, drug_time_2;
+   variable new_drug_time_1, new_drug_time_2;
+   if drug_pid <= 0 then
+      return;
+   //set new stats
+   //stat A
+   stat_a = get_proto_data(drug_pid, PROTO_DR_STAT_A);
+   stat_b = get_proto_data(drug_pid, PROTO_DR_STAT_B);
+   if drug_addict_stats(stat_a) orElse (stat_a == STAT_drug_rnd andAlso drug_addict_stats(stat_b)) then begin
+      //get stat a_1
+      stat_a_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A);
+      new_stat_a_1 = stat_a_1;
+      if stat_a_1 != 0 then begin
+         new_stat_a_1 = get_new_stat_da(stat_a_1);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A, new_stat_a_1);
+      end
+      //get stat a_2 & a_3
+      stat_a_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A);
+      stat_a_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A);
+      new_stat_a_2 = stat_a_2;
+      new_stat_a_3 = stat_a_3;
+      // Check if stat_a_3 is not zero so drug has all 3 timed effects
+      if stat_a_3 != 0 then begin
+         // Check if stat_a_2 is not zero
+         if stat_a_2 != 0 then begin
+            // Check if both stat_a_1 and stat_a_2 have the same sign OR stat_a_1 == 0
+            if (stat_a_1 * stat_a_2) >= 0 then begin
+               new_stat_a_2 = get_new_stat_da(stat_a_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+               // Check if all three stats have the same sign
+               if (stat_a_1 >= 0 andAlso stat_a_2 >= 0 andAlso stat_a_3 >= 0) or (stat_a_1 <= 0 andAlso stat_a_2 <= 0 andAlso stat_a_3 <= 0) then begin
+                  new_stat_a_3 = get_new_stat_da(stat_a_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+               // If stat_a_3 does not have the same sign as stat_a_1 and stat_a_2, adjust it to break even
+               else begin
+                  new_stat_a_3 = stat_a_3 + (stat_a_1 - new_stat_a_1) + (stat_a_2 - new_stat_a_2);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+            end
+            // If stat_a_2 does not have the same sign as stat_a_1, adjust it
+            else begin
+              // Adjust only stat_a_2 without affecting stat_a_3
+              new_stat_a_2 = stat_a_2 + (stat_a_1 - new_stat_a_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+         end
+         // If stat_a_2 is zero, adjust only stat_a_3
+         else begin
+            if stat_a_3 != 0 then begin
+               // Check if both stat_a_1 and stat_a_3 have the same sign or stat_a_1 == 0
+               if (stat_a_1 * stat_a_3) >= 0 then begin
+                  new_stat_a_3 = get_new_stat_da(stat_a_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+               // If stat_a_3 does not have the same sign as stat_a_1, adjust it
+               else begin
+                  new_stat_a_3 = stat_a_3 + (stat_a_1 - new_stat_a_1);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, new_stat_a_3);
+               end
+            end
+         end
+      end
+      // If stat_a_3 is zero, adjust stat_a_2
+      else begin
+         if stat_a_2 != 0 then begin
+            // Check if both stat_a_1 and stat_a_2 have the same sign OR! stat_a_1 == 0
+            if (stat_a_1 * stat_a_2) >= 0 then begin
+               new_stat_a_2 = get_new_stat_da(stat_a_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+            // If stat_a_2 does not have the same sign as stat_a_1, adjust it
+            else begin
+              new_stat_a_2 = stat_a_2 + (stat_a_1 - new_stat_a_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, new_stat_a_2);
+            end
+         end
+      end
+   end
+
+   //stat B
+    if drug_addict_stats(stat_b) then begin
+      //get stat a_1
+      stat_b_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B);
+      new_stat_b_1 = stat_b_1;
+      if stat_b_1 != 0 then begin
+         new_stat_b_1 = get_new_stat_da(stat_b_1);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_B, new_stat_b_1);
+      end
+      //get stat a_2 & a_3
+      stat_b_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B);
+      stat_b_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B);
+      new_stat_b_2 = stat_b_2;
+      new_stat_b_3 = stat_b_3;
+      // Check if stat_b_3 is not zero so drug has all 3 timed effects
+      if stat_b_3 != 0 then begin
+         // Check if stat_b_2 is not zero
+         if stat_b_2 != 0 then begin
+            // Check if both stat_b_1 and stat_b_2 have the same sign OR stat_b_1 == 0
+            if (stat_b_1 * stat_b_2) >= 0 then begin
+               new_stat_b_2 = get_new_stat_da(stat_b_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+               // Check if all three stats have the same sign
+               if (stat_b_1 >= 0 andAlso stat_b_2 >= 0 andAlso stat_b_3 >= 0) or (stat_b_1 <= 0 andAlso stat_b_2 <= 0 andAlso stat_b_3 <= 0) then begin
+                  new_stat_b_3 = get_new_stat_da(stat_b_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+               // If stat_b_3 does not have the same sign as stat_b_1 and stat_b_2, adjust it to break even
+               else begin
+                  new_stat_b_3 = stat_b_3 + (stat_b_1 - new_stat_b_1) + (stat_b_2 - new_stat_b_2);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+            end
+            // If stat_b_2 does not have the same sign as stat_b_1, adjust it
+            else begin
+              // Adjust only stat_b_2 without affecting stat_b_3
+              new_stat_b_2 = stat_b_2 + (stat_b_1 - new_stat_b_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+         end
+         // If stat_b_2 is zero, adjust only stat_b_3
+         else begin
+            if stat_b_3 != 0 then begin
+               // Check if both stat_b_1 and stat_b_3 have the same sign or stat_b_1 == 0
+               if (stat_b_1 * stat_b_3) >= 0 then begin
+                  new_stat_b_3 = get_new_stat_da(stat_b_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+               // If stat_b_3 does not have the same sign as stat_b_1, adjust it
+               else begin
+                  new_stat_b_3 = stat_b_3 + (stat_b_1 - new_stat_b_1);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_B, new_stat_b_3);
+               end
+            end
+         end
+      end
+      // If stat_b_3 is zero, adjust stat_b_2
+      else begin
+         if stat_b_2 != 0 then begin
+            // Check if both stat_b_1 and stat_b_2 have the same sign OR! stat_b_1 == 0
+            if (stat_b_1 * stat_b_2) >= 0 then begin
+               new_stat_b_2 = get_new_stat_da(stat_b_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+            // If stat_b_2 does not have the same sign as stat_b_1, adjust it
+            else begin
+              new_stat_b_2 = stat_b_2 + (stat_b_1 - new_stat_b_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_B, new_stat_b_2);
+            end
+         end
+      end
+   end
+
+   //stat C
+   stat_c = get_proto_data(drug_pid, PROTO_DR_STAT_C);
+   if drug_addict_stats(stat_c) then begin
+      //get stat a_1
+      stat_c_1 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C);
+      new_stat_c_1 = stat_c_1;
+      if stat_c_1 != 0 then begin
+         new_stat_c_1 = get_new_stat_da(stat_c_1);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_C, new_stat_c_1);
+      end
+      //get stat a_2 & a_3
+      stat_c_2 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C);
+      stat_c_3 = get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C);
+      new_stat_c_2 = stat_c_2;
+      new_stat_c_3 = stat_c_3;
+      // Check if stat_c_3 is not zero so drug has all 3 timed effects
+      if stat_c_3 != 0 then begin
+         // Check if stat_c_2 is not zero
+         if stat_c_2 != 0 then begin
+            // Check if both stat_c_1 and stat_c_2 have the same sign OR stat_c_1 == 0
+            if (stat_c_1 * stat_c_2) >= 0 then begin
+               new_stat_c_2 = get_new_stat_da(stat_c_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+               // Check if all three stats have the same sign
+               if (stat_c_1 >= 0 andAlso stat_c_2 >= 0 andAlso stat_c_3 >= 0) or (stat_c_1 <= 0 andAlso stat_c_2 <= 0 andAlso stat_c_3 <= 0) then begin
+                  new_stat_c_3 = get_new_stat_da(stat_c_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+               // If stat_c_3 does not have the same sign as stat_c_1 and stat_c_2, adjust it to break even
+               else begin
+                  new_stat_c_3 = stat_c_3 + (stat_c_1 - new_stat_c_1) + (stat_c_2 - new_stat_c_2);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+            end
+            // If stat_c_2 does not have the same sign as stat_c_1, adjust it
+            else begin
+              // Adjust only stat_c_2 without affecting stat_c_3
+              new_stat_c_2 = stat_c_2 + (stat_c_1 - new_stat_c_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+         end
+         // If stat_c_2 is zero, adjust only stat_c_3
+         else begin
+            if stat_c_3 != 0 then begin
+               // Check if both stat_c_1 and stat_c_3 have the same sign or stat_c_1 == 0
+               if (stat_c_1 * stat_c_3) >= 0 then begin
+                  new_stat_c_3 = get_new_stat_da(stat_c_3);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+               // If stat_c_3 does not have the same sign as stat_c_1, adjust it
+               else begin
+                  new_stat_c_3 = stat_c_3 + (stat_c_1 - new_stat_c_1);
+                  set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_C, new_stat_c_3);
+               end
+            end
+         end
+      end
+      // If stat_c_3 is zero, adjust stat_c_2
+      else begin
+         if stat_c_2 != 0 then begin
+            // Check if both stat_c_1 and stat_c_2 have the same sign OR! stat_c_1 == 0
+            if (stat_c_1 * stat_c_2) >= 0 then begin
+               new_stat_c_2 = get_new_stat_da(stat_c_2);
+               set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+            // If stat_c_2 does not have the same sign as stat_c_1, adjust it
+            else begin
+              new_stat_c_2 = stat_c_2 + (stat_c_1 - new_stat_c_1);
+              set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_C, new_stat_c_2);
+            end
+         end
+      end
+   end
+   // inc duration
+   if RegenMod <= 0 orElse (drug_pid != PID_HEALING_POWDER andAlso drug_pid != PID_SUPER_STIMPAK) then begin
+      drug_time_1 = get_proto_data(drug_pid, PROTO_DR_DURATION_1);
+      drug_time_2 = get_proto_data(drug_pid, PROTO_DR_DURATION_2);
+      if drug_time_1 > 0 then begin
+         new_drug_time_1 = get_new_stat_da(drug_time_1);
+         set_proto_data(drug_pid, PROTO_DR_DURATION_1, new_drug_time_1);
+      end
+      if drug_time_2 > 0 then begin
+         new_drug_time_2 = get_new_stat_da(drug_time_2);
+         set_proto_data(drug_pid, PROTO_DR_DURATION_2, new_drug_time_2);
+      end
+   end
+end
+
+procedure one_hander_uncripple begin
+   if one_hander_uncripple_set > 0 then begin
+      return;
+   end
+   else begin
+      //One-handed attack is not allowed if DAM_CRIP_ARM_LEFT and also !DAM_DEAD!
+      write_byte(0x426671, DAM_DEAD);
+      one_hander_uncripple_set = 1;
+      intface_redraw;
+   end
+end
+
+procedure one_hander_cripple begin
+   if one_hander_uncripple_set <= 0 then begin
+      return;
+   end
+   else begin
+      //One-handed attack is not allowed if DAM_CRIP_ARM_LEFT and also !DAM_CRIP_ARM_RIGHT!
+      write_byte(0x426671, DAM_CRIP_ARM_RIGHT);
+      one_hander_uncripple_set = 0;
+   end
+end
+
+
+procedure dude_traits_changed(variable trait_1, variable trait_2) begin
+   variable traits_have_changed;
+   if dude_trait_1 != trait_1 then begin
+      dude_trait_1 = trait_1;
+      traits_have_changed = 1;
+   end
+   if dude_trait_2 != trait_2 then begin
+      dude_trait_2 = trait_2;
+      traits_have_changed = 1;
+   end
+   if traits_have_changed > 0 then begin
+      call drug_restore;
+   end
+   return traits_have_changed;
+end
+
+procedure get_dude_traits(variable critter) begin
+   variable trait_1 = read_int(0x66BE40);
+   variable trait_2 = read_int(0x66BE44);
+   variable traits_have_changed = dude_traits_changed(trait_1, trait_2);
+
+   if traits_have_changed > 0 then begin
+      if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
+         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) andAlso critter == dude_obj then begin
+            fast_metabolism = 1;
+         end else begin
+            fast_metabolism = 0;
+         end
+      end
+
+      if bruiser >= 0 andAlso bruiser < 2 then begin
+         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) andAlso critter == dude_obj then begin
+            bruiser = 1;
+         end else begin
+            bruiser = 0;
+         end
+      end
+
+     if small_frame >= 0 andAlso small_frame < 2 then begin
+         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) andAlso critter == dude_obj then begin
+            small_frame = 1;
+         end else begin
+            small_frame = 0;
+         end
+      end
+
+      if one_hander >= 0 andAlso one_hander < 2 then begin
+         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) andAlso critter == dude_obj then begin
+            one_hander = 1;
+            call one_hander_uncripple;
+         end
+         else begin
+            call one_hander_cripple;
+            one_hander = 0;
+         end
+      end
+
+      if finesse >= 0 andAlso finesse < 2 then begin
+         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) andAlso critter == dude_obj then begin
+            finesse = 1;
+         end else begin
+            finesse = 0;
+         end
+      end
+
+      if kamikaze >= 0 andAlso kamikaze < 2 then begin
+         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) andAlso critter == dude_obj then begin
+            kamikaze = 1;
+         end else begin
+            kamikaze = 0;
+         end
+      end
+
+      if heavy_handed >= 0 andAlso heavy_handed < 2 then begin
+         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) andAlso critter == dude_obj then begin
+            heavy_handed = 1;
+         end else begin
+            heavy_handed = 0;
+         end
+      end
+
+      if bloody_mess >= 0 andAlso bloody_mess < 2 then begin
+         if (trait_1 == TRAIT_bloody_mess) orElse (trait_2 == TRAIT_bloody_mess) then begin
+            bloody_mess = 1;
+            // allow bloody mess to affect player death
+            if bloody_mess_player_death_changed <= 0 then begin
+               write_byte(0x410700, 0x31);
+               write_byte(0x410701, 0xC0);
+               bloody_mess_player_death_changed = 1;
+            end
+         end else begin
+            bloody_mess = 0;
+         end
+      end
+
+      if jinxed >= 0 andAlso jinxed < 2 then begin
+         if (trait_1 == TRAIT_jinxed) orElse (trait_2 == TRAIT_jinxed) then begin
+            jinxed = 1;
+         end else begin
+            jinxed = 0;
+         end
+      end
+
+      if drug_addict >= 0 andAlso drug_addict < 2 then begin
+         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) andAlso critter == dude_obj then begin
+            drug_addict = 1;
+         end else begin
+            drug_addict = 0;
+         end
+      end
+
+      if drug_resistant >= 0 andAlso drug_resistant < 2 then begin
+         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) andAlso critter == dude_obj then begin
+            drug_resistant = 1;
+         end else begin
+            drug_resistant = 0;
+         end
+      end
+
+      if skilled >= 0 andAlso skilled < 2 then begin
+         if ((trait_1 == TRAIT_skilled) orElse (trait_2 == TRAIT_skilled)) then begin
+            skilled = 1;
+         end else begin
+            skilled = 0;
+         end
+      end
+   end
+   return traits_have_changed;
+end
+
+procedure can_mod_drugs(variable drug_pid) begin
+   variable prohibed_drugs;
+   variable can_mod = 1;
+   if RegenMod > 0 andAlso drug_pid == PID_STIMPAK then
+      return;
+
+   if Nevada > 0 then begin
+      prohibed_drugs = [90, 295, 472, 480, 481, 724, 732, 750, 764];
+   end
+   else begin
+      prohibed_drugs = [PID_JET_ANTIDOTE, 480, 481, 480, 482];
+   end
+
+   if is_in_array(drug_pid, prohibed_drugs) then
+      can_mod = 0;
+
+   return can_mod;
+end
+
+procedure drug_modify(variable drug_obj, variable target) begin
+   variable drug_pid;
+   if target <= 0 orElse drug_obj <= 0 orElse obj_item_subtype(drug_obj) != item_type_drug then
+      return;
+
+   drug_pid = obj_pid(drug_obj);
+
+
+
+
+   if can_mod_drugs(drug_pid) <= 0 then
+      return;
+
+   if target == dude_obj then begin
+      if get_dude_traits(dude_obj) > 0 then begin
+         modded_drug_pid = 0;
+      end
+      call drug_save(drug_obj);
+      modded_drug_pid = drug_pid;
+      if drug_resistant > 0 then begin
+         call drug_modify_drug_resistant(drug_pid, target);//should be first
+      end
+      if drug_addict > 0 then begin
+         call drug_modify_drug_addict(drug_pid);
+      end
+      if fast_metabolism > 0 then begin
+         call drug_modify_fast_meta(drug_pid);
+      end
+   end
+   else begin
+      if modded_drug_pid > 0 then begin
+         call drug_restore;
+      end
+   end
+end
+
+
+procedure USEOBJON begin
+   variable target = get_sfall_arg_at(0);
+   variable obj = get_sfall_arg_at(2);
+   if fast_metabolism > 0 orElse drug_resistant > 0 orElse drug_addict > 0 then begin
+      call drug_modify(obj,target);
+   end
+end
+
+
+//checking and installing the perks.ini file with changing trait descriptions
+procedure set_traits_desc begin
+   variable trait_desc;
+   variable new_trait_desc;
+   variable trait_num;
+   variable trait_ini_path_desc;
+   variable trait_stat_mod;
+   variable traits_to_ignore = [TRAIT_fast_shot, TRAIT_good_natured, TRAIT_sex_appeal, TRAIT_gifted];
+   variable trait_plus_desc;
+   variable trait_ini_path_desc_plus;
+   variable trait_ini_desc_plus_was_set;
+   variable ini_was_set;
+   variable new_version;
+   variable version = get_ini_string(perks_ini_path + "|Traits|Traits_plus_version");
+   if version != traits_plus_cur_version then begin
+      set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",traits_plus_cur_version);
+      ini_was_set = 1;
+   end
+   for (trait_num = 0; trait_num < MAX_TRAITS; trait_num++) begin
+      if is_in_array(trait_num,traits_to_ignore) then begin
+         continue;
+      end
+      trait_ini_path_desc = perks_ini_path+"|t" + trait_num + "|Desc";
+      new_trait_desc = trait_msg(trait_desc_offset + trait_num);
+      if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
+         new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
+      end
+      trait_desc = get_ini_string(trait_ini_path_desc);
+      //if new_version <= 0 then begin
+         trait_ini_path_desc_plus = perks_ini_path + "|t" + trait_num + "|Traits_plus_desc_is_set";
+         trait_plus_desc = get_ini_setting(trait_ini_path_desc_plus);
+      //end
+      //if trait_desc != new_trait_desc then begin
+      if get_array(disabled_traits_arr,trait_num) != trait_num + 1 then begin
+         if trait_plus_desc <= 0 orElse ini_was_set > 0 then begin
+            set_ini_setting(trait_ini_path_desc, new_trait_desc);
+            set_ini_setting(trait_ini_path_desc_plus, 1);
+            ini_was_set = 1;
+         end
+         if trait_num == TRAIT_kamikaze then begin
+            // TRAIT_kamikaze + 5 seq
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
+            if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               set_ini_setting(perks_ini_path+"|t5|StatMod","13|5");
+               ini_was_set = 1;
+            end
+         end
+      end
+      else begin
+         if trait_desc != "" andAlso trait_desc == new_trait_desc then begin
+            set_ini_setting(trait_ini_path_desc, "");
+            set_ini_setting(trait_ini_path_desc_plus, 0);
+            ini_was_set = 1;
+         end
+         if trait_num == TRAIT_kamikaze then begin
+            // TRAIT_kamikaze + 5 seq
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
+            if trait_stat_mod == "13|5" then begin
+               set_ini_setting(perks_ini_path+"|t5|StatMod","");
+               ini_was_set = 1;
+            end
+         end
+      end
+   end
+   return ini_was_set;
+end
+
+
+
+procedure check_traits_desc begin
+   variable traits_enabled = get_ini_setting(perks_ini_path+"|Traits|Enable");
+   variable ini_was_set;
+   if traits_enabled <= 0 then begin
+      set_ini_setting(perks_ini_path+"|Traits|Enable", 1);
+      ini_was_set = 1;
+   end
+   ini_was_set = ini_was_set + set_traits_desc;
+   return ini_was_set;
+end
+
+
+procedure check_drugs_pid begin
+   variable drug_count = get_ini_setting(drugs_ini_path+"|main|Count");
+   variable drug_pid;
+   variable drug_num;
+   variable drug_num_effects;
+   variable drug_addict_time_ini;
+   variable new_drug_count;
+   variable new_drug_count_num;
+   variable drug_array_key;
+   variable drug_ini_array_key;
+   variable drugs_ini_path_drug_num;
+   variable drugs_array;
+   variable ini_was_set;
+   if Nevada > 0 then begin
+      drugs_array = [PID_MENTATS, PID_PSYCHO, PID_JET, PID_BUFFOUT, PID_M_STMPK_RING, PID_MENTATS_AROM];
+   end
+   else begin
+      drugs_array = [PID_MENTATS, PID_PSYCHO, PID_JET, PID_BUFFOUT];
+   end
+   array_drugs_ini = create_array_map;
+   if drug_count < 0 then drug_count = 0;
+   // Loop through drugs in ini
+   for (drug_num = 1; drug_num <= drug_count; drug_num++) begin
+      drugs_ini_path_drug_num = drugs_ini_path + "|" + drug_num;
+      drug_pid = get_ini_setting(drugs_ini_path_drug_num + "|PID");
+      if drug_pid <= 0 then
+         continue;
+
+         drug_ini_array_key = (drug_num - 1) * 3;
+         set_array(array_drugs_ini, drug_ini_array_key + drug_arr_pid_offset, drug_pid);
+         set_array(array_drugs_ini, drug_ini_array_key + drug_arr_numeff_offset, base_map_arr_num);
+         set_array(array_drugs_ini, drug_ini_array_key + drug_arr_addict_time_offset, base_map_arr_num);
+         drug_num_effects = 1 + get_ini_setting(drugs_ini_path_drug_num + "|NumEffects");
+         drug_array_key = scan_array(drugs_array, drug_pid);
+         if drug_array_key >= 0 then begin
+            set_array(drugs_array, drug_array_key, 0);
+            if drug_num_effects <= 0 then
+               drug_num_effects = 5;
+         end
+         set_array(array_drugs_ini, drug_ini_array_key + drug_arr_numeff_offset, drug_num_effects);
+
+         drug_addict_time_ini = 1 + get_ini_setting(drugs_ini_path_drug_num + "|AddictTime");
+         if drug_addict_time_ini > 0 then begin
+            set_array(array_drugs_ini, drug_ini_array_key + drug_arr_addict_time_offset, drug_addict_time_ini);
+         end
+         else begin
+            drug_addict_time_ini = one_week_in_min;
+            set_array(array_drugs_ini, drug_ini_array_key + drug_arr_addict_time_offset, (drug_addict_time_ini + 1) );
+         end
+
+   end
+   // Update drug count in INI if new drugs were added
+   foreach drug_pid in drugs_array begin
+      if drug_pid > 0 then begin
+         new_drug_count += 1;
+      end
+   end
+   if new_drug_count > 0 then begin
+      ini_was_set = 1;
+      set_ini_setting(drugs_ini_path + "|main|Count", (drug_count + new_drug_count));
+      // Add base drugs
+      new_drug_count = 0;
+      drug_num = 0;
+      foreach drug_pid in drugs_array begin
+         drug_num += 1;
+         if drug_pid > 0 then begin
+            new_drug_count += 1;
+            new_drug_count_num = drug_count + new_drug_count;
+            drugs_ini_path_drug_num = drugs_ini_path + "|" + new_drug_count_num;
+            set_ini_setting(drugs_ini_path_drug_num + "|PID",drug_pid);
+            if Nevada > 0 andAlso (drug_pid == PID_M_STMPK_RING orElse drug_pid == PID_PSYCHO) then begin
+               set_ini_setting(drugs_ini_path_drug_num + "|NumEffects", 1);
+            end
+            else if Nevada > 0 andAlso drug_pid == PID_JET then begin
+               if get_proto_data(PID_JET,PROTO_DR_STAT_A) != STAT_max_move_points andAlso get_proto_data(PID_JET,PROTO_DR_STAT_B) != STAT_max_move_points andAlso get_proto_data(PID_JET,PROTO_DR_STAT_C) != STAT_max_move_points then begin
+                  set_ini_setting(drugs_ini_path_drug_num + "|NumEffects", 0);
+               end
+               else begin
+                  set_ini_setting(drugs_ini_path_drug_num + "|NumEffects",4);
+                  set_ini_setting(drugs_ini_path_drug_num + "|AddictTime",one_week_in_min);
+               end
+            end
+            else begin
+               set_ini_setting(drugs_ini_path_drug_num + "|NumEffects",4);
+               set_ini_setting(drugs_ini_path_drug_num + "|AddictTime",one_week_in_min);
+            end
+            set_array(array_drugs_ini, (new_drug_count_num) + drug_arr_pid_offset, drug_pid);
+            set_array(array_drugs_ini, (new_drug_count_num) + drug_arr_numeff_offset, 4);
+            set_array(array_drugs_ini, (new_drug_count_num) + drug_arr_addict_time_offset, one_week_in_min);
+         end
+      end
+   end
+   free_array(drugs_array);
+   return ini_was_set;
+end
+
+procedure game_close begin
+   variable msg = trait_msg(msg_traits_set)+"\n"+trait_msg(msg_restart_game);
+   message_box_flags(msg, MSGBOX_NORMAL);
+   display_msg(msg);
+   write_byte(0x481B2A, 0xB8);
+   write_int(0x481B2B, 27);
+   signal_end_game;
+end
+
+procedure check_ini_path begin
+   variable perks_ini_not_set;
+   variable drugs_ini_not_set;
+   variable common_ini_path = -1;
+   variable ini_was_set;
+   perks_ini_path = get_ini_string(ddraw_perks_ini_path);
+   drugs_ini_path = get_ini_string(ddraw_drugs_ini_path);
+   if perks_ini_path == "" orElse perks_ini_path < 0 then begin
+      perks_ini_not_set = 1;
+   end
+   else begin
+      common_ini_path = get_array(string_split(perks_ini_path, default_perks_ini_name), 0);
+   end
+
+   if drugs_ini_path == "" orElse drugs_ini_path < 0 then begin
+      drugs_ini_not_set = 1;
+   end
+   else begin
+      if common_ini_path == "" orElse common_ini_path < 0 then begin
+         common_ini_path = get_array(string_split(drugs_ini_path, default_drugs_ini_name), 0);
+      end
+   end
+
+   if perks_ini_not_set > 0 then begin
+      if common_ini_path == "" orElse common_ini_path < 0 then begin
+         perks_ini_path = default_perks_ini_path;
+      end
+      else begin
+         perks_ini_path = common_ini_path+default_perks_ini_name;
+      end
+      set_ini_setting(ddraw_perks_ini_path,  perks_ini_path);
+      perks_ini_not_set = 0;
+      ini_was_set = 1;
+   end
+   if drugs_ini_not_set > 0 then begin
+      if common_ini_path == "" orElse common_ini_path < 0 then begin
+         drugs_ini_path = default_drugs_ini_path;
+      end
+      else begin
+         drugs_ini_path = common_ini_path+default_drugs_ini_name;
+      end
+      set_ini_setting(ddraw_drugs_ini_path, drugs_ini_path);
+      drugs_ini_not_set = 0;
+      ini_was_set = 1;
+   end
+
+   ini_was_set += check_traits_desc + check_drugs_pid;
+   if ini_was_set > 0 then begin
+      call game_close in 0;
+   end
+end
+
+procedure COMBATTURN begin
+   variable turn_type = get_sfall_arg;
+   variable critter = get_sfall_arg;
+   if (turn_type > 0 orElse turn_type < 0) then begin
+      if one_hander > 0 andAlso critter == dude_obj then begin
+         if one_hander_uncripple_set <= 0 then begin
+            call one_hander_uncripple;
+         end
+      end
+   end
+   else begin
+      if one_hander_uncripple_set > 0 then begin
+         call one_hander_cripple;
+      end
+   end
+   bloody_mess_death_count = 0;
+   if kamikaze_hex_walked_num > 0 then begin
+      kamikaze_hex_walked_num = 0;
+      intface_redraw;
+   end
+end
+
+procedure set_dude_traits_from_ini begin
+   disabled_traits_arr = create_array_map;
+
+   fast_metabolism = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Fast_Metabolism");
+   if fast_metabolism <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_fast_metabolism, (TRAIT_fast_metabolism + 1));
+      fast_metabolism = -1;
+   end
+
+   bruiser = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Bruiser");
+   if bruiser <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_bruiser, (TRAIT_bruiser + 1));
+      bruiser = -1;
+   end
+
+   small_frame = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Small_Frame");
+   if small_frame <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_small_frame, (TRAIT_small_frame + 1));
+      small_frame = -1;
+   end
+
+   one_hander = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|One_Hander");
+   if one_hander <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_one_hander, (TRAIT_one_hander + 1));
+      one_hander = -1;
+   end
+   else begin
+      if one_hander >= 2 then begin
+         call one_hander_uncripple;
+      end
+   end
+
+   finesse = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Finesse");
+   if finesse <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_finesse, (TRAIT_finesse + 1));
+      finesse = -1;
+   end
+
+   kamikaze = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Kamikaze");
+   if kamikaze <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_kamikaze, (TRAIT_kamikaze + 1));
+      kamikaze = -1;
+   end
+
+   heavy_handed = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Heavy_Handed");
+   if heavy_handed <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_heavy_handed, (TRAIT_heavy_handed + 1));
+      heavy_handed = -1;
+   end
+
+   bloody_mess = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Bloody_Mess");
+   if bloody_mess <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_bloody_mess, (TRAIT_bloody_mess + 1));
+      bloody_mess = -1;
+   end
+
+   jinxed = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Jinxed");
+   if jinxed <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_jinxed, (TRAIT_jinxed + 1));
+      jinxed = -1;
+   end
+
+   drug_addict = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Chem_Reliant");
+   if drug_addict <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_drug_addict, (TRAIT_drug_addict + 1));
+      drug_addict = -1;
+   end
+
+   drug_resistant = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Chem_Resistant");
+   if drug_resistant <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_drug_resistant, (TRAIT_drug_resistant + 1));
+      drug_resistant = -1;
+   end
+
+   skilled = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Skilled");
+   if skilled <= 0 then begin
+      set_array(disabled_traits_arr, TRAIT_skilled, (TRAIT_skilled + 1));
+      skilled = -1;
+   end
+end
+
+procedure rm_traits_desc begin
+   variable trait_num;
+   variable new_trait_desc;
+   variable trait_ini_path_desc;
+   variable trait_desc;
+   variable trait_stat_mod;
+   variable perks_ini_path = get_ini_string(ddraw_perks_ini_path);
+   variable traits_to_ignore = [TRAIT_fast_shot, TRAIT_good_natured, TRAIT_sex_appeal, TRAIT_gifted];
+   variable traits_plus_enabled = get_ini_string(perks_ini_path+"|Traits|Traits_plus_version");
+   variable trait_ini_path_desc_plus;
+   variable trait_plus_desc;
+   variable ini_was_set;
+   if traits_plus_enabled != "" andAlso traits_plus_enabled != "0" andAlso traits_plus_enabled != 0 then begin
+      for (trait_num = 0; trait_num < MAX_TRAITS; trait_num++) begin
+         trait_ini_path_desc_plus = perks_ini_path + "|t" + trait_num + "|Traits_plus_desc_is_set";
+         trait_plus_desc = get_ini_setting(trait_ini_path_desc_plus);
+         if trait_plus_desc <= 0 then begin
+            continue;
+         end
+         trait_ini_path_desc = perks_ini_path+"|t" + trait_num + "|Desc";
+         new_trait_desc = trait_msg(trait_desc_offset + trait_num);
+      if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
+         new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
+      end
+         trait_desc = get_ini_string(trait_ini_path_desc);
+         if trait_desc == new_trait_desc then begin
+            set_ini_setting(trait_ini_path_desc, "");
+            ini_was_set = 1;
+         end
+         set_ini_setting(trait_ini_path_desc_plus,0);
+      end
+      trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
+      if trait_stat_mod == "13|5" then begin
+         set_ini_setting(perks_ini_path+"|t5|StatMod","");
+         ini_was_set = 1;
+      end
+      set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",0);
+      if ini_was_set > 0 then begin
+         call game_close in 0;
+      end
+   end
+   return ini_was_set;
+end
+
+procedure get_and_set_perk_level_mod begin
+   variable dude_lvl = dude_level;
+   variable test_perk = PERK_here_and_now_perk;
+   variable test_perk_rank;
+   variable i;
+   variable perk_lvl_mod;
+   if last_lvl == dude_level then
+      return;
+   last_lvl = dude_level;
+   set_perk_level(test_perk, dude_lvl);
+   if has_trait(TRAIT_PERK, dude_obj,PERK_here_and_now_perk) then begin
+      if get_perk_available(test_perk) <= 0 then
+         test_perk_rank = 1;
+         set_perk_ranks(test_perk, 2);
+   end
+
+
+   if get_perk_available(test_perk) then begin
+      for (i := 1; i <= 25; i++) begin
+         set_perk_level(test_perk, (dude_lvl + i));
+         if get_perk_available(test_perk) <= 0 then
+            break;
+      end
+      perk_lvl_mod = i-1;
+   end
+   else begin
+      for (i := 1; i >= -25; i--) begin
+         call_offset_v2(0x4AF910, PCSTAT_level, (dude_lvl-i));// set_dude_lvl
+         if get_perk_available(test_perk) > 0 then
+            break;
+      end
+      perk_lvl_mod = i;
+      call_offset_v2(0x4AF910, PCSTAT_level, dude_lvl);// set_dude_lvl
+   end
+
+   if skilled_last_perk_level_bonus != perk_lvl_mod then begin
+      perk_lvl_mod += skilled_perk_level_bonus;
+      set_perk_level_mod(perk_lvl_mod);
+      skilled_last_perk_level_bonus = perk_lvl_mod;
+   end
+   if test_perk_rank > 0 then
+      set_perk_ranks(test_perk, test_perk_rank);
+   set_perk_level(test_perk, 3);
+   if skilled_last_perk_level_bonus != perk_lvl_mod then begin
+      set_perk_level_mod(perk_lvl_mod);
+      skilled_last_perk_level_bonus = perk_lvl_mod;
+   end
+   return perk_lvl_mod;
+end
+
+procedure GAMEMODECHANGE begin
+   variable game_mode = get_game_mode;
+   variable gvar_one_hander_sfall_5;
+   if game_mode == 0 orElse (game_mode bwand COMBAT) then begin
+      call get_dude_traits(dude_obj);
+   end
+   else if skilled > 0 andAlso (game_mode bwand CHARSCREEN) then
+      call get_and_set_perk_level_mod;
+
+end
+
+procedure MOVECOST begin
+   variable critter = get_sfall_arg;
+   variable hex_moved;
+   variable critter_cur_tile;
+   if kamikaze > 0 andAlso critter == dude_obj then begin
+      critter_cur_tile = tile_num(critter);
+      if kamikaze_last_tile <= 0 then begin
+         kamikaze_last_tile = critter_cur_tile;
+      end
+      if kamikaze_last_tile != critter_cur_tile then begin
+         hex_moved = get_sfall_arg_at(1);
+         if crit_is_moving(dude_obj) then kamikaze_hex_walked_num += hex_moved;
+         if critter == dude_obj andAlso kamikaze_hex_walked_num % kamikaze_walk_div == 0 then begin
+            intface_redraw;
+         end
+         kamikaze_last_tile = critter_cur_tile;
+      end
+   end
+end
+
+procedure REMOVEINVENOBJ begin
+   variable RMOBJ_reason = get_sfall_arg_at(3);
+   if modded_drug_pid > 0 then begin
+      call drug_restore;
+   end
+   if kamikaze_hex_walked_num > 0 andAlso (RMOBJ_reason != RMOBJ_ARMOR_EQUIPED andAlso RMOBJ_reason != RMOBJ_LEFT_HAND_EQUIPED andAlso RMOBJ_reason != RMOBJ_RIGHT_HAND_EQUIPED andAlso RMOBJ_reason != RMOBJ_ITEM_REMOVED_INVEN) then begin
+      kamikaze_hex_walked_num = 0;
+      intface_redraw;
+   end
+end
+
+procedure DISPLAYDAMAGE begin
+   variable critter = get_sfall_arg;
+   variable weapon;
+   variable atk_type;
+   variable default_min_wpn_dmg;
+   variable default_max_wpn_dmg;
+   variable wpn_anim = -1;
+   variable wpn_pid;
+   variable melee_dmg;
+   variable new_min_wpn_dmg;
+   variable new_max_wpn_dmg;
+   variable wpn_max_dmg;
+   if (bruiser > 0 orElse heavy_handed > 0) andAlso critter == dude_obj then begin
+      weapon = get_sfall_arg;
+      atk_type = get_sfall_arg;
+      default_min_wpn_dmg = get_sfall_arg;
+      default_max_wpn_dmg = get_sfall_arg;
+
+      if weapon > 0 then begin
+         wpn_pid = obj_pid(weapon);
+         wpn_anim = get_proto_data(wpn_pid, PROTO_WP_ANIM);
+         wpn_max_dmg = get_proto_data(wpn_pid, PROTO_WP_DMG_MAX);
+      end
+      if weapon <= 0 orElse (weapon_is_grenade(weapon, atk_type) == 0 andAlso (wpn_anim <= WPN_ANIM_SPEAR or wpn_anim == 0x0E or wpn_anim == 0x0B or wpn_anim == 0x0C)) then begin
+         melee_dmg = get_critter_stat(critter, STAT_melee_dmg);
+         if melee_dmg < 1 then melee_dmg = 1;
+
+         if default_max_wpn_dmg < (wpn_max_dmg + melee_dmg) then begin
+            default_max_wpn_dmg = (wpn_max_dmg + melee_dmg);
+         end
+         new_min_wpn_dmg = default_min_wpn_dmg;
+         new_max_wpn_dmg = default_max_wpn_dmg;
+         //TRAIT_heavy_handed min dmg
+         if heavy_handed > 0 then begin
+            //new_min_wpn_dmg = default_min_wpn_dmg + (melee_dmg + 1) / 2; // ecco
+            new_min_wpn_dmg = default_min_wpn_dmg + melee_dmg;
+            new_max_wpn_dmg = default_max_wpn_dmg;
+         end
+         //TRAIT_bruiser max dmg
+         if bruiser > 0 then begin
+            new_max_wpn_dmg *= 2;
+         end
+
+         if new_min_wpn_dmg > new_max_wpn_dmg then begin
+            new_min_wpn_dmg = new_max_wpn_dmg;
+         end
+
+         set_sfall_return(new_min_wpn_dmg);
+         set_sfall_arg(3, new_min_wpn_dmg);
+         set_sfall_return(new_max_wpn_dmg);
+         set_sfall_arg(4, new_max_wpn_dmg);
+      end
+   end
+end
+
+
+procedure ATTACKHITROLL begin
+   if skilled_prevent_crit_fail > 0 then begin
+      set_sfall_return(skilled_prevent_crit_fail);
+      set_sfall_arg(3, skilled_prevent_crit_fail);
+      skilled_prevent_crit_fail = 0;
+   end
+end
+
+procedure TARGETOBJECT begin
+   variable is_attacking = get_sfall_arg;
+   variable can_be_attacked = get_sfall_arg;
+   variable target = get_sfall_arg;
+   variable distance;
+   variable wpn_dist;
+   if kamikaze > 0 andAlso wpn_is_melee > 0 andAlso can_be_attacked > 0 andAlso is_attacking <= 0 then begin
+      distance_objs(distance, dude_obj, target);
+      AutoMoveToAttack_move_dist = distance - wpn_range;
+      AutoMoveToAttack_start_hex = tile_num(dude_obj);
+   end
+end
+
+procedure CANUSEWEAPON begin
+   variable critter = get_sfall_arg;
+   variable wpn;
+   if one_hander > 0 then begin
+      if (critter_state(critter) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT)) == 48 then begin
+         if critter == dude_obj then begin
+            wpn = get_sfall_arg_at(1);
+            if weapon_is_two_handed(wpn) == 0 then begin
+               set_sfall_return(1);
+            end
+         end
+      end
+   end
+end
+
+procedure start begin
+   if (game_loaded) then begin
+      TraitsPlus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
+      traits_plus_msg_file = add_extra_msg_file(new_msg_file);
+      if TraitsPlus <= 0 then begin
+         call one_hander_bonus_remove;
+         if rm_traits_desc then
+            return;
+         else
+            exit;
+      end
+      Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
+      Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+      if Sonora > 0 then begin
+         traits_plus_cur_version = traits_plus_cur_version_Sonora;
+      end
+      ver_major = sfall_ver_major;
+      ver_minor = sfall_ver_minor;
+      ver_build = sfall_ver_build;
+
+      call set_dude_traits_from_ini;
+      if ver_major >= 5 then begin
+         AutoMoveToAttack = get_ini_setting("ddraw.ini|Misc|AutoMoveToAttack");
+         if AutoMoveToAttack > 0 then begin
+            register_hook_proc(HOOK_TARGETOBJECT, TARGETOBJECT);
+         end
+         if ver_build >= 8 orElse ver_major > 5 orElse ver_minor > 0 then begin
+            sfall_508 = 1;
+         end
+      end
+      //restore end turn with 0 ap
+      bloody_mess_orig_mem = 4225155;
+      if read_int(0x42286A) != bloody_mess_orig_mem then begin
+         write_int(0x42286A, bloody_mess_orig_mem);
+         bloody_mess_no_ap_end = 0;
+      end
+
+      set_global_script_type(3);
+      set_global_script_repeat(0);
+
+      if kamikaze >= 0 then begin
+         register_hook_proc(HOOK_MOVECOST, MOVECOST);
+
+      end
+      if heavy_handed >= 0 orElse bruiser >= 0 orElse finesse >= 0 then begin
+         register_hook_proc(HOOK_ITEMDAMAGE, ITEMDAMAGE);
+         if sfall_508 > 0 then begin
+            register_hook_proc(54, DISPLAYDAMAGE); //HOOK_DISPLAYDAMAGE
+         end
+      end
+      if skilled >= 0 andAlso sfall_508 > 0 then begin
+         register_hook_proc(56, ATTACKHITROLL); //HOOK_ATTACKHITROLL
+      end
+      register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
+      register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+      register_hook_proc_spec(HOOK_ONDEATH, ONDEATH);
+      register_hook_proc(HOOK_AFTERHITROLL, AFTERHITROLL);
+      register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+      register_hook_proc_spec(HOOK_TOHIT, TOHIT);
+      if fast_metabolism >= 0 orElse drug_resistant >= 0 orElse drug_addict >= 0 then begin
+         register_hook_proc_spec(HOOK_USEOBJON, USEOBJON);
+         register_hook_proc(HOOK_REMOVEINVENOBJ, REMOVEINVENOBJ);
+      end
+      register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+      if one_hander >= 0 then begin
+         register_hook_proc_spec(HOOK_CANUSEWEAPON, CANUSEWEAPON);
+         intface_redraw;
+      end
+      traits_plus_msg_file = add_extra_msg_file(new_msg_file);
+      RegenMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+      call check_ini_path;
+      call get_dude_traits(dude_obj);
+   end
+end

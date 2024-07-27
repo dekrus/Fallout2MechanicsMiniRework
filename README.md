@@ -42,6 +42,7 @@
 This module adds an alternative fire mode to Laser, Plasma and Gauss weapons.
 - Alternate Fire mode is activated with an Aimed Shot to the torso.
 - All animations depend on combat speed settings, and I advise you to set the maximum combat speed for better results.
+- 
 
 Laser weapons:
 ![Secondary-Attack](images/LASER_SLOW.gif)  
@@ -90,6 +91,75 @@ Shotguns:
 - Aimed shots to the body knock back enemies and can knock them down.
 - Affects targets closer than 10 hexes / half the weapon's maximum range.
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
+
+### Traits Plus
+Requires setting "AllowUnsafeScripting = 1 or 2" in ddraw.ini!!!
+When you first launch the mod after installing it, you need to load any game save for the new trait descriptions to take effect.
+
+Enhances base starting traits with new properties without altering their core mechanics.
+All new trait properties are scripted and will function even if the traits themselves have been modified by the player or other mods.
+Each new property for a specific trait can be enabled, disabled, or forcibly activated, even if the player does not possess the trait, when the option is enabled in the .ini settings file.
+
+Fast Metabolism New Properties:
+++ All food and chems remove 33% more poison and radiation.
++- All food and chems heal/remove 33% more HP.
++- All food and chems take effect and wear off twice as fast.
++- If "RegenMod" is enabled, health regeneration is increased by 33%. However, if the player is poisoned, its effectiveness is reduced by 50%. The reduction depends on poison resistance. For instance, with 90% resistance, the regeneration strength decreases by only 5%.
+Bruiser New Properties:
+(Damage changes are displayed in the inventory only for sfall 5.0.8+)
+++ Maximum damage from unarmed, melee, and throwing weapons (excluding grenades) is doubled.
+The 'Melee Damage' attribute now affects the maximum damage of throwing weapons
+
+Small Frame New Properties:
+++ Maximum chance to hit a player reduced by 10%, accounting for any other reductions from other mods/perks.
+++ Sneak skill is 10% more effective.
+
+One-Hander New Properties:
+++ One-handed unarmed attacks now also receive a +20% hit chance bonus.
+++ Ability to attack with one-handed weapons even when both arms are injured (hit chance bonus does not apply when both arms are injured).
+++ Bonus: +5 on the critical hit table roll.
+++ One-handed weapons require 3 less strength to use correctly.
+
+Finesse New Properties:
+++ Player's area damage attacks can now deal critical damage, penetrate armor, and incapacitate additional targets.
+++ Affects all types of area attacks: burst fire, grenades, flamethrowers, and alternative fire modes.
+
+Kamikaze New Properties:
+(Compatible with "AutoMoveToAttack" sfall 5.0+)
+++ Player can "attack on the move," reducing attack cost by 1 AP for every 2 steps, down to a minimum of 1 AP for non-targeted and 2 AP for targeted attacks.
+++ Sequence is increased by 10.
+++ Pistol's alternative firing mode does not interrupt movement.
+-- Each step taken reduces hit chance by 3%. After attack and at the end of the turn, accuracy penalty resets to zero.
+
+Heavy-Handed New Properties:
+(Damage changes are displayed in the inventory only for sfall 5.0.8+)
+++ "Melee Damage" is added to the minimum damage for unarmed, melee, and thrown weapon damage (excluding grenades).
+++ The "Melee Damage" attribute now affects the maximum damage of throwing weapons
+++ Every non-critical melee and throwing weapon attack has a chance to knock down the target. This chance is influenced by factors such as the attack's damage, the player's strength, the weapon's weight, and the opponent's endurance and species.
+++ The severity of a player's critical miss is reduced by 30%.
+
+Bloody mess New Properties:
+++ The first kill each turn restores 2 AP to the player; each subsequent kill in the same turn restores 1 AP.
++- Critical miss severity is increased by 30% for everyone, including the player.
+
+Jinxed New Properties:
++- Reduces the maximum hit chance of both players and NPCs by 5%.
++- The time limit is disabled, allowing critical misses to occur from the start of the game.
+
+Chem Reliant New Properties:
++- Positive and negative effects of chems and food are increased by 50%, rounded to the nearest integer (-1 -> -2, +1 -> +2).
+
+Chem Resistant New Properties:
+++ Food and chems no longer cause addiction
+++ Stats return to normal immediately after the first effect of chems and food wears off.
+++ You can take half more doses, rounded up.
++- Positive and negative effects of chems and food are reduced by 50%, rounded up (-1 -> 0, +1 -> +1).
+
+Skilled New Properties:
+++ Increases maximum hit chance by 4%.
+++ 50% chance that critical miss becomes a normal miss.
+++ Reduces the level requirement for selecting perks by 4. Perks requiring level 9 can be taken at level 5, and perks requiring level 12 can be taken at level 8.
+
 
 ### Skill Books
 This mod allows you to use skill books on companions to increase their skills, and also allows you to change the amount of bonus skill points and the number of skills that increase when reading books.
@@ -146,8 +216,10 @@ This is a rework of the original poison mechanics, designed to make it more dang
 **(Requires "SpeedInterfaceCounterAnims = 2" and "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 Replaces instant stimpak healing with healing over time.
 
-- Using a Stimpack increases "healing rate" for 3 rounds. To start healing, the "healing_rate" must be greater than 5.
-- Super Stimpak instantly restores up to 60 HP, while temporarily reducing the "healing_rate" based on the actual HP restored. Also, Super Stimpak can heal broken limbs (if enabled in the ".ini" file).
+- All creatures with a healing rate higher than 5 begin to regenerate a portion of their health every 5 seconds (equivalent to 1 combat round).
+- Using a Stimpak restores a small amount of health (1-3 HP) and increases the healing rate by 20 for 15 seconds (3 rounds). Afterwards, it imposes a penalty of -25 to the healing rate for 1 minute.
+- Using a Stimpack increases "healing rate" for 15 seconds (or rounds). Critters start regenerating when, the "healing_rate" must be greater than 5.
+- The Super Stimpak instantly restores health based on the maximum HP and the current "healing_rate", but not less than 60 HP, while temporarily reducing the "healing_rate" by an average of 20 units (depending on the actual HP restored). The delayed damage from the Super Stimpak is proportional to the amount of actual HP restored and the difference between the "healing_rate" and the penalty to the "healing_rate". Additionally, the Super Stimpak can heal broken limbs if this feature is enabled in the ".ini" file.
 - Fast Metabolism (trait) enhances the effect of Stimpaks and Super Stimpaks;
 - Some monsters have passive health regeneration: wanamingos/centaurs (if enabled in the ".ini" file).
 - Fire and Plasma damage temporarily reduces the target's regeneration rate and may even stop it completely.
@@ -216,10 +288,10 @@ While the sneaking player is within sight of an observing NPC, that NPC will be 
 ### Steal
 **(Requires "AllowUnsafeScripting = 1 or 2") in ddraw.ini)**  
 The original mechanics of pickpocketing did not take into account the perception of the target. And also, the probability of unsuccessful pickpocketing did not depend on skill and was always the same for both 85 and 300 skill levels (approximately 15%).  
-And another sad feature of the original pickpocketing mechanics was the start of a battle with the participation of every resident of the city when the pickpocketing failed.  
-The new Steal skill mechanic is an attempt to fix these "features". 
-![Steal](images/SHOW_STEAL_CHANCE.gif)
+Another frustrating aspect of the original pickpocketing mechanics was that failing to pickpocket would trigger a battle involving every city resident.
+The new Steal skill mechanic is an attempt to remedy these issues.
 
+![Steal](images/SHOW_STEAL_CHANCE.gif)
 Basic moments:
 - Displays the chance of stealing when you hover over an item.
 - If the chance of stealing is 0%, then when you right-click on an item in the Pip-Boy window, the required minimum value for attempting to steal this item will be displayed.
@@ -233,8 +305,8 @@ Basic moments:
 - The calculation of the probability of a successful steal is similar to the original formula with the addition of dependence on the target's perception and the player's steal skill.
 - If the Steal skill is developed over 140%, then for every 1 point, the maximum steal chance is increased by 0.1%, up to a maximum of 99%.
 - When the skill exceeds 155 + (the target's current perception x 5), it becomes possible to steal **weapons and items from the hands of the NPC.**
-- To peep into a target's pocket, you need to meet minimum skill requirements.
-- In the case of an unsuccessful attempt to use the Steal skill, the target can sometimes become hostile. The presence of the Harmless perk reduces this chance.
+- To peep into a target's pocket, you need to meet the minimum skill requirements.
+- In the case of an unsuccessful attempt to peep into a target's pocket, the target can sometimes become hostile. The presence of the 'Harmless' perk reduces this chance.
 
 Modifiers that increase the skill requirement and reduce the chance of a successful pickpocket include:
 - The player stands in front of the target.

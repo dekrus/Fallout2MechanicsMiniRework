@@ -278,6 +278,7 @@ procedure SwingThrust begin
          atkrskill = has_skill(atkr, SKILL_MELEE);
          tarAg = get_critter_stat(tar, STAT_ag);
          Newhitch = hitch + tarAg + (atkrskill / 15); // increas hit chance
+         set_sfall_arg(7, Newhitch);
          if Newhitch > 95 then begin
             Newhitch = 95;
          end
@@ -324,7 +325,7 @@ procedure COMBATDAMAGE begin
    if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
       actual_attack = 1;
    end
-   if actual_attack > 0 then begin
+   if actual_attack > 0 andAlso target > 0 then begin
       if weapon > 0 then begin
          wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
          wpnpid = obj_pid(weapon);
@@ -346,9 +347,8 @@ procedure COMBATDAMAGE begin
             return;
          end
       end
-      if target then begin
-         target_type = obj_type(target);
-      end
+
+      target_type = obj_type(target);
       //swingThrust
       if SwingThrustTweak > 0 andAlso wpnpid > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
          wpn_flags = get_proto_data(wpnpid, PROTO_FLAG_EXT);
@@ -387,7 +387,7 @@ procedure COMBATDAMAGE begin
          end
 
          //New effect for swing and thust attacks
-         if swing == 1 then begin
+         if swing == 1 andAlso target_type == OBJ_TYPE_CRITTER then begin
             // knifes
             if (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
                tardt_extra = get_critter_extra_stat(target, (STAT_dmg_thresh + dmg_type));
@@ -474,6 +474,9 @@ procedure COMBATDAMAGE begin
                set_critter_extra_stat(target, (STAT_dmg_resist + dmg_type), (tardr_extra + dr_mod));
             end
             else if wpnanim == WPN_ANIM_SLEDGEHAMMER or wpnanim == WPN_ANIM_CLUB then begin
+               if knockback_distance <= 0 then begin
+                  return;
+               end
                knockback_tile = tile_num_in_direction(tile_num(target),(rotation_to_tile(tile_num(target),tile_num(attacker)) + 3) % 6,knockback_distance);
                knockback_tile_block = obj_blocking_line(target,knockback_tile,BLOCKING_TYPE_BLOCK);
                if knockback_tile_block > 0 then begin
@@ -482,10 +485,13 @@ procedure COMBATDAMAGE begin
                      knockback_bonus_dmg = 2 * (knockback_distance - knockback_tile_block_distance);
                      if knockback_bonus_dmg > dmgtotar / 2 then
                         knockback_bonus_dmg = dmgtotar / 2;
-                     dmgtotar += knockback_bonus_dmg;
-                     set_sfall_return(dmgtotar);
-                     set_sfall_arg(2, dmgtotar);
-                     return;
+
+                     if knockback_bonus_dmg > 0 then begin
+                        dmgtotar += knockback_bonus_dmg;
+                        set_sfall_return(dmgtotar);
+                        set_sfall_arg(2, dmgtotar);
+                        return;
+                     end
                   end
                end
             end

@@ -57,7 +57,7 @@
 {57}{}{Give back what you stole, I'm serious!} 
 {58}{}{I won't take it lightly if you don't give it back} 
 {59}{}{Did you steal something from me?! No, it seems not...} 
-{60}{}{Did you borrow my stuff without asking? No, it looks like you haven't} 
+{60}{}{Did you borrow my stuff without asking? No, it looks like you didn't} 
 {61}{}{Did you take something from me? No, apparently not...} 
 {62}{}{Did you steal something from me?! No, it seems not...} 
 {63}{}{I'll pretend that nothing happened! Just don't touch me!} 
@@ -72,13 +72,16 @@
 {72}{}{And why did you slip this to me?} 
 {73}{}{ hit point and dies instantly.}
 {74}{}{ hit points and dies instantly.}
-{75}{}{The only witness is dead, no one will know about your crime.}
-{76}{}{I ain't afraid of no ghosts!}
+{75}{}{I ain't afraid of no ghosts!}
+{76}{}{The last person who witnessed your failed pickpocket attempt is dead. Now no one will know about your misdeed.}
+{77}{}{The witnesses to your failed pickpocket attempt are no longer alive. Now your secret rests with them.}
+{78}{}{The last person who saw your failed attempt to steal is dead. Now no one will know about your crime.}
+{79}{}{The witnesses to your failed theft are no longer among the living. Now your secret rests with them.}
 
 
 {94}{}{You need at least %1% steal skill to attempt to steal the %2%.} // failed stealing attempt
 {95}{}{You need at least %1% steal skill to attempt to plant the %2%.} // failed planting attempt																							 
-{96}{}{You were hit for }
+{96}{}{You were critically hit for }
 {97}{}{You were critically hit in the head for }
 {98}{}{You fail to steal the }
 {99}{}{You fail to plant the } 
