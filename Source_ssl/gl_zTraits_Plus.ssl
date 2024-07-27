@@ -55,10 +55,12 @@
 
 #define ddraw_perks_ini_path "ddraw.ini|Misc|PerksFile"
 #define ddraw_drugs_ini_path "ddraw.ini|Misc|DrugsFile"
-#define default_perks_ini_path "mods\\sfall\\perks.ini"
-#define default_drugs_ini_path "mods\\sfall\\drugs.ini"
-#define default_perks_ini_name "perks.ini"
-#define default_drugs_ini_name "drugs.ini"
+#define default_perks_ini_path "mods\\sfall\\Perks.ini"
+#define default_drugs_ini_path "mods\\sfall\\Drugs.ini"
+#define default_perks_ini_name "Perks.ini"
+#define default_drugs_ini_name "Drugs.ini"
+#define default_perks_ini_name2 "perks.ini"
+#define default_drugs_ini_name2 "drugs.ini"
 
 #define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
                                        critter_fid == FID_NAPOWR or \
@@ -142,7 +144,6 @@ variable kamikaze;
 variable kamikaze_ap_used;
 variable kamikaze_hex_walked_num;
 variable kamikaze_last_tile;
-variable kamikaze_last_hand_items;
 
 //TRAIT_finesse
 variable finesse;
@@ -2545,13 +2546,19 @@ procedure check_ini_path begin
    variable drugs_ini_not_set;
    variable common_ini_path = -1;
    variable ini_was_set;
+   variable common_ini_path_arr;
    perks_ini_path = get_ini_string(ddraw_perks_ini_path);
    drugs_ini_path = get_ini_string(ddraw_drugs_ini_path);
    if perks_ini_path == "" orElse perks_ini_path < 0 then begin
       perks_ini_not_set = 1;
    end
    else begin
-      common_ini_path = get_array(string_split(perks_ini_path, default_perks_ini_name), 0);
+      common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name);
+      if len_array(common_ini_path_arr) <= 1 then
+         common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name2);
+
+      if len_array(common_ini_path_arr) > 1 then
+         common_ini_path = get_array(common_ini_path_arr, 0);
    end
 
    if drugs_ini_path == "" orElse drugs_ini_path < 0 then begin
@@ -2559,7 +2566,12 @@ procedure check_ini_path begin
    end
    else begin
       if common_ini_path == "" orElse common_ini_path < 0 then begin
-         common_ini_path = get_array(string_split(drugs_ini_path, default_drugs_ini_name), 0);
+         common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name);
+         if len_array(common_ini_path_arr) <= 1 then
+            common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name2);
+
+         if len_array(common_ini_path_arr) > 1 then
+            common_ini_path = get_array(common_ini_path_arr, 0);
       end
    end
 
