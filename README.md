@@ -22,6 +22,7 @@
 
 ## Mods
 - [SecondaryAttack](#secondary-attack)
+- [Traits Plus](#traits-plus)
 - [SkillBooks](#Skill-Books)
 - [Poison](#poison)
 - [Healing](#healing)
