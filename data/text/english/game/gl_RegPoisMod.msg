@@ -9,11 +9,11 @@
 {9}{}{Your left leg healed.}
 {10}{}{Your eyesight has returned.}
 {11}{}{Envenomed }
-{12}{}{You applied the venom of a radscorpion to your weapon, now every successful attack poisons the enemy.}
+{12}{}{You have applied radscorpion venom to your weapon. Now, every successful attack will poison the target.}
 {13}{}{%1% applies poison to %2%.} //%1% = npc_name, %2% - weapon name
 {14}{}{You apply poison to %2%.}
 {15}{}{You apply the last drops of poison to your weapon and discard the useless remnants of the poison gland.}
-{16}{}{Poison from the weapon starts to drip on the ground, applying even more poison to the %2% isn't possible.}
+{16}{}{Poison from the weapon starts to drip on the ground. Applying even more poison to the %2% isn't possible.}
 {17}{}{You apply the last drops of poison to the weapon %1% holds, and discard the useless remnants of the poison gland.}
 {18}{}{You failed to poison your target undetected.}
 {19}{}{You heal %2% hit point.} //player if 1 hp

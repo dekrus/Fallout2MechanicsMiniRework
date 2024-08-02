@@ -6,7 +6,7 @@
 {6}{}{ and fell to the ground in pain.}
 {7}{}{ with no armor defenses and fell to the ground in pain.}
 {8}{}{. The impact knocks your target down.}
-{9}{}{. A hit to a vital organ sends the opponent to a knockout..}
+{9}{}{. A hit to a vital organ sends the opponent to a knockout.}
 {10}{}{ and dies.}
 {11}{}{ and passes away.}
 {12}{}{ and was killed.}

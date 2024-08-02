@@ -18,9 +18,9 @@
 {18}{}{After reading the book, }
 {19}{}{ now looks at the phenomenon of the game and the fate of mankind differently.}
 {20}{}{ has already learned everything in this book.}
-{21}{}{The book gave you a new perspective on the place of the game phenomenon in your life and the fate of humanity, which improved some of your skills..}
+{21}{}{The book gave you a new perspective on the place of the game phenomenon in your life and the fate of humanity, which improved some of your skills.}
 {22}{}{You learn the secrets of practical human and animal anatomy. This will help you with both healing and combat.}
-{23}{}{  is not smart enough to read highly scientific literature.}
+{23}{}{ is not smart enough to read highly scientific literature.}
 {24}{}{This monograph is for established medical professionals. }
 {25}{}{ cannot understand anything about it.}
 {26}{}{ does not have enough scientific knowledge to study this monograph.}
@@ -42,7 +42,7 @@
 {812}{}{You learn a lot about the practical application of hand-to-hand combat.}
 {813}{}{You gain new knowledge about lock design and intricacies.}
 {814}{}{You gain new knowledge about traps and stealth.}
-{902}{}{ learns new science information.}
+{902}{}{ learns new scientific information.}
 {903}{}{ learns a lot about repairing broken electronics.}
 {904}{}{ learns new ways to heal injuries.}
 {905}{}{ learns how to handle guns better.}
