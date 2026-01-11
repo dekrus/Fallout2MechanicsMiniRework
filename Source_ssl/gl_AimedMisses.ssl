@@ -1,8 +1,8 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
-#define crit_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),8))
+#define crit_fid(critter_obj)    (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
 #define short_crit(critter_obj)  (crit_fid(critter_obj) == 16777313 or crit_fid(critter_obj) == 16777275 or crit_fid(critter_obj) == 16777271 or crit_fid(critter_obj) == 16777240 or crit_fid(critter_obj) == 16777268)
 #define medium_crit(critter_obj) (crit_fid(critter_obj) == 16777276 or crit_fid(critter_obj) == 16777232 or crit_fid(critter_obj) == 16777283 or crit_fid(critter_obj) == 16777291 or crit_fid(critter_obj) == 16777243 or crit_fid(critter_obj) == 16777336 or crit_fid(critter_obj) == 16777270)
-#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) or (obj_type(obj) == OBJ_TYPE_CRITTER))
+#define ShootThru(obj)   ((get_flags(obj) bwand FLAG_SHOOTTHRU) orElse (obj_type(obj) == OBJ_TYPE_CRITTER))
 #define CRITICAL_MISS          0
 #define MISS                   1
 #define HIT                    2
@@ -18,20 +18,28 @@
                                        critter_fid == FID_HANPWR or \
                                        critter_fid == FID_MABOSS)
 
+#define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD orElse get_critter_stat(critter_obj, STAT_current_hp) <= 0)
+#define tile_num_beyond(start_tile, next_tile, range) call_offset_r3(0x4B1B84, start_tile, next_tile, range)
+#define Is_Crippled_hands(Who)                    (critter_state(Who) BWAND (DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT))
+
+#define get_active_weapon(critter)  critter_inven_obj(critter, (2 - active_hand) if critter == dude_obj else INVEN_TYPE_RIGHT_HAND)
+
+#define pid_scroll_block (0x500000C)
+#define FLAGS_GHOST_OBJECT (0xA000101D) //OBJECT_NO_SAVE, FLAG_NOBLOCK, FLAG_SHOOTTHRU,OBJECT_HIDDEN, FLAG_FLAT, FLAG_LIGHTTHRU, FLAG_NOHIGHLIGHT
+#define FLAGS_OBJECT_INERT (0x80000014) //OBJECT_NO_SAVE, FLAG_NOBLOCK, FLAG_SHOOTTHRU
+
+
+#define BODY_HIT_HEAD_NEW_MOD (-60)
+#define BODY_HIT_EYES_NEW_MOD (-90)
 
 #include "define_extra.h"
 #include "DEFINE.H"
 #include "sfall.h"
 #include "ARTFID.H"
-
+#include "F2MMR.H"
 
 
 procedure start;
-procedure misstohit;
-procedure COMBATDAMAGE;
-procedure SwingThrust;
-procedure LOS_is_blocked(variable watcher_obj, variable target_obj1 );
-procedure real_rotation_to_tile(variable begin_tile, variable dest_tile);
 
 variable MissMod;
 variable BodyRndHit;
@@ -42,11 +50,26 @@ variable dmg_type;
 variable thrusthit;
 variable missed;
 variable newtarget;
-variable first_target_dist;
 variable burst;
 variable grenade;
 variable pyro_bonus;
+variable new_random_target_array;
+variable remainder;
+variable shootthru_obj_array;
+variable shootthru_was_set;
+variable target_dummy;
+variable one_tme_call;
+variable sfall_510;
+variable gEyeHitMod;
+variable gHeadHitMod;
+//variable gDifficultAiming;
 
+inline procedure destroy_pseudo_target begin
+   if target_dummy > 0 then begin
+      destroy_object(target_dummy);
+      target_dummy = 0;
+   end
+end
 
 procedure CALCAPCOST begin
    variable critter = get_sfall_arg;
@@ -58,8 +81,12 @@ procedure CALCAPCOST begin
    variable thrust;
    variable wpnanim;
    variable wpnpid;
-   if wpn <= 0 then
+   //if shootthru_was_set > 0 then
+      //call restore_flags_for_critters;
+
+   if SwingThrustTweak <= 0 orElse wpn <= 0 then
       return;
+
    wpnpid = obj_pid(wpn);
    wpn_atk_mode = weapon_attack_mode(wpnpid, Atktype);
    if (wpn_atk_mode == ATKMODE_PRI_THRUST andAlso wpn_atk_mode != ATKMODE_PRI_SWING) orElse (wpn_atk_mode == ATKMODE_SEC_THRUST andAlso wpn_atk_mode != ATKMODE_SEC_SWING) then begin
@@ -91,64 +118,133 @@ procedure CALCAPCOST begin
    end
 end
 
-procedure start begin
-   if game_loaded then begin
-      MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
-      BodyRndHit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|BodyRndHit");
-      SwingThrustTweak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SwingThrust");
-      if MissMod > 0 or BodyRndHit > 0 or SwingThrustTweak > 0 then begin
-         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
-         register_hook_proc_spec(HOOK_AFTERHITROLL, misstohit);
+procedure remove_added_flag_for_objs begin
+   variable obj;
+   variable mask;
 
+   if shootthru_was_set > 0 then begin
+      foreach (obj:mask in shootthru_obj_array) begin
+         if mask == 0 then
+            continue;
 
-         if SwingThrustTweak > 0 then begin
-            register_hook_proc_spec(HOOK_TOHIT, SwingThrust);
-            register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+         if mask != 0 then begin
+            set_flags(obj, get_flags(obj) bwand mask);
          end
-         pyro_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
-         if pyro_bonus < 0 then pyro_bonus = 5;
       end
-      set_global_script_type(0);
-      set_global_script_repeat(0);
+      shootthru_was_set = 0;
+      clear_array(shootthru_obj_array);
    end
 end
 
-//Checking Line of fire is(not) blocked
-procedure LOS_is_blocked(variable watcher_obj ,variable target_obj1 ) begin
-   variable blocking_obj;
-   variable last_blocking_obj;
-   variable count = 0;
-   if obj_type(watcher_obj) == OBJ_TYPE_CRITTER andAlso obj_type(target_obj1) == OBJ_TYPE_CRITTER andAlso get_critter_stat(watcher_obj,STAT_current_hp) > 0 andAlso get_critter_stat(target_obj1,STAT_current_hp) > 0 then begin
-      blocking_obj = obj_blocking_line(watcher_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
-      if blocking_obj == target_obj1 then begin
-         return false;
-      end
-      if blocking_obj andAlso not(ShootThru(blocking_obj)) then begin
-         return true;
-      end
-      if blocking_obj andAlso blocking_obj != target_obj1 andAlso ShootThru(blocking_obj) then begin
-         while blocking_obj andAlso blocking_obj != target_obj1 andAlso ShootThru(blocking_obj) do begin
-            if watcher_obj == blocking_obj then begin
-               return true;
-            end
-            last_blocking_obj = blocking_obj;
-            blocking_obj = obj_blocking_line(blocking_obj, tile_num(target_obj1), BLOCKING_TYPE_BLOCK);
-            if tile_num(last_blocking_obj) == tile_num(blocking_obj) then begin
-               return true;
-            end
-            if blocking_obj andAlso not(ShootThru(blocking_obj)) then begin
-               return true;
-            end
-            if blocking_obj == target_obj1 then begin
-               return false;
-            end
-            count += 1;
-            if count > 24 then begin //exit from loop if it is looped due to the fact that more than 2 NPCs stand in the same tile
-               return true;
-            end
-         end
-      end
+procedure set_shootthru_flag_for_obj(variable obj) begin
+   variable obj_flags;
+   if not(array_exists(shootthru_obj_array)) then
+      shootthru_obj_array = create_array_map;
+
+   obj_flags = get_flags(obj);
+   if (obj_flags bwand FLAG_SHOOTTHRU) == 0 then begin
+      set_array(shootthru_obj_array, obj, MASK_NO_SHOOTTHRU);
+      set_flags(obj, obj_flags bwor FLAG_SHOOTTHRU);
    end
+   shootthru_was_set = 1;
+end
+
+
+//Checking Line of fire is(not) blocked
+procedure get_first_non_critter_block_shoot(variable obj, variable target_tile) begin
+   variable source_tile = tile_num(obj);
+   variable current_obj = obj;
+   variable iterations;
+   variable max_iterations = 20;
+   variable obstacle;
+   variable obstacle_tile;
+   variable last_obstacle;
+   variable last_obstacle_tile;
+
+   if obj <= 0 orElse target_tile <= 0 then
+      return -1;
+
+   if (source_tile == target_tile) then
+      return 0;
+
+
+   while (iterations < max_iterations) do begin
+      iterations += 1;
+
+      obstacle = obj_blocking_line(current_obj, target_tile, BLOCKING_TYPE_SHOOT);
+
+      if (obstacle == 0) then
+         return 0;
+
+      obstacle_tile = tile_num(obstacle);
+
+      if (obstacle_tile == target_tile) then
+         return 0;
+
+      if (obstacle == last_obstacle orElse obstacle_tile == last_obstacle_tile) then
+         return obstacle;
+
+      if (obj_type(obstacle) != OBJ_TYPE_CRITTER) then
+         return obstacle;
+
+      last_obstacle_tile = obstacle_tile;
+      last_obstacle = obstacle;
+      current_obj = obstacle;
+   end
+
+   return 0;
+end
+
+//Checking Line of fire is(not) blocked
+procedure get_first_non_critter_block_shoot_old(variable obj, variable target_tile) begin
+   variable source_tile = tile_num(obj);
+   variable current_obj = obj;
+   variable iterations;
+   variable max_iterations = 20;
+   variable obstacle;
+   variable obstacle_tile;
+   variable last_obstacle;
+   variable last_obstacle_tile;
+
+   if obj <= 0 orElse target_tile <= 0 then
+      return -1;
+
+   if (source_tile == target_tile) then
+      return 0;
+
+
+   while (iterations < max_iterations) do begin
+      iterations += 1;
+
+      obstacle = obj_blocking_line(obj, target_tile, BLOCKING_TYPE_SHOOT);
+
+      if (obstacle == 0) then
+         break;
+
+      obstacle_tile = tile_num(obstacle);
+
+      if (obstacle_tile == target_tile) then begin
+         obstacle = 0;
+         break;
+      end
+
+      if (obstacle == last_obstacle) then
+         break;
+
+
+      if (obj_type(obstacle) != OBJ_TYPE_CRITTER) then
+         break;
+
+      if obstacle > 0 then
+         call set_shootthru_flag_for_obj(obstacle);
+
+      last_obstacle_tile = obstacle_tile;
+      last_obstacle = obstacle;
+      current_obj = obstacle;
+   end
+
+   call remove_added_flag_for_objs;
+   return obstacle;
 end
 
 //by JimTheDinosaur https://nma-fallout.com/threads/stuff-for-define_extra-h.202989/page-2
@@ -170,11 +266,100 @@ procedure real_rotation_to_tile(variable begin_tile, variable dest_tile) begin
   	return temp_rot;
 end
 
-procedure SwingThrust begin
-   variable atkr = get_sfall_arg_at(1);
-   variable tar = get_sfall_arg_at(2);
+procedure GAMEMODECHANGE begin
+   variable lastgamemode = get_sfall_arg_at(1);
+   variable cur_HeadHitMod;
+   variable cur_EyeHitMod;
+   if lastgamemode bwand OPTIONS then begin
+      if combat_difficulty >= 2 then begin
+         cur_HeadHitMod = get_bodypart_hit_modifier(BODY_HIT_HEAD);
+         cur_EyeHitMod = get_bodypart_hit_modifier(BODY_HIT_EYES);
+         if cur_HeadHitMod > BODY_HIT_HEAD_NEW_MOD then begin
+            gHeadHitMod = cur_HeadHitMod;
+            set_bodypart_hit_modifier(BODY_HIT_HEAD, BODY_HIT_HEAD_NEW_MOD);
+         end
+         if cur_EyeHitMod > BODY_HIT_EYES_NEW_MOD then begin
+            gEyeHitMod = cur_EyeHitMod;
+            set_bodypart_hit_modifier(BODY_HIT_EYES, BODY_HIT_EYES_NEW_MOD);
+         end
+      end
+      else begin
+         if get_bodypart_hit_modifier(BODY_HIT_HEAD) == BODY_HIT_HEAD_NEW_MOD then
+            set_bodypart_hit_modifier(BODY_HIT_HEAD, gHeadHitMod);
+         if get_bodypart_hit_modifier(BODY_HIT_EYES) == BODY_HIT_EYES_NEW_MOD then
+            set_bodypart_hit_modifier(BODY_HIT_EYES, gEyeHitMod);
+      end
+   end
+end
+
+procedure COMBATTURN begin
+   if get_sfall_arg_at(0) <= 0 then begin
+      call destroy_pseudo_target;
+   end
+end
+
+procedure get_attack_anim(variable weapon,variable attack_type) begin
+   variable attack_anim;
+   variable attack_anim_arr;
+   variable index;
+   if attack_type >= ATKTYPE_LWEP_RELOAD andAlso attack_type <= ATKTYPE_RWEP_RELOAD then begin
+      return -1;
+   end
+   //kick
+   if attack_type == ATKTYPE_KICK orElse (attack_type >= ATKTYPE_STRONGKICK andAlso attack_type <= ATKTYPE_PIERCINGKICK) then begin
+      return ANIM_kick_leg;
+   end
+   //punch
+   if weapon <= 0 then begin
+      return ANIM_throw_punch;
+   end
+   attack_anim_arr = [ANIM_stand, ANIM_throw_punch, ANIM_kick_leg, ANIM_swing_anim, ANIM_thrust_anim, ANIM_throw_anim, ANIM_fire_single, ANIM_fire_burst, ANIM_fire_continuous];
+   if attack_type == ATKTYPE_LWEP1 OrElse attack_type == ATKTYPE_RWEP1 then begin
+      index = get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x0000000F;
+   end
+   else begin
+      index = (get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x000000F0) / 16;
+   end
+   attack_anim = attack_anim_arr[index];
+   return attack_anim;
+end
+
+procedure get_weapon_skill_lvl(variable attacker, variable weapon, variable attack_anim) begin
+   variable wpn_flags;
+   variable wpn_dmg_type;
+   variable weapon_skill;
+   if weapon <= 0 orElse attack_anim == ANIM_kick_leg orElse attack_anim == ANIM_throw_punch then
+      return has_skill(attacker, SKILL_UNARMED_COMBAT);
+   else if attack_anim == ANIM_throw_anim then
+      return has_skill(attacker, SKILL_THROWING);
+   else if attack_anim == ANIM_swing_anim orElse attack_anim == ANIM_thrust_anim then
+      return has_skill(attacker, SKILL_MELEE);
+
+
+   wpn_flags = get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT);
+   wpn_dmg_type = get_proto_data(obj_pid(weapon), PROTO_WP_DMG_TYPE);
+
+   if ((wpn_flags bwand WEAPON_ENERGY) == WEAPON_ENERGY) or wpn_dmg_type == DMG_laser or wpn_dmg_type == DMG_plasma or wpn_dmg_type == DMG_electrical then begin
+      weapon_skill = has_skill(attacker, SKILL_ENERGY_WEAPONS);
+   end
+   else begin
+      if (wpn_flags bwand WEAPON_BIGGUN ) == WEAPON_BIGGUN then begin
+         weapon_skill = has_skill(attacker, SKILL_BIG_GUNS);
+      end
+      else begin
+         weapon_skill = has_skill(attacker, SKILL_SMALL_GUNS);
+      end
+   end
+   return weapon_skill;
+end
+
+procedure TOHIT begin
+   variable hit_capped = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable target = get_sfall_arg;
+   variable body_part = get_sfall_arg;
    variable Atktype = get_sfall_arg_at(5);
-   variable hitch = get_sfall_arg_at(7);
+   variable hit_uncapped = get_sfall_arg_at(7);
    variable wpn_flags;
    variable leftHand_obj;
    variable rightHand_obj;
@@ -183,21 +368,70 @@ procedure SwingThrust begin
    variable wpn;
    variable wpnanim;
    variable swing;
-   //variable thrust;
    variable atkrskill;
    variable tarAg;
-   variable Newhitch;
-   if SwingThrustTweak > 0 andAlso atkr != tar then begin
+   variable Newhitch = -100;
+   variable max_hit_cap;
+   //variable new_hit_cap;
+   //variable attack_anim;
+   //variable weapon_skill;
+   //variable body_part_penalty;
+   //variable distance;
+   //variable skill_Mod;
+   //variable attacker_pe_check;
+   //variable weapon_perk;
+   if hit_capped > 95 orElse hit_capped < hit_uncapped then begin
+      max_hit_cap = hit_capped;
+   end else
+      max_hit_cap = 95;
+
+   //if body_part != BODY_UNCALLED andAlso body_part != BODY_HIT_TORSO andAlso ((gDifficultAiming > 0 andAlso combat_difficulty >= 2) orElse gDifficultAiming >= 2) then begin
+//
+      //wpn = get_active_weapon(attacker);
+      //attack_anim = get_attack_anim(wpn, Atktype);
+      //weapon_skill = get_weapon_skill_lvl(attacker, wpn, attack_anim);
+      //body_part_penalty = get_bodypart_hit_modifier(body_part);
+      //if weapon_skill >= SKILL_UNARMED_COMBAT then
+         //body_part_penalty = body_part_penalty / 2;
+      //if body_part == BODY_HIT_EYES orElse body_part == BODY_HIT_HEAD then
+         //body_part_penalty = body_part_penalty  * 3 / 2;
+      //else
+         //new_hit_cap = 5;
+//
+      //distance_objs(distance, attacker, target);
+      //attacker_pe_check = get_critter_stat(attacker, STAT_pe) * 5;
+      //if distance > attacker_pe_check then
+         //distance += distance - attacker_pe_check;
+      //weapon_perk = get_proto_data(obj_pid(wpn), PROTO_WP_PERK);
+      //if weapon_perk == PERK_weapon_long_range orElse weapon_perk == PERK_weapon_scope_range then
+         //distance = distance / 2;
+//
+      //skill_mod = 1.0 - (weapon_skill / 200.0);
+      //new_hit_cap += max_hit_cap + (body_part_penalty - distance * 2) * skill_mod;
+      //new_hit_cap = ceil(new_hit_cap);
+//
+      //if new_hit_cap > max_hit_cap then
+         //new_hit_cap = max_hit_cap;
+      //else if new_hit_cap < -99 then
+         //new_hit_cap = -99;
+//
+      //if hit_capped > new_hit_cap then begin
+         //Newhitch = new_hit_cap;
+      //end
+   //end
+
+   one_tme_call = 0;
+   if SwingThrustTweak > 0 andAlso attacker != target then begin
       // player attacker
-      if atkr == dude_obj then begin
+      if attacker == dude_obj then begin
          if active_hand then begin
-            rightHand_obj = critter_inven_obj(atkr, INVEN_TYPE_RIGHT_HAND);
+            rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
             if rightHand_obj then begin
                rightHand = obj_pid(rightHand_obj);
             end
          end
          else begin
-            leftHand_obj = critter_inven_obj(atkr, INVEN_TYPE_LEFT_HAND);
+            leftHand_obj = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
             if leftHand_obj then begin
                leftHand = obj_pid(leftHand_obj);
             end
@@ -205,7 +439,7 @@ procedure SwingThrust begin
       end
       // non player attacker
       else begin
-         rightHand_obj = critter_inven_obj(atkr, INVEN_TYPE_RIGHT_HAND);
+         rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
          if rightHand_obj then begin
             rightHand = obj_pid(rightHand_obj);
          end
@@ -274,19 +508,29 @@ procedure SwingThrust begin
       end
 
       //New effect for swing and thust attacks
-      if tar andAlso swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14)  then begin // Wakizashi use unique animation so 14
-         atkrskill = has_skill(atkr, SKILL_MELEE);
-         tarAg = get_critter_stat(tar, STAT_ag);
-         Newhitch = hitch + tarAg + (atkrskill / 15); // increas hit chance
-         set_sfall_arg(7, Newhitch);
-         if Newhitch > 95 then begin
-            Newhitch = 95;
+      if hit_uncapped < max_hit_cap andAlso target andAlso swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14)  then begin // Wakizashi use unique animation so 14
+         atkrskill = has_skill(attacker, SKILL_MELEE);
+         tarAg = get_critter_stat(target, STAT_ag);
+         Newhitch = hit_uncapped + 5 + tarAg + (atkrskill / 15); // increas hit chance
+         hit_uncapped = Newhitch;
+         //set_sfall_arg(7, Newhitch);
+         if Newhitch > max_hit_cap then begin
+            Newhitch = max_hit_cap;
          end
-         set_sfall_return(Newhitch);
-         set_sfall_arg(0, Newhitch);
+         //set_sfall_return(Newhitch);
+         //set_sfall_arg(0, Newhitch);
       end
    end
- end
+
+   if Newhitch != -100 then begin
+      set_sfall_arg(7, hit_uncapped);
+      if Newhitch > max_hit_cap then begin
+         Newhitch = max_hit_cap;
+      end
+      set_sfall_return(Newhitch);
+      set_sfall_arg(0, Newhitch);
+   end
+end
 
 procedure COMBATDAMAGE begin
    variable target = get_sfall_arg;
@@ -330,24 +574,6 @@ procedure COMBATDAMAGE begin
          wpn_dmg_type = metarule(METARULE_W_DAMAGE_TYPE, weapon);
          wpnpid = obj_pid(weapon);
       end
-      if MissMod > 0 then begin
-         distance_objs(new_target_dist, target, attacker);
-         //disable the original 100% hit next target after miss mechanic
-         rnd = random(0, 5);
-         if rnd > 0 andAlso newtarget == 0 andAlso burst == 0 andAlso grenade == 0 andAlso first_target_dist <= new_target_dist andAlso wpn_dmg_type == DMG_normal_dam andAlso missed == MISS then begin
-            set_sfall_return(0);
-            set_sfall_arg(2, 0);
-            set_sfall_return(0);
-            set_sfall_arg(3, 0);
-            set_sfall_return(0);
-            set_sfall_arg(4, 0);
-            set_sfall_return(0);
-            set_sfall_arg(5, 0);
-            missed = -1;
-            return;
-         end
-      end
-
       target_type = obj_type(target);
       //swingThrust
       if SwingThrustTweak > 0 andAlso wpnpid > 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
@@ -500,7 +726,432 @@ procedure COMBATDAMAGE begin
    end
 end
 
-procedure misstohit begin
+procedure is_tile_in_cone_coord(variable check_tile, variable attacker_tile, variable attacker_x, variable attacker_y, variable target_x, variable target_y, variable direction_x, variable direction_y, variable direction_length, variable cone_width_mod, variable weapon_skill) begin
+   variable check_x, check_y;
+   variable check_vector_x, check_vector_y;
+   variable dot_product, projection_length, projection_x, projection_y, distance_to_projection_sq, cone_radius_sq;
+   variable max_cone_width = 3.5;
+   variable min_cone_width = 0.1;
+   variable width_range;
+   variable width_factor;
+  	variable temp_dist;
+  	variable temp_rot;
+  	variable new_temp_dist;
+   max_cone_width += cone_width_mod;
+   if max_cone_width < 0.5 then begin
+      max_cone_width = 0.5;
+   end
+   else if max_cone_width > 7.5 then begin
+      max_cone_width = 7.5;
+   end
+
+   width_range = max_cone_width - min_cone_width;
+
+
+   check_x = (check_tile % 200);
+   check_y = check_tile / 200;
+
+   check_vector_x = check_x - attacker_x;
+   check_vector_y = check_y - attacker_y;
+
+   dot_product = check_vector_x * direction_x + check_vector_y * direction_y;
+   if dot_product < 0 then
+     return false;
+
+   projection_length = dot_product;
+   projection_x = attacker_x + projection_length * direction_x;
+   projection_y = attacker_y + projection_length * direction_y;
+
+   distance_to_projection_sq = (check_x - projection_x)^2 + (check_y - projection_y)^2;
+
+   width_factor = min_cone_width + width_range * (1 - exponent(-projection_length / 20.0)); // Для менее привилегированных направлений
+   cone_radius_sq = width_factor^2;
+
+   temp_rot = rotation_to_tile(attacker_tile, check_tile);
+   if temp_rot == 1 orElse temp_rot == 4 then begin
+      temp_dist = tile_distance(attacker_tile, check_tile);
+  	   new_temp_dist = tile_distance(tile_num_in_direction(attacker_tile, temp_rot, temp_dist), check_tile);
+     	if temp_rot == 4 then begin
+     	   if new_temp_dist > tile_distance(tile_num_in_direction(attacker_tile, 5, temp_dist), check_tile) then
+     	      cone_radius_sq *= 0.5;
+     	   else if new_temp_dist > tile_distance(tile_num_in_direction(attacker_tile, 3, temp_dist), check_tile) then
+     	      cone_radius_sq *= 0.5;
+     	   end
+     	   else if temp_rot == 1 then begin
+     	   if new_temp_dist > tile_distance(tile_num_in_direction(attacker_tile, 0, temp_dist), check_tile) then
+     	      cone_radius_sq *= 0.5;
+     	   else if new_temp_dist > tile_distance(tile_num_in_direction(attacker_tile, 2, temp_dist), check_tile) then
+     	      cone_radius_sq *= 0.5;
+     	end
+   end
+
+   if (distance_to_projection_sq <= cone_radius_sq) then
+    return 1;
+end
+
+procedure re_count(variable counter) begin
+   variable counter_floor = floor(counter);
+   if (floor(remainder + counter) > counter_floor) then begin
+      remainder = remainder + counter - floor(remainder + counter);
+      return floor(counter + 1);
+   end
+   else begin
+      remainder = remainder + (counter - counter_floor);
+      return counter_floor;
+   end
+end
+
+procedure get_last_tile_on_line(variable begin_tile, variable dest_tile, variable range) begin
+   variable attacker_rotation_to_target = rotation_to_tile(begin_tile, dest_tile);
+   variable temp_dist = tile_distance(begin_tile, dest_tile);
+   variable temp_rot = rotation_to_tile(begin_tile, dest_tile);
+   variable check_tile;
+   variable temp_tile_in_dir;
+   variable temp_dist_in_dir;
+   variable temp_rot_in_dir;
+   variable side,counter,tile_count;
+
+   if temp_rot == 4 then begin
+      if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 5, temp_dist), dest_tile) then
+         temp_rot = 5;
+      else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 3, temp_dist), dest_tile) then
+         temp_rot = 3;
+   end
+   else if temp_rot == 1 then begin
+      if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 0, temp_dist), dest_tile) then
+         temp_rot = 0;
+      else if tile_distance(tile_num_in_direction(begin_tile, temp_rot, temp_dist), dest_tile) > tile_distance(tile_num_in_direction(begin_tile, 2, temp_dist), dest_tile) then
+         temp_rot = 2;
+   end
+
+   temp_tile_in_dir = tile_num_in_direction(begin_tile, temp_rot, temp_dist);
+   temp_dist_in_dir = tile_distance(temp_tile_in_dir, dest_tile);
+   temp_rot_in_dir = rotation_to_tile(temp_tile_in_dir, dest_tile);
+
+   remainder = 0;
+   tile_count = 0;
+   temp_dist *= 1.0;
+
+   if temp_dist_in_dir == 0 then begin
+      side = 0;
+   end
+   else begin
+      if temp_rot_in_dir == (temp_rot + 2) % 6 then begin
+         side = 1;
+      end
+      else begin
+         if temp_rot_in_dir == (temp_rot + 4) % 6 then begin
+            side = 5;
+         end
+      end
+   end
+   if side != 0 then begin
+      counter = temp_dist / temp_dist_in_dir / 1.5;
+   end
+   else begin
+      counter = 50.0;
+   end
+
+   while tile_count < range do begin
+      if counter >= 1.0 then begin
+         if check_tile == 0 then
+            check_tile = begin_tile;
+         else
+            check_tile = tile_num_in_direction(check_tile, temp_rot, 1);
+         counter -= 1.0;
+         //create_object(33555753, check_tile, line_elevation);
+      end
+      else begin
+         check_tile = tile_num_in_direction(check_tile, ((temp_rot+side) % 6), 1);
+         counter = temp_dist / temp_dist_in_dir + re_count(counter) - 1.0;
+         //create_object(205, check_tile, line_elevation);
+      end
+      tile_count += 1;
+
+
+   end
+   return check_tile;
+end
+
+procedure max(variable a, variable b) begin
+   if (a > b) then
+      return a;
+
+   return b;
+end
+
+procedure min(variable a, variable b) begin
+   if (a < b) then
+      return a;
+
+   return b;
+end
+
+procedure get_critters_in_cone(variable attacker, variable target, variable wpn_range, variable weapon_skill, variable rnd) begin
+   variable end_tile;
+   variable attacker_tile = tile_num(attacker);
+   variable target_tile = tile_num(target);
+   variable attacker_x, attacker_y, target_x, target_y;
+   variable direction_x, direction_y, direction_length;
+   variable new_target;
+   variable new_target_tile;
+   variable new_targets_in_radius;
+   variable attacker_rot_to_target = rotation_to_tile(attacker_tile,target_tile);
+   variable new_target_count;
+   variable cone_width_mod;
+   variable distance = tile_distance(attacker_tile, target_tile);
+   variable base_skill_factor;
+   variable distance_influence;
+   variable attempts;
+   variable start_dir = random(0, 5);
+   variable current_dir = start_dir;
+   variable new_range;
+
+   if weapon_skill < 1 then
+      weapon_skill = 1;
+   end_tile = get_last_tile_on_line(attacker_tile, target_tile, wpn_range);
+
+   if rnd > 14 then begin
+
+      clear_array(new_random_target_array);
+      base_skill_factor = 4.0 - (weapon_skill * 8.0 / 300.0);
+
+      distance_influence = 0.01 + (weapon_skill * 0.06 / 300.0);
+
+      cone_width_mod = base_skill_factor - distance * distance_influence;
+
+
+
+
+      attacker_x = (attacker_tile % 200);
+      attacker_y = attacker_tile / 200;
+      target_x = (target_tile % 200);
+      target_y = target_tile / 200;
+      direction_x = target_x - attacker_x;
+      direction_y = target_y - attacker_y;
+
+      direction_length = (1.0 * sqrt(direction_x^2 + direction_y^2));
+      if (direction_length == 0) then
+        return -1;
+
+      direction_x = direction_x / direction_length;
+      direction_y = direction_y / direction_length;
+
+      new_targets_in_radius = objects_in_radius(attacker_tile, wpn_range, elevation(attacker), OBJ_TYPE_CRITTER);
+      foreach new_target in new_targets_in_radius begin
+         if new_target <= 0 orElse new_target == attacker orElse new_target == target then
+            continue;
+
+         new_target_tile = tile_num(new_target);
+         if new_target_tile == attacker_tile orElse new_target_tile == target_tile orElse rotation_to_tile(attacker_tile, new_target_tile) != attacker_rot_to_target then
+            continue;
+
+         if not(is_dead(new_target)) andAlso obj_is_visible_flag(new_target) then begin
+            if not(is_in_array(new_target,new_random_target_array)) andAlso (is_tile_in_cone_coord(new_target_tile,attacker_tile,attacker_x,attacker_y,target_x,target_y,direction_x,direction_y,direction_length, cone_width_mod, weapon_skill)) then begin
+               if get_first_non_critter_block_shoot(attacker, new_target_tile) <= 0 then begin
+                  set_array(new_random_target_array, new_target_count, new_target);
+                  new_target_count += 1;
+               end
+            end
+         end
+      end
+   end
+   while attempts < 6 do begin
+      new_range = wpn_range * (0.15 - (weapon_skill * 0.18 / 270.0));
+      new_range = ceil(new_range);
+      if new_range < 1 then
+         new_range = 1;
+      new_range = random(1, new_range);
+      end_tile = tile_num_in_direction(end_tile, current_dir, new_range);
+
+      if rotation_to_tile(attacker_tile, end_tile) == attacker_rot_to_target then
+         return end_tile;
+
+      current_dir = (current_dir + 1) % 6;
+
+      attempts += 1;
+   end
+
+   return end_tile;
+end
+
+procedure get_miss_tile(variable attacker, variable target, variable range, variable weapon, variable weapon_attack_anim) begin
+   variable shot_deviation = 6;
+   variable min_shot_deviation = 1;
+   variable start_tile = tile_num(attacker);
+   variable next_tile = tile_num(target);
+   variable distance = tile_distance(start_tile, next_tile);
+   variable rot_to_target = rotation_to_tile(start_tile, next_tile);
+   variable miss_tile = tile_num_beyond(start_tile, next_tile, 50);
+   variable tmp_rot;
+   variable rnd_rot = random(0, 5);
+   variable cur_rot;
+   variable tmp_dist;
+   variable rnd_dist;
+   variable cur_dist;
+   variable cur_tile;
+   variable attacker_pe = ((get_critter_stat(attacker, STAT_pe) + has_trait(TRAIT_PERK, attacker, PERK_sharpshooter) * 2) / 2.0);
+   variable attacker_st = (get_critter_stat(attacker, STAT_st) + has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) * 3);
+   variable weapon_pid = obj_pid(weapon);
+   variable weapon_perk = get_proto_data(weapon_pid, PROTO_WP_PERK);
+   variable weapon_min_st  = get_proto_data(weapon_pid, PROTO_WP_MIN_ST);
+   variable st_diff = attacker_st - weapon_min_st;
+   variable weapon_is_two_handed = ((get_proto_data(weapon_pid, PROTO_FLAG_EXT) bwand WEAPON_2HAND) == WEAPON_2HAND);
+   variable weapon_skill = get_weapon_skill_lvl(attacker, weapon, weapon_attack_anim);
+   variable attacker_state = critter_state(attacker);
+   variable attacker_is_blind = (attacker_state bwand DAM_BLIND);
+   variable attacker_has_crippled_hand_left = (attacker_state bwand DAM_CRIP_ARM_LEFT);
+   variable attacker_has_crippled_hand_right = (attacker_state bwand DAM_CRIP_ARM_RIGHT);
+
+   if attacker_is_blind then
+      shot_deviation += 3;
+   if attacker_has_crippled_hand_left then begin
+      if weapon_is_two_handed orElse weapon == critter_inven_obj2(attacker, INVEN_TYPE_LEFT_HAND) then
+         shot_deviation += 1;
+   end
+   if attacker_has_crippled_hand_right then begin
+      if weapon_is_two_handed orElse weapon == critter_inven_obj2(attacker, INVEN_TYPE_RIGHT_HAND) then
+         shot_deviation += 1;
+   end
+
+   if weapon_perk == PERK_weapon_accurate then
+      shot_deviation -= 1;
+   else if weapon_perk == PERK_weapon_scope_range then begin
+      if tile_distance(start_tile, next_tile) <= 8 then
+         shot_deviation += 1;
+      else
+         shot_deviation -= 2;
+   end
+   else if weapon_perk == PERK_weapon_long_range then begin
+      attacker_pe *= 1.1;
+   end
+
+   shot_deviation -= weapon_skill * (0.002593 * attacker_pe + 0.007407);
+
+
+   if st_diff < 0 then
+      shot_deviation -= st_diff / 1.5;
+
+   if distance > (attacker_pe * 2) then
+      shot_deviation += (distance - (attacker_pe * 2)) * 0.1;
+
+
+   if shot_deviation >= 5 then begin
+      min_shot_deviation = shot_deviation / 3;
+      min_shot_deviation = round(min_shot_deviation);
+   end
+
+   if shot_deviation <= min_shot_deviation then begin
+      shot_deviation = min_shot_deviation;
+   end
+   else if shot_deviation > 14 then begin
+      shot_deviation = 14;
+   end
+   else
+      shot_deviation = round(shot_deviation);
+
+
+   rnd_dist = random(min_shot_deviation, shot_deviation);
+
+   for (tmp_rot := 0; tmp_rot < 6; tmp_rot++) begin
+      cur_rot = (tmp_rot + rnd_rot) % 6;
+      if cur_rot != rot_to_target andAlso cur_rot != (rot_to_target + 3) % 6 then begin
+         cur_tile = 0;
+         for (tmp_dist := 0; tmp_dist < shot_deviation; tmp_dist++) begin
+            cur_dist = ((tmp_dist + rnd_dist) % shot_deviation);
+            cur_tile = tile_num_in_direction(miss_tile, cur_rot, cur_dist);
+            if rotation_to_tile(start_tile, cur_tile) == rot_to_target then begin
+               break;
+            end else begin
+               cur_tile = tile_num_in_direction(miss_tile, (cur_rot+3)%6, (cur_dist / 2) + 1);
+               if rotation_to_tile(start_tile, cur_tile) == rot_to_target then begin
+                  break;
+               end
+            end
+
+         end
+         if cur_tile != 0 then
+            break;
+      end
+   end
+   if cur_tile <= 0 then
+      miss_tile = next_tile;
+   else
+      miss_tile = get_last_tile_on_line(start_tile, cur_tile, range);
+   return miss_tile;
+end
+
+///get targets on "WIDE" line using obj_blocking_line
+procedure get_targets_on_a_line(variable attacker, variable target, variable end_tile, variable max_distance) begin
+   variable source_tile = tile_num(attacker);
+   variable current_obj = attacker;
+   variable rot_to_tar = rotation_to_tile(source_tile, end_tile);
+   variable start_tile = tile_num_in_direction(source_tile, rot_to_tar, 1);
+   variable last_obstacle;
+   variable iterations;
+   variable max_iterations = 15;
+   variable new_target_count;
+   variable obstacle;
+   variable obstacle_tile;
+
+   if attacker <= 0 orElse end_tile <= 0 then
+      return -1;
+
+   if (source_tile == end_tile) then
+      return 0;
+
+   if array_exists(new_random_target_array) then
+      clear_array(new_random_target_array);
+   else
+      new_random_target_array = create_array_map;
+
+   obstacle = obj_blocking_tile(start_tile, elevation(attacker), BLOCKING_TYPE_SHOOT);
+   while (iterations < max_iterations) do begin
+      iterations += 1;
+
+      if obstacle <= 0 then
+         obstacle = obj_blocking_line(attacker, end_tile, BLOCKING_TYPE_SHOOT);
+
+
+
+      if (obstacle == 0) then
+         break;
+
+      if (obj_type(obstacle) == OBJ_TYPE_CRITTER) then begin
+         if obstacle != attacker andALso obstacle != target andAlso not(is_in_array(obstacle, new_random_target_array)) andAlso not(is_really_dead(obstacle, critter_state(obstacle), get_critter_stat(obstacle, STAT_current_hp))) then begin
+            obstacle_tile = tile_num(obstacle);
+            if obstacle_tile != source_tile andAlso rotation_to_tile(source_tile, obstacle_tile) == rot_to_tar andAlso tile_distance(obstacle_tile, source_tile) <= max_distance then begin
+               set_array(new_random_target_array, new_target_count, obstacle);
+               new_target_count += 1;
+            end
+         end
+      end else
+            break;
+
+      if (tile_num(obstacle) == end_tile) then begin
+         obstacle = 0;
+         break;
+      end
+
+      if (obstacle == last_obstacle) then
+         break;
+
+      if obstacle > 0 then
+         call set_shootthru_flag_for_obj(obstacle);
+
+      last_obstacle = obstacle;
+      current_obj = obstacle;
+   end
+   call remove_added_flag_for_objs;
+
+   if (obstacle > 0 andAlso obj_type(obstacle) == OBJ_TYPE_CRITTER) then
+      return 0;
+
+   return obstacle;
+end
+
+
+procedure AFTERHITROLL begin
    variable hitmiss = 0;
    variable attacker = 0;
    variable target = 0;
@@ -513,47 +1164,27 @@ procedure misstohit begin
    variable oldrotationatkr = -1;
    variable rotationtar = -1;
    variable rotationnewtar = -1;
-   variable critter = 0;
-   variable distance1 = 0;
-   variable distance2 = 0;
-   variable distance3 = 0;
-   variable distance4 = 0;
-   variable distance5 = 0;
-   variable distance6 = 0;
-   variable distance7 = 0;
-   variable distance8 = 0;
-   variable distance9 = 0;
-   variable distance10 = 0;
-   variable distance11 = 0;
-   variable distance12 = 0;
-   variable losblock1 = 0;
-   variable losblock2 = 0;
-   variable losblock3 = 0;
-   variable losblock4 = 0;
-   variable losblock5 = 0;
-   variable losblock6 = 0;
-   variable losblockhit = 0;
-   variable leftHand_obj = 0;
-   variable rightHand_obj = 0;
-   variable leftHand = 0;
-   variable rightHand = 0;
-   variable wpn = 0;
-   variable wpnanim = 0;
-   variable wpn_flags = 0;
+   variable new_target;
+   variable new_target_2;
+   variable weapon;
+   variable weapon_pid;
+   variable weapon_attack_anim;
+   variable distance_to_tar;
+   variable wpnanim;
    variable wpn_dmg_type;
-   variable wpnrng = 0;
-   variable swing = 0;
-   variable thrust = 0;
-   variable shortcritfrm = 0;
-   variable rndarm = 0;
-   variable rndleg = 0;
-   variable critter_type = -1;
-   variable tar_cur_frm = 0;
-   variable attacker_meleedmg = 0;
-   variable wpn_maxdmg = 0;
-   variable wpn_mindmg = 0;
+   variable wpn_range;
+   variable swing;
+   variable thrust;
+   variable shortcritfrm;
+   variable rndarm;
+   variable rndleg;
+   variable critter_type;
+   variable tar_cur_frm;
+   variable attacker_meleedmg;
+   variable wpn_maxdmg;
+   variable wpn_mindmg;
    variable wpn_perk;
-   variable tar_fid = 0;
+   variable tar_fid;
    variable atk_mode;
    variable combat_diff;
    variable tar_tile;
@@ -561,9 +1192,17 @@ procedure misstohit begin
    variable critter_tile;
    variable tardt_extra;
    variable tardr_extra;
+   variable new_random_target_array_len;
+   variable miss_tile;
+   variable weapon_skill;
+   variable new_result;
+   if one_tme_call > 0 then
+      return;
+
+   one_tme_call = 1;
    burst = 0;
    grenade = 0;
-   if MissMod > 0 or SwingThrustTweak > 0 then begin
+   if MissMod > 0 orElse SwingThrustTweak > 0 then begin
       dmg_type = 0;
       newtarget = 0;
       missed = -1;
@@ -572,11 +1211,10 @@ procedure misstohit begin
       target = get_sfall_arg;
       bpart = get_sfall_arg;
       hitch = get_sfall_arg;
+
+
       combat_diff = combat_difficulty;
-      leftHand_obj = critter_inven_obj(attacker, INVEN_TYPE_LEFT_HAND);
-      rightHand_obj = critter_inven_obj(attacker, INVEN_TYPE_RIGHT_HAND);
-      if leftHand_obj then leftHand = obj_pid(leftHand_obj);
-      if rightHand_obj then rightHand = obj_pid(rightHand_obj);
+      weapon = get_object_data(combat_data, C_ATTACK_WEAPON);
       tar_tile = tile_num(target);
       atk_tile = tile_num(attacker);
       rotationatkr = real_rotation_to_tile(atk_tile, tar_tile);
@@ -584,93 +1222,46 @@ procedure misstohit begin
       rotationtar = has_trait(TRAIT_OBJECT, target, OBJECT_CUR_ROT);
       rndarm = random(BODY_HIT_LEFT_ARM, BODY_HIT_RIGHT_ARM);
       rndleg = random(BODY_HIT_RIGHT_LEG, BODY_HIT_LEFT_LEG);
-      distance_objs(distance1, target, attacker);
-      first_target_dist = distance1;
+      distance_objs(distance_to_tar, target, attacker);
       critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
       tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
       tar_fid = crit_fid(target);
       atk_mode = get_object_data(combat_data, C_ATTACK_HIT_MODE);
    //determining the type of attack
-      if leftHand_obj andAlso atk_mode == ATKTYPE_LWEP1 then begin // left first attack mode range
-         wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_1);
-         wpn = leftHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-         if (wpn_flags bwand ATKMODE_PRI_BURST ) == 7 or (wpn_flags bwand ATKMODE_PRI_FLAME ) == 8  then begin
-           burst = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_THROW  ) == 5 andAlso burst == 0 andAlso (get_proto_data(wpn, PROTO_WP_DMG_TYPE) != DMG_normal_dam) then begin
-           grenade = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_SWING  ) == 3 then begin
-            swing = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_THRUST  ) == 4 then begin
-            thrust = 1;
-         end
-      end
-
-      if leftHand_obj andAlso atk_mode == ATKTYPE_LWEP2 then begin // left second attack mode range
-         wpnrng = get_proto_data(leftHand, PROTO_WP_RANGE_2);
-         wpn = leftHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-         if (wpn_flags bwand ATKMODE_SEC_BURST ) == 112 or (wpn_flags bwand ATKMODE_SEC_FLAME ) == 128 then begin
-           burst = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_THROW  ) == 80 andAlso burst == 0 andAlso (get_proto_data(wpn, PROTO_WP_DMG_TYPE) != DMG_normal_dam) then begin
-           grenade = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_SWING  ) == 48 then begin
-            swing = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_THRUST  ) == 64 then begin
-            thrust = 1;
-         end
-      end
-
-      if rightHand_obj andAlso atk_mode == ATKTYPE_RWEP1 then begin // right 1 attack range
-         wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_1);
-         wpn = rightHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-         if (wpn_flags bwand ATKMODE_PRI_BURST ) == 7 or (wpn_flags bwand ATKMODE_PRI_FLAME ) == 8  then begin
-           burst = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_THROW  ) == 5 andAlso burst == 0 andAlso (get_proto_data(wpn, PROTO_WP_DMG_TYPE) != DMG_normal_dam) then begin
-           grenade = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_SWING  ) == 3 then begin
-            swing = 1;
-         end
-         if (wpn_flags bwand ATKMODE_PRI_THRUST  ) == 4 then begin
-            thrust = 1;
-         end
-      end
-
-      if rightHand_obj andAlso atk_mode == ATKTYPE_RWEP2 then begin // right 2 attack range
-         wpnrng = get_proto_data(rightHand, PROTO_WP_RANGE_2);
-         wpn = rightHand;
-         wpn_flags = get_proto_data(wpn, PROTO_FLAG_EXT);
-         if (wpn_flags bwand ATKMODE_SEC_BURST ) == 112 or (wpn_flags bwand ATKMODE_SEC_FLAME ) == 128 then begin
-           burst = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_THROW  ) == 80 andAlso burst == 0 andAlso (get_proto_data(wpn, PROTO_WP_DMG_TYPE) != DMG_normal_dam) then begin
-           grenade = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_SWING  ) == 48 then begin
-            swing = 1;
-         end
-         if (wpn_flags bwand ATKMODE_SEC_THRUST  ) == 64 then begin
-            thrust = 1;
-         end
-      end
-      if wpn > 0 then begin
-         wpnanim = get_proto_data(wpn, PROTO_WP_ANIM);
-         wpn_dmg_type = get_proto_data(wpn, PROTO_WP_DMG_TYPE);
+      if weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         wpn_dmg_type = weapon_dmg_type(weapon);
          dmg_type = wpn_dmg_type;
+         wpnanim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+         weapon_attack_anim = get_attack_anim(weapon, atk_mode);
+         if atk_mode == ATKTYPE_LWEP1 orElse atk_mode == ATKTYPE_RWEP1 then begin
+            wpn_range = get_proto_data(weapon_pid, PROTO_WP_RANGE_1);
+         end
+         else if atk_mode == ATKTYPE_LWEP2 orElse atk_mode == ATKTYPE_RWEP2 then begin
+            wpn_range = get_proto_data(weapon_pid, PROTO_WP_RANGE_2);
+         end
+
+         if weapon_attack_anim == ANIM_swing_anim then begin
+            swing = 1;
+         end
+         else if weapon_attack_anim == ANIM_thrust_anim then begin
+            thrust = 1;
+         end
+         else if weapon_attack_anim == ANIM_fire_burst orElse weapon_attack_anim == ANIM_fire_continuous then begin
+            burst = 1;
+         end
+         else if  weapon_attack_anim == ANIM_throw_anim andAlso wpn_dmg_type != DMG_normal_dam then begin
+            grenade = 1;
+         end
+      end
+      else begin
+         if (get_proto_data(obj_pid(attacker), PROTO_CR_FLAGS) bwand CFLG_RANGED) == CFLG_RANGED then
+            wpn_range = 2;
+
       end
    end
-
       //New effect for swing and thust attacks
-   if SwingThrustTweak > 0 andAlso wpn > 0 then begin
+   if SwingThrustTweak > 0 andAlso weapon_pid > 0 then begin
       //if swing == 1 andAlso (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
       //end
       if thrust == 1 then begin
@@ -679,9 +1270,9 @@ procedure misstohit begin
             //armor pen for knife
             thrusthit = 1;
             if (wpnanim == WPN_ANIM_KNIFE or wpnanim == 14) then begin
-               wpn_maxdmg = get_proto_data(wpn, PROTO_WP_DMG_MAX);
-               wpn_mindmg = get_proto_data(wpn, PROTO_WP_DMG_MIN);
-               wpn_perk = get_proto_data(wpn, PROTO_WP_PERK);
+               wpn_maxdmg = get_proto_data(weapon_pid, PROTO_WP_DMG_MAX);
+               wpn_mindmg = get_proto_data(weapon_pid, PROTO_WP_DMG_MIN);
+               wpn_perk = get_proto_data(weapon_pid, PROTO_WP_PERK);
                attacker_meleedmg = get_critter_stat(attacker, STAT_melee_dmg);
                if wpn_perk == PERK_weapon_penetrate then begin
                   dt_mod = 2;
@@ -708,187 +1299,64 @@ procedure misstohit begin
    end
 
    if MissMod > 0 then begin
-// new targets for missed attacks
-      if hitmiss == MISS andAlso wpnrng > 1 andAlso grenade == 0 andAlso attacker != target then begin
-         //new targets for miss on low range with spear-like weapons
-          if distance1 < 2 and wpnrng < 3 then begin
-            foreach (critter in objects_in_radius(tar_tile,1,elevation(target),OBJ_TYPE_CRITTER)) begin
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target then begin
-               distance_objs(distance3, critter, attacker);
-               critter_tile = tile_num(critter);
-                  if (oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)) andalso distance3 < 2 andAlso (critter_tile == tile_num_in_direction(atk_tile, rotationatkr, 1) or critter_tile == tile_num_in_direction(atk_tile, rotationatkr, 2)) andAlso ( critter_tile == tile_num_in_direction(tar_tile, rotationatkr, 1) or critter_tile == tile_num_in_direction(tar_tile, ((rotationatkr + 3) % 6), 1) ) andAlso not(LOS_is_blocked(attacker,critter)) then begin
-                     rnd = random(0, 100);
-                     if rnd < 20 then begin
-                     set_sfall_return(HIT); //  hit
-                     set_sfall_arg(0, HIT);
-                     set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                     set_sfall_arg(3, BODY_UNCALLED);
-                     set_sfall_return(critter); // new target
-                     set_sfall_arg(2, critter);
-                     newtarget = 1;
-                     return;
-                     end
-                  end
+      // new targets for missed attacks
+      if hitmiss == MISS andAlso wpn_range > 1 andAlso attacker != target then begin
+         new_target = 0;
+         rnd = random(1, 100);
+         if wpn_range > 3 then begin
+            miss_tile = get_miss_tile(attacker, target, wpn_range, weapon, weapon_attack_anim);
+         end
+         else begin
+            miss_tile = tile_num_beyond(atk_tile, tar_tile, wpn_range);
+         end
+         if rnd > 60 then begin
+            call get_targets_on_a_line(attacker, target, miss_tile, wpn_range);
+            new_random_target_array_len = len_array(new_random_target_array);
+            if new_random_target_array_len > 0 then begin
+               new_target = get_array(new_random_target_array, random(0, new_random_target_array_len-1));
+                  tile_refresh_display;
+               if new_target > 0 then begin
+                  if obj_type(new_target) == OBJ_TYPE_CRITTER andAlso random(1,100) < (get_critter_stat(attacker, STAT_crit_chance) / 3) then
+                     new_result = CRITICAL_HIT;
+                  else
+                     new_result = HIT;
                end
             end
          end
-         //new targets for miss with medium and low range
-         if wpnrng > 2 then begin
-            foreach (critter in list_as_array(0)) begin
-               critter_tile = tile_num(critter);
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)  andAlso not(LOS_is_blocked(attacker,critter))  then begin
-               distance_objs(distance2, critter, target);
-               distance_objs(distance3, critter, attacker);
-               distance4 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 2)));
-               distance5 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 4)));
-               distance6 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 6)));
-               distance7 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 8)));
-               distance8 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 10)));
-               distance9 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 12)));
-               distance10 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 14)));
-               distance11 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 16)));
-               distance12 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 18)));
-               rotationnewtar = real_rotation_to_tile(atk_tile, tile_num(critter));
-               losblock1 = obj_blocking_line(attacker, tar_tile, BLOCKING_TYPE_SHOOT);
-               if losblock1 then losblock2 = obj_blocking_line(losblock1, tar_tile, BLOCKING_TYPE_SHOOT);
-               if losblock2 then losblock3 = obj_blocking_line(losblock2, tar_tile, BLOCKING_TYPE_SHOOT);
-               if losblock3 then losblock4 = obj_blocking_line(losblock3, tar_tile, BLOCKING_TYPE_SHOOT);
-               if losblock4 then losblock5 = obj_blocking_line(losblock4, tar_tile, BLOCKING_TYPE_SHOOT);
-               if losblock5 then losblock6 = obj_blocking_line(losblock5, tar_tile, BLOCKING_TYPE_SHOOT);
-               if distance3 > 1 andAlso distance3 < wpnrng + 2 then begin
-                     if tile_distance_objs(critter, target) == 1 then begin
-                     rnd = random(0, 100);
-                     if ((hitch > 4 andAlso rnd < 20) or (hitch < 5 andAlso rnd < 2)) andAlso distance2 < 1 then begin
-                     set_sfall_return(HIT); //  hit
-                     set_sfall_arg(0, HIT);
-                     set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                     set_sfall_arg(3, BODY_UNCALLED);
-                     set_sfall_return(critter); // new target
-                     set_sfall_arg(2, critter);
-                     newtarget = 1;
-                     return;
-                     end
-                  end
+         //call set_shootthru_flag_for_all_critters;
+         if wpn_range > 3 andAlso new_target <= 0 andAlso miss_tile > 0 andAlso miss_tile != atk_tile andAlso miss_tile != tar_tile then begin
+            if rotation_to_tile(atk_tile,miss_tile) != rotation_to_tile(atk_tile,tar_tile) then begin
+               miss_tile = tar_tile;
+            end
+            else begin
+               new_target = get_first_non_critter_block_shoot(attacker, miss_tile);
+               if new_target then begin
+                  new_target_2 = get_first_non_critter_block_shoot(attacker, tile_num(new_target));
+                  if new_target_2 > 0 then
+                     new_target = new_target_2;
                end
-               //new targets for missed hit if original target is blocked by critter
-               if losblock1 then begin
-                  rnd = random(0, 100);
-                  if losblock1 == critter andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 15) or (hitch < 17 andAlso rnd < 8)) andAlso losblockhit != 1 then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock1); // new target == blocking critter1
-                  set_sfall_arg(2, losblock1);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
-                  end
 
-                  rnd = random(0, 100);
-                  if losblock2 == critter andAlso losblock1 != losblock2 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 15) or (hitch < 17 andAlso rnd < 8)) andAlso losblockhit != 1 then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock2); // new target == blocking critter2
-                  set_sfall_arg(2, losblock2);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
+               if new_target == 0 then begin
+                  if target_dummy <= 0 then begin
+                     target_dummy = create_object_sid(pid_scroll_block, 0, 0, -1);
                   end
-
-                  rnd = random(0, 100);
-                  if losblock3 == critter andAlso losblock2 != losblock3 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 15) or (hitch < 17 andAlso rnd < 8)) andAlso losblockhit != 1 then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock3); // new target == blocking critter3
-                  set_sfall_arg(2, losblock3);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
-                  end
-
-                  rnd = random(0, 100);
-                  if losblock4 == critter andAlso losblock3 != losblock4 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 15) or (hitch < 17 andAlso rnd < 8)) andAlso losblockhit != 1 then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock4); // new target == blocking critter4
-                  set_sfall_arg(2, losblock4);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
-                  end
-
-                  rnd = random(0, 100);
-                  if losblock5 == critter andAlso losblock4 != losblock5 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 10) or (hitch < 17 andAlso rnd < 2)) andAlso losblockhit != 1  then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock5); // new target == blocking critter5
-                  set_sfall_arg(2, losblock5);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
-                  end
-
-                  rnd = random(0, 100);
-                  if losblock6 == critter andAlso losblock5 != losblock6 andAlso critter != target andAlso ((hitch > 16 andAlso rnd < 15) or (hitch < 17 andAlso rnd < 8)) andAlso losblockhit != 1 then begin
-                  set_sfall_return(HIT); //  hit
-                  set_sfall_arg(0, HIT);
-                  set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                  set_sfall_arg(3, BODY_UNCALLED);
-                  set_sfall_return(losblock6); // new target == blocking critter6
-                  set_sfall_arg(2, losblock6);
-                  losblockhit = 1;
-                  newtarget = 1;
-                  return;
-                  end
+                  set_flags(target_dummy, FLAGS_GHOST_OBJECT);
+                  move_to(target_dummy, miss_tile, elevation(target));
+                  new_target = target_dummy;
                end
             end
-            end
+            new_result = HIT;
          end
-         //new targets for missed hit on medium and long range
-         if wpnrng > 2 andAlso newtarget == 0 then begin
-            foreach (critter in list_as_array(0)) begin
-               critter_tile = tile_num(critter);
-               if get_critter_stat(critter, STAT_current_hp) > 0 andAlso critter != attacker andalso critter != target andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile) andAlso not(LOS_is_blocked(attacker,critter)) then begin
-               distance_objs(distance2, critter, target);
-               distance_objs(distance3, critter, attacker);
-               distance4 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 2)));
-               distance5 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 4)));
-               distance6 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 6)));
-               distance7 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 8)));
-               distance8 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 10)));
-               distance9 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 12)));
-               distance10 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 14)));
-               distance11 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 16)));
-               distance12 = tile_distance(critter_tile, (tile_num_in_direction(tar_tile, rotationatkr, 18)));
-               rotationnewtar = real_rotation_to_tile(atk_tile, tile_num(critter));
-                  if distance1 > 5 andAlso distance3 < wpnrng + 2 then begin
-                     if  oldrotationatkr == rotation_to_tile(atk_tile, critter_tile)  andAlso (distance3 < wpnrng + 1) andAlso ( ( distance2 > 0 andAlso (distance4 < 3 or distance5 < 3 or distance5 < 3 or distance7 < 3 or distance8 < 4 or distance9 < 4 or distance10 < 5 or distance11 < 5 or distance12 < 5)) )  then begin
-                     rnd = random(0, 100);
-                        if rnd < 19 andAlso oldrotationatkr == rotation_to_tile(atk_tile, critter_tile) then begin
-                           set_sfall_return(HIT); //  hit
-                           set_sfall_arg(0, HIT);
-                           set_sfall_return(BODY_UNCALLED); // new bodypart 8 - torso_uncalled
-                           set_sfall_arg(3, BODY_UNCALLED);
-                           set_sfall_return(critter); // new target
-                           set_sfall_arg(2, critter);
-                           newtarget = 1;
-                           return;
-                        end
-                     end
-                  end
-               end
-            end
+         if new_target > 0 then begin
+            set_sfall_return(new_result);
+            set_sfall_arg(0, new_result);
+            set_sfall_return(BODY_UNCALLED);
+            set_sfall_arg(3, BODY_UNCALLED);
+            set_sfall_return(new_target);
+            set_sfall_arg(2, new_target);
+            newtarget = 1;
+            return;
          end
-         losblockhit = 0;
       end
 
 // humans,ghouls,supermutants/radscop/ Horrigan  conversion of aimed hits in eye/groin in critter's back into head/ torso+legs hits
@@ -1298,4 +1766,49 @@ procedure misstohit begin
    //burst = 0;
    //grenade = 0;
    missed = get_sfall_arg_at(0);
+end
+
+procedure start begin
+   variable sfall_ver_maj;
+   variable ver_minor;
+   variable ver_build;
+   if game_loaded then begin
+      MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
+      BodyRndHit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|BodyRndHit");
+      //gDifficultAiming = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|DifficultAiming");
+      SwingThrustTweak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SwingThrust");
+      if MissMod > 0 or BodyRndHit > 0 or SwingThrustTweak > 0 then begin
+         gHeadHitMod = get_bodypart_hit_modifier(BODY_HIT_HEAD);
+         gEyeHitMod = get_bodypart_hit_modifier(BODY_HIT_EYES);
+         //more difficult targeted shots to the head and eyes
+         if combat_difficulty >= 2 then begin
+            if get_bodypart_hit_modifier(BODY_HIT_HEAD) > BODY_HIT_HEAD_NEW_MOD then
+               set_bodypart_hit_modifier(BODY_HIT_HEAD, BODY_HIT_HEAD_NEW_MOD);
+            if get_bodypart_hit_modifier(BODY_HIT_EYES) > BODY_HIT_EYES_NEW_MOD then
+               set_bodypart_hit_modifier(BODY_HIT_EYES, BODY_HIT_EYES_NEW_MOD);
+         end
+         sfall_ver_maj = sfall_ver_major;
+         ver_minor = sfall_ver_minor;
+         ver_build = sfall_ver_build;
+         if sfall_ver_maj >= 5 then begin
+            if ver_build >= 8 orElse sfall_ver_maj > 5 orElse ver_minor > 0 then begin
+               if ver_minor > 0 then begin
+                  sfall_510 = 1;
+                  unsafe_script;
+               end
+            end
+         end
+         new_random_target_array = create_array_map;
+         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+         register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
+         register_hook_proc_spec(HOOK_TOHIT, TOHIT);
+         register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+         register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
+         register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+         pyro_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
+         if pyro_bonus < 0 then pyro_bonus = 5;
+      end
+      set_global_script_type(0);
+      set_global_script_repeat(0);
+   end
 end

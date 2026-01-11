@@ -2,9 +2,15 @@
 #include "define_extra.h"
 #include "command.h"
 #include "sfall.h"
+#include "F2MMR.h"
+#include "dik.h"
 
 #define NEVADA_PID_HOMO_LUDENS 192
 #define NEVADA_PID_NEUROSURGERY 471
+#define NEVADA_PID_CHRYSLUS_MOTORS_CATALOG 487
+#define NAME                    (1094)
+#define SONORA_PID_BEMIS_BOOK PID_CATS_PAW_ISSUE_5
+#define SONORA_PID_COMIC PID_DERMAL_PIP_BOY_DISK
 #define SONORA_PID_TRAPS_BOOK 517
 #define SONORA_PID_SCIENCE_BOOK 518
 #define SONORA_PID_EW_BOOK 519
@@ -21,8 +27,8 @@
 #define modmsg(x) (message_str_game(new_books_msg, x))
 #define msg_not_in_combat 1
 #define msg_party_only 2
-#define msg_smart_party 3
-#define msg_smart_party_member 4
+//#define msg_smart_all 3
+#define msg_smart_npc 4
 #define msg_smart_dude 5
 #define msg_dude_learn 6
 #define msg_npc_learn 7
@@ -39,6 +45,7 @@
 #define msg_nevada_homo_ludens_learn_npc_start 18
 #define msg_nevada_homo_ludens_learn_npc_end 19
 #define msg_nevada_homo_ludens_readed_npc 20
+#define msg_nevada_homo_ludens_readed_dude 70
 #define msg_nevada_homo_ludens_perc_desc 21
 #define msg_nevada_neursurg_perk_desc 22
 #define msg_nevada_low_iq_npc 23
@@ -51,9 +58,33 @@
 #define comprehension_perk_new_desc_original 30
 #define comprehension_perk_new_desc_fixed 31
 
+#define msg_f2_hint_readed_npc 33
+#define msg_slow_int 34
+#define msg_max_int_smart_dude 35
+
+#define msg_reading_interrupted 80
+#define non_party_npc_book_read_array_name "FMMR_BOOKS_READ"
+#define old_perks_checked_array_name "FMMR_Saved_Skills"
+#define saved_skills_array_name "FMMR_Saved_Skills"
+#define POTENTIAL_PARTY_PIDs_ARRAY_name "PotentPartyPids"
+#define has_saved_stats(uniq_id) (get_array(id_to_saved_skills_stats_array, uniq_id +"Sts") != 0)
+#define has_saved_skills(uniq_id) (get_array(id_to_saved_skills_stats_array, uniq_id) != 0)
+#define crit_fid(critter_obj)        (get_proto_data(obj_pid(critter_obj),PROTO_FID))
+#define is_intelligent(critter, critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse (critter_type == KILL_TYPE_robot_kills andAlso get_critter_base_stat(critter, STAT_iq) >= 4) orElse (critter_type == KILL_TYPE_deathclaw_kills andAlso get_critter_base_stat(critter, STAT_iq) >= 5) orElse critter_type == 18 orElse (critter_type == KILL_TYPE_dog_kills andAlso crit_fid(critter) == FID_MACYBR))
+#define can_ask_money(critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == 18)
+#define can_speak(critter, critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == KILL_TYPE_robot_kills orElse (critter_type == KILL_TYPE_deathclaw_kills andAlso Fallout2 > 0 andAlso (obj_pid(critter) == PID_GORIS orElse obj_pid(critter) == PID_GRUNTHAR) ) orElse critter_type == 18 orElse (critter_type == KILL_TYPE_dog_kills andAlso (obj_pid(critter) == PID_K9 orElse crit_fid(critter) == FID_MACYBR)))
+
+
+#define get_npc_book_char "B"
+#define get_npc_book_read_array_key(critter_id, skill_book_pid) (critter_id + get_npc_book_char + skill_book_pid)
+
+
+
+
+
+
 
 variable SkillBooksMod;
-variable cats_paw_5_bonus = 10;
 variable skills_count = 17;
 variable books_dup_num = 3;
 variable low_iq_npc_msg_shown_array;
@@ -73,120 +104,658 @@ variable max_skill_to_read;
 variable max_books_read;
 variable max_books_read_int;
 variable comprehension_perk_party;
+variable Fallout2;
 variable ET_TU;
 variable Nevada;
 variable Sonora;
 variable Sonora_bookseller;
 variable Resurrection;
-variable party_member;
-variable party_party_member_count;
-variable last_party_party_member_count = -1;
-variable player_last_level = -1;
-variable book_pid;
-variable books_pids;
+variable Fallout2_books;
+variable books_pids_array;
 variable books_pids_proto_msg;
 variable NonSentientBooks;
 variable lvl_up;
 variable BooksFile_location;
 variable skill1_ini_value;
 variable skill2_ini_value;
+variable Sonora_book_desc_separator;
+variable skill_max;
+variable max_skill_to_read_check;
+variable id_to_saved_skills_stats_array;
 
-procedure map_enter_p_proc begin
-   //Change use to useon
-   if SkillBooksMod >= 0 then begin
-      foreach book_pid in books_pids begin
-         if book_pid > 0 then begin
-            set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwor ITEM_ACTION_USEON));
-            if (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) == ITEM_ACTION_USE then begin
-               set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) - ITEM_ACTION_USE));
+variable sfall_510;
+variable F2MMR_POTENTIAL_PARTY_PIDs_ARRAY;
+variable sfall_unsafescripting;
+variable party_levels;
+variable old_perks_checked_array;
+variable ptr_to_id_array;
+variable old_perk;
+variable npc_book_read_array;
+variable can_hear_reader_time;
+variable reader_forced_visibility;
+variable Sonora_skill;
+variable book_forced_remove;
+variable min_int_to_understand;
+variable last_float_msg_tile;
+
+
+
+export variable MMR_reader;
+export variable MMR_can_hear_reader_arr;
+
+
+procedure set_fake_perk_npc_forced(variable critter_obj, variable perk_name_string, variable perk_lvl, variable perk_image, variable perk_description_string) begin
+   variable partyMemberList, partyMemberCount, slot;
+   variable partySlotSize = 16;
+   variable party = party_member_list(1);
+   if is_in_array(critter_obj, party) then begin
+      set_fake_perk_npc(critter_obj, perk_name_string, perk_lvl, perk_image, perk_description_string);
+   end
+   else begin
+      partyMemberList  = read_int(0x00519DA8);
+      partyMemberCount = read_int(0x00519DAC);
+
+      slot  = partyMemberList + partyMemberCount * partySlotSize;
+
+      write_int(slot + 0,  critter_obj);
+      write_int(0x00519DAC, partyMemberCount + 1);
+
+      set_fake_perk_npc(critter_obj, perk_name_string, perk_lvl, perk_image, perk_description_string);
+
+      write_int(slot + 0,  0);
+      write_int(0x00519DAC, partyMemberCount);
+   end
+end
+
+procedure has_fake_perk_npc_forced(variable critter_obj, variable perk_name_string) begin
+   variable partyMemberList, partyMemberCount, slot;
+   variable partySlotSize = 16;
+   variable party = party_member_list(1);
+   variable has_perk;
+   if is_in_array(critter_obj, party) then begin
+      has_perk = has_fake_perk_npc(critter_obj, perk_name_string);
+   end
+   else begin
+      partyMemberList  = read_int(0x00519DA8);
+      partyMemberCount = read_int(0x00519DAC);
+
+      slot  := partyMemberList + partyMemberCount * partySlotSize;
+
+      write_int(slot + 0,  critter_obj);
+      write_int(0x00519DAC, partyMemberCount + 1);
+
+      has_perk = has_fake_perk_npc(critter_obj, perk_name_string);
+
+      write_int(slot + 0,  0);
+      write_int(0x00519DAC, partyMemberCount);
+   end
+   return has_perk;
+end
+
+
+procedure get_max_skill(variable target, variable skill) begin
+   variable skill_points = get_critter_skill_points(target, skill);
+   set_critter_skill_points(target, skill, 999999);
+   skill_max = has_skill(target, skill);
+   if max_skill_to_read_check then
+      max_skill_to_read = skill_max;
+   set_critter_skill_points(target, skill, skill_points);
+   return skill_max;
+end
+
+procedure get_max_stat(variable target, variable stat) begin
+   variable stat_max;
+   variable extra_stat = get_critter_extra_stat(target, stat);
+   set_critter_extra_stat(target, stat, 999999);
+   stat_max = get_critter_stat(target, stat);
+   set_critter_extra_stat(target, stat, extra_stat);
+   return stat_max;
+end
+
+procedure can_read_books(variable target, variable book_pid) begin
+   variable can_read;
+   if obj_type(target) != OBJ_TYPE_CRITTER then
+      return 0;
+
+   else if target == real_dude_obj
+      orElse NonSentientBooks > 0
+      orElse (Fallout2_books andAlso book_pid == PID_FALLOUT_2_HINTBOOK)
+      orElse is_intelligent(target, critter_kill_type(target))
+      orElse get_critter_base_stat(target, STAT_iq) >= 9 then
+         can_read = 1;
+
+   return can_read;
+end
+
+procedure isPotentialPartyMember(variable critter) begin
+   variable critter_pid;
+   if sfall_510 > 0 then
+      return obj_is_party_member(critter);
+   else if F2MMR_POTENTIAL_PARTY_PIDs_ARRAY > 0 then begin
+      critter_pid = obj_pid(critter);
+      return get_array(F2MMR_POTENTIAL_PARTY_PIDs_ARRAY, critter_pid);
+   end
+end
+
+procedure set_unique_id2(variable critter) begin
+   variable critter_id = set_unique_id(critter);
+   if isPotentialPartyMember(critter) > 0 then begin
+      if critter_id > 83535 orElse critter_id < 18000 then begin
+         critter_id = (obj_pid(critter) bwand 0xFFFFFF) + 18000;
+         set_object_data(critter, OBJ_DATA_ID, critter_id);
+      end
+   end
+   return critter_id;
+end
+
+procedure check_id(variable critter) begin
+   variable last_id;
+   last_id = get_array(ptr_to_id_array, critter);
+   if last_id == 0 then begin
+      last_id = set_unique_id2(critter);
+      set_array(ptr_to_id_array, critter, last_id);
+   end
+   else if last_id != get_unique_id(critter) then begin
+      set_object_data(critter, OBJ_DATA_ID, last_id);
+   end
+   return last_id;
+end
+
+procedure inc_save_skills(variable critter, variable skill, variable value, variable not_save_skill , variable not_apply_skill) begin
+   variable critter_id;
+   variable skill_name;
+   variable key;
+   variable cur_skill_value;
+   variable new_skill_value;
+   variable saved_skills;
+   if not_save_skill <= 0 then begin
+      critter_id = check_id(critter);
+      skill_name = ("Sk" + skill);
+      key = critter_id + skill_name;
+      cur_skill_value = get_array(id_to_saved_skills_stats_array, key);
+      new_skill_value = cur_skill_value + value;
+      set_array(id_to_saved_skills_stats_array, key, new_skill_value);
+      saved_skills = get_array(id_to_saved_skills_stats_array, critter_id);
+      if new_skill_value != 0 andAlso saved_skills == 0 then
+         set_array(id_to_saved_skills_stats_array, critter_id, 1);
+
+   end
+
+   if not_apply_skill <= 0 then
+      set_critter_skill_points(critter, skill, (get_critter_skill_points(critter, skill) + value));
+end
+
+procedure inc_save_stats(variable critter, variable stat, variable value, variable not_save, variable not_apply_stats) begin
+   variable critter_id;
+   variable stat_name;
+   variable key;
+   variable key2;
+   variable cur_stat_value;
+   variable new_stat_value;
+   variable saved_stats;
+   if not_save <= 0 then begin
+      critter_id = check_id(critter);
+      stat_name = ("St" + stat);
+      key = critter_id + stat_name;
+      cur_stat_value = get_array(id_to_saved_skills_stats_array, key);
+      new_stat_value = cur_stat_value + value;
+      set_array(id_to_saved_skills_stats_array, key, new_stat_value);
+      key2 = critter_id + "Sts";
+      saved_stats = get_array(id_to_saved_skills_stats_array, key2);
+      if new_stat_value != 0 andAlso saved_stats == 0 then
+         set_array(id_to_saved_skills_stats_array, key2, 1);
+
+   end
+   if not_apply_stats <= 0 then
+      set_critter_extra_stat(critter, stat, get_critter_extra_stat(critter, stat) + value);
+end
+
+
+procedure get_gvar_name(variable book_obj_pid) begin
+   variable gvar_name;
+   if book_obj_pid <= 9 then gvar_name = "SBk0000" + book_obj_pid;
+   else if book_obj_pid <= 99 then gvar_name = "SBk000" + book_obj_pid;
+   else if book_obj_pid <= 999 then gvar_name = "SBk00" + book_obj_pid;
+   else if book_obj_pid <= 9999 then gvar_name = "SBk0" + book_obj_pid;
+   else if book_obj_pid <= 99999 then gvar_name = "SBk" + book_obj_pid;
+   return gvar_name;
+end
+
+procedure get_float_msg_mult(variable critter) begin
+   variable critter_pid;
+   variable critter_type;
+   variable msg_mult;
+   if isPotentialPartyMember(critter) then begin
+      critter_pid = obj_pid(critter);
+      if Fallout2 then begin
+         if critter_pid == PID_SULIK then
+            msg_mult = 313;
+         if critter_pid == PID_VIC then begin
+            if Vic_In_Party then
+               msg_mult = 279;
+            else
+               msg_mult = 278;
+         end
+         else if critter_pid == PID_JOHN_MACRAE then
+            msg_mult = 305;
+         else if critter_pid == PID_MARCUS then
+            msg_mult = 377;
+         else if critter_pid == PID_K9 orElse critter_pid == PID_BRAINBOT orElse critter_pid == PID_BRAINBOT orElse critter_pid == PID_ROBOBRAIN_HUMAN then
+            msg_mult = KILL_TYPE_robot_kills;
+      end
+   end
+   else begin
+      critter_type = critter_kill_type(critter);
+      msg_mult = critter_type;
+   end
+
+   return msg_mult;
+end
+
+procedure float_HOMO_LUDENS(variable critter) begin
+   variable critter_tile = tile_num(Critter);
+   variable critter_type;
+   variable critter_int;
+   variable msg;
+   variable msg_color;
+   if last_float_msg_tile > 0 andAlso tile_distance(critter_tile, last_float_msg_tile) < 5 then begin
+      float_msg(critter, "", FLOAT_MSG_WHITE);
+      return;
+   end
+   last_float_msg_tile = critter_tile;
+   critter_type = critter_kill_type(critter);
+
+   critter_int = get_critter_stat(critter, STAT_iq);
+   if critter_type == KILL_TYPE_ghoul_kills andAlso random(0,1) then begin
+      msg = 2120;
+   end
+   else if critter_type == KILL_TYPE_robot_kills then begin
+      msg = 2080;
+   end
+   else if critter_type == KILL_TYPE_super_mutant_kills andAlso critter_int <= 4 then begin
+      msg = 2100;
+   end
+   else if critter_type == KILL_TYPE_children_kills then begin
+      msg = 2060;
+   end
+   else begin
+      if critter_int >= 8 then
+         msg = 2000;
+      else if critter_int <= 4 then
+         msg = 2020;
+      else
+         msg = 2040;
+
+   end
+
+   msg += random(0, 7);
+
+
+   msg_color = random(FLOAT_MSG_YELLOW, FLOAT_MSG_WHITE);
+   float_msg(critter, modmsg(msg), msg_color);
+end
+
+procedure float_slow_int_npc(variable critter) begin
+   variable critter_tile = tile_num(Critter);
+   variable msg;
+   variable msg_color;
+   variable msg_mult;
+   if last_float_msg_tile > 0 andAlso tile_distance(critter_tile, last_float_msg_tile) < 5 then begin
+      float_msg(critter, "", FLOAT_MSG_WHITE);
+      return;
+   end
+   last_float_msg_tile = critter_tile;
+   msg_mult = get_float_msg_mult(critter);
+   msg = msg_mult * 10000 + random(0, 4);
+
+   msg += 500;
+   msg_color = random(FLOAT_MSG_YELLOW, FLOAT_MSG_GREY);
+   float_msg(critter, modmsg(msg), msg_color);
+end
+
+procedure float_skill_up_npc(variable critter) begin
+   variable critter_tile = tile_num(Critter);
+   variable msg;
+   variable msg_color;
+   variable msg_mult;
+   if last_float_msg_tile > 0 andAlso tile_distance(critter_tile, last_float_msg_tile) < 5 then begin
+      float_msg(critter, "", FLOAT_MSG_WHITE);
+      return;
+   end
+   last_float_msg_tile = critter_tile;
+   msg_mult = get_float_msg_mult(critter);
+   msg = msg_mult * 10000 + random(0, 4);
+
+   msg += 100;
+
+   msg_color = random(FLOAT_MSG_YELLOW, FLOAT_MSG_WHITE);
+   float_msg(critter, modmsg(msg), msg_color);
+end
+
+
+procedure float_msg_low_int_npc(variable critter, variable max_int) begin
+   variable critter_tile = tile_num(Critter);
+   variable critter_type;
+   variable critter_int;
+   variable msg;
+   variable msg_color;
+   variable msg_mult;
+   if last_float_msg_tile > 0 andAlso tile_distance(critter_tile, last_float_msg_tile) < 5 then begin
+      float_msg(critter, "", FLOAT_MSG_WHITE);
+      return;
+   end
+   last_float_msg_tile = critter_tile;
+   msg_mult = get_float_msg_mult(critter);
+   msg = msg_mult * 10000 + random(0, 4);
+
+   if critter_int < max_int / 5 then
+      msg += 200;
+   else
+      msg += 400;
+
+   msg_color = random(FLOAT_MSG_YELLOW, FLOAT_MSG_WHITE);
+   float_msg(critter, modmsg(msg), msg_color);
+end
+
+procedure float_msg_high_skill_npc(variable critter) begin
+   variable critter_tile = tile_num(Critter);
+   variable critter_type;
+   variable critter_int;
+   variable msg;
+   variable msg_color;
+   variable msg_mult;
+   if last_float_msg_tile > 0 andAlso tile_distance(critter_tile, last_float_msg_tile) < 5 then begin
+      float_msg(critter, "", FLOAT_MSG_WHITE);
+      return;
+   end
+   last_float_msg_tile = critter_tile;
+   msg_mult = get_float_msg_mult(critter);
+   msg = msg_mult * 10000 + random(0, 4);
+
+   msg += 300;
+   msg_color = random(FLOAT_MSG_YELLOW, FLOAT_MSG_WHITE);
+   float_msg(critter, modmsg(msg), msg_color);
+end
+
+
+
+procedure check_max_books_add_to_low_iq(variable critter_obj,variable book_obj_pid,variable skill) begin
+   variable critter_id;
+   variable cur_book_count;
+   variable can_read_more = 1;
+   variable critter_obj_int;
+   variable books_limit;
+   variable dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+   variable max_int;
+   variable rnd;
+   if new_book_formula > 0 then begin
+      if critter_obj != real_dude_obj then begin
+         critter_id = check_id(critter_obj);
+         cur_book_count = get_array(npc_book_read_array, get_npc_book_read_array_key(critter_id, book_obj_pid));
+      end
+      //dude
+      else begin
+         cur_book_count = get_sfall_global_int(get_gvar_name(book_obj_pid));
+      end
+
+      books_limit = max_books_read;
+      if max_books_read_int > 0 then begin
+         critter_obj_int = get_critter_stat(critter_obj, STAT_iq);
+         books_limit += critter_obj_int * max_books_read_int;
+      end
+      if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
+         dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+         books_limit += ((books_limit * dude_comprehension + 1) / 2);
+      end
+
+      if books_limit > 0 then begin
+         if cur_book_count >= books_limit then begin
+            can_read_more = 0;
+            max_int = get_max_stat(critter_obj, STAT_iq);
+            if max_books_read_int > 0 andAlso critter_obj_int < max_int andAlso get_array(low_iq_npc_msg_shown_array, critter_obj) <= 0 andAlso has_skill(critter_obj, skill) < max_skill_to_read then begin
+               set_array(low_iq_npc_msg_shown_array, critter_obj, 1);
+               if critter_obj == real_dude_obj then
+                  display_msg(modmsg(msg_dude_need_more_int));
+               else begin
+                  display_msg(obj_name(critter_obj) + modmsg(msg_npc_need_more_int));
+                  rnd = random(0, 2);
+                  if critter_obj == MMR_reader then
+                     rnd += 1;
+                  if rnd >= 2 then
+                     call float_msg_low_int_npc(critter_obj, max_int);
+               end
             end
          end
+      end
+   end
+
+   return can_read_more;
+end
+
+procedure add_gvar(variable critter_obj,variable skill_book_pid,variable skill, variable add_perk_lvl = 1) begin
+   variable gvar_name;
+   variable gvar_value;
+   variable perk_name;
+   variable perk_level;
+   variable book_name;
+   variable critter_id;
+   variable key;
+   variable perk_desc;
+   if lvl_up then
+      return;
+
+   if Sonora andAlso skill_book_pid == SONORA_PID_BEMIS_BOOK then begin
+      perk_desc = message_str(440, 100);
+   end
+   else if Sonora andAlso skill_book_pid == SONORA_PID_COMIC then begin
+      perk_desc = modmsg(msg_skill_books_npc_perk_desc);
+   end
+   else if Nevada andAlso skill_book_pid == NEVADA_PID_HOMO_LUDENS then begin
+      perk_desc = modmsg(msg_nevada_homo_ludens_perc_desc);
+   end
+   else if Nevada andAlso skill_book_pid == NEVADA_PID_NEUROSURGERY then begin
+      perk_desc = modmsg(msg_nevada_neursurg_perk_desc);
+   end
+   else if Fallout2_books andAlso skill_book_pid == PID_CATS_PAW_ISSUE_5 then begin
+      perk_desc = modmsg(msg_energy_weapons_perk_desc);
+   end
+   else begin
+      perk_desc = modmsg(msg_skill_books_npc_perk_desc);
+   end
+
+   if critter_obj == real_dude_obj then begin
+      gvar_name = get_gvar_name(skill_book_pid);
+      gvar_value = get_sfall_global_int(gvar_name);
+      set_sfall_global(gvar_name, (gvar_value + add_perk_lvl));
+   end
+   else begin
+      critter_id = check_id(critter_obj);
+      key = get_npc_book_read_array_key(critter_id, skill_book_pid);
+      set_array(npc_book_read_array, key, get_array(npc_book_read_array, key) + 1);
+      //if is_in_array(critter_obj, party_member_list(1)) then begin
+      if isPotentialPartyMember(critter_obj) then begin
+         book_name = proto_data(skill_book_pid, 1);
+         perk_name = ("" + book_name);
+         perk_level = has_fake_perk_npc_forced(critter_obj, perk_name);
+         call set_fake_perk_npc_forced(critter_obj, perk_name, (perk_level + add_perk_lvl), (28 + skill), perk_desc);
       end
    end
 end
 
 procedure CATS_PAW_ISSUE_5_useon(variable critter_obj) begin
-   variable npc_level, book_name, perk_name, perk_level;
-   if critter_obj != real_dude_obj then begin
-      npc_level = get_npc_level(obj_pid(critter_obj));
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(PID_CATS_PAW_ISSUE_5, 1);
-      perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), (28 + SKILL_ENERGY_WEAPONS), (modmsg(msg_energy_weapons_perk_desc)));
-      set_critter_skill_points(critter_obj, SKILL_ENERGY_WEAPONS, (get_critter_skill_points(critter_obj, SKILL_ENERGY_WEAPONS) + cats_paw_5_bonus));
-      if lvl_up <= 0 then display_msg(obj_name(critter_obj)+modmsg(msg_energy_weapons_npc));
+   variable skill = SKILL_ENERGY_WEAPONS;
+   variable skLevel_target = has_skill(critter_obj, skill);
+   variable value = (base_skill_book_bonus - 1) * 2;
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
+   variable learned_something;
+   variable rnd;
+   if lvl_up > 0 orElse check_max_books_add_to_low_iq(critter_obj, PID_CATS_PAW_ISSUE_5, skill) then begin
+      if value < 10 then
+         value = 10;
+      if critter_obj != real_dude_obj then begin
+         if dude_comprehension > 0 andAlso comprehension_perk_party > 0 then
+            value = (value * (2 + dude_comprehension) + 1) / 2;
+
+         call inc_save_skills(critter_obj, skill, value, lvl_up, old_perk);
+      end
+      else begin
+         if dude_comprehension > 0 then
+            value = (value * (2 + dude_comprehension) + 1) / 2;
+         critter_mod_skill(dude_obj, skill, value);
+      end
+
+      if has_skill(critter_obj, skill) > skLevel_target then
+         learned_something  = 1;
+
+      if lvl_up <= 0 then begin
+         if learned_something then begin
+            call add_gvar(critter_obj, PID_CATS_PAW_ISSUE_5, skill);
+
+            if critter_obj == real_dude_obj then
+               display_msg(message_str(1096, 100));
+            else begin
+               display_msg(obj_name(critter_obj)+modmsg(msg_energy_weapons_npc));
+               //show float msg
+               if SkillBooksMod >= 2 then begin
+                  rnd = random(0, 2);
+                  if critter_obj == MMR_reader then
+                     rnd += 1;
+               end
+               if rnd >= 2 then
+                  call float_skill_up_npc(critter_obj);
+            end
+         end
+         else begin
+            if critter_obj == real_dude_obj then
+               display_msg(modmsg(msg_smart_dude));
+            else begin
+               display_msg(obj_name(critter_obj)+modmsg(msg_smart_npc));
+               //show float msg
+               if SkillBooksMod >= 2 then begin
+                  rnd = random(0, 2);
+                  if critter_obj == MMR_reader then
+                     rnd += 1;
+               end
+               if rnd >= 2 then
+                  call float_msg_high_skill_npc(critter_obj);
+            end
+         end
+      end
    end
-   else begin
-      critter_mod_skill(dude_obj, 2, 10);
-      display_msg(message_str(1096, 100));
-   end
+
+
+   return learned_something;
 end
+
 
 procedure FALLOUT_2_HINTBOOK_useon(variable critter_obj) begin
    variable npc_level, book_name, perk_name, perk_level;
    variable counter;
    variable critter_pid = obj_pid(critter_obj);
+   variable i;
+   variable skill_inc = (2 * skill_max);
+   variable stat_max = get_max_stat(critter_obj, STAT_st);
+   variable stat_inc = (2 * stat_max);
+   variable max_hp = get_max_stat(critter_obj, STAT_max_hp);
+   variable hp_inc = (2 * max_hp);
+   variable was_inc;
+   variable critter_id;
+   variable key;
    if critter_obj != real_dude_obj then begin
-      npc_level = get_npc_level(critter_pid);
-      for (counter = npc_level; counter < 11; counter++) begin
-         inc_npc_level(critter_pid);
+      if is_in_array(critter_obj, party_member_list(1)) then begin
+         while (1) do begin
+            npc_level = get_npc_level(critter_pid);
+            inc_npc_level(critter_pid);
+
+            if (get_npc_level(critter_pid) > npc_level) then
+               was_inc = 1;
+            else
+               break;
+         end
+
+
+         book_name = proto_data(PID_FALLOUT_2_HINTBOOK, 1);
+         perk_name = (""+book_name);
+         perk_level = has_fake_perk_npc(critter_obj, perk_name);
+         if perk_level <= 0 then
+            set_fake_perk_npc(critter_obj, perk_name, 1, 155, (modmsg(msg_f2_hint_perk_desc)));
       end
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(PID_FALLOUT_2_HINTBOOK, 1);
-      perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), 154, (modmsg(msg_f2_hint_perk_desc)));
+
+         critter_id = check_id(critter_obj);
+         key = get_npc_book_read_array_key(critter_id, PID_FALLOUT_2_HINTBOOK);
+         if get_array(npc_book_read_array, key) > 0 andAlso was_inc <= 0 then
+            return;
+
+         set_array(npc_book_read_array, key, 1);
+
    end
    else begin
       give_exp_points(10000);
    end
-   set_critter_extra_stat(critter_obj, STAT_max_hp, (999 - get_critter_base_stat(critter_obj, STAT_max_hp)));
-   critter_heal(critter_obj, 999);
-   set_critter_extra_stat(critter_obj, STAT_st, 10);
-   set_critter_extra_stat(critter_obj, STAT_pe, 10);
-   set_critter_extra_stat(critter_obj, STAT_en, 10);
-   set_critter_extra_stat(critter_obj, STAT_ch, 10);
-   set_critter_extra_stat(critter_obj, STAT_iq, 10);
-   set_critter_extra_stat(critter_obj, STAT_ag, 10);
-   set_critter_extra_stat(critter_obj, STAT_lu, 10);
-   set_critter_skill_points(critter_obj, SKILL_SMALL_GUNS, 300);
-   set_critter_skill_points(critter_obj, SKILL_BIG_GUNS, 300);
-   set_critter_skill_points(critter_obj, SKILL_ENERGY_WEAPONS, 300);
-   set_critter_skill_points(critter_obj, SKILL_UNARMED_COMBAT, 300);
-   set_critter_skill_points(critter_obj, SKILL_MELEE, 300);
-   set_critter_skill_points(critter_obj, SKILL_THROWING, 300);
-   set_critter_skill_points(critter_obj, SKILL_FIRST_AID, 300);
-   set_critter_skill_points(critter_obj, SKILL_DOCTOR, 300);
-   set_critter_skill_points(critter_obj, SKILL_SNEAK, 300);
-   set_critter_skill_points(critter_obj, SKILL_LOCKPICK, 300);
-   set_critter_skill_points(critter_obj, SKILL_STEAL, 300);
-   set_critter_skill_points(critter_obj, SKILL_TRAPS, 300);
-   set_critter_skill_points(critter_obj, SKILL_SCIENCE, 300);
-   set_critter_skill_points(critter_obj, SKILL_REPAIR, 300);
-   set_critter_skill_points(critter_obj, SKILL_CONVERSANT, 300);
-   set_critter_skill_points(critter_obj, SKILL_BARTER, 300);
-   set_critter_skill_points(critter_obj, SKILL_GAMBLING, 300);
-   set_critter_skill_points(critter_obj, SKILL_OUTDOORSMAN, 300);
+   if get_critter_extra_stat(critter_obj, STAT_max_hp) < max_hp then begin
+      call inc_save_stats(critter_obj, STAT_max_hp, hp_inc, lvl_up, old_perk);
+      critter_heal(critter_obj, 999);
+      was_inc = 1;
+   end
+
+   for (i = STAT_st; i <= STAT_lu; i++) begin
+      if get_critter_extra_stat(critter_obj, i) < stat_max then begin
+         call inc_save_stats(critter_obj, i, stat_inc, lvl_up, old_perk);
+         was_inc = 1;
+      end
+   end
+   for (i = SKILL_SMALL_GUNS; i <= SKILL_OUTDOORSMAN; i++) begin
+      if get_critter_skill_points(critter_obj, i) < skill_max then begin
+         call inc_save_skills(critter_obj, i, skill_inc, lvl_up, old_perk);
+         was_inc = 1;
+      end
+   end
+
+   if critter_obj == real_dude_obj then begin
+      display_msg(message_str(14, 100) + 10000 + message_str(14, 101));
+      if was_inc then
+         display_msg(modmsg(msg_f2_hint_npc));
+      //display_msg(message_str(1111, 100));
+   end
+   else begin
+      if was_inc then
+         display_msg(modmsg(msg_f2_hint_npc));
+      else begin
+         display_msg(obj_name(critter_obj) + modmsg(msg_f2_hint_readed_npc));
+      end
+   end
 end
 
 
 procedure NEVADA_HOMO_LUDENS_useon(variable critter_obj) begin
-   variable npc_level, book_name, perk_name, perk_level;
-   if critter_obj != dude_obj then begin
-      npc_level = get_npc_level(obj_pid(critter_obj));
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(NEVADA_PID_HOMO_LUDENS, 1);
-      perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      if perk_level <= 0 then begin
-         set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), (28 + SKILL_GAMBLING), (modmsg(msg_nevada_homo_ludens_perc_desc)));
-         set_critter_skill_points(critter_obj, SKILL_SCIENCE, (get_critter_skill_points(critter_obj, SKILL_SCIENCE) + 2));
-         set_critter_skill_points(critter_obj, SKILL_CONVERSANT, (get_critter_skill_points(critter_obj, SKILL_CONVERSANT) + 2));
-         set_critter_skill_points(critter_obj, SKILL_BARTER, (get_critter_skill_points(critter_obj, SKILL_BARTER) + 2));
-         set_critter_skill_points(critter_obj, SKILL_GAMBLING, (get_critter_skill_points(critter_obj, SKILL_GAMBLING) + 2));
-         set_critter_skill_points(critter_obj, SKILL_OUTDOORSMAN, (get_critter_skill_points(critter_obj, SKILL_OUTDOORSMAN) + 2));
-         if lvl_up <= 0 then display_msg(modmsg(msg_nevada_homo_ludens_learn_npc_start) + obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_learn_npc_end));
+   variable i;
+   variable value = base_second_skill_book_bonus / 2;
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
+   variable critter_id;
+   variable cur_book_count;
+   variable book_obj_pid = NEVADA_PID_HOMO_LUDENS;
+   if value < 2 then
+      value = 2;
+   if critter_obj != real_dude_obj then begin
+      if dude_comprehension > 0 andAlso comprehension_perk_party > 0 then
+         value = (value * (2 + dude_comprehension) + 1) / 2;
+
+      critter_id = check_id(critter_obj);
+      cur_book_count = get_array(npc_book_read_array, get_npc_book_read_array_key(critter_id, book_obj_pid));
+
+      if cur_book_count <= 0 then begin
+         call add_gvar(critter_obj, book_obj_pid, SKILL_GAMBLING);
+         for (i = SKILL_SCIENCE; i <= SKILL_OUTDOORSMAN; i++) begin
+            if i == SKILL_REPAIR then
+               continue;
+
+            call inc_save_skills(critter_obj, i, value, lvl_up, old_perk);
+         end
+         if lvl_up <= 0 then begin
+            display_msg(modmsg(msg_nevada_homo_ludens_learn_npc_start) + obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_learn_npc_end));
+            if SkillBooksMod >= 2 andAlso random(0,1) then
+               call float_HOMO_LUDENS(critter_obj);
+         end
       end
       else begin
          if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_homo_ludens_readed_npc));
@@ -194,72 +763,25 @@ procedure NEVADA_HOMO_LUDENS_useon(variable critter_obj) begin
    end
    else begin
       if (global_var(618) != 1) then begin
+         if dude_comprehension > 0 then
+            value = (value * (2 + dude_comprehension) + 1) / 2;
          set_global_var(618, 1);
-         critter_mod_skill(critter_obj, SKILL_SCIENCE, 2);
-         critter_mod_skill(critter_obj, SKILL_CONVERSANT, 2);
-         critter_mod_skill(critter_obj, SKILL_BARTER, 2);
-         critter_mod_skill(critter_obj, SKILL_GAMBLING, 2);
-         critter_mod_skill(critter_obj, SKILL_OUTDOORSMAN, 2);
+         critter_mod_skill(critter_obj, SKILL_SCIENCE, value);
+         critter_mod_skill(critter_obj, SKILL_CONVERSANT, value);
+         critter_mod_skill(critter_obj, SKILL_BARTER, value);
+         critter_mod_skill(critter_obj, SKILL_GAMBLING, value);
+         critter_mod_skill(critter_obj, SKILL_OUTDOORSMAN, value);
          display_msg(message_str(187, 102));
       end
       else begin
-         display_msg(message_str(187, 101));
-      end
-   end
-end
-
-procedure NEVADA_neurosurgery_useon(variable critter_obj) begin
-   variable npc_level, book_name, perk_name, perk_level;
-   if critter_obj != dude_obj then begin
-      npc_level = get_npc_level(obj_pid(critter_obj));
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(NEVADA_PID_NEUROSURGERY, 1);
-      perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      if (perk_level > 0) then begin
-         if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_readed_npc));
-         return;
-      end
-      else begin
-         set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), (28 + SKILL_DOCTOR), (modmsg(msg_nevada_neursurg_perk_desc)));
-         if (has_trait(TRAIT_PERK, critter_obj, PERK_living_anatomy_perk) > 0) then begin
-            set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
-            set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
-            if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc));
-         end
-         else begin
-            set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
-            set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
-            critter_add_trait(critter_obj, TRAIT_PERK, PERK_living_anatomy_perk, 1);
-            if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc_anatomy));
-         end
-      end
-   end
-   else begin
-      if (global_var(243) > 0) then begin
-         display_msg(message_str(1172, 100));
-         return;
-      end
-      else begin
-         set_global_var(243, 1);
-         float_msg(dude_obj, message_str(1172, 106), 8);
-         if (has_trait(TRAIT_PERK, critter_obj, PERK_living_anatomy_perk) > 0) then begin
-            set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
-            set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
-            display_msg(message_str(1172, 107));
-         end
-         else begin
-            set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + 10));
-            set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + 10));
-            critter_add_trait(critter_obj, TRAIT_PERK, PERK_living_anatomy_perk, 1);
-            display_msg(message_str(1172, 109));
-         end
+         //display_msg(message_str(187, 101));
+         display_msg(modmsg(msg_nevada_homo_ludens_readed_dude));
       end
    end
 end
 
 procedure NEVADA_neurosurgery_msg(variable critter_obj) begin
-   if not((get_critter_stat(critter_obj, STAT_iq) >= 7) andAlso (has_skill(critter_obj, SKILL_SCIENCE) >= 60) andAlso (has_skill(critter_obj, SKILL_DOCTOR) >= 60 or has_skill(critter_obj, SKILL_FIRST_AID) >= 60)) then begin
+   if not((get_critter_stat(critter_obj, STAT_iq) >= 7) andAlso (has_skill(critter_obj, SKILL_SCIENCE) >= 60) andAlso (has_skill(critter_obj, SKILL_DOCTOR) >= 60 orElse has_skill(critter_obj, SKILL_FIRST_AID) >= 60)) then begin
       if critter_obj == dude_obj then begin
          float_msg(critter_obj, message_str(1172, 101), 8);
          if (get_critter_stat(critter_obj, STAT_iq) >= 7) then begin
@@ -291,145 +813,218 @@ procedure NEVADA_neurosurgery_msg(variable critter_obj) begin
             display_msg(obj_name(critter_obj) + modmsg( msg_nevada_low_iq_npc));
          end
       end
+      // can't read;
+      return 0;
    end
+   // can read;
+   return 1;
 end
 
-procedure set_books_pid begin
-   // F2,ET_TU,Nevada,Resurrection
-   if Sonora <= 0 then begin
-      // Small Guns
-      books_pids[1 + SKILL_SMALL_GUNS * books_dup_num] = PID_GUNS_AND_BULLETS;
-      books_pids_proto_msg[SKILL_SMALL_GUNS] = 805;
-      // First Aid
-      books_pids[1 + SKILL_FIRST_AID * books_dup_num] = PID_FIRST_AID_BOOK;
-      books_pids_proto_msg[SKILL_FIRST_AID] = 804;
-      // Science
-      books_pids[1 + SKILL_SCIENCE * books_dup_num] = PID_BIG_BOOK_OF_SCIENCE;
-      if Nevada <= 0 then books_pids[2 + SKILL_SCIENCE * books_dup_num] = PID_CHEMISTRY_MANUAL;
-      books_pids_proto_msg[SKILL_SCIENCE] = 802;
-      // Repair
-      books_pids[1 + SKILL_REPAIR * books_dup_num] = PID_DEANS_ELECTRONICS;
-      books_pids_proto_msg[SKILL_REPAIR] = 803;
-      // Outdoorsman
-      books_pids[1 + SKILL_OUTDOORSMAN * books_dup_num] = PID_SCOUT_HANDBOOK;
-      books_pids_proto_msg[SKILL_OUTDOORSMAN] = 806;
-      //Nevada books
-      if Nevada > 0 then begin
-         // Energy Weapons
-         books_pids[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = 331;
-         books_pids_proto_msg[SKILL_ENERGY_WEAPONS] = 810;
-         // Traps
-         books_pids[1 + SKILL_TRAPS * books_dup_num] = 444;
-         books_pids_proto_msg[SKILL_TRAPS] = 807;
-         // Barter
-         books_pids[1 + SKILL_BARTER * books_dup_num] = 523;
-         books_pids_proto_msg[SKILL_BARTER] = 808;
+procedure NEVADA_neurosurgery_useon(variable critter_obj) begin
+   variable value;
+   variable dude_comprehension;
+   variable book_obj_pid = NEVADA_PID_NEUROSURGERY;
+   variable cur_book_count;
+   variable critter_id;
 
-         //Nevada unique non common skill books
-         books_pids[1 + SKILL_DOCTOR * books_dup_num] = NEVADA_PID_NEUROSURGERY;//neurosurgery
-         books_pids[len_array(books_pids)-1] = NEVADA_PID_HOMO_LUDENS;//Homo Ludens
-      end
-      //Fallout 2 unique non common skill books(et_tu,Resurrection)
-      else if Nevada <= 0 then begin
-         books_pids[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = PID_CATS_PAW_ISSUE_5;
-         books_pids[len_array(books_pids)-1] = PID_FALLOUT_2_HINTBOOK;
+   if critter_obj != real_dude_obj then begin
+      critter_id = check_id(critter_obj);
+      cur_book_count = get_array(npc_book_read_array, get_npc_book_read_array_key(critter_id, book_obj_pid));
+
+      if cur_book_count > 0 then begin
+         if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_readed_npc));
+         return;
       end
    end
-   //sonora books is bookseller mod is installed
    else begin
-      if Sonora_bookseller > 0 then begin
-         // Small Guns
-         books_pids[1 + SKILL_SMALL_GUNS * books_dup_num] = SONORA_PID_SG_BOOK;
-         second_skill_array[SONORA_PID_SG_BOOK] = 1 + SKILL_BIG_GUNS;
-         books_pids_proto_msg[SKILL_SMALL_GUNS] = 805;
-         // First Aid
-         books_pids[1 + SKILL_FIRST_AID * books_dup_num] = SONORA_PID_FA_BOOK;
-         second_skill_array[SONORA_PID_FA_BOOK] = 1 + SKILL_DOCTOR;
-         books_pids_proto_msg[SKILL_FIRST_AID] = 809;
-         // Science
-         books_pids[1 + SKILL_SCIENCE * books_dup_num] = SONORA_PID_SCIENCE_BOOK;
-         books_pids_proto_msg[SKILL_SCIENCE] = 802;
-         // Repair
-         books_pids[1 + SKILL_REPAIR * books_dup_num] = SONORA_PID_REPAIR_BOOK;
-         books_pids_proto_msg[SKILL_REPAIR] = 803;
-         // Outdoorsman
-         books_pids[1 + SKILL_OUTDOORSMAN * books_dup_num] = SONORA_PID_OUTDOORSMAN_BOOK;
-         books_pids_proto_msg[SKILL_OUTDOORSMAN] = 806;
-         // Energy Weapons
-         books_pids[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = SONORA_PID_EW_BOOK;
-         books_pids_proto_msg[SKILL_ENERGY_WEAPONS] = 810;
-         // Traps + Sneak
-         books_pids[1 + SKILL_TRAPS * books_dup_num] = SONORA_PID_TRAPS_BOOK;
-         second_skill_array[SONORA_PID_TRAPS_BOOK] = 1 + SKILL_SNEAK;
-         books_pids_proto_msg[SKILL_TRAPS] = 814;
-         // Barter
-         books_pids[1 + SKILL_BARTER * books_dup_num] = SONORA_PID_BARTER_BOOK;
-         second_skill_array[SONORA_PID_BARTER_BOOK] = 1 + SKILL_CONVERSANT;
-         books_pids_proto_msg[SKILL_BARTER] = 808;
-         // lockpick
-         books_pids[1 + SKILL_LOCKPICK * books_dup_num] = SONORA_PID_LOCKPICKING_BOOK;
-         books_pids_proto_msg[SKILL_LOCKPICK] = 813;
-         // Melee + Unarmed
-         books_pids[1 + SKILL_UNARMED_COMBAT * books_dup_num] = SONORA_PID_MELEE_BOOK;
-         second_skill_array[SONORA_PID_MELEE_BOOK] = 1 + SKILL_MELEE;
-         books_pids_proto_msg[SKILL_UNARMED_COMBAT] = 812;
-         //sneak
-         books_pids_proto_msg[SKILL_SNEAK] = 811;
+      if (global_var(243) > 0) then begin
+         display_msg(message_str(1172, 100));
+         return;
+      end
+   end
+
+   if NEVADA_neurosurgery_msg(critter_obj) orElse lvl_up then begin
+      value = (base_skill_book_bonus - 1) * 2;
+      dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
+      if value < 10 then
+         value = 10;
+
+      if critter_obj != real_dude_obj then begin
+         if dude_comprehension > 0 andAlso comprehension_perk_party > 0 then
+            value = (value * (2 + dude_comprehension) + 1) / 2;
+
+         if cur_book_count <= 0 then begin
+            call add_gvar(critter_obj, book_obj_pid, SKILL_DOCTOR);
+            call inc_save_skills(critter_obj, SKILL_DOCTOR, value, lvl_up, old_perk);
+            call inc_save_skills(critter_obj, SKILL_FIRST_AID, value, lvl_up, old_perk);
+            if (has_trait(TRAIT_PERK, critter_obj, PERK_living_anatomy_perk) > 0) then begin
+               if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc));
+            end
+            else begin
+               critter_add_trait(critter_obj, TRAIT_PERK, PERK_living_anatomy_perk, 1);
+               if lvl_up <= 0 then display_msg(obj_name(critter_obj) + modmsg(msg_nevada_neursurg_learn_npc_anatomy));
+            end
+         end
+      end
+      else begin
+         if (global_var(243) <= 0) then begin
+            if dude_comprehension > 0 then
+               value = (value * (2 + dude_comprehension) + 1) / 2;
+            set_global_var(243, 1);
+            float_msg(dude_obj, message_str(1172, 106), 8);
+            set_critter_skill_points(critter_obj, SKILL_DOCTOR, (get_critter_skill_points(critter_obj, SKILL_DOCTOR) + value));
+            set_critter_skill_points(critter_obj, SKILL_FIRST_AID, (get_critter_skill_points(critter_obj, SKILL_FIRST_AID) + value));
+            if (has_trait(TRAIT_PERK, critter_obj, PERK_living_anatomy_perk) > 0) then begin
+               display_msg(message_str(1172, 107));
+            end
+            else begin
+               critter_add_trait(critter_obj, TRAIT_PERK, PERK_living_anatomy_perk, 1);
+               display_msg(message_str(1172, 109));
+            end
+         end
       end
    end
 end
 
-procedure add_custom_books_pid begin
-   variable counter;
-   variable counter2;
-   variable custom_book_pid;
-   variable custom_book_skill;
-   variable book_duplicate;
-   variable custom_book_skill2;
-   // Add Custom skill books from "sfall\\books.ini"
-   for (counter = 1; counter < custom_books_count + 1; counter++) begin
-      custom_book_skill = get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill");
-      custom_book_pid = get_ini_setting (BooksFile_location+ "|"+ counter +"|PID");
-      custom_book_skill2 = 1 + get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill2");
-      if custom_book_skill2 >= 1 then begin
-         second_skill_array[custom_book_pid] = custom_book_skill2;
+procedure NEVADA_has_SUPER_TOOL_KIT(variable critter) begin
+   variable script = get_script(critter);
+   if script == 319 orElse script == 378 orElse script == 471 orElse script == 1120 orElse script == 969 then
+      return 1;
+   else
+      return 0;
+end
+
+procedure NEVADA_has_car begin
+   if global_var(544) > 0 orElse global_var(543) > 0 then
+      return 1;
+   else
+      return 0;
+end
+
+procedure NEVADA_is_original_car_owner(variable critter_obj) begin
+   if get_script(critter_obj) == 471 then begin
+      if global_var(544) > 0 then //was stolen
+         return 1;
+      else if global_var(543) > 0 then // was bought
+         return 2;
+      else if global_var(18) == 0 then // the dude doesn't have the car
+         return 3;
+   end
+   else
+      return 0;
+end
+
+procedure NEVADA_Chryslus_Motors_Catalog(variable user, variable critter_obj) begin
+   variable party_has_SUPER_TOOL_KIT;
+   variable party_has_auto_mechanic;
+   variable party;
+   variable party_obj;
+   variable repair_skill;
+   variable original_owner_state;
+   variable rnd_msg;
+   variable critter_fid;
+   if (global_var(455) != 0) then begin
+      display_msg(modmsg(1102));
+   end
+   else begin
+      if (has_skill(critter_obj, SKILL_REPAIR) < 50) then begin
+
+         if critter_obj == dude_obj then begin
+            float_msg(critter_obj, modmsg(1107), 0);
+            display_msg(modmsg(1106));
+         end
+         else if can_ask_money(critter_kill_type(critter_obj)) then begin
+            rnd_msg = random(1124, 1127);
+            if rnd_msg == 1127 then begin
+               if critter_kill_type(critter_obj) == KILL_TYPE_super_mutant_kills then
+                  rnd_msg -= 1;
+               else begin
+                  critter_fid = (obj_art_fid(critter_obj) bwand 0xFFFF0FFF);
+                  if critter_fid == FID_NMASIA orElse critter_fid == FID_NFASIA orElse critter_fid == FID_NMRGNG orElse critter_fid == FID_NMGANG then
+                     rnd_msg = 1128+random(0,1);
+               end
+            end
+            float_msg(critter_obj, modmsg(rnd_msg), 0);
+            display_msg(modmsg(1120));
+         end
+
+         if (has_trait(0, critter_obj, 94) > 0) then begin
+            display_msg(message_str(49, 52) + message_str(49, 13) + " " + 50 + message_str(49, 53));
+         end
       end
-      if is_in_array(custom_book_pid,books_pids) then set_array(books_pids, scan_array(books_pids, custom_book_pid), 0);
-      book_duplicate = books_pids[1 + custom_book_skill * books_dup_num];
-      counter2 = 0;
-      //If one skill boosts more than one book, then the next book is shifted by +1 index in array
-      while book_duplicate > 0 do begin
-         counter2 += 1;
-         book_duplicate = books_pids[counter2 + 1 + custom_book_skill * books_dup_num];
-         if counter2 > 31 then break; //Up to 30 new books can be added to "book.ini" maybe some genius will attribute all 30 books to the same skill :)
-      end
-      // If more than "books_dup_num" books increase the same skill, then the array increases by the "number of duplicate books"
-      if counter2 > books_dup_num then begin
-         books_dup_num = counter2;
-         free_array(books_pids);
-         books_pids = create_array_list(books_dup_num + (skills_count + 1 * books_dup_num));
-         call set_books_pid;
-      end
-      books_pids[counter2 + 1 + custom_book_skill * books_dup_num] = custom_book_pid;
-      books_pids_proto_msg[custom_book_skill] = get_ini_setting (BooksFile_location+ "|"+ counter +"|TextID");
-      //In case more than 17 skills are added
-      if custom_book_skill > skills_count or custom_book_skill2 > skills_count then begin
-         if custom_book_skill >= custom_book_skill2 then begin
-            skills_count = custom_book_skill;
+      else begin
+         original_owner_state = NEVADA_is_original_car_owner(critter_obj);
+         if (metarule(30, 0) != metarule(46, 0)) andAlso NEVADA_has_car + original_owner_state <= 0 then begin
+            if critter_obj != real_dude_obj andAlso can_ask_money(critter_kill_type(critter_obj)) then
+               float_msg(critter_obj, modmsg(random(1116, 1118)), 0);
+            display_msg(modmsg(1105));
+            return;
+         end
+
+         party_has_SUPER_TOOL_KIT = obj_is_carrying_obj_pid(critter_obj, PID_SUPER_TOOL_KIT) + NEVADA_has_SUPER_TOOL_KIT(critter_obj);
+         party = party_member_list(0);
+         if party_has_SUPER_TOOL_KIT <= 0 then begin
+            foreach party_obj in party begin
+               party_has_SUPER_TOOL_KIT = obj_is_carrying_obj_pid(party_obj, PID_SUPER_TOOL_KIT);
+               if party_has_SUPER_TOOL_KIT > 0 then
+                  break;
+            end
+         end
+
+         if (party_has_SUPER_TOOL_KIT > 0) then begin
+            if critter_obj != real_dude_obj andAlso (has_trait(TRAIT_OBJECT, critter_obj, OBJECT_TEAM_NUM) != TEAM_PLAYER) andAlso is_in_array(critter_obj, party) andAlso can_ask_money(critter_obj) then begin
+
+               if original_owner_state == 3 then begin
+
+               end
+               else if (get_critter_stat(user, STAT_ch) + get_critter_stat(user, STAT_iq) + get_critter_stat(user, STAT_lu)) >= 22 orElse has_skill(user, SKILL_CONVERSANT) >= 100 then
+                  float_msg(critter_obj, modmsg(1113), 0);
+               else if item_caps_total(user) < 200 then begin
+                  float_msg(critter_obj, modmsg(random(1109, 1112)), 0);
+                  display_msg(modmsg(1114));
+                  return;
+               end
+               else
+                  display_msg(modmsg(1115));
+            end
+
+
+            gfade_out(10);
+            game_time_advance(72000);
+            metarule(52, metarule(53, 0) + 70);
+            if critter_obj == real_dude_obj then begin
+               give_exp_points(250);
+               display_msg(message_str(14, 100) + 250 + message_str(14, 101));
+            end
+            gfade_in(10);
+            if original_owner_state == 3 then begin
+               float_msg(critter_obj, modmsg(1131), 3);
+               display_msg(modmsg(1132));
+               item_caps_adjust(user, 100);
+               add_obj_to_inven(critter_obj, create_object_sid(NEVADA_PID_CHRYSLUS_MOTORS_CATALOG, 0, 0, -1));
+               book_forced_remove = 1;
+            end
+            else begin
+               display_msg(modmsg(1100));
+               float_msg(critter_obj, modmsg(1101), 3);
+            end
+
+            set_global_var(455, 1);// set global var "car upgrade"
          end
          else begin
-            skills_count = custom_book_skill2;
+            display_msg(modmsg(1103));
+            float_msg(critter_obj, modmsg(1104), 0);
          end
-         free_array(books_pids);
-         free_array(custom_book_pid);
-         free_array(second_skill_array);
-         free_array(books_pids_proto_msg);
-         books_pids = create_array_list(books_dup_num + (skills_count + 1 * books_dup_num));
-         books_pids_proto_msg = create_array_list(skills_count+1);
-         call set_books_pid;
-         call add_custom_books_pid;
       end
    end
+
+end
+
+
+
+procedure get_skill_F2(variable book_obj_pid) begin
+   variable skill = (scan_array(books_pids_array, book_obj_pid) - 1) / books_dup_num;
+   return skill;
 end
 
 procedure get_book_bonus(variable critter_obj,variable skill,variable is_secondary_skill) begin
@@ -438,6 +1033,9 @@ procedure get_book_bonus(variable critter_obj,variable skill,variable is_seconda
    variable skill_level = has_skill(critter_obj, skill);
    variable skill_cost_div = 1;
    variable dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+   if dude_comprehension > 0 andAlso comprehension_perk_party <= 0 then
+      dude_comprehension = 0;
+
    if is_secondary_skill > 0 then begin
       if new_book_formula <= 0 then begin
          original_max_skill = original_book_formula_max_skill2;
@@ -456,13 +1054,14 @@ procedure get_book_bonus(variable critter_obj,variable skill,variable is_seconda
    end
    if max_skill_to_read > 0 andAlso skill_level >= max_skill_to_read then return 0;
    if new_book_formula <= 0 then begin
-      if dude_comprehension > 0 andAlso (critter_obj == dude_obj or comprehension_perk_party) then original_max_skill = (original_max_skill * (2 + dude_comprehension)) / 2;
+      if dude_comprehension > 0 then
+         original_max_skill = (original_max_skill * (2 + dude_comprehension) + 1) / 2;
       BOOK_SKILL_BONUS = (original_max_skill - skill_level) / 10;
    end
    if tagged_skill_mult > 0 andAlso critter_obj == real_dude_obj andAlso is_skill_tagged(skill) then begin //tagged bonus
       BOOK_SKILL_BONUS = round(BOOK_SKILL_BONUS * tagged_skill_mult); //rounding
    end
-   if (dude_comprehension > 0) andAlso (critter_obj == real_dude_obj or comprehension_perk_party) then begin //comprehension perk bonus
+   if dude_comprehension > 0 then begin //comprehension perk bonus
       BOOK_SKILL_BONUS = (BOOK_SKILL_BONUS * (2 + dude_comprehension) + 1) / 2; // +50%, rounding up
    end
    if new_book_formula > 0 andAlso skill_cost > 0 then begin
@@ -482,305 +1081,107 @@ procedure get_book_bonus(variable critter_obj,variable skill,variable is_seconda
    return BOOK_SKILL_BONUS;
 end
 
-procedure get_skill_F2(variable book_obj_pid) begin
-   variable skill = (scan_array(books_pids,book_obj_pid) - 1) / books_dup_num;
-   return skill;
-end
-
-procedure get_gvar_name(variable book_obj_pid) begin
-   variable gvar_name;
-   if book_obj_pid <= 9 then gvar_name = "SBk0000" + book_obj_pid;
-   else if book_obj_pid <= 99 then gvar_name = "SBk000" + book_obj_pid;
-   else if book_obj_pid <= 999 then gvar_name = "SBk00" + book_obj_pid;
-   else if book_obj_pid <= 9999 then gvar_name = "SBk0" + book_obj_pid;
-   else if book_obj_pid <= 99999 then gvar_name = "SBk" + book_obj_pid;
-   return gvar_name;
-end
-
-procedure add_gvar(variable critter_obj,variable skill_book_pid,variable skill) begin
-   variable gvar_name;
-   variable gvar_value;
-   variable perk_name;
-   variable perk_level;
+procedure check_old_perks(variable critter, variable is_PotentialPartyMember) begin
+   variable critter_id = get_unique_id(critter);
+   variable critter_pid;
+   variable book_pid;
    variable book_name;
-   variable npc_level;
-   if critter_obj == real_dude_obj then begin
-      gvar_name = get_gvar_name(skill_book_pid);
-      gvar_value = get_sfall_global_int(gvar_name);
-      set_sfall_global(gvar_name, (gvar_value + 1));
-   end
-   else begin
-      npc_level = get_npc_level(obj_pid(critter_obj));
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(skill_book_pid, 1);
-      perk_name = ("'" + book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      set_fake_perk_npc(critter_obj, perk_name, (perk_level + 1), (28 + skill), (modmsg(msg_skill_books_npc_perk_desc)));
-   end
-end
-
-procedure skill_up(variable critter_obj,variable book_obj_pid,variable skill,variable is_secondary_skill) begin
-   variable npc_level;
-   variable book_name;
-   variable perk_name;
-   variable perk_level;
-   variable critter_extra_skill;
-   variable bonus;
-   variable gvar_value;
-   variable gvar_name;
-   variable books_limit;
-   variable dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
-   variable critter_obj_int = get_critter_stat(critter_obj,STAT_iq);
-   if dude_comprehension > 1 then dude_comprehension = 1;
-   bonus = get_book_bonus(critter_obj, skill,is_secondary_skill);
-   if bonus < 0 then bonus = 0;
-   //party member
-   if critter_obj != real_dude_obj then begin
-      npc_level = get_npc_level(obj_pid(critter_obj));
-      if npc_level < 0 then npc_level = 0;
-      book_name = proto_data(book_obj_pid, 1);
-      perk_name = ("'"+ book_name + "' Level " + (npc_level + 1));
-      perk_level = has_fake_perk_npc(critter_obj, perk_name);
-      if new_book_formula > 0 then begin
-         books_limit = max_books_read;
-         if max_books_read_int > 0 then books_limit += critter_obj_int * max_books_read_int;
-         if (max_books_read_int > 0 or max_books_read > 0) then begin
-            if perk_level < books_limit + ((books_limit * dude_comprehension) / 2) then begin
-               critter_extra_skill = get_critter_skill_points(critter_obj, skill);
-               set_critter_skill_points(critter_obj, skill, (critter_extra_skill + bonus));
-            end
-            else begin
-               if max_books_read_int > 0 andAlso critter_obj_int < 10 andAlso not(is_in_array(critter_obj,low_iq_npc_msg_shown_array)) andAlso has_skill(critter_obj, skill) < max_skill_to_read then begin
-                  display_msg(obj_name(critter_obj) + modmsg(msg_npc_need_more_int));
-                  set_array(low_iq_npc_msg_shown_array, len_array(low_iq_npc_msg_shown_array) + 3, critter_obj);
-               end
-            end
-         end
-         else begin
-            critter_extra_skill = get_critter_skill_points(critter_obj, skill);
-            set_critter_skill_points(critter_obj, skill, (critter_extra_skill + bonus));
-         end
-      end
-      else begin
-         critter_extra_skill = get_critter_skill_points(critter_obj, skill);
-         set_critter_skill_points(critter_obj, skill, (critter_extra_skill + bonus));
-      end
-   end
-   //dude
-   else begin
-      gvar_name = get_gvar_name(book_obj_pid);
-      gvar_value = get_sfall_global_int(gvar_name);
-      if new_book_formula > 0 then begin
-         books_limit = max_books_read;
-         if max_books_read_int > 0 then books_limit += critter_obj_int * max_books_read_int;
-         if (max_books_read_int > 0 or max_books_read > 0) then begin
-            if gvar_value < books_limit + ((books_limit * dude_comprehension) / 2) then begin
-               critter_mod_skill(critter_obj, skill, bonus);
-            end
-            else begin
-               if max_books_read_int > 0 andAlso critter_obj_int < 10 andAlso not(is_in_array(critter_obj,low_iq_npc_msg_shown_array)) andAlso has_skill(critter_obj, skill) < max_skill_to_read then begin
-                  display_msg(modmsg(msg_dude_need_more_int));
-                  set_array(low_iq_npc_msg_shown_array, len_array(low_iq_npc_msg_shown_array) + 3, critter_obj);
-               end
-            end
-         end
-         else begin
-            critter_mod_skill(critter_obj, skill, bonus);
-         end
-      end
-      else begin
-         critter_mod_skill(critter_obj, skill, bonus);
-      end
-   end
-end
-
-procedure nonparty_npc_skill_up begin
-   variable party_member_level;
+   variable counter;
+   variable counter2;
    variable perk_name;
    variable perk_level;
    variable skill;
    variable skill2;
-   variable book_name;
-   variable skill_bonus;
-   variable skill_bonus2;
    variable party_member_extra_skill;
    variable party_member_extra_skill2;
-   variable counter;
-   variable counter2;
-   foreach party_member in party_member_list(1) begin
-      if party_member != real_dude_obj then begin
-         party_member_level = get_npc_level(obj_pid(party_member));
-         if party_member_level < 0 then party_member_level = 0;
-         foreach book_pid in books_pids begin
-            if book_pid > 0 then begin
-               book_name = proto_data(book_pid, 1);
-               for (counter = 0; counter < party_member_level + 1; counter++) begin
-                  perk_name = ("'"+book_name + "' Level " + (party_member_level+1));
-                  perk_level = has_fake_perk_npc(party_member, perk_name);
-                  if perk_level > 0 then begin
-                     if Nevada <= 0 then begin
-                        if book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                           set_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS, (get_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS) + cats_paw_5_bonus));
-                           continue;
+   variable skill_bonus;
+   variable skill_bonus2;
+   variable party_member_level;
+   variable i;
+   if get_array(old_perks_checked_array, critter_id) > 0 then
+      return;
+
+   set_array(old_perks_checked_array, critter_id, 1);
+   critter_pid = obj_pid(critter);
+   party_member_level = get_npc_level(critter_pid);
+   party_member_level += 3;
+
+   foreach book_pid in books_pids_array begin
+      if book_pid > 0 then begin
+         book_name = proto_data(book_pid, 1);
+         for (counter = 0; counter < party_member_level; counter++) begin
+            perk_name = ("'" + book_name + "' Level " + (party_member_level-counter));
+            perk_level = has_fake_perk_npc(critter, perk_name);
+            if perk_level > 0 then begin
+               set_fake_perk_npc(critter, (perk_name), 0, 0,""); // remove old fake perks
+               if Nevada <= 0 andAlso Sonora <= 0 then begin
+                  if book_pid == PID_CATS_PAW_ISSUE_5 then begin
+                     lvl_up = 1;
+                     for (counter2 = 0; counter2 < perk_level; counter2++) begin
+                        call CATS_PAW_ISSUE_5_useon(critter);
+                     end
+                     continue;
+                  end
+                  else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
+                     lvl_up = 1;
+                     perk_name = (""+book_name);
+                     set_fake_perk_npc(critter, perk_name, 1, 155, (modmsg(msg_f2_hint_perk_desc)));
+                     if is_PotentialPartyMember <= 0 then begin
+                        if get_critter_extra_stat(critter, STAT_max_hp) < 1500 then begin
+                           call inc_save_stats(critter, STAT_max_hp, 2500, lvl_up, old_perk);
                         end
-                        else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
-                           set_critter_extra_stat(party_member, STAT_max_hp, (999 - get_critter_base_stat(party_member, STAT_max_hp)));
-                           set_critter_extra_stat(party_member, STAT_st, 10);
-                           set_critter_extra_stat(party_member, STAT_pe, 10);
-                           set_critter_extra_stat(party_member, STAT_en, 10);
-                           set_critter_extra_stat(party_member, STAT_ch, 10);
-                           set_critter_extra_stat(party_member, STAT_iq, 10);
-                           set_critter_extra_stat(party_member, STAT_ag, 10);
-                           set_critter_extra_stat(party_member, STAT_lu, 10);
-                           set_critter_skill_points(party_member, SKILL_SMALL_GUNS, 300);
-                           set_critter_skill_points(party_member, SKILL_BIG_GUNS, 300);
-                           set_critter_skill_points(party_member, SKILL_ENERGY_WEAPONS, 300);
-                           set_critter_skill_points(party_member, SKILL_UNARMED_COMBAT, 300);
-                           set_critter_skill_points(party_member, SKILL_MELEE, 300);
-                           set_critter_skill_points(party_member, SKILL_THROWING, 300);
-                           set_critter_skill_points(party_member, SKILL_FIRST_AID, 300);
-                           set_critter_skill_points(party_member, SKILL_DOCTOR, 300);
-                           set_critter_skill_points(party_member, SKILL_SNEAK, 300);
-                           set_critter_skill_points(party_member, SKILL_LOCKPICK, 300);
-                           set_critter_skill_points(party_member, SKILL_STEAL, 300);
-                           set_critter_skill_points(party_member, SKILL_TRAPS, 300);
-                           set_critter_skill_points(party_member, SKILL_SCIENCE, 300);
-                           set_critter_skill_points(party_member, SKILL_REPAIR, 300);
-                           set_critter_skill_points(party_member, SKILL_CONVERSANT, 300);
-                           set_critter_skill_points(party_member, SKILL_BARTER, 300);
-                           set_critter_skill_points(party_member, SKILL_GAMBLING, 300);
-                           set_critter_skill_points(party_member, SKILL_OUTDOORSMAN, 300);
-                           continue;
+                        for (i = STAT_st; i <= STAT_lu; i++) begin
+                           if get_critter_extra_stat(critter, i) < 25 then
+                              call inc_save_stats(critter, i, 30, lvl_up, old_perk);
+                        end
+                        for (i = SKILL_SMALL_GUNS; i <= SKILL_OUTDOORSMAN; i++) begin
+                           if get_critter_skill_points(critter, i) < 500 then
+                              call inc_save_skills(critter, i, 600, lvl_up, old_perk);
                         end
                      end
-                     if Nevada > 0 andAlso book_pid == NEVADA_PID_HOMO_LUDENS then begin
-                        set_critter_skill_points(party_member, SKILL_SCIENCE, (get_critter_skill_points(party_member, SKILL_SCIENCE) + 2));
-                        set_critter_skill_points(party_member, SKILL_CONVERSANT, (get_critter_skill_points(party_member, SKILL_CONVERSANT) + 2));
-                        set_critter_skill_points(party_member, SKILL_BARTER, (get_critter_skill_points(party_member, SKILL_BARTER) + 2));
-                        set_critter_skill_points(party_member, SKILL_GAMBLING, (get_critter_skill_points(party_member, SKILL_GAMBLING) + 2));
-                        set_critter_skill_points(party_member, SKILL_OUTDOORSMAN, (get_critter_skill_points(party_member, SKILL_OUTDOORSMAN) + 2));
-                        continue;
-                     end
-                     if Nevada > 0 andAlso book_pid == NEVADA_PID_NEUROSURGERY then begin
-                        set_critter_skill_points(party_member, SKILL_DOCTOR, (get_critter_skill_points(party_member, SKILL_DOCTOR) + 10));
-                        set_critter_skill_points(party_member, SKILL_FIRST_AID, (get_critter_skill_points(party_member, SKILL_FIRST_AID) + 10));
-                        if has_trait(TRAIT_PERK,party_member,PERK_living_anatomy_perk) <= 0 then critter_add_trait(party_member, TRAIT_PERK, PERK_living_anatomy_perk, 1);
-                        continue;
-                     end
-                     skill = get_skill_F2(book_pid);
-                     skill2 = second_skill_array[book_pid] - 1;
-                     if get_npc_level(obj_pid(party_member)) < 0 andAlso get_proto_data(obj_pid(party_member),PROTO_CR_BONUS_SKILL(skill)) == get_critter_skill_points(party_member, skill) then begin
-                        if new_book_formula <= 0 then begin
-                           skill_bonus = 0;
-                           skill_bonus2 = 0;
-                           for (counter2 = 0; counter2 < perk_level; counter2++) begin
-                              call skill_up(party_member,book_pid,skill,0);
-                              if skill2 >= 0 then  begin
-                                 call skill_up(party_member,book_pid,skill2,1);
-                              end
-                           end
-                        end
-                        else begin
-                           party_member_extra_skill = get_critter_skill_points(party_member, skill);
-                           if skill2 >= 0 then party_member_extra_skill2 = get_critter_skill_points(party_member, skill2);
-                           skill_bonus = 0;
-                           skill_bonus2 = 0;
-                           for (counter2 = 0; counter2 < perk_level; counter2++) begin
-                              party_member_extra_skill += skill_bonus;
-                              skill_bonus = get_book_bonus(party_member, skill,0);
-                              set_critter_skill_points(party_member, skill, (party_member_extra_skill + skill_bonus));
-                              if skill2 >= 0 then  begin
-                                 party_member_extra_skill2 += skill_bonus2;
-                                 skill_bonus2 = get_book_bonus(party_member, skill2,1);
-                                 set_critter_skill_points(party_member, skill2, (party_member_extra_skill2 + skill_bonus2));
-                              end
-                           end
-                        end
-                     end
+                     continue;
                   end
                end
-            end
-         end
-      end
-   end
-end
+               else if Nevada > 0 then begin
+                  if book_pid == NEVADA_PID_HOMO_LUDENS then begin
+                     lvl_up = 1;
+                     call NEVADA_HOMO_LUDENS_useon(critter);
+                     continue;
+                  end
+                  else if book_pid == NEVADA_PID_NEUROSURGERY then begin
+                     lvl_up = 1;
+                     call NEVADA_neurosurgery_useon(critter);
+                     continue;
+                  end
+               end
 
-procedure skills_on_lvlup begin
-   variable party_member_level;
-   variable perk_name;
-   variable perk_level;
-   variable skill;
-   variable skill2;
-   variable book_name;
-   variable skill_bonus;
-   variable skill_bonus2;
-   variable party_member_extra_skill;
-   variable party_member_extra_skill2;
-   variable counter;
-   variable counter2;
-   foreach party_member in party_member_list(1) begin
-      if party_member != real_dude_obj then begin
-         party_member_level = get_npc_level(obj_pid(party_member));
-         if party_member_level < 0 then party_member_level = 0;
-         foreach book_pid in books_pids begin
-            if book_pid > 0 then begin
-               book_name = proto_data(book_pid, 1);
-               for (counter = 0; counter < party_member_level; counter++) begin
-                  perk_name = ("'"+book_name + "' Level " + (party_member_level-counter));
-                  perk_level = has_fake_perk_npc(party_member, perk_name);
-                  if perk_level > 0 then begin
-                     set_fake_perk_npc(party_member, (perk_name), 0, 0,""); // remove old fake perks
-                     if Nevada <= 0 andAlso Sonora <= 0 then begin
-                        if book_pid == PID_CATS_PAW_ISSUE_5 then begin
-                           lvl_up = 1;
-                           for (counter2 = 0; counter2 < perk_level; counter2++) begin
-                              call CATS_PAW_ISSUE_5_useon(party_member);
-                           end
-                           continue;
-                        end
-                        else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
-                           lvl_up = 1;
-                           perk_name = ("'"+book_name + "'");
-                           set_fake_perk_npc(party_member, perk_name, (perk_level), 153, (modmsg(msg_f2_hint_perk_desc)));
-                           continue;
-                        end
-                     end
-                     if Nevada > 0 then begin
-                        if book_pid == NEVADA_PID_HOMO_LUDENS then begin
-                           lvl_up = 1;
-                           call NEVADA_HOMO_LUDENS_useon(party_member);
-                           continue;
-                        end
-                        else if book_pid == NEVADA_PID_NEUROSURGERY then begin
-                           lvl_up = 1;
-                           call NEVADA_neurosurgery_useon(party_member);
-                           continue;
-                        end
-                     end
-                     skill = get_skill_F2(book_pid);
-                     skill2 = second_skill_array[book_pid] - 1;
-                     party_member_extra_skill = get_critter_skill_points(party_member, skill);
-                     if skill2 >= 0 then party_member_extra_skill2 = get_critter_skill_points(party_member, skill2);
-                     perk_name = ("'" + book_name + "' Level " + (party_member_level + 1)); //get new perk name (lvl+1)
-                     //add new perk equal to old perk count
-                     set_fake_perk_npc(party_member, perk_name, (perk_level + has_fake_perk_npc(party_member, perk_name)), (28 + skill), (modmsg(msg_skill_books_npc_perk_desc)));
-                     if new_book_formula <= 0 then begin
-                        set_critter_skill_points(party_member, skill, (party_member_extra_skill + perk_level * round(1 + (original_book_formula_max_skill / 14.0))));
-                        if skill2 >= 0 then set_critter_skill_points(party_member, skill2, (party_member_extra_skill2 + perk_level * round(1 + (original_book_formula_max_skill2 / 14.0))));
-                     end
-                     else begin
-                        skill_bonus = 0;
-                        skill_bonus2 = 0;
-                        for (counter2 = 0; counter2 < perk_level; counter2++) begin
-                           party_member_extra_skill += skill_bonus;
-                           skill_bonus = get_book_bonus(party_member, skill,0);
-                           set_critter_skill_points(party_member, skill, (party_member_extra_skill + skill_bonus));
-                           if skill2 >= 0 then  begin
-                              party_member_extra_skill2 += skill_bonus2;
-                              skill_bonus2 = get_book_bonus(party_member, skill2,1);
-                              set_critter_skill_points(party_member, skill2, (party_member_extra_skill2 + skill_bonus2));
-                           end
-                        end
+               skill = get_skill_F2(book_pid);
+               skill2 = second_skill_array[book_pid] - 1;
+               party_member_extra_skill = get_critter_skill_points(critter, skill);
+               if skill2 >= 0 then party_member_extra_skill2 = get_critter_skill_points(critter, skill2);
+               perk_name = ("" + book_name); //get new perk name
+               //add new perk equal to old perk count
+               lvl_up = 0;
+               call add_gvar(critter, book_pid, skill, perk_level);
+               skill_bonus = 0;
+               skill_bonus2 = 0;
+               if new_book_formula <= 0 then begin
+                  skill_bonus = (party_member_extra_skill + perk_level * round(1 + (original_book_formula_max_skill / 14.0)));
+                  call inc_save_skills(critter, skill, skill_bonus, 0, is_PotentialPartyMember);
+                  if skill2 >= 0 then begin
+                     skill_bonus2 = (party_member_extra_skill2 + perk_level * round(1 + (original_book_formula_max_skill2 / 14.0)));
+                     call inc_save_skills(critter, skill2, skill_bonus2, 0, is_PotentialPartyMember);
+                  end
+               end
+               else begin
+                  for (counter2 = 0; counter2 < perk_level; counter2++) begin
+                     party_member_extra_skill += skill_bonus;
+                     skill_bonus = get_book_bonus(critter, skill,0);
+                     call inc_save_skills(critter, skill, skill_bonus, 0, is_PotentialPartyMember);
+                     if skill2 >= 0 then  begin
+                        party_member_extra_skill2 += skill_bonus2;
+                        skill_bonus2 = get_book_bonus(critter, skill2,1);
+                        call inc_save_skills(critter, skill, skill_bonus, 0, is_PotentialPartyMember);
                      end
                   end
                end
@@ -791,438 +1192,1409 @@ procedure skills_on_lvlup begin
    lvl_up = 0;
 end
 
-procedure party_skills_on_lvlup begin
-   variable last_game_mode = get_sfall_arg_at(1);
-   variable player_cur_level = dude_level;
-   if last_game_mode bwand DIALOG then begin
-      party_party_member_count = len_array(party_member_list(0));
+procedure clear_saved(variable critter_id) begin
+   variable critter_stat;
+   variable critter_skill;
+   variable i;
+   variable half_key;
+   variable full_key;
+   variable read_books;
+   variable book_pid;
+   if has_saved_stats(critter_id) > 0 then begin
+      half_key = critter_id + "St";
+      for (i = 0; i <= STAT_poison_resist; i++) begin
+         full_key = half_key + i;
+         critter_stat = get_array(id_to_saved_skills_stats_array, full_key);
+         if critter_stat != 0 then begin
+            set_array(id_to_saved_skills_stats_array, full_key, 0);
+         end
+      end
+      read_books = 1;
+      set_array(id_to_saved_skills_stats_array, critter_id + "Sts", 0);
    end
-   if player_last_level != player_cur_level orElse party_party_member_count != last_party_party_member_count then begin
-      last_party_party_member_count = party_party_member_count;
-      player_last_level = player_cur_level;
-      call skills_on_lvlup();
+   if has_saved_skills(critter_id) > 0 then begin
+      half_key = critter_id + "Sk";
+      for (i = 0; i <= SKILL_OUTDOORSMAN; i++) begin
+         full_key = half_key + i;
+         critter_skill = get_array(id_to_saved_skills_stats_array, full_key);
+         if critter_skill != 0 then begin
+            set_array(id_to_saved_skills_stats_array, full_key, 0);
+         end
+      end
+      read_books = 1;
+      set_array(id_to_saved_skills_stats_array, critter_id, 0);
+   end
+   if read_books then begin
+      half_key = (critter_id + get_npc_book_char);
+      foreach book_pid in books_pids_array begin
+         if book_pid > 0 then begin
+            full_key = half_key + book_pid;
+            read_books = get_array(npc_book_read_array, full_key);
+            if read_books then
+               set_array(npc_book_read_array, full_key, 0);
+         end
+      end
    end
 end
 
-procedure UseONObjHandler begin
+procedure ONDEATH begin
+   variable critter = get_sfall_arg;
+   call clear_saved(get_unique_id(critter));
+end
+
+
+procedure map_exit_p_proc begin
+   variable critter;
+   variable critter_id;
+   variable critters_array;
+   variable map_is_saveable;
+   variable key;
+   variable critter_stat;
+   variable party = party_member_list(1);
+   map_is_saveable = call_offset_r0(0x4BFA64);
+   critters_array = list_as_array(LIST_CRITTERS);
+   if map_is_saveable <= 0 then
+      party = party_member_list(1);
+
+   foreach critter in critters_array begin
+      critter_id = check_id(critter);
+
+      if map_is_saveable <= 0 then begin
+         if is_in_array(critter, party) then
+            continue;
+         call clear_saved(critter_id);
+      end
+   end
+
+
+   clear_array(ptr_to_id_array);
+end
+
+procedure set_books_proto_stats begin
+   variable book_pid;
+   foreach book_pid in books_pids_array begin
+      if book_pid > 0 then begin
+         set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwor ITEM_ACTION_USEON));
+         if (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) == ITEM_ACTION_USE then begin
+            set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand bwnot(ITEM_ACTION_USE)));
+         end
+         if get_proto_data(book_pid, PROTO_IT_COST) <= 0 then
+            set_proto_data(book_pid, PROTO_IT_COST, 10 + 5 *get_proto_data(book_pid, PROTO_IT_WEIGHT));
+      end
+   end
+
+end
+
+procedure set_critter_saved_stats(variable critter, variable critter_id) begin
+   variable i;
+   variable critter_stat;
+   variable critter_skill;
+   if has_saved_stats(critter_id) > 0 then begin
+      for (i = 0; i <= STAT_poison_resist; i++) begin
+         critter_stat = get_array(id_to_saved_skills_stats_array, critter_id+"St"+i);
+         if critter_stat != 0 then begin
+            set_critter_extra_stat(critter, i, (get_critter_extra_stat(critter, i) + critter_stat));
+         end
+      end
+   end
+   if has_saved_skills(critter_id) > 0 then begin
+      for (i = 0; i <= SKILL_OUTDOORSMAN; i++) begin
+         critter_skill = get_array(id_to_saved_skills_stats_array, critter_id+"Sk"+i);
+         if critter_skill != 0 then begin
+            set_critter_skill_points(critter, i, (get_critter_skill_points(critter, i) + critter_skill));
+         end
+      end
+   end
+end
+
+procedure map_enter_p_proc begin
+   variable book_pid;
+   variable critter;
+   variable critters_array;
+   variable critter_cur_hp;
+   variable critter_id;
+   variable party_array;
+   critters_array = list_as_array(LIST_CRITTERS);
+   party_array = party_member_list(1);
+   call set_books_proto_stats;
+
+   //set critter stats remove old perks
+   foreach critter in critters_array begin
+      critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
+      if critter == real_dude_obj orElse is_really_dead(critter, critter_state(critter), critter_cur_hp) then begin
+         continue;
+      end
+
+      critter_id = set_unique_id2(critter);
+      set_array(ptr_to_id_array, critter, critter_id);
+      if critter_id > 18000 andAlso critter_id <= 83535 then
+         old_perk = 1;
+      else begin
+         old_perk = 0;
+         call set_critter_saved_stats(critter, critter_id);
+      end
+      if is_in_array(critter, party_array) then
+         call check_old_perks(critter, old_perk);
+
+   end
+   old_perk = 0;
+end
+
+procedure set_books_pid begin
+   // F2,ET_TU,Nevada,Resurrection
+   if Sonora <= 0 then begin
+      // Small Guns
+      books_pids_array[1 + SKILL_SMALL_GUNS * books_dup_num] = PID_GUNS_AND_BULLETS;
+      books_pids_proto_msg[SKILL_SMALL_GUNS] = 805;
+      // First Aid
+      books_pids_array[1 + SKILL_FIRST_AID * books_dup_num] = PID_FIRST_AID_BOOK;
+      books_pids_proto_msg[SKILL_FIRST_AID] = 804;
+      // Science
+      books_pids_array[1 + SKILL_SCIENCE * books_dup_num] = PID_BIG_BOOK_OF_SCIENCE;
+      if Nevada <= 0 then books_pids_array[2 + SKILL_SCIENCE * books_dup_num] = PID_CHEMISTRY_MANUAL;
+      books_pids_proto_msg[SKILL_SCIENCE] = 802;
+      // Repair
+      books_pids_array[1 + SKILL_REPAIR * books_dup_num] = PID_DEANS_ELECTRONICS;
+      books_pids_proto_msg[SKILL_REPAIR] = 803;
+      // Outdoorsman
+      books_pids_array[1 + SKILL_OUTDOORSMAN * books_dup_num] = PID_SCOUT_HANDBOOK;
+      books_pids_proto_msg[SKILL_OUTDOORSMAN] = 806;
+      //Nevada books
+      if Nevada > 0 then begin
+         // Energy Weapons
+         books_pids_array[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = 331;
+         books_pids_proto_msg[SKILL_ENERGY_WEAPONS] = 810;
+         // Traps
+         books_pids_array[1 + SKILL_TRAPS * books_dup_num] = 444;
+         books_pids_proto_msg[SKILL_TRAPS] = 807;
+         // Barter
+         books_pids_array[1 + SKILL_BARTER * books_dup_num] = 523;
+         books_pids_proto_msg[SKILL_BARTER] = 808;
+
+         //Nevada unique non common skill books
+         books_pids_array[1 + SKILL_DOCTOR * books_dup_num] = NEVADA_PID_NEUROSURGERY;//neurosurgery
+         books_pids_array[1 + SKILL_GAMBLING * books_dup_num] = NEVADA_PID_HOMO_LUDENS;//Homo Ludens
+         books_pids_array[2 + SKILL_REPAIR * books_dup_num] = NEVADA_PID_CHRYSLUS_MOTORS_CATALOG;//neurosurgery
+
+
+      end
+      //Fallout 2 unique non common skill books(et_tu,Resurrection)
+      else if Nevada <= 0 then begin
+         books_pids_array[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = PID_CATS_PAW_ISSUE_5;
+         books_pids_array[len_array(books_pids_array)-1] = PID_FALLOUT_2_HINTBOOK;
+      end
+   end
+   //sonora books is bookseller mod is installed
+   else begin
+      if Sonora_bookseller > 0 then begin
+         // Small Guns
+         books_pids_array[1 + SKILL_SMALL_GUNS * books_dup_num] = SONORA_PID_SG_BOOK;
+         second_skill_array[SONORA_PID_SG_BOOK] = 1 + SKILL_BIG_GUNS;
+         books_pids_proto_msg[SKILL_SMALL_GUNS] = 805;
+         // First Aid
+         books_pids_array[1 + SKILL_FIRST_AID * books_dup_num] = SONORA_PID_FA_BOOK;
+         second_skill_array[SONORA_PID_FA_BOOK] = 1 + SKILL_DOCTOR;
+         books_pids_proto_msg[SKILL_FIRST_AID] = 809;
+         // Science
+         books_pids_array[1 + SKILL_SCIENCE * books_dup_num] = SONORA_PID_SCIENCE_BOOK;
+         books_pids_array[2 + SKILL_SCIENCE * books_dup_num] = SONORA_PID_BEMIS_BOOK;
+         books_pids_proto_msg[SKILL_SCIENCE] = 802;
+         // Repair
+         books_pids_array[1 + SKILL_REPAIR * books_dup_num] = SONORA_PID_REPAIR_BOOK;
+         books_pids_proto_msg[SKILL_REPAIR] = 803;
+         // Outdoorsman
+         books_pids_array[1 + SKILL_OUTDOORSMAN * books_dup_num] = SONORA_PID_OUTDOORSMAN_BOOK;
+         books_pids_proto_msg[SKILL_OUTDOORSMAN] = 806;
+         // Energy Weapons
+         books_pids_array[1 + SKILL_ENERGY_WEAPONS * books_dup_num] = SONORA_PID_EW_BOOK;
+         books_pids_proto_msg[SKILL_ENERGY_WEAPONS] = 810;
+         // Traps + Sneak
+         books_pids_array[1 + SKILL_TRAPS * books_dup_num] = SONORA_PID_TRAPS_BOOK;
+         second_skill_array[SONORA_PID_TRAPS_BOOK] = 1 + SKILL_SNEAK;
+         books_pids_proto_msg[SKILL_TRAPS] = 814;
+         // Barter
+         books_pids_array[1 + SKILL_BARTER * books_dup_num] = SONORA_PID_BARTER_BOOK;
+         second_skill_array[SONORA_PID_BARTER_BOOK] = 1 + SKILL_CONVERSANT;
+         books_pids_proto_msg[SKILL_BARTER] = 808;
+         // lockpick
+         books_pids_array[1 + SKILL_LOCKPICK * books_dup_num] = SONORA_PID_LOCKPICKING_BOOK;
+         books_pids_proto_msg[SKILL_LOCKPICK] = 813;
+         // Melee + Unarmed
+         books_pids_array[1 + SKILL_UNARMED_COMBAT * books_dup_num] = SONORA_PID_MELEE_BOOK;
+         second_skill_array[SONORA_PID_MELEE_BOOK] = 1 + SKILL_MELEE;
+         books_pids_proto_msg[SKILL_UNARMED_COMBAT] = 812;
+         //sneak
+         books_pids_proto_msg[SKILL_SNEAK] = 811;
+
+
+
+         books_pids_array[1 + SKILL_CONVERSANT * books_dup_num] = SONORA_PID_COMIC;
+      end
+   end
+end
+
+procedure add_custom_books_pid begin
+   variable counter;
+   variable counter2;
+   variable custom_book_pid;
+   variable custom_book_skill;
+   variable book_duplicate;
+   variable custom_book_skill2;
+   // Add Custom skill books from "sfall\\books.ini"
+   for (counter = 1; counter < custom_books_count + 1; counter++) begin
+      custom_book_skill = get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill");
+      custom_book_pid = get_ini_setting (BooksFile_location+ "|"+ counter +"|PID");
+      custom_book_skill2 = 1 + get_ini_setting (BooksFile_location+ "|"+ counter +"|Skill2");
+      if custom_book_skill2 >= 1 then begin
+         second_skill_array[custom_book_pid] = custom_book_skill2;
+      end
+      if is_in_array(custom_book_pid,books_pids_array) then set_array(books_pids_array, scan_array(books_pids_array, custom_book_pid), 0);
+      book_duplicate = books_pids_array[1 + custom_book_skill * books_dup_num];
+      counter2 = 0;
+      //If one skill boosts more than one book, then the next book is shifted by +1 index in array
+      while book_duplicate > 0 do begin
+         counter2 += 1;
+         book_duplicate = books_pids_array[counter2 + 1 + custom_book_skill * books_dup_num];
+         if counter2 > 31 then break; //Up to 30 new books can be added to "book.ini" maybe some genius will attribute all 30 books to the same skill :)
+      end
+      // If more than "books_dup_num" books increase the same skill, then the array increases by the "number of duplicate books"
+      if counter2 > books_dup_num then begin
+         books_dup_num = counter2;
+         free_array(books_pids_array);
+         books_pids_array = create_array_list(books_dup_num + (skills_count + 1 * books_dup_num));
+         call set_books_pid;
+      end
+      books_pids_array[counter2 + 1 + custom_book_skill * books_dup_num] = custom_book_pid;
+      books_pids_proto_msg[custom_book_skill] = get_ini_setting (BooksFile_location+ "|"+ counter +"|TextID");
+      //In case more than 17 skills are added
+      if custom_book_skill > skills_count or custom_book_skill2 > skills_count then begin
+         if custom_book_skill >= custom_book_skill2 then begin
+            skills_count = custom_book_skill;
+         end
+         else begin
+            skills_count = custom_book_skill2;
+         end
+         free_array(books_pids_array);
+         free_array(custom_book_pid);
+         clear_array(second_skill_array);
+         free_array(books_pids_proto_msg);
+         books_pids_array = create_array_list(books_dup_num + (skills_count + 1 * books_dup_num));
+         books_pids_proto_msg = create_array_list(skills_count+1);
+         call set_books_pid;
+         call add_custom_books_pid;
+      end
+   end
+end
+
+procedure skill_up(variable critter_obj, variable book_obj_pid, variable skill, variable is_secondary_skill) begin
+   variable skill_bonus;
+   if check_max_books_add_to_low_iq(critter_obj, book_obj_pid, skill) then begin
+      skill_bonus = get_book_bonus(critter_obj, skill, is_secondary_skill);
+      if skill_bonus < 0 then skill_bonus = 0;
+
+      if critter_obj == real_dude_obj then
+         critter_mod_skill(critter_obj, skill, skill_bonus);
+      else
+         call inc_save_skills(critter_obj, skill, skill_bonus, lvl_up, old_perk);
+   end
+end
+
+procedure check_old_perks_lvl_up(variable critter, variable party_member_level) begin
+   variable book_pid;
+   variable book_name;
+   variable counter;
+   variable counter2;
+   variable perk_name;
+   variable perk_level;
+   variable skill;
+   variable skill2;
+   variable party_member_extra_skill;
+   variable party_member_extra_skill2;
+   variable skill_bonus;
+   variable skill_bonus2;
+   foreach book_pid in books_pids_array begin
+      if book_pid > 0 then begin
+         book_name = proto_data(book_pid, 1);
+         for (counter = 0; counter < party_member_level; counter++) begin
+            perk_name = ("'"+book_name + "' Level " + (party_member_level-counter));
+            perk_level = has_fake_perk_npc(critter, perk_name);
+            if perk_level > 0 then begin
+               set_fake_perk_npc(critter, (perk_name), 0, 0,""); // remove old fake perks
+               if Nevada <= 0 andAlso Sonora <= 0 then begin
+                  if book_pid == PID_CATS_PAW_ISSUE_5 then begin
+                     lvl_up = 1;
+                     for (counter2 = 0; counter2 < perk_level; counter2++) begin
+                        call CATS_PAW_ISSUE_5_useon(critter);
+                     end
+                     continue;
+                  end
+                  else if book_pid == PID_FALLOUT_2_HINTBOOK then begin
+                     lvl_up = 1;
+                     perk_name = (""+book_name+"");
+                     set_fake_perk_npc(critter, perk_name, 1, 155, (modmsg(msg_f2_hint_perk_desc)));
+                     continue;
+                  end
+               end
+               if Nevada > 0 then begin
+                  if book_pid == NEVADA_PID_HOMO_LUDENS then begin
+                     lvl_up = 1;
+                     call NEVADA_HOMO_LUDENS_useon(critter);
+                     continue;
+                  end
+                  else if book_pid == NEVADA_PID_NEUROSURGERY then begin
+                     lvl_up = 1;
+                     call NEVADA_neurosurgery_useon(critter);
+                     continue;
+                  end
+               end
+               skill = get_skill_F2(book_pid);
+               skill2 = second_skill_array[book_pid] - 1;
+               party_member_extra_skill = get_critter_skill_points(critter, skill);
+               if skill2 >= 0 then party_member_extra_skill2 = get_critter_skill_points(critter, skill2);
+               perk_name = ("" + book_name); //get new perk name (lvl+1)
+               //add new perk equal to old perk count
+               set_fake_perk_npc(critter, perk_name, (perk_level + has_fake_perk_npc(critter, perk_name)), (28 + skill), (modmsg(msg_skill_books_npc_perk_desc)));
+               skill_bonus = 0;
+               skill_bonus2 = 0;
+               if new_book_formula <= 0 then begin
+                  skill_bonus = (party_member_extra_skill + perk_level * round(1 + (original_book_formula_max_skill / 14.0)));
+                  call inc_save_skills(critter, skill, skill_bonus, 0, old_perk);
+                  if skill2 >= 0 then begin
+                     skill_bonus2 = (party_member_extra_skill2 + perk_level * round(1 + (original_book_formula_max_skill2 / 14.0)));
+                     call inc_save_skills(critter, skill2, skill_bonus2, 0, old_perk);
+                  end
+               end
+               else begin
+                  for (counter2 = 0; counter2 < perk_level; counter2++) begin
+                     party_member_extra_skill += skill_bonus;
+                     skill_bonus = get_book_bonus(critter, skill,0);
+                     call inc_save_skills(critter, skill, skill_bonus, 0, old_perk);
+                     if skill2 >= 0 then  begin
+                        party_member_extra_skill2 += skill_bonus2;
+                        skill_bonus2 = get_book_bonus(critter, skill2,1);
+                        call inc_save_skills(critter, skill, skill_bonus, 0, old_perk);
+                     end
+                  end
+               end
+            end
+         end
+      end
+   end
+   lvl_up = 0;
+end
+
+procedure skills_on_lvlup begin
+   variable party_array = party_member_list(1);
+   variable critter;
+   variable critter_pid;
+   variable critter_id;
+   variable critter_lvl;
+   variable critter_stat;
+   variable critter_skill;
+   variable i;
+   foreach critter in party_array begin
+      if critter == real_dude_obj then
+         continue;
+      critter_pid = obj_pid(critter);
+      critter_lvl = get_npc_level(critter_pid);
+      if critter_lvl < 0 then
+         critter_lvl = 0;
+
+      if critter_lvl != get_array(party_levels, critter_pid) then begin
+         set_array(party_levels, critter_pid, critter_lvl);
+         critter_id = get_unique_id(critter);
+         if has_saved_stats(critter_id) > 0 then begin
+            for (i = 0; i <= STAT_poison_resist; i++) begin
+               critter_stat = get_array(id_to_saved_skills_stats_array, critter_id+"Sts"+i);
+               if critter_stat != 0 then begin
+                  set_critter_extra_stat(critter, i, (get_critter_extra_stat(critter, i) + critter_stat));
+               end
+            end
+         end
+         if has_saved_skills(critter_id) > 0 then begin
+            for (i = 0; i <= SKILL_OUTDOORSMAN; i++) begin
+               critter_skill = get_array(id_to_saved_skills_stats_array, critter_id+"Sk"+i);
+               if critter_skill != 0 then begin
+                  set_critter_skill_points(critter, i, (get_critter_skill_points(critter, i) + critter_skill));
+               end
+            end
+         end
+      end
+      call check_old_perks_lvl_up(critter, critter_lvl);
+   end
+end
+
+
+procedure add_fake_perks(variable critter) begin
+   variable critter_id = get_unique_id(critter);
+   variable book_pid;
+   variable book_count;
+   variable key;
+   variable book_name;
+   variable skill;
+   variable perk_name;
+   variable perk_level;
+   variable arr_skill;
+   variable arr_value;
+   variable value;
+   variable count;
+   variable perk_desc;
+   foreach book_pid in books_pids_array begin
+      if book_pid > 0 then begin
+         key = get_npc_book_read_array_key(critter_id, book_pid);
+         book_count = get_array(npc_book_read_array, key);
+         if book_count > 0 then begin
+            book_name = proto_data(book_pid, 1);
+            perk_name = (""+book_name);
+            perk_level = has_fake_perk_npc_forced(critter, perk_name);
+            if perk_level < book_count then begin
+               if Nevada <= 0 andAlso Sonora <= 0 andAlso book_pid == PID_FALLOUT_2_HINTBOOK then begin
+                  call set_fake_perk_npc_forced(critter, perk_name, 1, 155, (modmsg(msg_f2_hint_perk_desc)));
+                  continue;
+               end
+               else if Nevada > 0 andAlso book_pid == NEVADA_PID_NEUROSURGERY then begin
+                  call set_fake_perk_npc_forced(critter, (perk_name), book_count, (28 + SKILL_DOCTOR),(modmsg(msg_skill_books_npc_perk_desc))); // remove old fake perks
+                  critter_add_trait(critter, TRAIT_PERK, PERK_living_anatomy_perk, 1);
+                  continue;
+               end
+               else if Sonora > 0 andAlso book_pid == SONORA_PID_COMIC then begin
+                  key = get_unique_id(critter);
+                  for (arr_skill = 0; arr_skill <= SKILL_OUTDOORSMAN; arr_skill++) begin
+                     arr_value = get_array(id_to_saved_skills_stats_array, key +"SC"+arr_skill);
+                     if arr_skill == skill then
+                        arr_value += value;
+                     if arr_value != 0 then begin
+                        count++;
+                        perk_desc += message_str_game(GAME_MSG_SKILL, 100 + arr_skill)+": +"+ arr_value + " ";
+                     end
+                  end
+                  if count < 11 then
+                     perk_desc = message_str(694, 100)+ "        " + perk_desc;
+                  call set_fake_perk_npc_forced(critter, perk_name, book_count, 191, perk_desc);
+               end
+               else begin
+                  skill = get_skill_F2(book_pid);
+                  call set_fake_perk_npc_forced(critter, (perk_name), book_count, (28 + skill),(modmsg(msg_skill_books_npc_perk_desc))); // remove old fake perks
+               end
+            end
+         end
+      end
+   end
+end
+
+procedure GAMEMODECHANGE begin
+   variable game_mode = get_game_mode;
+   variable last_game_mode = get_sfall_arg_at(1);
+   variable book_pid;
+   variable critter_id;
+   variable critter;
+   variable critters_array ;
+   if dude_obj != real_dude_obj andAlso game_mode bwand CHARSCREEN then begin
+      call add_fake_perks(dude_obj);
+   end
+   if game_mode == 0 orElse ((game_mode bwand COMBAT) == COMBAT andAlso (last_game_mode bwand COMBAT) == 0) then
+      call skills_on_lvlup();
+
+
+   if (game_mode bwand WORLDMAP) andAlso (last_game_mode bwand WORLDMAP) == 0 then begin
+      call set_books_proto_stats;
+      critters_array = list_as_array(LIST_CRITTERS);
+      foreach critter in critters_array begin
+         if critter == real_dude_obj then begin
+            continue;
+         end
+
+          //skip party critters
+         if isPotentialPartyMember(critter) <= 0 then begin
+            critter_id = get_unique_id(critter);
+            call set_critter_saved_stats(critter, critter_id);
+         end
+      end
+   end
+
+end
+
+procedure SONORA_Bemis_book_use(variable target) begin
+   variable i;
+   variable learned_something;
+   variable skill_lvl;
+   variable value = base_second_skill_book_bonus / 2;
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
+   variable rnd;
+   variable critter_id;
+   variable cur_book_count;
+   if value < 2 then
+      value = 2;
+
+   if target != real_dude_obj then begin
+      if dude_comprehension > 0 andAlso comprehension_perk_party > 0 then
+         value = (value * (2 + dude_comprehension) + 1) / 2;
+
+      critter_id = check_id(target);
+      cur_book_count = get_array(npc_book_read_array, get_npc_book_read_array_key(critter_id, SONORA_PID_BEMIS_BOOK));
+
+
+      if cur_book_count > 0 then begin
+         if lvl_up <= 0 then display_msg(Obj_name(target)+modmsg(msg_smart_npc));
+      end
+      else begin
+         call add_gvar(target, SONORA_PID_BEMIS_BOOK, SKILL_SCIENCE, 1);
+         for (i = 0; i <= SKILL_OUTDOORSMAN; i++) begin
+            skill_lvl = has_skill(target, i);
+            call inc_save_skills(target, i, value, lvl_up, old_perk);
+            if has_skill(target, i) > skill_lvl then begin
+               learned_something = 1;
+            end
+         end
+      end
+      if lvl_up <= 0 then begin
+         if SkillBooksMod >= 2 then begin
+            rnd = random(0, 2);
+            if target == MMR_reader then
+               rnd += 1;
+         end
+         if learned_something then begin
+            display_msg(Obj_name(target)+modmsg(msg_npc_learn));
+            //show float msg
+            if rnd >= 2 then
+               call float_skill_up_npc(target);
+         end
+         else begin
+            display_msg(Obj_name(target)+modmsg(msg_smart_npc));
+            //show float msg
+            if rnd >= 2 then begin
+               call float_msg_high_skill_npc(target);
+            end
+         end
+      end
+   end
+   else begin
+      if dude_comprehension > 0 then
+         value = (value * (2 + dude_comprehension) + 1) / 2;
+
+      if (global_var(74) bwand 0x00000100) == 0 then begin
+         for (i = 0; i <= SKILL_OUTDOORSMAN; i++) begin
+            skill_lvl = has_skill(target, i);
+            set_critter_skill_points(target, i, (get_critter_skill_points(target, i) + (value - is_skill_tagged(i))));
+            if has_skill(target, i) > skill_lvl then begin
+               display_msg(message_str(3, 130) + message_str(3, 110 + i) + message_str(3, 131) + value + message_str(3, 132));
+               learned_something = 1;
+            end
+         end
+
+         set_global_var(74, global_var(74) bwor 0x00000100);
+      end
+      else begin
+         learned_something = 0;
+      end
+
+      if learned_something then
+         display_msg(message_str(440, 100));
+      else
+         display_msg(modmsg(msg_smart_dude));
+   end
+end
+
+procedure SONORA_comix_skill(variable target, variable skill) begin
+   variable learned_something;
+   variable book_name, perk_name, perk_level;
+   variable skill_lvl;
+   variable perk_desc = "";
+   variable arr_skill;
+   variable arr_value;
+   variable key;
+   variable value = base_skill_book_bonus - 1;
+   variable count;
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
+   variable rnd;
+   variable max_int;
+   if value < 5 then
+      value = 5;
+   if target != real_dude_obj then begin
+      if dude_comprehension > 0 andAlso comprehension_perk_party > 0 then
+         value = (value * (2 + dude_comprehension) + 1) / 2;
+
+      //if isPotentialPartyMember(target) then begin
+      if is_in_array(target, party_member_list(1)) then begin
+         book_name = proto_data(SONORA_PID_COMIC, 1);
+         perk_name = ("" + book_name);
+         perk_level = has_fake_perk_npc(target, perk_name);
+         key = get_unique_id(target);
+         if perk_level > 0 then begin
+            for (arr_skill = 0; arr_skill <= SKILL_OUTDOORSMAN; arr_skill++) begin
+               arr_value = get_array(id_to_saved_skills_stats_array, key +"SC"+arr_skill);
+               if arr_skill == skill then
+                  arr_value += value;
+
+               if arr_value != 0 then begin
+                  count++;
+                  perk_desc += message_str_game(GAME_MSG_SKILL, 100 + arr_skill)+": +"+ arr_value + " ";
+               end
+            end
+         end
+         else begin
+            perk_desc = message_str_game(GAME_MSG_SKILL, 100 + skill)+": +"+ value;
+         end
+
+         if count < 11 then
+            perk_desc = message_str(694, 100)+ "        " + perk_desc;
+
+         call set_fake_perk_npc_forced(target, perk_name, (perk_level + 1), 191, perk_desc);
+      end
+      skill_lvl = has_skill(target, skill);
+      call inc_save_skills(target, skill, value, lvl_up, old_perk);
+
+      if has_skill(target, skill) > skill_lvl then begin
+         learned_something = 1;
+      end
+
+      if lvl_up <= 0 then begin
+         rnd = random(0, 2);
+         if target == MMR_reader then
+            rnd += 1;
+         if learned_something then begin
+            display_msg(Obj_name(target)+modmsg(msg_npc_learn));
+            //show float msg
+            if rnd >= 2 then
+               call float_skill_up_npc(target);
+         end
+         else begin
+            display_msg(Obj_name(target)+modmsg(msg_smart_npc));
+            //show float msg
+            if rnd >= 2 then
+               call float_msg_high_skill_npc(target);
+         end
+      end
+   end
+   else begin
+      skill_lvl = has_skill(target, skill);
+      value += is_skill_tagged(skill);
+      if dude_comprehension > 0 then
+         value = (value * (2 + dude_comprehension) + 1) / 2;
+
+      display_msg(message_str(3, 130) + message_str(3, 110 + skill) + message_str(3, 131) + value + message_str(3, 132));
+      critter_mod_skill(dude_obj, skill, value);
+
+      if has_skill(target, skill) > skill_lvl then begin
+         learned_something = 1;
+      end
+
+      if learned_something then
+         display_msg(message_str(694, 100));
+      else
+         display_msg(modmsg(msg_smart_dude));
+   end
+end
+
+procedure reading_show_msg(variable target, variable user, variable target_int, variable user_int, variable user_can_read, variable party) begin
+   variable message;
+   variable reader;
+   if joint_reading <= 0 orElse (len_array(party) <= 1 andAlso target == user) then begin
+      if target == real_dude_obj orElse target == user then begin
+         message = mstr_proto(800);
+      end
+      else begin
+         message = Obj_name(target) + modmsg(msg_npc_read);
+      end
+      reader = target;
+   end
+   else begin
+      if can_speak(target, critter_kill_type(target)) andAlso target_int > user_int orElse user_can_read <= 0 orElse not(is_in_array(target, party)) then begin
+         if target == real_dude_obj then begin
+            message = modmsg(msg_dude_read_loud);
+         end
+         else begin
+            message = Obj_name(target) + modmsg(msg_npc_read_loud);
+         end
+         reader = target;
+      end
+      else begin
+         if user == real_dude_obj then begin
+            message = modmsg(msg_dude_read_loud);
+         end
+         else begin
+            message = Obj_name(user) + modmsg(msg_npc_read_loud);
+         end
+         reader = user;
+      end
+   end
+   display_msg(message);
+   return reader;
+end
+
+procedure get_reading_time(variable target, variable user, variable target_int, variable user_int, variable user_can_read, variable party, variable book_pid) begin
+   variable time_advance;
+   variable party_member;
+   variable party_member_iq;
+   variable listener_min_iq;
+
+   if Sonora andAlso book_pid == SONORA_PID_COMIC then
+      time_advance = 36000;
+   else if Fallout2_books andAlso book_pid == PID_CATS_PAW_ISSUE_5 then
+      time_advance = 2900;
+   else if Fallout2_books andAlso book_pid == PID_FALLOUT_2_HINTBOOK then
+      time_advance = 0;
+   else if Nevada andAlso (book_pid == NEVADA_PID_HOMO_LUDENS orElse book_pid == NEVADA_PID_NEUROSURGERY) then
+      time_advance = 432000;
+
+   //common cases
+   else if joint_reading <= 0 orElse (len_array(party) <= 1 andAlso target == user) then begin
+      time_advance = (11 - target_int) * 36000;
+   end
+   //joint_reading
+   else begin
+      listener_min_iq = target_int;
+      if target != user andAlso user_can_read andALso listener_min_iq > user_int then
+         listener_min_iq = user_int;
+
+      foreach party_member in party begin
+         if party_member == user orElse party_member == target then
+            continue;
+
+         if can_read_books(party_member, book_pid) then begin
+            party_member_iq = get_critter_stat(party_member, STAT_iq);
+            if listener_min_iq > party_member_iq then
+               listener_min_iq = party_member_iq;
+         end
+      end
+      min_int_to_understand = listener_min_iq;
+      if user_int > listener_min_iq then
+         listener_min_iq += (user_int - 1) / 3;
+      time_advance = (11 - listener_min_iq) * 36000;
+   end
+
+   return time_advance;
+end
+
+//Checking Line of fire is(not) blocked
+procedure get_first_non_critter_block_shoot(variable obj, variable tile) begin
+   variable tile_1 = tile_num(obj);
+   variable blocking_obj_1_to_2;
+   variable last_blocking_obj_1_to_2;
+   variable max_count = 51;
+   variable i;
+   if obj <= 0 orElse tile <= 0 then begin
+      return -1;
+   end
+   else begin
+      if tile_1 == tile then
+         return obj;
+
+      blocking_obj_1_to_2 = obj_blocking_line(obj, tile, BLOCKING_TYPE_SHOOT);
+      for (i = 0; i <= max_count; i++) begin
+         if last_blocking_obj_1_to_2 == blocking_obj_1_to_2 then
+            return blocking_obj_1_to_2;
+         if obj_type(blocking_obj_1_to_2) != OBJ_TYPE_CRITTER then begin
+            return blocking_obj_1_to_2;
+         end
+         last_blocking_obj_1_to_2 = blocking_obj_1_to_2;
+         blocking_obj_1_to_2 = obj_blocking_line(last_blocking_obj_1_to_2, tile, BLOCKING_TYPE_SHOOT);
+      end
+   end
+   return 0;
+end
+
+
+procedure standard_book(variable target, variable user, variable book) begin
+   variable item_pid = obj_pid(book);
+   variable target_int;
+   variable target_int_max;
+   variable skill;
+   variable skill2;
+   variable skLevel_target;
+   variable skLevel2_target;
+   variable msg;
+   variable rnd;
+   skill = get_skill_F2(item_pid);
+   skill2 = second_skill_array[item_pid] - 1;
+
+   if skill >= SKILL_SMALL_GUNS then begin
+      skLevel_target = has_skill(target, skill);
+      call skill_up(target, item_pid, skill, false);
+   end
+
+   if skill2 >= SKILL_SMALL_GUNS then begin
+      skLevel2_target = has_skill(target, skill2);
+      call skill_up(target, item_pid, skill2, true);
+   end
+
+   //none of the skills have increased
+   if (has_skill(target, skill) == skLevel_target) andAlso (has_skill(target, skill2) == skLevel2_target) then begin
+      target_int = get_critter_stat(target, STAT_iq);
+      target_int_max = get_max_stat(target, STAT_iq);
+      if get_array(low_iq_npc_msg_shown_array, target) <= 0 then begin
+         if target == real_dude_obj then begin
+            if target_int >= target_int_max then
+               display_msg(modmsg(msg_max_int_smart_dude));
+            else
+               display_msg(modmsg(msg_smart_dude));
+         end
+         else begin
+            //show float msg
+            rnd = random(0, 2);
+            if target == MMR_reader then
+               rnd += 1;
+            if rnd >= 2 then
+               call float_msg_high_skill_npc(target);
+
+            if target_int >= target_int_max then
+               display_msg(Obj_name(target)+modmsg(msg_f2_hint_readed_npc));
+            else
+               display_msg(Obj_name(target)+modmsg(msg_smart_npc));
+         end
+      end
+      return;
+   end
+   //increase the number of books read if at least one skill has increased
+   else begin
+      call add_gvar(target, item_pid, skill);
+      msg = books_pids_proto_msg[skill];
+   end
+
+   if target != dude_obj then begin
+      if msg > 0 then begin
+         display_msg(Obj_name(target)+modmsg(msg+NPC_learn_msg_shift));
+      end
+      else begin
+         display_msg(Obj_name(target)+modmsg(msg_npc_learn));
+      end
+      //show float msg
+      if SkillBooksMod >= 2 then begin
+         rnd = random(0, 2);
+         if target == MMR_reader then
+            rnd += 1;
+      end
+      if rnd >= 2 then
+         call float_skill_up_npc(target);
+
+   end
+   else begin
+      if (nevada > 0 andAlso msg >= 807) then begin
+         display_msg(modmsg(msg));
+      end
+      else begin
+         if msg > 0 then begin
+            if Sonora_bookseller > 0 then begin
+               display_msg(modmsg(msg));
+            end
+            else begin
+               display_msg(mstr_proto(msg));
+            end
+         end
+         else begin
+            display_msg(modmsg(msg_dude_learn));
+         end
+      end
+   end
+
+end
+
+procedure use_book(variable target, variable user, variable book) begin
+   variable book_pid = obj_pid(book);
+   if Sonora andAlso book_pid == SONORA_PID_BEMIS_BOOK then begin
+      call SONORA_Bemis_book_use(target);
+   end
+   else if Sonora andAlso book_pid == SONORA_PID_COMIC then begin
+      if Sonora_skill == -1 then
+         Sonora_skill = random(SKILL_SMALL_GUNS, SKILL_OUTDOORSMAN);
+      call SONORA_comix_skill(target, Sonora_skill);
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_HOMO_LUDENS then begin
+      call NEVADA_HOMO_LUDENS_useon(target);
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_NEUROSURGERY then begin
+      call NEVADA_neurosurgery_useon(target);
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_CHRYSLUS_MOTORS_CATALOG then begin
+      call NEVADA_Chryslus_Motors_Catalog(user, target);
+   end
+   else if Fallout2_books andAlso book_pid == PID_CATS_PAW_ISSUE_5 then begin
+      call CATS_PAW_ISSUE_5_useon(target);
+   end
+   else if Fallout2_books andAlso book_pid == PID_FALLOUT_2_HINTBOOK then begin
+      call FALLOUT_2_HINTBOOK_useon(target);
+   end
+   else begin
+      call standard_book(target, user, book);
+   end
+end
+
+
+procedure check_book_remove(variable user, variable book_pid) begin
+   variable remove_book;
+   if book_forced_remove then
+      return 1;
+
+
+   if Sonora andAlso book_pid == SONORA_PID_BEMIS_BOOK then begin
+      remove_book = 0;
+   end
+   else if Sonora andAlso book_pid == SONORA_PID_COMIC then begin
+      remove_book = 1;
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_HOMO_LUDENS then begin
+      remove_book = 0;
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_NEUROSURGERY then begin
+      remove_book = 0;
+   end
+   else if Nevada andAlso book_pid == NEVADA_PID_CHRYSLUS_MOTORS_CATALOG then begin
+      remove_book = 0;
+   end
+   else if Fallout2_books andAlso book_pid == PID_CATS_PAW_ISSUE_5 then begin
+      remove_book = 1;
+   end
+   else if Fallout2_books andAlso book_pid == PID_FALLOUT_2_HINTBOOK then begin
+      remove_book = 0;
+   end
+   else begin
+      remove_book = 1;
+   end
+   return remove_book;
+end
+
+procedure gfade_in_10 begin
+   gfade_in(10);
+end
+
+procedure book_read(variable user, variable target, variable book) begin
+   variable time_advance;
+   variable target_int;
+   variable user_int;
+   variable user_can_read;
+   variable party;
+   variable book_pid;
+   variable skill;
+   variable skill2;
+   variable msg;
+   variable skLevel_target;
+   variable skLevel2_target;
+   variable used_by_player;
+   variable party_member;
+   variable critter;
+   variable critter_iq;
+   variable count;
+   book_pid = obj_pid(book);
+   gfade_out(10);
+   //get and set skills max value
+   call get_max_skill(target, 0);
+
+   target_int = get_critter_stat(target, STAT_iq);
+   if joint_reading then begin
+      party = party_member_list(0);
+      if target != user andAlso obj_type(user) == OBJ_TYPE_CRITTER then begin
+         user_can_read = can_read_books(user, book_pid);
+         user_int = get_critter_stat(user, STAT_iq);
+      end
+   end
+
+   //advance time
+   time_advance = get_reading_time(target, user, target_int, user_int, user_can_read, party, book_pid);
+   if time_advance > 0 then begin
+      game_time_advance(time_advance);
+      if Sonora <= 0 then
+         exec_map_update_scripts;
+   end
+
+   if joint_reading andAlso (len_array(party) > 1 orElse target != user) then begin
+
+      if (user == dude_obj orElse target == dude_obj orElse is_in_array(user, party) orElse is_in_array(target, party)) then begin
+         used_by_player = 1;
+      end
+      //all party members
+      if used_by_player then begin
+         foreach party_member in party begin
+            if party_member == user orElse party_member == target then
+               continue;
+            if can_read_books(party_member, book_pid) then
+               call use_book(party_member, user, book);
+         end
+      end
+
+      // listeners
+      foreach critter : count in MMR_can_hear_reader_arr begin
+         if can_read_books(critter, book_pid) then begin
+            critter_iq = get_critter_stat(critter, STAT_iq);
+            if critter_iq >= min_int_to_understand then
+               call use_book(critter, user, book);
+            else begin
+               if SkillBooksMod >= 2 andAlso not(random(0,2)) then
+                  call float_slow_int_npc(critter);
+               display_msg(obj_name(critter) + modmsg(msg_slow_int));
+            end
+         end
+      end
+
+      //user
+      if user_can_read then begin
+         call use_book(user, user, book);
+      end
+   end
+
+
+   //TARGET
+   call use_book(target, user, book);
+   //gfade_in(10);
+   call gfade_in_10 in 0;
+end
+
+procedure COMBATTURN begin
+   variable CritterTurnStatus = get_sfall_arg;
+   variable Critter = get_sfall_arg;
+   if reader_forced_visibility != 0 andAlso Critter == reader_forced_visibility then begin
+      reader_forced_visibility = 0;
+      can_hear_reader_time = 0;
+   end
+end
+
+procedure USEOBJON begin
    variable target = get_sfall_arg;
    variable user = get_sfall_arg;
-   variable obj = get_sfall_arg;
-   variable get_obj_pid = obj_pid(obj);
-   variable skill = -1;
-   variable skill2 = -1;
-   variable msg;
-   variable skLevel_user;
-   variable skLevel_target;
-   variable skLevel_party_member;
-   variable skLevel2_user;
-   variable skLevel2_target;
-   variable skLevel2_party_member;
-   variable tar_int;
-   variable party_learned;
-   variable skip_time;
-   //FALLOUT_2_HINTBOOK for any target!
-   if Sonora <= 0 andAlso get_obj_pid == PID_FALLOUT_2_HINTBOOK andAlso obj_type(target) == OBJ_TYPE_CRITTER  andAlso obj_type(user) == OBJ_TYPE_CRITTER andAlso is_in_array(target, party_member_list(0)) then begin
-      if combat_is_initialized then begin
+   variable item = get_sfall_arg;
+   variable item_pid = obj_pid(item);
+   variable target_int;
+   variable user_int;
+   variable party;
+   variable user_can_read;
+   variable critter;
+   variable critters_array;
+   variable reader;
+   variable critter_pe;
+   variable reader_tile;
+   variable critter_tile;
+   variable distance;
+   variable used_by_player;
+   variable critter_sid;
+   variable count;
+   variable COMBAT_REQUESTED;
+   variable COMBAT_was_REQUESTED;
+   variable mask;
+   variable ScriptsRequests;
+   variable restore_joint_reading;
+   variable remove_book;
+   //is book
+   if is_in_array(item_pid, books_pids_array) then begin
+      last_float_msg_tile = 0;
+      //cannot be used - dead target
+      if obj_type(target) != OBJ_TYPE_CRITTER orElse is_really_dead(target, critter_state(target), get_critter_stat(target, STAT_current_hp)) then begin
+         display_msg(message_str_game(GAME_MSG_PROTO, 582));
+         set_sfall_return(0);
+         return;
+      end
+      //cannot be used - in combat
+      else if combat_is_initialized then begin
          display_msg(modmsg(msg_not_in_combat));
          set_sfall_return(0);
          return;
       end
-      gfade_out(10);
-      if joint_reading <= 0 then begin
-         call FALLOUT_2_HINTBOOK_useon(target);
-         if target == real_dude_obj then begin
-            display_msg(message_str(14, 100) + 10000 + message_str(14, 101));
-            display_msg(message_str(1111, 100));
-         end
-         else begin
-            display_msg(modmsg(msg_f2_hint_npc));
-         end
+
+      if Nevada andAlso item_pid == NEVADA_PID_CHRYSLUS_MOTORS_CATALOG andAlso NEVADA_is_original_car_owner(target) == 1 then begin
+         attack_setup(target, dude_obj);
+         float_msg(target, modmsg(1130), FLOAT_MSG_RED);
+         set_sfall_return(0);
+         return;
       end
-      else if joint_reading == 1 then begin
-         call FALLOUT_2_HINTBOOK_useon(user);
-         call FALLOUT_2_HINTBOOK_useon(target);
-         if user == dude_obj or target == dude_obj then begin
-            display_msg(message_str(14, 100) + 10000 + message_str(14, 101));
-            display_msg(message_str(1111, 100));
+
+      //intelligent being
+      if can_read_books(target, item_pid) then begin
+         party = party_member_list(0); // hidden excluded;
+         if joint_reading andAlso ((Fallout2_books andAlso item_pid == PID_FALLOUT_2_HINTBOOK) orElse (Nevada andAlso item_pid == NEVADA_PID_CHRYSLUS_MOTORS_CATALOG)) then begin
+            joint_reading = 0;
+            restore_joint_reading = 1;
          end
-         else begin
-            display_msg(modmsg(msg_f2_hint_npc));
-         end
-      end
-      else if joint_reading == 2 then begin
-         foreach party_member in party_member_list(0) begin
-            call FALLOUT_2_HINTBOOK_useon(party_member);
-         end
-         display_msg(message_str(14, 100) + 10000 + message_str(14, 101));
-         display_msg(message_str(1111, 100));
-      end
-      game_time_advance((11 - get_critter_stat(target, 4)) * (60 * (60 * 10)));
-      set_sfall_return(0); // not remove
-      gfade_in(10);
-      return;
-   end
-   if obj_item_subtype(obj) == item_type_misc_item andAlso obj_type(target) == OBJ_TYPE_CRITTER andAlso is_in_array(get_obj_pid,books_pids) then begin
-      if target == real_dude_obj or (NonSentientBooks > 0 or critter_kill_type(target) <= 4 or critter_kill_type(target) == 10 or critter_kill_type(target) == 13)  then begin
-            if combat_is_initialized then begin
-               display_msg(modmsg(msg_not_in_combat));
-               set_sfall_return(0);
-               return;
-            end
-            //Reading ban for non-party members
-            if not(is_in_array( target, party_member_list(1))) then begin
-               display_msg(modmsg(msg_party_only));
-               set_sfall_return(0);
-               return;
-            end
-            //cat's paw №5
-            if Sonora <= 0 andAlso Nevada <= 0 andAlso get_obj_pid == PID_CATS_PAW_ISSUE_5 then begin
-               gfade_out(10);
-               if joint_reading <= 0 then begin
-                  call CATS_PAW_ISSUE_5_useon(target);
-               end
-               else if joint_reading == 1 then begin
-                  call CATS_PAW_ISSUE_5_useon(user);
-                  call CATS_PAW_ISSUE_5_useon(target);
-               end
-               else if joint_reading == 2 then begin
-                  foreach party_member in party_member_list(0) begin
-                     call CATS_PAW_ISSUE_5_useon(party_member);
-                  end
-               end
-               set_sfall_return(1); // remove
-               gfade_in(10);
-               return;
-            end
-            //NEVADA Homo ludens
-            if Sonora <= 0 andAlso Nevada > 0 andAlso get_obj_pid == NEVADA_PID_HOMO_LUDENS then begin
-               gfade_out(10);
-               if joint_reading <= 0 then begin
-                  call NEVADA_HOMO_LUDENS_useon(target);
-               end
-               else if joint_reading == 1 then begin
-                  call NEVADA_HOMO_LUDENS_useon(user);
-                  call NEVADA_HOMO_LUDENS_useon(target);
-               end
-               else if joint_reading == 2 then begin
-                  foreach party_member in party_member_list(0) begin
-                     call NEVADA_HOMO_LUDENS_useon(party_member);
-                  end
-               end
-               game_time_advance(12 * (60 * (60 * 10)));
-               set_sfall_return(0); //not remove
-               gfade_in(10);
-               return;
-            end
-            //NEVADA neurosurgery book
-            if Sonora <= 0 andAlso Nevada > 0 andAlso get_obj_pid == NEVADA_PID_NEUROSURGERY then begin
-               gfade_out(10);
-               if joint_reading <= 0 then begin
-                  if (get_critter_stat(target, STAT_iq) >= 7) andAlso (has_skill(target, SKILL_SCIENCE) >= 60) andAlso (has_skill(target, SKILL_DOCTOR) >= 60 or has_skill(target, SKILL_FIRST_AID) >= 60) then call NEVADA_neurosurgery_useon(target);
-                  call NEVADA_neurosurgery_msg(target);
-               end
-               else if joint_reading == 1 then begin
-                  if (get_critter_stat(user, STAT_iq) >= 7) andAlso (has_skill(user, SKILL_SCIENCE) >= 60) andAlso (has_skill(user, SKILL_DOCTOR) >= 60 or has_skill(user, SKILL_FIRST_AID) >= 60) then call NEVADA_neurosurgery_useon(user);
-                  call NEVADA_neurosurgery_msg(user);
-                  if (get_critter_stat(target, STAT_iq) >= 7) andAlso (has_skill(target, SKILL_SCIENCE) >= 60) andAlso (has_skill(target, SKILL_DOCTOR) >= 60 or has_skill(target, SKILL_FIRST_AID) >= 60) then call NEVADA_neurosurgery_useon(target);
-                  call NEVADA_neurosurgery_msg(target);
-               end
-               else if joint_reading == 2 then begin
-                  foreach party_member in party_member_list(0) begin
-                     if (get_critter_stat(party_member, STAT_iq) >= 7) andAlso (has_skill(party_member, SKILL_SCIENCE) >= 60) andAlso (has_skill(party_member, SKILL_DOCTOR) >= 60 or has_skill(party_member, SKILL_FIRST_AID) >= 60) then call NEVADA_neurosurgery_useon(party_member);
-                     call NEVADA_neurosurgery_msg(party_member);
-                  end
-               end
-               game_time_advance(12 * (60 * (60 * 10)));
-               set_sfall_return(0); //not remove
-               gfade_in(10);
-               return;
-            end
-            skip_time = 11;
-            tar_int = get_critter_stat(target, STAT_iq);
-            free_array(low_iq_npc_msg_shown_array);
+
+         Sonora_skill = -1;
+         book_forced_remove = 0;
+         if low_iq_npc_msg_shown_array <= 0 then
             low_iq_npc_msg_shown_array = create_array_map;
-            skill = get_skill_F2(get_obj_pid);
-            skill2 = second_skill_array[get_obj_pid] - 1;
-            msg = books_pids_proto_msg[skill];
-         if (skill > -1) then begin
-            //Reading during combat
-            if combat_is_initialized then begin
-               display_msg(modmsg(msg_not_in_combat));
-               set_sfall_return(0);//not remove
+         else
+            clear_array(low_iq_npc_msg_shown_array);
+
+         target_int = get_critter_stat(target, STAT_iq);
+         if target != user andAlso obj_type(user) == OBJ_TYPE_CRITTER then begin
+            user_can_read = can_read_books(user, item_pid);
+            user_int = get_critter_stat(user, STAT_iq);
+         end
+         //choose reader
+         reader = reading_show_msg(target, user, target_int, user_int, user_can_read, party);
+
+         if joint_reading andAlso (len_array(party) > 1 orElse target != user) then begin
+            if MMR_can_hear_reader_arr <= 0 then
+               MMR_can_hear_reader_arr = create_array_map;
+            else
+               clear_array(MMR_can_hear_reader_arr);
+
+            if (user == dude_obj orElse target == dude_obj orElse is_in_array(user, party) orElse is_in_array(target, party)) then begin
+               reader_forced_visibility = dude_obj;
+               used_by_player = 1;
+            end
+            else
+               reader_forced_visibility = reader;
+
+            can_hear_reader_time = game_time + 3;
+            //non-party members who can hear you
+            reader_tile = tile_num(reader);
+            critters_array = objects_in_radius(reader_tile, 11, elevation(reader), OBJ_TYPE_CRITTER);
+
+            mask = bwnot(0x1);
+            ScriptsRequests = read_int(0x664954);
+            COMBAT_REQUESTED = (ScriptsRequests bwand 1);
+            if COMBAT_REQUESTED != 0 then begin
+               write_int(0x664954, ScriptsRequests bwand mask);
+               COMBAT_was_REQUESTED = 1;
+               COMBAT_REQUESTED = 0;
+            end
+
+            foreach critter in critters_array begin
+               if used_by_player andAlso is_in_array(critter, party) then begin
+                  anim(critter, ANIMATE_ROTATION, rotation_to_tile(tile_num(critter), reader_tile));
+                  continue;
+               end
+
+               critter_pe = get_critter_stat(critter, STAT_pe) + 2;
+               if used_by_player andAlso isPotentialPartyMember(critter) then
+                  critter_pe += 5;
+
+               critter_tile = tile_num(critter);
+               distance = tile_distance(reader_tile, critter_tile);
+               if distance <= critter_pe andAlso get_first_non_critter_block_shoot(reader, critter_tile) <= 0 then begin
+                  if has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM) != TEAM_PLAYER then
+                     count++;
+
+                  set_array(MMR_can_hear_reader_arr, critter, count);
+                  critter_sid = get_object_data(critter, OBJ_DATA_SID);
+                  if critter_sid != -1 then begin
+                     exec_obj_script_proc(critter_sid, critter_proc);
+                     ScriptsRequests = read_int(0x664954);
+                     COMBAT_REQUESTED = (ScriptsRequests bwand 1);
+                     if COMBAT_REQUESTED != 0 then begin
+                        float_msg(critter, "!", FLOAT_MSG_RED);
+                        write_int(0x664954, ScriptsRequests bwand mask);
+                        COMBAT_REQUESTED = 0;
+                        COMBAT_was_REQUESTED = 1;
+                     end
+                  end
+               end
+            end
+            if COMBAT_was_REQUESTED then begin
+               write_int(0x664954, read_int(0x664954) bwor 0x1);
+               if get_game_mode bwand INVENTORY then begin
+                  write_int(0x59E93C, -1);// prevents the next item's description from appearing when closing the inventory if it was the last book
+                  TAP_ESC_WITH_UI_CHECK
+                  display_msg(modmsg(msg_reading_interrupted));
+               end
+               set_sfall_return(0);
+               if restore_joint_reading then
+                  joint_reading = 1;
+
                return;
             end
-            skLevel_target = has_skill(target, skill);
-            skLevel2_target = has_skill(target, skill2);
-            if joint_reading > 0 then begin //JOINT reading
-               skLevel_user = has_skill(user, skill);
-               skLevel2_user = has_skill(user, skill2);
-               if joint_reading == 1 then begin  //Duo reading
-                  if target == real_dude_obj or target == user then begin
-                     display_msg(mstr_proto(800));
-                  end
-                  else begin
-                     display_msg(Obj_name(target)+modmsg(msg_npc_read_loud));
-                  end
-                  gfade_out(1);
-                  call skill_up(target,get_obj_pid,skill,0);
-                  if skill2 >= 0 then call skill_up(target,get_obj_pid,skill2,1);
-                  if user != target then begin
-                     if skill2 >= 0 then skLevel2_user = has_skill(user, skill2);
-                     call skill_up(user,get_obj_pid,skill,0);
-                     if skill2 >= 0 then call skill_up(user,get_obj_pid,skill2,1);
-                     skip_time = 22 - tar_int;
-                  end
-                  game_time_advance(ONE_GAME_HOUR * (skip_time - tar_int));
-                  exec_map_update_scripts;
-                  gfade_in(1);
-                  if (has_skill(user, skill) == skLevel_user) andAlso has_skill(user, skill2) == skLevel2_user then begin
-                     if not(is_in_array(user,low_iq_npc_msg_shown_array)) then display_msg(modmsg(msg_smart_dude));
-                  end
-                  else begin
-                     call add_gvar(user, get_obj_pid, skill);
-                     if user != dude_obj then begin
-                        if msg > 0 then begin
-                           display_msg(Obj_name(user)+modmsg(msg+NPC_learn_msg_shift));
-                        end
-                        else begin
-                           display_msg(Obj_name(user)+modmsg(msg_npc_learn));
-                        end
-                     end
-                     else begin
-                        if (nevada > 0 andAlso msg >= 807) then begin
-                           display_msg(modmsg(msg));
-                        end
-                        else begin
-                           if msg > 0 then begin
-                              if Sonora_bookseller > 0 then begin
-                                 display_msg(modmsg(msg));
-                              end
-                              else begin
-                                 display_msg(mstr_proto(msg));
-                              end
-                           end
-                           else begin
-                              display_msg(modmsg(msg_dude_learn));
-                           end
-                        end
-                     end
-                  end
-                  if user != target then begin
-                     if (has_skill(target, skill) == skLevel_target) andAlso has_skill(target, skill2) == skLevel2_target then begin
-                        if not(is_in_array(target,low_iq_npc_msg_shown_array)) then display_msg(Obj_name(target)+modmsg(msg_smart_party_member));
-                     end
-                     else begin
-                        call add_gvar(target, get_obj_pid, skill);
-                        if target != dude_obj then begin
-                           if msg > 0 then begin
-                              display_msg(Obj_name(target)+modmsg(msg+NPC_learn_msg_shift));
-                           end
-                           else begin
-                              display_msg(Obj_name(target)+modmsg(msg_npc_learn));
-                           end
-                        end
-                        else begin
-                           if (nevada > 0 andAlso msg >= 807) then begin
-                              display_msg(modmsg(msg));
-                           end
-                           else begin
-                              if msg > 0 then begin
-                                 if Sonora_bookseller > 0 then begin
-                                    display_msg(modmsg(msg));
-                                 end
-                                 else begin
-                                    display_msg(mstr_proto(msg));
-                                 end
-                              end
-                              else begin
-                                 display_msg(modmsg(msg_dude_learn));
-                              end
-                           end
-                        end
-                     end
-                  end
-                  if (has_skill(target, skill) == skLevel_target) andAlso (has_skill(user, skill) == skLevel_user) andAlso has_skill(user, skill2) == skLevel2_user then begin
-                     set_sfall_return(0); // not remove
-                     return;
-                  end
-                  set_sfall_return(1); // remove
-               end
-               else if joint_reading == 2 then begin //Party reading
-                  if target == real_dude_obj then begin
-                     display_msg(modmsg(msg_dude_read_loud));
-                  end
-                  else begin
-                     display_msg(Obj_name(target)+modmsg(msg_npc_read_loud));
-                  end
-                  call skill_up(target,get_obj_pid,skill,0);
-                  if skill2 >= 1 then call skill_up(target,get_obj_pid,skill2,1);
-                  if has_skill(target, skill) > skLevel_target or has_skill(target, skill2) > skLevel2_target then begin
-                     call add_gvar(target, get_obj_pid, skill);
-                     party_learned = 1;
-                  end
-                  gfade_out(1);
-                  foreach party_member in party_member_list(0) begin
-                     if party_member != target andAlso (NonSentientBooks > 0 or critter_kill_type(party_member) <= 4 or critter_kill_type(party_member) == 10 or critter_kill_type(party_member) == 13) then begin
-                        skLevel_party_member = has_skill(party_member, skill);
-                        skLevel2_party_member = has_skill(party_member, skill2);
-                        call skill_up(party_member,get_obj_pid,skill,0);
-                        if skill2 >= 1 then call skill_up(party_member,get_obj_pid,skill2,1);
-                        if has_skill(party_member, skill) != skLevel_party_member or has_skill(party_member, skill2) != skLevel2_party_member  then begin
-                           party_learned = 1;
-                           call add_gvar(party_member, get_obj_pid, skill);
-                           msg = books_pids_proto_msg[skill];
-                           if party_member != dude_obj then begin
-                              if msg > 0 then begin
-                                 display_msg(Obj_name(party_member)+modmsg(msg+NPC_learn_msg_shift));
-                              end
-                              else begin
-                                 display_msg(Obj_name(party_member)+modmsg(msg_npc_learn));
-                              end
-                           end
-                           else begin
-                              if (nevada > 0 andAlso msg >= 807) then begin
-                                 display_msg(modmsg(msg));
-                              end
-                              else begin
-                                 if msg > 0 then begin
-                                    if Sonora_bookseller > 0 then begin
-                                       display_msg(modmsg(msg));
-                                    end
-                                    else begin
-                                       display_msg(mstr_proto(msg));
-                                    end
-                                 end
-                                 else begin
-                                    display_msg(modmsg(msg_dude_learn));
-                                 end
-                              end
-                           end
-                        end
-                        else begin
-                           if (max_books_read_int <= 0 or (skLevel_party_member >= max_skill_to_read andAlso skLevel2_party_member >= max_skill_to_read) or (max_books_read_int > 0 andAlso get_critter_stat(party_member, STAT_iq) >= 10)) then begin
-                              if party_member != dude_obj then begin
-                                 display_msg(Obj_name(party_member)+modmsg(msg_smart_party_member));
-                              end
-                              else begin
-                                 display_msg(modmsg(msg_smart_dude));
-                              end
-                           end
-                        end
-                     end
-                  end
-                  msg = books_pids_proto_msg[skill];
-                  game_time_advance(ONE_GAME_HOUR * (skip_time - tar_int));
-                  exec_map_update_scripts;
-                  gfade_in(1);
-                  if (has_skill(target, skill) != skLevel_target) or has_skill(target, skill2) != skLevel2_target then begin
-                     if target != dude_obj then begin
-                        if msg > 0 then begin
-                           display_msg(Obj_name(target)+modmsg(msg+NPC_learn_msg_shift));
-                        end
-                        else begin
-                           display_msg(Obj_name(target)+modmsg(msg_npc_learn));
-                        end
-                     end
-                     else begin
-                        if (nevada > 0 andAlso msg >= 807) then begin
-                           display_msg(modmsg(msg));
-                        end
-                        else begin
-                           if msg > 0 then begin
-                              if Sonora_bookseller > 0 then begin
-                                 display_msg(modmsg(msg));
-                              end
-                              else begin
-                                 display_msg(mstr_proto(msg));
-                              end
-                           end
-                           else begin
-                              display_msg(modmsg(msg_dude_learn));
-                           end
-                        end
-                     end
-                  end
-                  if party_learned <= 0 andAlso not(is_in_array(target,low_iq_npc_msg_shown_array)) then begin
-                     if target != dude_obj then begin
-                        display_msg(Obj_name(target)+modmsg(msg_smart_party_member));
-                     end
-                     else begin
-                        display_msg(modmsg(msg_smart_dude));
-                     end
-                     set_sfall_return(0);
-                     return;
-                  end
-                  set_sfall_return(1); // remove
-               end
-            end
-            else begin // SOLO reading
-               if target == real_dude_obj then begin
-                  display_msg(mstr_proto(800));
-               end
-               else begin
-                  display_msg(Obj_name(target)+modmsg(msg_npc_read));
-               end
-               gfade_out(1);
-               call skill_up(target,get_obj_pid,skill,0);
-               if skill2 >= 1 then call skill_up(target,get_obj_pid,skill2,1);
-               game_time_advance(ONE_GAME_HOUR * (skip_time - tar_int));
-               exec_map_update_scripts;
-               gfade_in(1);
-               //none of the skills have increased
-               if (has_skill(target, skill) == skLevel_target) andAlso (has_skill(target, skill2) == skLevel2_target) then begin
-                  if (max_books_read_int <= 0 or (skLevel_target >= max_skill_to_read andAlso skLevel2_target >= max_skill_to_read) or (max_books_read_int > 0 andAlso get_critter_stat(target, STAT_iq) >= 10)) then begin
-                     if target == real_dude_obj then begin
-                        display_msg(modmsg(msg_smart_dude));
-                     end
-                     else begin
-                        display_msg(Obj_name(target)+modmsg(msg_smart_party_member));
-                     end
-                  end
-                  set_sfall_return(0); // not remove
-                  return;
-               end
-               //increase the number of books read if at least one skill has increased
-               else begin
-                  call add_gvar(target, get_obj_pid, skill);
-               end
-               if target != dude_obj then begin
-                  if msg > 0 then begin
-                     display_msg(Obj_name(target)+modmsg(msg+NPC_learn_msg_shift));
-                  end
-                  else begin
-                     display_msg(Obj_name(target)+modmsg(msg_npc_learn));
-                  end
-               end
-               else begin
-                  if (nevada > 0 andAlso msg >= 807) then begin
-                     display_msg(modmsg(msg));
-                  end
-                  else begin
-                     if msg > 0 then begin
-                        if Sonora_bookseller > 0 then begin
-                           display_msg(modmsg(msg));
-                        end
-                        else begin
-                           display_msg(mstr_proto(msg));
-                        end
-                     end
-                     else begin
-                        display_msg(modmsg(msg_dude_learn));
-                     end
-                  end
-               end
-               set_sfall_return(1); // remove
+            else begin
+               reader_forced_visibility = 0;
+               can_hear_reader_time = 0;
             end
          end
+
+         call book_read(user, target, item);
+         remove_book = check_book_remove(user, item_pid);
+         set_sfall_return(remove_book);
+         MMR_reader = reader;
+
+         if restore_joint_reading then
+            joint_reading = 1;
+         if get_game_mode bwand INVENTORY then begin
+            write_int(0x59E93C, -1);// prevents the next item's description from appearing when closing the inventory if it was the last book
+         end
+      end
+      // non intelligent being
+      else begin
+         display_msg(message_str_game(GAME_MSG_PROTO, 582));
+         set_sfall_return(0);
+         return;
       end
    end
 end
 
+
+procedure get_books_limit(variable critter_obj) begin
+   variable books_limit = max_books_read;
+   variable critter_obj_int;
+   variable dude_comprehension;
+   if max_books_read_int > 0 then begin
+      critter_obj_int = get_critter_stat(critter_obj, STAT_iq);
+      books_limit += critter_obj_int * max_books_read_int;
+   end
+   if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
+      dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+      books_limit += ((books_limit * dude_comprehension + 1) / 2);
+   end
+
+   return books_limit;
+end
+
+procedure get_max_books_limit(variable critter_obj) begin
+   variable max_books_limit = max_books_read;
+   variable critter_obj_int;
+   variable dude_comprehension;
+   if max_books_read_int > 0 then begin
+      critter_obj_int = get_max_stat(critter_obj, STAT_iq);
+      max_books_limit += critter_obj_int * max_books_read_int;
+   end
+   if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
+      dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+      max_books_limit += ((max_books_limit * dude_comprehension + 1) / 2);
+   end
+
+   return max_books_limit;
+end
+
+
+procedure DESCRIPTIONOBJ begin
+   variable obj = get_sfall_arg;
+   variable book_pid;
+   variable item_description;
+   variable new_item_description;
+   variable len;
+   variable i;
+   variable skill;
+   variable skill2;
+   variable cur_book_count;
+   variable books_limit;
+   variable max_books_limit;
+   variable books_name;
+
+   if obj > 0 andAlso (obj_item_subtype(obj) == item_type_misc_item) then begin
+      book_pid = obj_pid(obj);
+      if is_in_array(book_pid, books_pids_array) then begin
+         item_description = proto_data(book_pid, it_description);
+         books_limit = get_books_limit(dude_obj);
+         if books_limit > 0 then begin
+            //max_books_limit = get_max_books_limit(dude_obj);
+            cur_book_count = get_sfall_global_int(get_gvar_name(book_pid));
+            //if cur_book_count > books_limit then
+               //books_limit = cur_book_count;
+            //if cur_book_count >= max_books_limit then
+               //new_item_description = item_description  + "  Вы полностью изучили эту книгу и вынесли из неё все, что могли.";
+            //else
+            books_name = proto_data(book_pid, it_name);
+               new_item_description = item_description  + " Вы освоили " + cur_book_count + " " + books_name + ".";
+         end
+         else begin
+            new_item_description = item_description + " Содержимое слишком сложно для вашего уровня понимания.";
+         end
+
+
+         if Sonora > 0 andAlso book_pid != SONORA_PID_BEMIS_BOOK then begin
+            item_description = string_split(item_description, Sonora_book_desc_separator);
+            len = len_array(item_description) - 1;
+            new_item_description = "";
+            for (i = 0; i < len; i++) begin
+               new_item_description += get_array(item_description, i)+". ";
+            end
+            if new_book_formula > 0 then begin
+               skill = get_skill_F2(book_pid);
+               skill2 = second_skill_array[book_pid] - 1;
+               new_item_description +=  message_str_game(GAME_MSG_SKILL, 100 + skill)+": +"+base_skill_book_bonus;
+               if skill2 >= 0 then
+                  new_item_description += ", " + message_str_game(GAME_MSG_SKILL, 100 + skill2)+": +"+base_second_skill_book_bonus;
+
+            end
+         end
+         set_sfall_return(new_item_description);
+      end
+   end
+end
+
+procedure WITHINPERCEPTION begin
+   variable watcher;
+   variable target;
+   variable orig_vis;
+   variable hook_type;
+   if reader_forced_visibility != 0 then begin
+      watcher = get_sfall_arg;
+      target = get_sfall_arg;
+      if target == reader_forced_visibility andAlso get_array(MMR_can_hear_reader_arr, watcher) then begin
+         set_sfall_return(2);
+         set_sfall_arg(2, 2);
+         if game_time > can_hear_reader_time then
+            set_array(MMR_can_hear_reader_arr, watcher, 0);
+      end
+   end
+end
+
+procedure game_close begin
+   variable msg = "All set. Restart the game";
+   game_ui_enable;
+   sfall_func2("message_box", msg, MSGBOX_NORMAL);
+   display_msg(msg);
+   write_byte(0x481B2A, 0xB8);
+   write_int(0x481B2B, 27);
+   sfall_func0("signal_close_game");
+end
+
 procedure start begin
+   variable max_potential_party_pids_count;
+   variable potential_party_mem_pid;
+   variable i;
+   variable critter_lvl;
    if game_loaded then begin
       SkillBooksMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|PartySkillBooksMod");
       if SkillBooksMod > 0 then begin
+         ptr_to_id_array = create_array_map;
+         party_levels = create_array_map;
+         foreach i in party_member_list(1) begin
+            if i == real_dude_obj then
+               continue;
+            potential_party_mem_pid = obj_pid(i);
+            critter_lvl = get_npc_level(potential_party_mem_pid);
+            if critter_lvl < 0 then
+               critter_lvl = 0;
+            set_array(party_levels, potential_party_mem_pid, critter_lvl);
+         end
+
+         old_perks_checked_array = load_array(old_perks_checked_array_name);
+         if old_perks_checked_array <= 0 then begin
+            old_perks_checked_array = create_array_map;
+            save_array(old_perks_checked_array_name, old_perks_checked_array);
+         end
+
+         npc_book_read_array = load_array(non_party_npc_book_read_array_name);
+         if npc_book_read_array <= 0 then begin
+            npc_book_read_array = create_array_map;
+            save_array(non_party_npc_book_read_array_name, npc_book_read_array);
+
+         end
+         if sfall_ver_major >= 5 then begin
+            if sfall_ver_minor > 0 then begin
+               sfall_510 = 1;
+               unsafe_script;
+            end
+         end
+
+         sfall_unsafescripting = get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting");
+         if sfall_unsafescripting < (2 - sfall_510) then begin
+            set_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting", 2 - sfall_510);
+            call game_close in 1;
+         end
+
+         if sfall_510 <= 0 then begin
+            F2MMR_POTENTIAL_PARTY_PIDs_ARRAY = load_array(POTENTIAL_PARTY_PIDs_ARRAY_name);
+            if F2MMR_POTENTIAL_PARTY_PIDs_ARRAY <= 0 andAlso sfall_unsafescripting > 0 then begin
+               F2MMR_POTENTIAL_PARTY_PIDs_ARRAY = create_array_map;
+               save_array(POTENTIAL_PARTY_PIDs_ARRAY_name, F2MMR_POTENTIAL_PARTY_PIDs_ARRAY);
+               max_potential_party_pids_count = read_int(0x519D9C);
+               for (i = 0; i < max_potential_party_pids_count; i++) begin
+                  potential_party_mem_pid = read_int(read_int(0x519DA0) + 4 * i);
+                  set_array(F2MMR_POTENTIAL_PARTY_PIDs_ARRAY, potential_party_mem_pid, 1);
+               end
+            end
+         end
+         id_to_saved_skills_stats_array = load_array(saved_skills_array_name);
+         if id_to_saved_skills_stats_array <= 0 then begin
+            id_to_saved_skills_stats_array = create_array_map;
+            save_array(saved_skills_array_name, id_to_saved_skills_stats_array);
+         end
+
          BooksFile_location = get_ini_string("ddraw.ini|Misc|BooksFile");
          if BooksFile_location == "" then BooksFile_location = "books.ini";
          Nevada = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
@@ -1231,15 +2603,30 @@ procedure start begin
             // Checking if there are books from the bookseller mod
             if proto_data(SONORA_PID_LOCKPICKING_BOOK, 1) > 0 andAlso proto_data(SONORA_PID_EW_BOOK, 1) > 0 then begin
                Sonora_bookseller = 1;
+               Sonora_book_desc_separator = ". ";
             end
          end
+         register_hook_proc(HOOK_DESCRIPTIONOBJ, DESCRIPTIONOBJ);
          Resurrection = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Resurrection");
          ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
-         register_hook_proc(HOOK_USEOBJON, UseONObjHandler);
-         register_hook_proc(HOOK_GAMEMODECHANGE, party_skills_on_lvlup);
+         if Nevada <= 0 andAlso Sonora <= 0 then begin
+            Fallout2_books = 1;
+            if Resurrection <= 0 andAlso ET_TU <= 0 then
+               Fallout2 = 1;
+         end
+         register_hook_proc(HOOK_USEOBJON, USEOBJON);
+         register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+         register_hook_proc_spec(HOOK_ONDEATH, ONDEATH);
+         register_hook_proc_spec(HOOK_WITHINPERCEPTION, WITHINPERCEPTION);
          new_books_msg = add_extra_msg_file(msg_file);
          new_book_formula = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|SkillBooksFixedIncrease");
          joint_reading = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|JointReading");
+
+         if joint_reading then begin
+            MMR_can_hear_reader_arr = create_array_map;
+
+            register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
+         end
          if new_book_formula <= 0 then begin
             original_book_formula_max_skill = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|OriginalFormulaMaxSkill");
             if original_book_formula_max_skill <= 0 then original_book_formula_max_skill = 100;
@@ -1277,27 +2664,25 @@ procedure start begin
             end
          end
          max_skill_to_read = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|MaxSkill");
-         if max_skill_to_read <= 0 then begin
-            if ET_TU then begin
-               max_skill_to_read = 200;
-            end
-            else begin
-               max_skill_to_read = 300;
-            end
-         end
+         if max_skill_to_read <= 0 then
+            max_skill_to_read_check = 1;
+
+         call get_max_skill(real_dude_obj, SKILL_SMALL_GUNS);
+
          comprehension_perk_party = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|PartyComprehension");
          tagged_skill_mult = atof(get_ini_string("mods\\F2MechanicsMiniRework.ini|SkillBooks|TagMult"));
          NonSentientBooks = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SkillBooks|NonSentientBooks");
-         books_pids = create_array_list(books_dup_num + ((skills_count + 1) * books_dup_num));
+         books_pids_array = create_array_list(books_dup_num + ((skills_count + 1) * books_dup_num));
          books_pids_proto_msg = create_array_list(skills_count+1);
          second_skill_array = create_array_map;
-         call set_books_pid; // add "original" books (depends on the specific game, it is written manually)
+         call set_books_pid; // add books
          custom_books_count = get_ini_setting (BooksFile_location+ "|main|count");
          if custom_books_count > 0 then begin
             call add_custom_books_pid();
          end
          call map_enter_p_proc();
-         call nonparty_npc_skill_up();
       end
+      else
+         exit;
    end
 end

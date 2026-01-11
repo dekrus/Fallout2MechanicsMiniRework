@@ -44,6 +44,7 @@
 #define doc_max_charges 3
 #define doc_min_charges_t2 10
 #define doc_max_charges_t2 10
+#define KILL_TYPE_big_boss            18
 #define is_dead(critter_obj) (critter_state(critter_obj) == CRITTER_IS_DEAD)
 #define full_turn_cost(user)   get_critter_stat(user,STAT_max_move_points)
 #define military_fid(critter_obj)   (crit_fid(critter_obj) == 16777217 or crit_fid(critter_obj) == 16777226 or crit_fid(critter_obj) == 16777219 or crit_fid(critter_obj) == 16777309 or crit_fid(critter_obj) == 16777287)
@@ -53,10 +54,18 @@
 #define is_medic(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 4  andAlso ((has_skill(obj, SKILL_DOCTOR) > 35 ) or (has_skill(obj, SKILL_FIRST_AID) > 45 )))
 #define is_brainy(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 6 andAlso get_critter_base_stat(obj,STAT_pe) > 6 )
 
+#define msg_ecco_healing_1 80
+#define msg_ecco_healing_2 81
+#define msg_ecco_healing_3 82
+#define msg_ecco_healing_4 83
+#define msg_ecco_healing_5 84
+
+
 #include "sfall.h"
 #include "DEFINE.H"
 #include "define_extra.h"
 #include "lib.strings.h"
+#include "F2MMR.h"
 
 variable MedToolsMod;
 variable NPCsUseMedTools;
@@ -79,6 +88,27 @@ export variable combat_med_tool_used;
 
 import variable tail_used;
 
+
+//by Phobos2077 https://github.com/phobos2077/fo2_ecco/blob/f5df1e4edfe03c2df30fcf26f38ce8e2bdae4a4c/scripts_src/_pbs_main/gl_pbs_damage_mod.ssl#L515
+procedure validate_critter_anim(variable critter, variable animType) begin
+   variable objFid := obj_art_fid(critter);
+   //variable rot := objFid bwand 0x70000000;
+   // This is based on vanilla logic from art_id_()
+   if (animType != ANIM_fire_dance and animType >= ANIM_fall_back and animType <= ANIM_fall_front_blood) then begin
+      if (art_exists(critter_anim_fid(objFid, animType, 1))) then
+         return true;
+   end
+   return art_exists(critter_anim_fid(objFid, animType, 0));
+end
+
+procedure reg_anim_magic_hands_middle_combat(variable critter) begin
+   if validate_critter_anim(critter, ANIM_magic_hands_middle) then begin
+      reg_anim_combat_check(0);
+      reg_anim_begin();
+      reg_anim_animate(critter, ANIM_magic_hands_middle, -1);
+      reg_anim_end();
+   end
+end
 //uninjure
 procedure uninjure(variable user,variable target, variable item_pid) begin
    variable user_DOC = has_skill(user, SKILL_DOCTOR);
@@ -276,6 +306,17 @@ procedure apcost_handler begin
    end
 end
 
+inline procedure set_pid_flag_healing_item(variable item_pid) begin
+   variable flag_ext;
+   flag_ext = 0;
+   if item_pid > 0 then begin
+      flag_ext = get_proto_data(item_pid, PROTO_FLAG_EXT);
+      if (flag_ext bwand HEALING_ITEM) == 0 then begin
+         set_proto_data(item_pid, PROTO_FLAG_EXT, (flag_ext bwor HEALING_ITEM));
+      end
+   end
+end
+
 //add charges to FA and field medic kits
 procedure map_enter_p_proc begin
    variable critter;
@@ -284,7 +325,6 @@ procedure map_enter_p_proc begin
    variable critter_cur_hp;
    variable critter_int;
    variable critter_type;
-   //variable critter_body_type;
    variable doc_item;
    variable fa_item;
    variable rnd;
@@ -298,10 +338,10 @@ procedure map_enter_p_proc begin
       set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, max_charges_t2);
       set_proto_data(doc_bag_pid, PROTO_MI_CHARGES, doc_max_charges);
       set_proto_data(PID_PARAMEDICS_BAG, PROTO_MI_CHARGES, doc_max_charges_t2);
-      if not(get_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIRST_AID_KIT, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(doc_bag_pid, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
-      if not(get_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT) bwand HEALING_ITEM) then set_proto_data(PID_PARAMEDICS_BAG, PROTO_FLAG_EXT, (get_proto_data(doc_bag_pid, PROTO_FLAG_EXT) bwor HEALING_ITEM));
+      call set_pid_flag_healing_item(PID_FIRST_AID_KIT);
+      call set_pid_flag_healing_item(PID_FIELD_MEDIC_KIT);
+      call set_pid_flag_healing_item(doc_bag_pid);
+      call set_pid_flag_healing_item(PID_PARAMEDICS_BAG);
 
       //add fa and doc item at first map loading
       if metarule(METARULE_TEST_FIRSTRUN,0) andAlso game_time > ONE_GAME_WEEK * 2 then begin
@@ -409,7 +449,7 @@ procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid) begi
    end
 end
 
-procedure npc_combat_doc_use begin
+procedure COMBATTURN begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
    variable critter_name = obj_name(critter);
@@ -429,8 +469,10 @@ procedure npc_combat_doc_use begin
    variable fa_kit_count;
    variable fa_kit2_count;
    variable stim_count;
+   variable powder_count;
    variable stim_used;
    variable critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+   variable critter_heal_rate;
    stim_used = 0;
    combat_med_tool_used = 0;
    doc_used = 0;
@@ -446,7 +488,7 @@ procedure npc_combat_doc_use begin
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
          //doc_item = obj_carrying_pid_obj(critter, doc_bag_pid);
          doc_item = find_min_charge_obj(critter, doc_bag_pid);
-         anim(critter, ANIM_magic_hands_middle, 1);
+         call reg_anim_magic_hands_middle_combat(critter);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(doc_item, critter);
@@ -460,7 +502,7 @@ procedure npc_combat_doc_use begin
          set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
          //doc_item = obj_carrying_pid_obj(critter, PID_PARAMEDICS_BAG);
          doc_item = find_min_charge_obj(critter, PID_PARAMEDICS_BAG);
-         anim(critter, ANIM_magic_hands_middle, 1);
+         call reg_anim_magic_hands_middle_combat(critter);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(doc_item, critter);
@@ -469,23 +511,33 @@ procedure npc_combat_doc_use begin
       end
    end
    // npc uses fa item if wounded
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1  andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
+   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) or (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso (critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 5 - (critter_max_hp / 15))) or (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso critter!= dude_obj andAlso turn_status == 1 andAlso critter_type != KILL_TYPE_children_kills andAlso critter_type != KILL_TYPE_robot_kills then begin
       fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
       fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
       stim_count = obj_is_carrying_obj_pid(critter, PID_STIMPAK);
+      if stim_count <= 0 andAlso get_proto_data(PID_HEALING_POWDER, PROTO_IT_TYPE) == item_type_drug then
+         powder_count = obj_is_carrying_obj_pid(critter, PID_HEALING_POWDER);
+
       rnd = random(0, 100);
        //using stimpack if regen mod is active
-      if stim_count > 0 andAlso get_critter_stat(critter,STAT_heal_rate) < 35 andAlso rnd < (10 + 3 * critter_int) andAlso doc_used <= 0 then begin
+      critter_heal_rate = get_critter_stat(critter, STAT_heal_rate);
+      if (stim_count > 0 orElse powder_count > 0) andAlso critter_heal_rate < 35 andAlso critter_heal_rate > -14 andAlso rnd < (15 + 3 * critter_int) andAlso doc_used <= 0 then begin
          combat_med_tool_used = 1;
          stim_used = 1;
-         fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
-         anim(critter, ANIM_magic_hands_middle, 1);
+         if powder_count > 0 then
+            fa_item = obj_carrying_pid_obj(critter, PID_HEALING_POWDER);
+         else
+            fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
+         call reg_anim_magic_hands_middle_combat(critter);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(fa_item, critter);
          set_self(0);
          if critter_pid == PID_END_BOSS then critter_uninjure(critter, all_disabilities);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_STIMPAK, 1)));
+         if powder_count > 0 then
+            display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_HEALING_POWDER, 1)));
+         else
+            display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_STIMPAK, 1)));
       end
       rnd = random(0, 100);
        // npc can use fa kit if it is in inventory
@@ -493,7 +545,7 @@ procedure npc_combat_doc_use begin
          combat_med_tool_used = 1;
          //fa_item = obj_carrying_pid_obj(critter, PID_FIRST_AID_KIT);
          fa_item = find_min_charge_obj(critter, PID_FIRST_AID_KIT);
-         anim(critter, ANIM_magic_hands_middle, 1);
+         call reg_anim_magic_hands_middle_combat(critter);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(fa_item, critter);
@@ -505,7 +557,7 @@ procedure npc_combat_doc_use begin
          combat_med_tool_used = 1;
          //fa_item = obj_carrying_pid_obj(critter, PID_FIELD_MEDIC_KIT);
          fa_item = find_min_charge_obj(critter, PID_FIELD_MEDIC_KIT);
-         anim(critter, ANIM_magic_hands_middle, 1);
+         call reg_anim_magic_hands_middle_combat(critter);
          set_self(critter);
          set_self(critter);
          use_obj_on_obj(fa_item, critter);
@@ -748,34 +800,114 @@ procedure descriptionobj_hook begin
    set_sfall_return(proto_data(objPid, it_description) + str);
 end
 
+
+procedure ecco_heal_mod_handler begin
+   variable disable_ecco;
+   disable_ecco = message_box(
+      modmsg(msg_ecco_healing_1)+"\n"
+      + modmsg(msg_ecco_healing_2)+"\n"
+      + modmsg(msg_ecco_healing_3)+"\n"
+      + modmsg(msg_ecco_healing_4)+"\n"
+      + modmsg(msg_ecco_healing_5));
+   return disable_ecco;
+end
+
+
+procedure game_exit_to_menu begin
+   write_byte(0x481B2A, 0xB8);
+   write_int(0x481B2B, 27);
+   sfall_func0("signal_close_game");
+end
+
 procedure start begin
+   variable ECCO_heal_tweak;
+   variable was_disabled;
    if game_loaded then begin
-      MedToolsMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
+      MedToolsMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
+      ECCO_heal_tweak = get_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_use_mod");
+      Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+      if Sonora > 0 then begin
+         doc_bag_pid = Sonora_doc_bag_pid;
+      end
       if MedToolsMod > 0 then begin
+         new_mod_msg = add_extra_msg_file(msg_file);
+         if ECCO_heal_tweak > 0 then begin
+            if ecco_heal_mod_handler <= 0 then begin
+               set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod", 0);
+            end
+            else begin
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_use_mod", 0);
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91", 0);
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47", 0);
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409", 0);
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408", 0);
+            end
+            call game_exit_to_menu in 1;
+            return;
+         end
+         else begin
+            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91");
+            if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91", 0);
+
+            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47");
+            if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47", 0);
+
+            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409");
+            if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409", 0);
+
+            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408");
+            if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
+               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408", 0);
+
+         end
+
          set_global_script_type(0);
          set_global_script_repeat(0);
-         NPCsUseMedTools = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
-         ET_TU = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
-         Sonora = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+         NPCsUseMedTools = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
+         ET_TU = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
+
          sfall_mods_config = get_ini_string("ddraw.ini|Scripts|IniConfigFolder");
          if sfall_mods_config <= 0 then sfall_mods_config = "";
          combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
-         if Sonora > 0 then begin
-            doc_bag_pid = Sonora_doc_bag_pid;
-         end
          register_hook_proc(HOOK_CALCAPCOST, apcost_handler);
          register_hook_proc(HOOK_USEOBJON, meditem_use);
          register_hook_proc(HOOK_USESKILL, use_skill_on_dead_handler);
-         register_hook_proc(HOOK_COMBATTURN, npc_combat_doc_use);
+         register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
          register_hook_proc(HOOK_REMOVEINVENOBJ, inv_move);
          register_hook_proc(HOOK_GAMEMODECHANGE, med_item_charges_restore);
-
          register_hook_proc(HOOK_DESCRIPTIONOBJ, descriptionobj_hook);
 
-         new_mod_msg = add_extra_msg_file(msg_file);
          call map_enter_p_proc();
          call med_item_charges_restore;
          intface_redraw;
+      end
+      else begin
+         if MedToolsMod != -1 andAlso ECCO_heal_tweak <= 0 then begin
+            if get_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES) == max_charges then begin
+               set_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES, 0);
+               was_disabled = 1;
+            end
+
+            if get_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES) == max_charges_t2 then begin
+               set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, 0);
+               was_disabled = 1;
+            end
+            if get_proto_data(doc_bag_pid, PROTO_MI_CHARGES) == doc_max_charges then begin
+               set_proto_data(doc_bag_pid, PROTO_MI_CHARGES, 0);
+               was_disabled = 1;
+            end
+
+            if get_proto_data(PID_PARAMEDICS_BAG, PROTO_MI_CHARGES) == doc_max_charges_t2 then begin
+               set_proto_data(PID_PARAMEDICS_BAG, PROTO_MI_CHARGES, 0);
+               was_disabled = 1;
+            end
+         end
+         if was_disabled then
+            intface_redraw;
+         exit;
       end
    end
 end

@@ -1,10 +1,46 @@
+### Latest Test Version v2.0.0
+- Added compatibility with **SFALL 5.1+**.
+- Fixed typos and grammar mistakes throughout the text.
+- Refactored code for multiple scripts.
+- Mods now automatically detect conflicts with the **EcCo** mod.  
+  When starting a new game or loading a save for the first time, prompts appear allowing you to choose which mods to keep active and which to disable.
+### Regen & Poison Mod
+- Fixed bugs when used with the **CombatControl Mod** enabled.
+- Rounding calculations now use percentage chances (rounded up or down) based on the original value.
+- Regeneration and poison timers are now unique per creature and fully synchronized with other event queues (e.g., drugs, radiation).
+- Added options to assign PIDs to weapons and creatures whose attacks always deal poison damage.
+- Added options to assign PIDs to weapons that can be coated with poison, even if they are not melee.
+- Added interface indicators for active regeneration and burn effects.
+- Added basic compatibility with **Megamod** and **Olympus2207**.
+### Secondary Attack Mod
+- Added **aimed burst fire mode** for assault rifles (can also be enabled for other burst-fire weapons).
+- **Double Tap Rework:** Now fires two rapid shots in a single animation instead of applying a discount to the next shot. NPCs can use this ability if enabled in the `.ini` file.
+- Energy weapon attacks now use modified projectiles and include extra animations and sounds for alternate fire.
+- **PULSE and EMP ranged weapons:** Added an option to allow lightning to jump to previously hit targets.
+- Damage descriptions now use text from game files instead of the vanilla Fallout 2 text for better cross-version compatibility.
+- Added the ability to assign PIDs to weapons for alternate fire types that normally would not support them.
+### Traits Plus
+- Fixed correct damage display in inventory for the **Heavy Handed** and **Bruiser** traits.
+- **One Hander:** Fixed the penalty to one-handed weapon accuracy when both arms are crippled.
+- **Bloody Mess:** Fixed the turn-ending issue when bonus APs for a kill were gained on the last AP attack.
+### Stats Recalculation Mod
+- Fixed HP decreasing when loading a saved game.
+### Sneak Detection Mod
+- Sneak detection now correctly factors in **local light sources** (e.g., flares, lanterns, campfires) and dark corners, not just the overall map lighting.
+### Steal Mod
+- Fixed a bug where damage resistance would stack if armor was removed during the player's "caught stealing" animation.
+### Skill Books Mod
+- Added missing skill books for **Sonora** and **Nevada**.
+- Added commentary messages when certain NPCs read books (can be disabled in settings).
+
+
 ### Latest Version v1.99.0
 ##### TraitsPlus
 - Added a mod that adds new unique properties to the character's starting traits.
 ##### Sneak Detection Mod
 - Sneak mode is retained when moving to a new location. On the global map, sneak mode is only retained if the player has the "Silent Running" perk or if both the outdoorsman and sneak skills are above 100.
 ##### Regen & Poison mod
-- The "healing_rate" value is now shown ranging from -40 to 40 in the character menu..
+- The "healing_rate" value is now shown ranging from -40 to 40 in the character menu.
 - An HP regeneration bonus of 1-4 HP per tick, depending on the "healing_rate" value, is always added to the HP regeneration rate. This bonus enhances healing in the early stages of the game and when the character has low maximum health.
 - Poisoned wanamingos and centaurs regenerate less health.
 - The Super Stimpak now restores health based on the critter's maximum HP and the current "healing_rate," but not less than 60 HP (previously always 60 HP without scaling).

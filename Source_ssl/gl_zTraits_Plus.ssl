@@ -26,11 +26,12 @@
 #define fast_meta_duration_div (2)
 #define heavy_handed_luck_bonus (6)
 #define bloody_mess_luck_penalty (-7)
-#define bloody_mess_ap_bonus (1)
-#define bloody_mess_ap_bonus_kill (1)
+#define ap_bonus_kill_first (2)
+#define ap_bonus_kill (1)
 #define MAX_TRAITS 16
 #define flags_offset 100000
 
+#define timed_ap_debt 10
 
 
 #define STAT_drug_rnd -2
@@ -56,8 +57,8 @@
 
 #define ddraw_perks_ini_path "ddraw.ini|Misc|PerksFile"
 #define ddraw_drugs_ini_path "ddraw.ini|Misc|DrugsFile"
-#define default_perks_ini_path "mods\\sfall\\Perks.ini"
-#define default_drugs_ini_path "mods\\sfall\\Drugs.ini"
+#define default_perks_ini_path "mods\\Perks.ini"
+#define default_drugs_ini_path "mods\\Drugs.ini"
 #define default_perks_ini_name "Perks.ini"
 #define default_drugs_ini_name "Drugs.ini"
 #define default_perks_ini_name2 "perks.ini"
@@ -72,6 +73,10 @@
 #define signal_close_game                                       sfall_func0("signal_close_game")
 #define message_box_flags(text, flags)                          sfall_func2("message_box", text, flags)
 
+#define traits_desc_ver_msg 3
+
+#define gGameMouseCursor read_int(0x518C0C)
+#define MOUSE_CURSOR_CROSSHAIR 20
 
 //Nevada drugs
 #define PID_MENTATS_AROM                    (338)
@@ -80,6 +85,8 @@
 
 //sfall 5
 #define set_heave_ho_tweak_mod(mod)                             metarule3(202, mod, 0, 0)
+#define _combat_turn_running read_int(0x51093C)
+
 
 
 
@@ -87,10 +94,11 @@
 #include "define_extra.h"
 #include "command.h"
 #include "sfall.h"
+#include "F2MMR.h"
 
-variable traits_plus_cur_version = "1.0";
-variable traits_plus_cur_version_Sonora = "Sonora 1.0";
-variable traits_plus_cur_version_et_tu = "et_tu 1.0";
+variable traits_plus_cur_version;
+variable traits_plus_version_Sonora = "Sonora";
+variable traits_plus_version_et_tu = "et_tu";
 
 variable Nevada;
 variable Sonora;
@@ -124,6 +132,18 @@ variable drug_resistant;
 
 // TRAIT_bruiser
 variable bruiser;
+variable in_description;
+variable scr_repeat;
+variable overlay_created;
+variable bruiser_heavy_handed_pid_0;
+variable bruiser_heavy_handed_min_0;
+variable bruiser_heavy_handed_max_0;
+variable bruiser_heavy_handed_pid_1;
+variable bruiser_heavy_handed_min_1;
+variable bruiser_heavy_handed_max_1;
+variable is_unarmed;
+variable bruiser_heavy_handed_min_dmg;
+variable bruiser_heavy_handed_max_dmg;
 
 // TRAIT_small_frame
 variable small_frame;
@@ -133,7 +153,6 @@ variable one_hander;
 variable one_hander_stat_bonus = "TPOHTBST";
 variable one_hander_weapon_pid;
 variable one_hander_min_st;
-variable one_hander_uncripple_set;
 
 // TRAIT_heavy_handed
 variable heavy_handed;
@@ -154,11 +173,12 @@ variable finesse;
 
 //TRAIT_bloody_mess
 variable bloody_mess;
+variable bloody_mess_ap_debt;
 variable bloody_mess_player_death_changed;
 variable bloody_mess_death_count;
 variable bloody_mess_last_ap_attack;
 variable bloody_mess_no_ap_end;
-variable bloody_mess_orig_mem;
+variable dude_turn;
 
 //TRAIT_jinxed
 variable jinxed;
@@ -183,12 +203,16 @@ variable ver_major;
 variable ver_minor;
 variable ver_build;
 variable sfall_508;
+variable sfall_510;
 variable AutoMoveToAttack;
 variable AutoMoveToAttack_move_dist;
 variable AutoMoveToAttack_start_hex;
+variable AutoMoveToAttack_last_ap;
 variable AutoMoveToAttack_last_wpn = -10;
+variable AutoMoveToAttack_last_target;
 variable wpn_is_melee;
 variable wpn_range;
+variable EXPLOSION_TARGET_COUNT = 6;
 
 procedure weapon_is_two_handed(variable weapon) begin
    variable weapon_flags_ext;
@@ -203,18 +227,16 @@ procedure weapon_is_two_handed(variable weapon) begin
 end
 
 procedure one_hander_bonus_remove begin
-   if get_sfall_global_int(one_hander_stat_bonus) <= 0 then begin
+   if get_sfall_global_int(one_hander_stat_bonus) <= 0 then
       return;
-   end
-   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) - ONE_HANDER_CRIT_ROLL_BONUS));
+   set_critter_extra_stat(real_dude_obj, STAT_better_crit, (get_critter_extra_stat(real_dude_obj, STAT_better_crit) - ONE_HANDER_CRIT_ROLL_BONUS));
    set_sfall_global(one_hander_stat_bonus, 0);
 end
 
 procedure one_hander_bonus_add begin
-   if get_sfall_global_int(one_hander_stat_bonus) > 0 then begin
+   if get_sfall_global_int(one_hander_stat_bonus) > 0 then
       return;
-   end
-   set_critter_extra_stat(dude_obj, STAT_better_crit, (get_critter_extra_stat(dude_obj, STAT_better_crit) + ONE_HANDER_CRIT_ROLL_BONUS));
+   set_critter_extra_stat(real_dude_obj, STAT_better_crit, (get_critter_extra_stat(real_dude_obj, STAT_better_crit) + ONE_HANDER_CRIT_ROLL_BONUS));
    set_sfall_global(one_hander_stat_bonus, 1);
 end
 
@@ -248,100 +270,104 @@ end
 
 procedure TOHIT begin
    variable hit_capped = get_sfall_arg;
-   variable attacker = get_sfall_arg;
-   variable target = get_sfall_arg;
+   variable attacker  = get_sfall_arg;
+   variable target    = get_sfall_arg;
    variable body_part = get_sfall_arg;
-   variable atk_type = get_sfall_arg_at(5);
+   variable atk_type  = get_sfall_arg_at(5);
    variable hit_uncapped = get_sfall_arg_at(7);
    variable dodger;
    variable max_dodge;
-   variable new_hit_cap = 95;
+   variable max_hit_cap;
+   variable new_hit_cap;
    variable new_hit_chance = hit_uncapped;
-   variable max_hit_cap = 95;
    variable active_item;
-   if target == dude_obj then begin
+
+   if target == real_dude_obj then begin
       dodger = has_trait(TRAIT_PERK, target, PERK_dodger);
-      if small_frame > 0 then begin
+      if small_frame > 0 then
          max_dodge += SMALL_FRAME_DODGE;
-      end
-   end
-   // get the maximum hit chance if it is != 95
-   if hit_capped > 95 orElse hit_capped < new_hit_chance then begin
-      max_hit_cap = hit_capped;
    end
 
-   // Apply +20% bonus to hit chance for TRAIT_one_hander with bare fist
-   if attacker == dude_obj andAlso one_hander > 0 then begin
-      active_item = get_active_weapon(attacker);
-      if active_item <= 0 andAlso ((atk_type == ATKTYPE_PUNCH orElse (atk_type >= ATKTYPE_STRONGPUNCH andAlso atk_type <= ATKTYPE_PIERCINGSTRIKE))) then begin
-         new_hit_chance += ONE_HANDER_HIT_BONUS;
-      end
-      else begin
-         if active_item > 0 andAlso weapon_is_two_handed(active_item) == 0 then begin
-            //Penalty to hit chance of one-handed weapons if both hands are damaged
-            if (critter_state(attacker) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT)) != 0 then begin
+   // get new maximum hit chance if it != 95
+   if hit_capped > 95 orElse hit_capped < hit_uncapped then
+      max_hit_cap = hit_capped;
+   else
+      max_hit_cap = 95;
+
+   new_hit_cap = max_hit_cap;
+
+   if attacker == real_dude_obj then begin
+      if one_hander > 0 then begin
+         active_item = get_active_weapon(attacker);
+         if active_item <= 0
+            andAlso (atk_type == ATKTYPE_PUNCH
+            orElse (atk_type >= ATKTYPE_STRONGPUNCH andAlso atk_type <= ATKTYPE_PIERCINGSTRIKE)) then begin
+            new_hit_chance += ONE_HANDER_HIT_BONUS;
+         end
+         else if active_item > 0 andAlso weapon_is_two_handed(active_item) == 0 then begin
+            // penalty if both arms crippled
+            if (critter_state(attacker) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT))
+               == (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT) then begin
                new_hit_chance -= ONE_HANDER_HIT_BONUS;
             end
          end
       end
-   end
-   // Apply a bonus to hit chance for skilled attacker
-   if attacker == dude_obj andAlso skilled > 0 then begin
-      new_hit_chance += SKILLED_HIT_BONUS;
-      hit_capped += SKILLED_HIT_BONUS;
-      max_hit_cap += SKILLED_HIT_BONUS;
+
+      if skilled > 0 then begin
+         new_hit_chance += SKILLED_HIT_BONUS;
+         max_hit_cap += SKILLED_HIT_BONUS;
+         new_hit_cap = max_hit_cap;
+      end
    end
 
-   // Calculate new max chance for target with small frame, dodger, and jinxed
+   // Dodge / jinxed
    if (max_dodge > 0 orElse dodger > 0 orElse jinxed > 0) andAlso hit_capped > 0 then begin
-      if jinxed > 0 then begin
+      if jinxed > 0 then
          max_dodge += JINXED_MISS;
-      end
       max_dodge += DODGER_DODGE * dodger;
       new_hit_cap = max_hit_cap - max_dodge;
    end
 
-   // Set the new maximum hit chance within bounds
-   if new_hit_cap < 0 then begin
+   if new_hit_cap < 0 then
       new_hit_cap = 0;
-   end
    else if new_hit_cap > 99 then begin
-      if body_part == BODY_UNCALLED then begin
+      if body_part == BODY_UNCALLED then
          new_hit_cap = 100;
-      end
-      else begin
+      else
          new_hit_cap = 99;
-      end
    end
 
-   //kamikaze
-   if kamikaze_hex_walked_num > 0 then begin
+   // Kamikaze penalties
+   if kamikaze_hex_walked_num > 0 then
       new_hit_chance -= kamikaze_tohit_penalty * kamikaze_hex_walked_num;
-   end
-   if AutoMoveToAttack_move_dist > 0 then begin
+   if AutoMoveToAttack_move_dist > 0 then
       new_hit_chance -= kamikaze_tohit_penalty * AutoMoveToAttack_move_dist;
-   end
 
-   // Set the maximum hit chance as the return value if it's higher than the base hit chance
    if new_hit_chance >= new_hit_cap then begin
-      set_sfall_return(new_hit_cap);
-      set_sfall_arg(0, new_hit_cap);
-      set_sfall_arg(7, new_hit_chance);
-   end
-   else begin
-      if new_hit_chance != hit_uncapped then begin
-         set_sfall_return(new_hit_chance);
-         set_sfall_arg(0, new_hit_chance);
+      if new_hit_cap != hit_capped then begin
+         set_sfall_return(new_hit_cap);
+         set_sfall_arg(0, new_hit_cap);
          set_sfall_arg(7, new_hit_chance);
       end
    end
+   else begin
+      if new_hit_chance != hit_uncapped then begin
+         hit_uncapped = new_hit_chance;
+         if new_hit_chance < -99 then
+            new_hit_chance = -99;
+         set_sfall_return(new_hit_chance);
+         set_sfall_arg(0, new_hit_chance);
+         set_sfall_arg(7, hit_uncapped);
+      end
+   end
 end
+
 
 procedure jinxed_remove_and_get_roll begin
    if jinxed_removed > 0 then
       return;
 
-   if sfall_508 <= 0 andAlso (has_trait(TRAIT_TRAIT, dude_obj, TRAIT_jinxed) orElse has_trait(TRAIT_PERK, dude_obj, PERK_jinxed_perk)) then begin
+   if sfall_508 <= 0 andAlso (has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_jinxed) orElse has_trait(TRAIT_PERK, real_dude_obj, PERK_jinxed_perk)) then begin
       jinxed_unsafe_set_max_roll = read_byte(jinxed_roll_max_value_adress);
       write_byte(jinxed_roll_max_value_adress, 0x00);
       jinxed_removed = 1;
@@ -365,12 +391,12 @@ procedure get_luck_min_max begin
    if luck_max != -1 then
       return;
 
-   dude_extra_luck = get_critter_extra_stat(dude_obj, STAT_lu);
-   set_critter_extra_stat(dude_obj, STAT_lu, -100);
+   dude_extra_luck = get_critter_extra_stat(real_dude_obj, STAT_lu);
+   set_critter_extra_stat(real_dude_obj, STAT_lu, -100);
    luck_min = dude_luck;
-   set_critter_extra_stat(dude_obj, STAT_lu, 100);
+   set_critter_extra_stat(real_dude_obj, STAT_lu, 100);
    luck_max = dude_luck;
-   set_critter_extra_stat(dude_obj, STAT_lu, dude_extra_luck);
+   set_critter_extra_stat(real_dude_obj, STAT_lu, dude_extra_luck);
 end
 
 procedure remove_luck_penalty begin
@@ -398,7 +424,7 @@ procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable 
       call remove_luck_penalty;
    end
    //add heavy handed bonus
-   if attacker == dude_obj andAlso has_heavy_handed > 0 then begin
+   if attacker == real_dude_obj andAlso has_heavy_handed > 0 then begin
       luck_penalty += heavy_handed_luck_bonus;
    end
    //add bloody mess penalty
@@ -414,29 +440,6 @@ procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable 
       set_critter_extra_stat(attacker, STAT_lu, (attacker_orig_extra_luck + luck_penalty));
    end
 end
-
-
-
-
-procedure disable_zero_ap_end_turn begin
-   variable ap_to_end_turn = -10;
-   if bloody_mess_no_ap_end == 0 then begin
-      bloody_mess_no_ap_end = 1;
-      // end turn if AP is lower then ap_to_end_turn
-      write_int(0x42286A, (bloody_mess_orig_mem + (ap_to_end_turn * 0x1000000)));
-   end
-end
-
-procedure enable_zero_ap_end_turn begin
-   if bloody_mess_no_ap_end != 0 then begin
-      write_int(0x42286A, bloody_mess_orig_mem);
-      if combat_is_initialized andAlso get_critter_current_ap(dude_obj) <= 0 andAlso get_combat_free_move <= 0 then begin
-         tap_key(57); //DIK_SPACE
-      end
-      bloody_mess_no_ap_end = 0;
-   end
-end
-
 
 procedure get_wpn_range(variable weapon,variable attack_type) begin
    variable weapon_range;
@@ -454,6 +457,28 @@ procedure get_wpn_range(variable weapon,variable attack_type) begin
    return weapon_range;
 end
 
+procedure drug_restore begin
+   variable i;
+   variable drug_stat_offset;
+   variable drug_stat_value;
+   variable drug_num_effects;
+   if modded_drug_pid <= 0 orElse len_array(drug_orig_stats) <= 0 then begin
+      return;
+   end
+
+   for (i = 0; i < DRUG_MAX_STATS-1; i++) begin
+      drug_stat_offset = (PROTO_DR_STAT_A + (i * 4));
+      drug_stat_value = get_array(drug_orig_stats, i);
+      set_proto_data(modded_drug_pid, drug_stat_offset,drug_stat_value);
+   end
+   drug_num_effects = get_array(drug_orig_stats, DRUG_MAX_STATS);
+   if drug_num_effects >= 0 then
+      set_drugs_data(NumEffects, modded_drug_pid, drug_num_effects);
+
+   modded_drug_pid = 0;
+   free_array(drug_orig_stats);
+end
+
 procedure CALCAPCOST begin
    variable critter = get_sfall_arg;
    variable is_aimed;
@@ -462,7 +487,11 @@ procedure CALCAPCOST begin
    variable atk_type;
    variable active_item;
    variable cursor_mode;
-   if critter == dude_obj andAlso AutoMoveToAttack > 0 then begin
+   if modded_drug_pid > 0 then begin
+      call drug_restore;
+   end
+
+   if critter == real_dude_obj andAlso AutoMoveToAttack > 0 then begin
       atk_type = get_sfall_arg_at(1);
       is_aimed = get_sfall_arg_at(2);
       wpn_is_melee = 0;
@@ -473,7 +502,7 @@ procedure CALCAPCOST begin
             AutoMoveToAttack_start_hex = 0;
             AutoMoveToAttack_last_wpn = 0;
             cursor_mode = get_cursor_mode;
-            if cursor_mode == CURSOR_TARGETING then begin
+            if cursor_mode == CURSOR_TARGETING andAlso gGameMouseCursor == MOUSE_CURSOR_CROSSHAIR then begin
                set_cursor_mode((cursor_mode + 1) % 3);
                set_cursor_mode(CURSOR_TARGETING);
             end
@@ -498,17 +527,20 @@ procedure CALCAPCOST begin
             AutoMoveToAttack_start_hex = 0;
             AutoMoveToAttack_last_wpn = 0;
             cursor_mode = get_cursor_mode;
-            if cursor_mode == CURSOR_TARGETING then begin
+            if cursor_mode == CURSOR_TARGETING andAlso gGameMouseCursor == MOUSE_CURSOR_CROSSHAIR then begin
                set_cursor_mode((cursor_mode + 1) % 3);
                set_cursor_mode(CURSOR_TARGETING);
             end
          end
          AutoMoveToAttack_last_wpn = atk_type + (is_aimed * 100);
-         wpn_range = 0;
+         if (get_proto_data(obj_pid(critter), PROTO_CR_FLAGS) bwand CFLG_RANGED) == CFLG_RANGED then
+            wpn_range = 1;
+         else
+            wpn_range = 0;
          wpn_is_melee = 1;
       end
       if AutoMoveToAttack_move_dist > 0 andAlso combat_is_initialized then begin
-         if AutoMoveToAttack_start_hex == tile_num(dude_obj) then begin
+         if AutoMoveToAttack_start_hex == tile_num(real_dude_obj) then begin
             orig_ap_cost = get_sfall_arg_at(3);
             new_ap_cost = orig_ap_cost - AutoMoveToAttack_move_dist / kamikaze_walk_div - (kamikaze_hex_walked_num / kamikaze_walk_div);
             if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
@@ -518,6 +550,11 @@ procedure CALCAPCOST begin
                new_ap_cost = 1 + is_aimed;
             end
             set_sfall_return(new_ap_cost);
+            set_sfall_arg(3, new_ap_cost);
+            if new_ap_cost != AutoMoveToAttack_last_ap then begin
+               AutoMoveToAttack_last_ap = new_ap_cost;
+               intface_redraw;
+            end
          end
          else begin
             AutoMoveToAttack_move_dist = 0;
@@ -544,18 +581,22 @@ procedure CALCAPCOST begin
             if new_ap_cost < 1 + is_aimed then begin
                new_ap_cost = 1 + is_aimed;
             end
+            if AutoMoveToAttack_last_ap > 0 andAlso AutoMoveToAttack_last_ap < new_ap_cost then
+               new_ap_cost = AutoMoveToAttack_last_ap;
+
             set_sfall_return(new_ap_cost);
             set_sfall_arg(3, new_ap_cost);
             if kamikaze_ap_used > 0 then begin
                kamikaze_ap_used = 0;
                kamikaze_hex_walked_num = 0;
+               AutoMoveToAttack_last_ap = 0;
                intface_redraw;
             end
          end
       end
    end
 
-   if critter == dude_obj then begin
+   if critter == real_dude_obj then begin
       if new_ap_cost > 0 then begin
          orig_ap_cost = new_ap_cost;
       end
@@ -576,6 +617,7 @@ procedure CALCAPCOST begin
             end
          end
          else begin
+            atk_type = get_sfall_arg_at(1);
             if (atk_type == ATKTYPE_PUNCH orElse (atk_type >= ATKTYPE_STRONGPUNCH andAlso atk_type <= ATKTYPE_PIERCINGSTRIKE)) then begin
                call one_hander_bonus_add;
             end
@@ -588,8 +630,11 @@ procedure CALCAPCOST begin
          call one_hander_weapon_bonus_remove;
          call one_hander_bonus_remove;
       end
-      if bloody_mess > 0 andAlso get_combat_free_move <= 0 andAlso ((get_critter_current_ap(critter) - orig_ap_cost)) <= 0 then begin
-         bloody_mess_last_ap_attack = 1;
+      if bloody_mess > 0 then begin
+         if orig_ap_cost > 0 andAlso get_combat_free_move <= 0 andAlso ((get_critter_current_ap(critter) - orig_ap_cost)) <= 0 then
+            bloody_mess_last_ap_attack = 1;
+         else
+            bloody_mess_last_ap_attack = 0;
       end
    end
    else begin
@@ -759,18 +804,46 @@ procedure calc_crit_dmg(variable attacker, variable target, variable weapon, var
 
 end
 
+procedure ap_hide begin
+   variable ap_left;
+   variable free_move_ap_left;
+   if bloody_mess_ap_debt > 0 then begin
+      ap_left = get_critter_current_ap(main_attacker) - bloody_mess_ap_debt;
+      free_move_ap_left = get_combat_free_move;
+      call_offset_v2(0x45EE0C, ap_left, free_move_ap_left); //intface_update_move_points
+   end
+end
+
+procedure return_ap_debt2 begin
+   if bloody_mess_ap_debt > 0 then begin
+      set_critter_current_ap(main_attacker, get_critter_current_ap(main_attacker) - bloody_mess_ap_debt);
+      bloody_mess_ap_debt = 0;
+   end
+end
+
+procedure return_ap_debt begin
+   call return_ap_debt2 when _combat_turn_running <= 0;
+end
+
+procedure timed_event_p_proc begin
+   if fixed_param == timed_ap_debt then begin
+      call ap_hide;
+      call return_ap_debt;
+   end
+end
+
+
 procedure AFTERHITROLL begin
    variable attack_result = get_sfall_arg;
    variable attacker = get_sfall_arg;
    variable target = get_sfall_arg;
-   //variable bodypart = get_sfall_arg;
-   //variable hit_chance = get_sfall_arg;
    variable new_attack_result = -1;
    variable attacker_crit;
    variable attacker_luck;
    variable fail_roll;
    variable sniper;
    variable rnd;
+   variable attacker_cur_ap;
    main_attacker = attacker;
    //kamikaze
    if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
@@ -792,15 +865,22 @@ procedure AFTERHITROLL begin
    // set critical miss bonus roll
    if attack_result == ROLL_CRITICAL_FAILURE then begin
       // bloody_mess increases the effect of a critical miss for an attacker by 30
-      //skilled reduces the effect of a critical miss for an attacker by 30
-      if skilled > 0 andAlso attacker == dude_obj andAlso random(0,1) then begin
+      //skilled reduces chance of a critical miss for an attacker
+      if skilled > 0 andAlso attacker == real_dude_obj andAlso random(0,1) then begin
          new_attack_result = ROLL_FAILURE;
       end
-      if bloody_mess > 0 orElse (heavy_handed > 0 andAlso attacker == dude_obj) then begin
+      if bloody_mess > 0 orElse (heavy_handed > 0 andAlso attacker == real_dude_obj) then begin
          call add_luck_penalty(attacker,bloody_mess,heavy_handed);
       end
    end
 
+   // check for bloody mess attack with last ap
+   if attacker == real_dude_obj andAlso bloody_mess > 0 andAlso bloody_mess_last_ap_attack > 0 then begin
+      add_global_timer_event(0, timed_ap_debt);
+      attacker_cur_ap = get_critter_current_ap(attacker);
+      bloody_mess_ap_debt = 1;
+      set_object_data(attacker, OBJ_DATA_CUR_ACTION_POINT, attacker_cur_ap + bloody_mess_ap_debt);
+   end
 
    if new_attack_result >= ROLL_CRITICAL_FAILURE then begin
       set_sfall_return(new_attack_result);
@@ -811,16 +891,15 @@ procedure AFTERHITROLL begin
 end
 
 procedure give_ap_for_kills(variable attacker) begin
-   //if bloody_mess_death_count >= 0 then begin
-      if bloody_mess_ap_bonus > 0 andALso bloody_mess_death_count <= 0 then begin
-         set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + bloody_mess_ap_bonus));
-      end
-      //else begin
-         set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + bloody_mess_ap_bonus_kill));
-      //end
-      bloody_mess_death_count ++;
-   //end
-   call enable_zero_ap_end_turn;
+   if bloody_mess_death_count <= 0 then begin
+      set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + ap_bonus_kill_first - bloody_mess_ap_debt));
+      bloody_mess_ap_debt = 0;
+   end
+   else begin
+      set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + ap_bonus_kill - bloody_mess_ap_debt));
+      bloody_mess_ap_debt = 0;
+   end
+   bloody_mess_death_count ++;
 end
 
 procedure get_attack_anim(variable weapon,variable attack_type) begin
@@ -867,6 +946,41 @@ procedure weapon_is_grenade(variable weapon,variable attack_type) begin
    return is_grenade;
 end
 
+procedure check_combat_targets_death begin
+   variable target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable extra_target;
+   variable next_num;
+   variable extra_target_num_max = EXPLOSION_TARGET_COUNT * 4;
+   variable dmg_value;
+   variable flags;
+   variable target_cur_hp;
+   if target > 0 andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
+      flags = get_object_data(combat_data, C_ATTACK_FLAGS_TARGET);
+      if flags bwand DAM_DEAD != 0 then
+         return 1;
+      target_cur_hp = get_critter_stat(target, STAT_current_hp);
+      dmg_value = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
+      if target_cur_hp <= dmg_value then
+         return 1;
+   end
+   for (next_num = 0; next_num < extra_target_num_max; next_num += 4) begin
+      extra_target = get_object_data(combat_data, (C_ATTACK_TARGET1 + next_num));
+      if extra_target == target then
+         continue;
+      if extra_target <= 0 or obj_type(target) != OBJ_TYPE_CRITTER then
+         return 0;
+
+      flags = get_object_data(combat_data, (C_ATTACK_FLAGS_TARGET1 + next_num));
+      if flags bwand DAM_DEAD != 0 then
+         return 1;
+      target_cur_hp = get_critter_stat(target, STAT_current_hp);
+      dmg_value = get_object_data(combat_data, (C_ATTACK_DAMAGE_TARGET1 + next_num));
+      if target_cur_hp <= dmg_value then
+         return 1;
+   end
+   return 0;
+end
+
 procedure COMBATDAMAGE begin
    variable target = get_sfall_arg;
    variable attacker = get_sfall_arg;
@@ -879,7 +993,6 @@ procedure COMBATDAMAGE begin
    variable atk_type = get_sfall_arg_at(11);
    variable c_atk_data = get_sfall_arg_at(12);
    variable wpn_anim;
-   variable target_cur_hp;
    variable new_dmg_to_tar;
    variable new_tar_flags;
    variable weapon_weight;
@@ -894,7 +1007,7 @@ procedure COMBATDAMAGE begin
    variable is_aoe_crit;
    variable actual_dude_attack;
    variable was_returned;
-   if attacker == dude_obj then begin
+   if attacker == real_dude_obj then begin
       actual_dude_attack = 1;
    end
    if actual_dude_attack > 0 then begin
@@ -976,20 +1089,12 @@ procedure COMBATDAMAGE begin
             end
          end
       end
-      //check target will die
-      // check for bloody mess
-      if bloody_mess > 0 andAlso bloody_mess_last_ap_attack > 0 then begin
-         target_cur_hp = get_critter_stat(target,STAT_current_hp);
-         if target_cur_hp <= dmg_to_tar orElse ((tar_flags bwand DAM_DEAD) != 0) then begin
-            call disable_zero_ap_end_turn;
-         end
-      end
    end
 end
 
 procedure ONDEATH begin
-   if bloody_mess > 0 andAlso main_attacker == dude_obj then begin
-      call give_ap_for_kills(dude_obj);
+   if bloody_mess > 0 andAlso dude_turn > 0 andAlso main_attacker == real_dude_obj then begin
+      call give_ap_for_kills(real_dude_obj);
    end
 end
 
@@ -1005,7 +1110,7 @@ procedure ITEMDAMAGE begin
    variable new_min_wpn_dmg;
    variable melee_dmg;
    variable wpn_max_dmg;
-   if (bruiser > 0 orElse heavy_handed > 0) andAlso attacker == dude_obj then begin
+   if (bruiser > 0 orElse heavy_handed > 0) andAlso attacker == real_dude_obj then begin
       default_min_wpn_dmg = get_sfall_arg_at(0);
       default_max_wpn_dmg = get_sfall_arg_at(1);
       weapon = get_sfall_arg_at(2);
@@ -1040,6 +1145,14 @@ procedure ITEMDAMAGE begin
          end
          default_min_wpn_dmg = new_min_wpn_dmg;
          default_max_wpn_dmg = new_max_wpn_dmg;
+         if sfall_508 <= 0 then begin
+            if weapon == 0 then
+               is_unarmed = 1;
+            else
+               is_unarmed = 0;
+            bruiser_heavy_handed_min_dmg = new_min_wpn_dmg;
+            bruiser_heavy_handed_max_dmg = new_max_wpn_dmg;
+         end
          set_sfall_return(new_min_wpn_dmg);
          set_sfall_arg(0, new_min_wpn_dmg);
          set_sfall_return(new_max_wpn_dmg);
@@ -1076,25 +1189,6 @@ procedure get_drugs_addict_time(variable drug_pid) begin
          return addict_time;
    end
 end
-
-procedure drug_restore begin
-   variable i;
-   variable drug_stat_offset;
-   variable drug_stat_value;
-   if modded_drug_pid <= 0 orElse len_array(drug_orig_stats) <= 0 then begin
-      return;
-   end
-
-   for (i = 0; i < DRUG_MAX_STATS-1; i++) begin
-      drug_stat_offset = (PROTO_DR_STAT_A + (i * 4));
-      drug_stat_value = get_array(drug_orig_stats, i);
-      set_proto_data(modded_drug_pid, drug_stat_offset,drug_stat_value);
-   end
-   set_drugs_data(NumEffects, modded_drug_pid, get_array(drug_orig_stats, DRUG_MAX_STATS));
-   modded_drug_pid = 0;
-   free_array(drug_orig_stats);
-end
-
 
 procedure drug_save(variable drug_obj) begin
    variable drug_pid;
@@ -1495,7 +1589,7 @@ procedure drug_modify_fast_meta(variable drug_pid) begin
    variable new_drug_time_1, new_drug_time_2;
    variable addict_chance, drug_addict_delay, drug_addict_time;
    variable new_drug_addict_time, new_drug_addict_delay;
-   if drug_pid <= 0 orElse (RegenMod > 0 andAlso drug_pid == PID_SUPER_STIMPAK) then
+   if drug_pid <= 0 orElse (RegenMod > 0 andAlso (drug_pid == PID_SUPER_STIMPAK orElse drug_pid == PID_HEALING_POWDER orElse drug_pid == PID_STIMPAK)) then
       return;
    //set new stats
    //check addiction and reduce it duration
@@ -2139,30 +2233,6 @@ procedure drug_modify_drug_addict(variable drug_pid) begin
    end
 end
 
-procedure one_hander_uncripple begin
-   if one_hander_uncripple_set > 0 then begin
-      return;
-   end
-   else begin
-      //One-handed attack is not allowed if DAM_CRIP_ARM_LEFT and also !DAM_DEAD!
-      write_byte(0x426671, DAM_DEAD);
-      one_hander_uncripple_set = 1;
-      intface_redraw;
-   end
-end
-
-procedure one_hander_cripple begin
-   if one_hander_uncripple_set <= 0 then begin
-      return;
-   end
-   else begin
-      //One-handed attack is not allowed if DAM_CRIP_ARM_LEFT and also !DAM_CRIP_ARM_RIGHT!
-      write_byte(0x426671, DAM_CRIP_ARM_RIGHT);
-      one_hander_uncripple_set = 0;
-   end
-end
-
-
 procedure dude_traits_changed(variable trait_1, variable trait_2) begin
    variable traits_have_changed;
    if dude_trait_1 != trait_1 then begin
@@ -2179,6 +2249,20 @@ procedure dude_traits_changed(variable trait_1, variable trait_2) begin
    return traits_have_changed;
 end
 
+procedure sfall_4_set_unarmed_dmg_bytes begin
+   if read_byte(0x47253A) == 0xEB then
+      return;
+
+   write_byte(0x47253A, 0xEB);
+end
+
+procedure sfall_4_unset_unarmed_dmg_bytes begin
+   if read_byte(0x47253A) == 0x75 then
+      return;
+
+   write_byte(0x47253A, 0x75);
+end
+
 procedure get_dude_traits(variable critter) begin
    variable trait_1 = read_int(0x66BE40);
    variable trait_2 = read_int(0x66BE44);
@@ -2186,7 +2270,7 @@ procedure get_dude_traits(variable critter) begin
 
    if traits_have_changed > 0 then begin
       if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
-         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) andAlso critter == real_dude_obj then begin
             fast_metabolism = 1;
          end else begin
             fast_metabolism = 0;
@@ -2194,7 +2278,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if bruiser >= 0 andAlso bruiser < 2 then begin
-         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) andAlso critter == real_dude_obj then begin
             bruiser = 1;
          end else begin
             bruiser = 0;
@@ -2202,7 +2286,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
      if small_frame >= 0 andAlso small_frame < 2 then begin
-         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) andAlso critter == real_dude_obj then begin
             small_frame = 1;
          end else begin
             small_frame = 0;
@@ -2210,18 +2294,19 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if one_hander >= 0 andAlso one_hander < 2 then begin
-         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) andAlso critter == real_dude_obj then begin
             one_hander = 1;
-            call one_hander_uncripple;
+            //call one_hander_uncripple;
          end
          else begin
-            call one_hander_cripple;
+            //call one_hander_cripple;
+            call one_hander_bonus_remove;
             one_hander = 0;
          end
       end
 
       if finesse >= 0 andAlso finesse < 2 then begin
-         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) andAlso critter == real_dude_obj then begin
             finesse = 1;
          end else begin
             finesse = 0;
@@ -2229,7 +2314,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if kamikaze >= 0 andAlso kamikaze < 2 then begin
-         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) andAlso critter == real_dude_obj then begin
             kamikaze = 1;
          end else begin
             kamikaze = 0;
@@ -2237,7 +2322,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if heavy_handed >= 0 andAlso heavy_handed < 2 then begin
-         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) andAlso critter == real_dude_obj then begin
             heavy_handed = 1;
          end else begin
             heavy_handed = 0;
@@ -2248,12 +2333,17 @@ procedure get_dude_traits(variable critter) begin
          if (trait_1 == TRAIT_bloody_mess) orElse (trait_2 == TRAIT_bloody_mess) then begin
             bloody_mess = 1;
             // allow bloody mess to affect player death
-            if bloody_mess_player_death_changed <= 0 then begin
+            if sfall_508 <= 0 andAlso bloody_mess_player_death_changed <= 0 then begin
                write_byte(0x410700, 0x31);
                write_byte(0x410701, 0xC0);
                bloody_mess_player_death_changed = 1;
             end
          end else begin
+            if bloody_mess_player_death_changed > 0 then begin
+               write_byte(0x410700, 0x75);
+               write_byte(0x410701, 0x16);
+               bloody_mess_player_death_changed = 0;
+            end
             bloody_mess = 0;
          end
       end
@@ -2267,7 +2357,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if drug_addict >= 0 andAlso drug_addict < 2 then begin
-         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) andAlso critter == real_dude_obj then begin
             drug_addict = 1;
          end else begin
             drug_addict = 0;
@@ -2275,7 +2365,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if drug_resistant >= 0 andAlso drug_resistant < 2 then begin
-         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) andAlso critter == dude_obj then begin
+         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) andAlso critter == real_dude_obj then begin
             drug_resistant = 1;
          end else begin
             drug_resistant = 0;
@@ -2288,6 +2378,12 @@ procedure get_dude_traits(variable critter) begin
          end else begin
             skilled = 0;
          end
+      end
+      if heavy_handed > 0 orElse bruiser > 0 then begin
+         call sfall_4_set_unarmed_dmg_bytes;
+      end
+      else begin
+         call sfall_4_unset_unarmed_dmg_bytes;
       end
    end
    return traits_have_changed;
@@ -2325,10 +2421,9 @@ procedure drug_modify(variable drug_obj, variable target) begin
    if can_mod_drugs(drug_pid) <= 0 then
       return;
 
-   if target == dude_obj then begin
-      if get_dude_traits(dude_obj) > 0 then begin
-         modded_drug_pid = 0;
-      end
+   if target == real_dude_obj then begin
+      call get_dude_traits(real_dude_obj);
+
       call drug_save(drug_obj);
       modded_drug_pid = drug_pid;
       if drug_resistant > 0 then begin
@@ -2348,7 +2443,6 @@ procedure drug_modify(variable drug_obj, variable target) begin
    end
 end
 
-
 procedure USEOBJON begin
    variable target = get_sfall_arg_at(0);
    variable obj = get_sfall_arg_at(2);
@@ -2356,7 +2450,6 @@ procedure USEOBJON begin
       call drug_modify(obj,target);
    end
 end
-
 
 //checking and installing the perks.ini file with changing trait descriptions
 procedure set_traits_desc begin
@@ -2540,19 +2633,18 @@ end
 
 procedure game_close begin
    variable msg = trait_msg(msg_traits_set)+"\n"+trait_msg(msg_restart_game);
+   game_ui_enable;
    message_box_flags(msg, MSGBOX_NORMAL);
    display_msg(msg);
    write_byte(0x481B2A, 0xB8);
    write_int(0x481B2B, 27);
-   signal_end_game;
+   sfall_func0("signal_close_game");
 end
 
 procedure set_ddraw_ini begin
    if get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod") > 0 orElse get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod") > 0 orElse get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod") > 0 orElse get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|StealRebalance") > 0  then begin
       if get_ini_setting("ddraw.ini|Misc|SpeedInterfaceCounterAnims") != 2 then
          set_ini_setting("ddraw.ini|Misc|SpeedInterfaceCounterAnims", 2);
-      if get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting") <= 0 then
-         set_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting", 1);
    end
 end
 
@@ -2568,25 +2660,33 @@ procedure check_ini_path begin
       perks_ini_not_set = 1;
    end
    else begin
-      common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name);
-      if len_array(common_ini_path_arr) <= 1 then
-         common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name2);
+      if len_array(get_ini_sections(perks_ini_path)) <= 0 then
+         perks_ini_not_set = 1;
+      else begin
+         common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name);
+         if len_array(common_ini_path_arr) <= 1 then
+            common_ini_path_arr = string_split(perks_ini_path, default_perks_ini_name2);
 
-      if len_array(common_ini_path_arr) > 1 then
-         common_ini_path = get_array(common_ini_path_arr, 0);
+         if len_array(common_ini_path_arr) > 1 then
+            common_ini_path = get_array(common_ini_path_arr, 0);
+      end
    end
 
    if drugs_ini_path == "" orElse drugs_ini_path < 0 then begin
       drugs_ini_not_set = 1;
    end
    else begin
-      if common_ini_path == "" orElse common_ini_path < 0 then begin
-         common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name);
-         if len_array(common_ini_path_arr) <= 1 then
-            common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name2);
+      if len_array(get_ini_sections(drugs_ini_path)) <= 0 then
+         drugs_ini_not_set = 1;
+      else begin
+         if common_ini_path == "" orElse common_ini_path < 0 then begin
+            common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name);
+            if len_array(common_ini_path_arr) <= 1 then
+               common_ini_path_arr = string_split(drugs_ini_path, default_drugs_ini_name2);
 
-         if len_array(common_ini_path_arr) > 1 then
-            common_ini_path = get_array(common_ini_path_arr, 0);
+            if len_array(common_ini_path_arr) > 1 then
+               common_ini_path = get_array(common_ini_path_arr, 0);
+         end
       end
    end
 
@@ -2612,29 +2712,28 @@ procedure check_ini_path begin
       drugs_ini_not_set = 0;
       ini_was_set = 1;
    end
-
+   if get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting") <= 0 then begin
+      set_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting", 2 - (ver_major != 4));
+      ini_was_set = 1;
+   end
    ini_was_set += check_traits_desc + check_drugs_pid;
    if ini_was_set > 0 then begin
       call set_ddraw_ini;
-      call game_close in 0;
+      call game_close in 1;
    end
 end
 
 procedure COMBATTURN begin
-   variable turn_type = get_sfall_arg;
+   variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
-   if (turn_type > 0 orElse turn_type < 0) then begin
-      if one_hander > 0 andAlso critter == dude_obj then begin
-         if one_hander_uncripple_set <= 0 then begin
-            call one_hander_uncripple;
-         end
-      end
+
+   if turn_status >= 1 andAlso critter == dude_obj then begin
+      main_attacker = dude_obj;
+      dude_turn = 1;
    end
-   else begin
-      if one_hander_uncripple_set > 0 then begin
-         call one_hander_cripple;
-      end
-   end
+   else
+      dude_turn = 0;
+
    bloody_mess_death_count = 0;
    if kamikaze_hex_walked_num > 0 then begin
       kamikaze_hex_walked_num = 0;
@@ -2667,12 +2766,13 @@ procedure set_dude_traits_from_ini begin
    if one_hander <= 0 then begin
       set_array(disabled_traits_arr, TRAIT_one_hander, (TRAIT_one_hander + 1));
       one_hander = -1;
+      call one_hander_bonus_remove;
    end
-   else begin
-      if one_hander >= 2 then begin
-         call one_hander_uncripple;
-      end
-   end
+   //else begin
+      //if one_hander >= 2 then begin
+         //call one_hander_uncripple;
+      //end
+   //end
 
    finesse = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Finesse");
    if finesse <= 0 then begin
@@ -2761,7 +2861,7 @@ procedure rm_traits_desc begin
       end
       set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",0);
       if ini_was_set > 0 then begin
-         call game_close in 0;
+         call game_close in 1;
       end
    end
    return ini_was_set;
@@ -2777,7 +2877,7 @@ procedure get_and_set_perk_level_mod begin
       return;
    last_lvl = dude_level;
    set_perk_level(test_perk, dude_lvl);
-   if has_trait(TRAIT_PERK, dude_obj,PERK_here_and_now_perk) then begin
+   if has_trait(TRAIT_PERK, real_dude_obj,PERK_here_and_now_perk) then begin
       if get_perk_available(test_perk) <= 0 then
          test_perk_rank = 1;
          set_perk_ranks(test_perk, 2);
@@ -2794,12 +2894,12 @@ procedure get_and_set_perk_level_mod begin
    end
    else begin
       for (i := 1; i >= -25; i--) begin
-         call_offset_v2(0x4AF910, PCSTAT_level, (dude_lvl-i));// set_dude_lvl
+         set_dude_level(dude_lvl - i);
          if get_perk_available(test_perk) > 0 then
             break;
       end
       perk_lvl_mod = i;
-      call_offset_v2(0x4AF910, PCSTAT_level, dude_lvl);// set_dude_lvl
+      set_dude_level(dude_lvl);
    end
 
    if skilled_last_perk_level_bonus != perk_lvl_mod then begin
@@ -2817,30 +2917,163 @@ procedure get_and_set_perk_level_mod begin
    return perk_lvl_mod;
 end
 
+procedure get_atk_mode(variable cur_active_hand) begin
+   variable hand = (0x5970F8 + (cur_active_hand * 0x18));
+   variable current_mode_adr = hand + 0x10;
+   variable current_mode = read_int(current_mode_adr);
+   variable current_attack_type;
+   if current_mode >= 1 andAlso current_mode <= 2 then
+      current_attack_type = read_int(hand + 0x8);
+   else if current_mode >= 3 andAlso current_mode <= 4 then
+      current_attack_type = read_int(hand + 0xC);
+
+   return current_attack_type;
+end
+
+inline procedure restore_proto_dmg begin
+   if bruiser_heavy_handed_pid_0 > 0 then begin
+      set_proto_data(bruiser_heavy_handed_pid_0, PROTO_WP_DMG_MIN, bruiser_heavy_handed_min_0);
+      set_proto_data(bruiser_heavy_handed_pid_0, PROTO_WP_DMG_MAX, bruiser_heavy_handed_max_0);
+      bruiser_heavy_handed_pid_0 = 0;
+   end
+   if bruiser_heavy_handed_pid_1 > 0 then begin
+      set_proto_data(bruiser_heavy_handed_pid_1, PROTO_WP_DMG_MIN, bruiser_heavy_handed_min_1);
+      set_proto_data(bruiser_heavy_handed_pid_1, PROTO_WP_DMG_MAX, bruiser_heavy_handed_max_1);
+      bruiser_heavy_handed_pid_1 = 0;
+   end
+end
+
+inline procedure set_proto_dmg(variable wpn_pid, variable new_min_dmg, variable new_max_dmg) begin
+   if bruiser_heavy_handed_pid_0 != wpn_pid andAlso bruiser_heavy_handed_pid_1 != wpn_pid then begin
+      if bruiser_heavy_handed_pid_0 <= 0 then begin
+         bruiser_heavy_handed_pid_0 = wpn_pid;
+         bruiser_heavy_handed_min_0 = get_proto_data(bruiser_heavy_handed_pid_0, PROTO_WP_DMG_MIN);
+         bruiser_heavy_handed_max_0 = get_proto_data(bruiser_heavy_handed_pid_0, PROTO_WP_DMG_MAX);
+      end
+      else if bruiser_heavy_handed_pid_1 <= 0 then begin
+         bruiser_heavy_handed_pid_1 = wpn_pid;
+         bruiser_heavy_handed_min_1 = get_proto_data(bruiser_heavy_handed_pid_1, PROTO_WP_DMG_MIN);
+         bruiser_heavy_handed_max_1 = get_proto_data(bruiser_heavy_handed_pid_1, PROTO_WP_DMG_MAX);
+      end
+      set_proto_data(wpn_pid, PROTO_WP_DMG_MIN, new_min_dmg);
+      set_proto_data(wpn_pid, PROTO_WP_DMG_MAX, new_max_dmg);
+   end
+end
+
+procedure show_dude_new_dmg begin
+   variable item;
+   variable wpn_pid;
+   variable ATKTYPE;
+   variable new_min_dmg;
+   variable new_max_dmg;
+   variable display_dmg_msg;
+   variable i;
+   call restore_proto_dmg;
+   if ((get_game_mode bwand INVENTORY) != 0) andAlso loot_obj <= 0 then begin
+      intface_redraw;
+      for (i= 0; i < 2; i++) begin
+         item = critter_inven_obj2(real_dude_obj, INVEN_TYPE_LEFT_HAND - i);
+         if item == 0 orElse (item > 0 andAlso obj_item_subtype(item) == item_type_weapon) then begin
+            ATKTYPE = get_atk_mode(i);
+            call_offset_v2(0x478448, real_dude_obj, ATKTYPE);
+            new_min_dmg = bruiser_heavy_handed_min_dmg;
+            new_max_dmg = bruiser_heavy_handed_max_dmg;
+            if item <= 0 andAlso is_unarmed > 0 then begin
+               display_dmg_msg = message_str_game(GAME_MSG_INVENTRY, 24);
+               SetTextColor(0.0, 1.0, 0.0);
+               SetFont(101);
+               sfall_func2("interface_overlay", WINTYPE_INVENTORY, 1);
+               overlay_created = 1;
+               interface_print(display_dmg_msg+" "+new_min_dmg+"-"+new_max_dmg, WINTYPE_INVENTORY, 297, 154 + 40 * i, 0);
+            end
+            else if new_min_dmg != 0 andAlso new_max_dmg != 0 then begin
+               wpn_pid = obj_pid(item);
+               call set_proto_dmg(wpn_pid, new_min_dmg, new_max_dmg);
+            end
+            bruiser_heavy_handed_min_dmg = 0;
+            bruiser_heavy_handed_max_dmg = 0;
+         end
+      end
+   end
+end
+
+procedure refresh begin
+   in_description = 0;
+end
+
+procedure ADJUSTFID begin
+   if sfall_508 <= 0 andAlso (heavy_handed > 0 orElse bruiser > 0) then begin
+      if loot_obj <= 0 andAlso in_description <= 0 andAlso (get_game_mode bwand INVENTORY) == INVENTORY then begin
+         sfall_func2("interface_overlay", WINTYPE_INVENTORY, 0);
+         overlay_created = 0;
+         display_stats;
+      end
+      if in_description <= 0 then
+         call show_dude_new_dmg;
+   end
+end
+
+procedure DESCRIPTIONOBJ begin
+   if overlay_created > 0 then begin
+      sfall_func2("interface_overlay", WINTYPE_INVENTORY, 0);
+      overlay_created = 0;
+      set_global_script_type(1);
+      set_global_script_repeat(1);
+      scr_repeat = 1;
+   end
+   if in_description <= 0 then begin
+      in_description = 1;
+      call refresh in 0;
+   end
+end
+
 procedure GAMEMODECHANGE begin
+   variable game_exit = get_sfall_arg;
+   variable last_game_mode = get_sfall_arg;
    variable game_mode = get_game_mode;
-   variable gvar_one_hander_sfall_5;
    if game_mode == 0 orElse (game_mode bwand COMBAT) then begin
-      call get_dude_traits(dude_obj);
+      call get_dude_traits(real_dude_obj);
    end
    else if skilled > 0 andAlso (game_mode bwand CHARSCREEN) then
       call get_and_set_perk_level_mod;
 
+   if sfall_508 <= 0 andAlso (heavy_handed > 0 orElse bruiser > 0) then begin
+      if (game_mode bwand INVENTORY) andAlso not(last_game_mode bwand INVENTORY) then begin
+         if (heavy_handed > 0 orElse bruiser > 0) andAlso loot_obj <= 0 then begin
+            call show_dude_new_dmg;
+            display_stats;
+            inventory_redraw(-1);
+         end
+      end
+      else if not(game_mode bwand INVENTORY) andAlso (last_game_mode bwand INVENTORY) then begin
+         if overlay_created > 0 then begin
+            sfall_func2("interface_overlay", WINTYPE_INVENTORY, 0);
+            overlay_created = 0;
+         end
+         call restore_proto_dmg;
+      end
+   end
+   if game_exit > 0 then begin
+      if bloody_mess_player_death_changed > 0 then begin
+         write_byte(0x410700, 0x75);
+         write_byte(0x410701, 0x16);
+      end
+   end
 end
 
 procedure MOVECOST begin
    variable critter = get_sfall_arg;
    variable hex_moved;
    variable critter_cur_tile;
-   if kamikaze > 0 andAlso critter == dude_obj then begin
+   if kamikaze > 0 andAlso critter == real_dude_obj then begin
       critter_cur_tile = tile_num(critter);
       if kamikaze_last_tile <= 0 then begin
          kamikaze_last_tile = critter_cur_tile;
       end
       if kamikaze_last_tile != critter_cur_tile then begin
          hex_moved = get_sfall_arg_at(1);
-         if crit_is_moving(dude_obj) then kamikaze_hex_walked_num += hex_moved;
-         if critter == dude_obj andAlso kamikaze_hex_walked_num % kamikaze_walk_div == 0 then begin
+         if crit_is_moving(real_dude_obj) then kamikaze_hex_walked_num += hex_moved;
+         if critter == real_dude_obj andAlso kamikaze_hex_walked_num % kamikaze_walk_div == 0 then begin
             intface_redraw;
          end
          kamikaze_last_tile = critter_cur_tile;
@@ -2857,6 +3090,17 @@ procedure REMOVEINVENOBJ begin
       kamikaze_hex_walked_num = 0;
       intface_redraw;
    end
+   if (in_description > 0 orElse scr_repeat > 0) andAlso (heavy_handed > 0 orElse bruiser > 0) then begin
+      if scr_repeat > 0 andAlso loot_obj <= 0 andAlso (get_game_mode bwand INVENTORY) == INVENTORY then begin
+         display_stats;
+         set_global_script_type(3);
+         set_global_script_repeat(0);
+         call show_dude_new_dmg;
+         in_description = 0;
+         scr_repeat = 0;
+      end
+      in_description = 0;
+   end
 end
 
 procedure DISPLAYDAMAGE begin
@@ -2871,7 +3115,7 @@ procedure DISPLAYDAMAGE begin
    variable new_min_wpn_dmg;
    variable new_max_wpn_dmg;
    variable wpn_max_dmg;
-   if (bruiser > 0 orElse heavy_handed > 0) andAlso critter == dude_obj then begin
+   if (bruiser > 0 orElse heavy_handed > 0) andAlso critter == real_dude_obj then begin
       weapon = get_sfall_arg;
       atk_type = get_sfall_arg;
       default_min_wpn_dmg = get_sfall_arg;
@@ -2923,29 +3167,65 @@ procedure ATTACKHITROLL begin
    end
 end
 
+procedure cripple_arm_dude begin
+   critter_injure(real_dude_obj, DAM_CRIP_ARM_RIGHT);
+end
+
+procedure AutoMoveToAttack_target_check begin
+   if AutoMoveToAttack_last_ap > 0 then begin
+      AutoMoveToAttack_last_target = 0;
+      AutoMoveToAttack_move_dist = 0;
+      AutoMoveToAttack_start_hex = 0;
+      AutoMoveToAttack_last_ap = 0;
+      intface_redraw;
+   end
+end
+
 procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
    variable distance;
+   variable wpn;
    variable wpn_dist;
-   if kamikaze > 0 andAlso wpn_is_melee > 0 andAlso can_be_attacked > 0 andAlso is_attacking <= 0 then begin
-      distance_objs(distance, dude_obj, target);
-      AutoMoveToAttack_move_dist = distance - wpn_range;
-      AutoMoveToAttack_start_hex = tile_num(dude_obj);
+   if one_hander > 0 andAlso critter_state(real_dude_obj) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT) == 48 then begin
+      wpn = get_active_weapon(real_dude_obj);
+      if weapon_is_two_handed(wpn) == 0 then begin
+         critter_uninjure(real_dude_obj, DAM_CRIP_ARM_RIGHT);
+         call cripple_arm_dude in 0;
+      end
+   end
+
+   if AutoMoveToAttack > 0 andAlso kamikaze > 0 then begin
+      if wpn_is_melee > 0 andAlso can_be_attacked > 0 then begin
+         distance_objs(distance, real_dude_obj, target);
+         AutoMoveToAttack_move_dist = distance - wpn_range;
+         AutoMoveToAttack_start_hex = tile_num(real_dude_obj);
+         if AutoMoveToAttack_last_target != target then begin
+            AutoMoveToAttack_last_target = target;
+            call AutoMoveToAttack_target_check when obj_under_cursor(-1,1) != AutoMoveToAttack_last_target;
+         end
+      end
+      else begin
+         AutoMoveToAttack_move_dist = 0;
+         AutoMoveToAttack_start_hex = 0;
+         if AutoMoveToAttack_last_ap > 0 then begin
+            AutoMoveToAttack_last_target = 0;
+            AutoMoveToAttack_last_ap = 0;
+            intface_redraw;
+         end
+      end
    end
 end
 
 procedure CANUSEWEAPON begin
    variable critter = get_sfall_arg;
    variable wpn;
-   if one_hander > 0 then begin
+   if one_hander > 0 andAlso critter == real_dude_obj then begin
       if (critter_state(critter) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT)) == 48 then begin
-         if critter == dude_obj then begin
-            wpn = get_sfall_arg_at(1);
-            if weapon_is_two_handed(wpn) == 0 then begin
-               set_sfall_return(1);
-            end
+         wpn = get_sfall_arg_at(1);
+         if weapon_is_two_handed(wpn) == 0 then begin
+            set_sfall_return(1);
          end
       end
    end
@@ -2955,8 +3235,27 @@ procedure start begin
    if (game_loaded) then begin
       TraitsPlus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
       traits_plus_msg_file = add_extra_msg_file(new_msg_file);
+      traits_plus_cur_version = trait_msg(traits_desc_ver_msg);
+      ver_major = sfall_ver_major;
+      ver_minor = sfall_ver_minor;
+      ver_build = sfall_ver_build;
+      if ver_major >= 5 then begin
+         AutoMoveToAttack = get_ini_setting("ddraw.ini|Misc|AutoMoveToAttack");
+
+         if ver_build >= 8 orElse ver_major > 5 orElse ver_minor > 0 then begin
+            sfall_508 = 1;
+            if ver_minor > 0 then begin
+               sfall_510 = 1;
+               unsafe_script;
+            end
+         end
+      end
       if TraitsPlus <= 0 then begin
          call one_hander_bonus_remove;
+
+         //if ver_major <= 4 then
+            //call sfall_4_unset_unarmed_dmg_bytes;
+
          if rm_traits_desc then
             return;
          else
@@ -2965,32 +3264,16 @@ procedure start begin
       Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
       if Sonora > 0 then begin
-         traits_plus_cur_version = traits_plus_cur_version_Sonora;
+         traits_plus_cur_version = traits_plus_version_Sonora + traits_plus_cur_version;
       end
       et_tu = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
       if et_tu  > 0 then begin
-         traits_plus_cur_version = traits_plus_cur_version_et_tu;
+         traits_plus_cur_version = traits_plus_version_et_tu + traits_plus_cur_version;
       end
-      ver_major = sfall_ver_major;
-      ver_minor = sfall_ver_minor;
-      ver_build = sfall_ver_build;
+
 
       call set_dude_traits_from_ini;
-      if ver_major >= 5 then begin
-         AutoMoveToAttack = get_ini_setting("ddraw.ini|Misc|AutoMoveToAttack");
-         if AutoMoveToAttack > 0 then begin
-            register_hook_proc(HOOK_TARGETOBJECT, TARGETOBJECT);
-         end
-         if ver_build >= 8 orElse ver_major > 5 orElse ver_minor > 0 then begin
-            sfall_508 = 1;
-         end
-      end
-      //restore end turn with 0 ap
-      bloody_mess_orig_mem = 4225155;
-      if read_int(0x42286A) != bloody_mess_orig_mem then begin
-         write_int(0x42286A, bloody_mess_orig_mem);
-         bloody_mess_no_ap_end = 0;
-      end
+
 
       set_global_script_type(3);
       set_global_script_repeat(0);
@@ -3004,21 +3287,30 @@ procedure start begin
          if sfall_508 > 0 then begin
             register_hook_proc(54, DISPLAYDAMAGE); //HOOK_DISPLAYDAMAGE
          end
+         else begin
+            register_hook_proc(HOOK_ADJUSTFID, ADJUSTFID);
+            register_hook_proc(HOOK_DESCRIPTIONOBJ, DESCRIPTIONOBJ);
+         end
       end
       if skilled >= 0 andAlso sfall_508 > 0 then begin
          register_hook_proc(56, ATTACKHITROLL); //HOOK_ATTACKHITROLL
       end
       register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
-      register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+      register_hook_proc(HOOK_CALCAPCOST, CALCAPCOST);
       register_hook_proc_spec(HOOK_ONDEATH, ONDEATH);
       register_hook_proc(HOOK_AFTERHITROLL, AFTERHITROLL);
       register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
       register_hook_proc_spec(HOOK_TOHIT, TOHIT);
-      if fast_metabolism >= 0 orElse drug_resistant >= 0 orElse drug_addict >= 0 then begin
+      if fast_metabolism >= 0 orElse drug_resistant >= 0 orElse drug_addict >= 0 orElse bloody_mess > 0 then begin
          register_hook_proc_spec(HOOK_USEOBJON, USEOBJON);
          register_hook_proc(HOOK_REMOVEINVENOBJ, REMOVEINVENOBJ);
       end
       register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+
+      if one_hander >= 0 orElse kamikaze >= 0 then begin
+         register_hook_proc(HOOK_TARGETOBJECT, TARGETOBJECT);
+      end
+
       if one_hander >= 0 then begin
          register_hook_proc_spec(HOOK_CANUSEWEAPON, CANUSEWEAPON);
          intface_redraw;
@@ -3026,6 +3318,16 @@ procedure start begin
       traits_plus_msg_file = add_extra_msg_file(new_msg_file);
       RegenMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
       call check_ini_path;
-      call get_dude_traits(dude_obj);
+      call get_dude_traits(real_dude_obj);
+   end
+   else begin
+      if(heavy_handed > 0 orElse bruiser > 0) andAlso read_int(0x59E940) == 0 andAlso loot_obj <= 0 then begin
+         set_global_script_type(3);
+         set_global_script_repeat(0);
+         display_stats;
+         call show_dude_new_dmg;
+         in_description = 0;
+         scr_repeat = 0;
+      end
    end
 end

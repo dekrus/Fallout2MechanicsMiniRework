@@ -1,0 +1,1 @@
+bool sfall_func1("is_party_member", object critter)

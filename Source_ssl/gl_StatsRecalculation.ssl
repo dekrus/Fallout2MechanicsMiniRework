@@ -1,17 +1,60 @@
 #define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+#define cur_hp_per_level_mod   (read_byte(0x4AFBC1))  // short - circuit evaluation
+#define hp_per_lvl_was_set_gvar_name   ("FMMRHPPL")
+#define player_hp_was_inc_gvar_name   ("FMMRHPWI")
+#define get_real_dude_real_base_stat(stat)  (call_offset_r2(0x4AF3E0, real_dude_obj, stat))
 
 #include "DEFINE.H"
 #include "sfall.h"
 
-variable StatsRecalculation
-variable en_recalculation
-variable iq_recalculation
-variable gifted
-variable initial_player_lvl
-variable initial_player_en
-variable initial_player_iq
+variable StatsRecalculation;
+variable en_recalculation;
+variable iq_recalculation;
+variable initial_player_lvl;
+variable initial_player_en;
+variable initial_player_iq;
+variable player_hp_was_inc_gvar;
+variable player_en_max;
+variable player_en_min;
+variable player_iq_max;
+variable player_iq_min;
 variable dude_obj_pid;
 variable sfall_ver_maj;
+variable hp_per_lvl_was_set_gvar;
+
+inline procedure set_odd_hp_per_level begin
+   variable player_en;
+   variable player_level = get_pc_stat(PCSTAT_level);
+   if player_level != initial_player_lvl then begin
+      if (player_level % 2) then begin
+         player_en = get_real_dude_real_base_stat(STAT_en);
+         player_en_max = sfall_func1("get_stat_max", STAT_en);
+         player_en_min = sfall_func1("get_stat_min", STAT_en);
+         if player_en >= player_en_max then
+            player_en = player_en_max;
+         else if player_en < player_en_min then
+            player_en = player_en_min;
+
+         if (player_en % 2) then begin
+            if cur_hp_per_level_mod != hp_per_lvl_was_set_gvar orElse hp_per_lvl_was_set_gvar == 0 then begin
+               if hp_per_lvl_was_set_gvar == 0 then begin
+                  hp_per_lvl_was_set_gvar = (cur_hp_per_level_mod + 1);
+                  set_sfall_global(hp_per_lvl_was_set_gvar_name, hp_per_lvl_was_set_gvar);
+               end
+               set_hp_per_level_mod(hp_per_lvl_was_set_gvar);
+            end
+         end
+      end
+      else begin
+         if hp_per_lvl_was_set_gvar != 0 then begin
+            if hp_per_lvl_was_set_gvar == cur_hp_per_level_mod then
+               set_hp_per_level_mod((hp_per_lvl_was_set_gvar-1));
+            set_sfall_global(hp_per_lvl_was_set_gvar_name, 0);
+         end
+      end
+      initial_player_lvl = player_level;
+   end
+end
 
 procedure GAMEMODECHANGE begin
    variable player_en;
@@ -20,28 +63,18 @@ procedure GAMEMODECHANGE begin
    variable player_level_ups;
    variable player_extra_max_hp;
    variable max_hp_limit;
-   if (en_recalculation > 0 or  iq_recalculation > 0) andAlso obj_pid(dude_obj) == dude_obj_pid then gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
-   //en
    if en_recalculation > 0 andAlso obj_pid(dude_obj) == dude_obj_pid then begin
-      player_en = get_pc_base_stat(STAT_en) + gifted;
-      if player_en > 10 then player_en = 10;
+      player_en = get_real_dude_real_base_stat(STAT_en);
+      player_en_max = sfall_func1("get_stat_max", STAT_en);
+      player_en_min = sfall_func1("get_stat_min", STAT_en);
+      if player_en >= player_en_max then
+         player_en = player_en_max;
+      else if player_en < player_en_min then
+         player_en = player_en_min;
+
       player_level = get_pc_stat(PCSTAT_level);
       if en_recalculation > 2 then begin
-         //if sfall_ver_maj >= 5 then begin
-            if (player_level % 2) then begin
-               if (player_en % 2) then set_hp_per_level_mod(3);
-            end
-            else begin
-               set_hp_per_level_mod(2);
-            end
-         //end
-         //else begin
-            //if initial_player_lvl != player_level andAlso (player_level % 2) == 0 andAlso (player_en % 2) != 0 then begin
-               //player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
-               //set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + 1);
-               //initial_player_lvl = player_level;
-            //end
-         //end
+         call set_odd_hp_per_level;
       end
       //en changed during the current game session
       if player_en != initial_player_en then begin
@@ -49,7 +82,7 @@ procedure GAMEMODECHANGE begin
          player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
          //en increased
          if player_en > initial_player_en then begin
-            max_hp_limit = 7 * player_level_ups;//fallout 2 max hp per level (initial en is 10)
+            max_hp_limit = (cur_hp_per_level_mod + (player_en_max / 2)) * player_level_ups;//fallout 2 max hp per level (initial en is 10)
             //+max hp if hp is not maxed out and also en became even or increased by 2 or more
             //standardt F2 formula(even en)
             if en_recalculation <= 2 then begin
@@ -68,20 +101,14 @@ procedure GAMEMODECHANGE begin
          //en decreased
          else begin
             if en_recalculation > 1 then begin
-               //if max hp more then minimum max hp possible
-               max_hp_limit = 2 * player_level_ups;
                if en_recalculation <= 2 then begin
-                  if player_extra_max_hp > max_hp_limit andAlso (player_en % 2 == 1 or (initial_player_en - player_en >= 2)) then begin
-                     set_pc_extra_stat(STAT_max_hp, player_extra_max_hp - (player_level_ups * ((1 + initial_player_en - player_en) / 2)));
-                  end
+                  set_pc_extra_stat(STAT_max_hp, player_extra_max_hp - (player_level_ups * ((1 + initial_player_en - player_en) / 2)));
                end
                else if en_recalculation >= 4 then begin
-                  if player_extra_max_hp > max_hp_limit then begin
-                     set_pc_extra_stat(STAT_max_hp, player_extra_max_hp - (player_level_ups * ((player_en - initial_player_en) / 2)) - ((player_level_ups / 2) * ((player_en - initial_player_en) % 2)));
-                  end
+                  set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + (player_level_ups * ((player_en - initial_player_en) / 2)) + ((player_level_ups / 2) * ((player_en - initial_player_en) % 2)));
                end
-               if get_pc_stat(STAT_current_hp) > get_pc_stat(STAT_max_hp) then begin
-                  set_critter_stat(dude_obj, STAT_current_hp, get_pc_stat(STAT_max_hp));
+               if get_critter_stat(dude_obj, STAT_current_hp) > get_critter_stat(dude_obj, STAT_max_hp) then begin
+                  set_critter_stat(dude_obj, STAT_current_hp, get_critter_stat(dude_obj, STAT_max_hp));
                   intface_redraw;
                end
                initial_player_en = player_en;
@@ -91,17 +118,23 @@ procedure GAMEMODECHANGE begin
    end
    //int
    if iq_recalculation > 0 andAlso obj_pid(dude_obj) == dude_obj_pid then begin
-      player_iq = get_pc_base_stat(STAT_iq) + gifted;
-      if player_iq > 10 then player_iq = 10;
+      player_iq = get_real_dude_real_base_stat(STAT_iq);
+      player_iq_max = sfall_func1("get_stat_max", STAT_iq);
+      player_iq_min = sfall_func1("get_stat_min", STAT_iq);
+      if player_iq >= player_iq_max then
+         player_iq = player_iq_max;
       //int changed during the current game session
-      if player_iq != initial_player_iq then begin
+      if player_iq > initial_player_iq then begin
          player_level_ups = get_pc_stat(PCSTAT_level) - 1;
-         if player_iq > initial_player_iq then begin
-            set_available_skill_points(get_available_skill_points + (player_level_ups * (player_iq - initial_player_iq) * 2));
-         end
+         set_available_skill_points(get_available_skill_points + (player_level_ups * (player_iq - initial_player_iq) * 2));
          initial_player_iq = player_iq;
       end
    end
+end
+
+
+procedure CALCAPCOST begin
+   call set_odd_hp_per_level;
 end
 
 procedure start begin
@@ -109,45 +142,56 @@ procedure start begin
    variable extra_hp_remainder;
    variable player_extra_max_hp_by_en;
    variable player_level_ups;
-   variable lifegiver_perk;
    if game_loaded then begin
       StatsRecalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|StatsRecalculation");
       if StatsRecalculation > 0 then begin
          sfall_ver_maj = sfall_ver_major;
+		   if sfall_ver_maj >= 5 then begin
+		      if sfall_ver_minor > 0 then begin
+               unsafe_script;
+            end
+		   end
          if dude_obj > 0 then dude_obj_pid = obj_pid(dude_obj);
          en_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|en_recalculation");
          iq_recalculation = get_ini_setting("mods\\F2MechanicsMiniRework.ini|StatsRecalculation|iq_recalculation");
          if obj_pid(dude_obj) == dude_obj_pid then begin
-            lifegiver_perk = has_trait(TRAIT_PERK, dude_obj, PERK_lifegiver);
-            gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
+            //gifted = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_gifted);
             if en_recalculation > 0 then begin
-               initial_player_en = get_pc_base_stat(STAT_en) + gifted;
-               if initial_player_en >= 10 then initial_player_en = 10;
+               initial_player_en = get_real_dude_real_base_stat(STAT_en);
+               player_en_max = sfall_func1("get_stat_max", STAT_en);
+               player_en_min = sfall_func1("get_stat_min", STAT_en);
+               if initial_player_en >= player_en_max then
+                  initial_player_en = player_en_max;
+               else if initial_player_en < player_en_min then
+                  initial_player_en = player_en_min;
+
                //check extra max hp
                initial_player_lvl = get_pc_stat(PCSTAT_level);
                player_level_ups = (initial_player_lvl - 1);
-               player_extra_max_hp = get_pc_extra_stat(STAT_max_hp);
+               if initial_player_lvl == 1 then
+                  initial_player_lvl = 0;
+               player_extra_max_hp = get_critter_extra_stat(dude_obj, STAT_max_hp);
                if en_recalculation <= 2 then begin
-                  player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2));
-                  if player_extra_max_hp < player_extra_max_hp_by_en andAlso player_level_ups > 0 then begin
-                     extra_hp_remainder = player_extra_max_hp % player_level_ups;
-                     set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+                  set_sfall_global(player_hp_was_inc_gvar_name, 1);
+                  player_hp_was_inc_gvar = get_sfall_global_int(player_hp_was_inc_gvar_name);
+                  if player_hp_was_inc_gvar <= 0 then begin
+                     player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2));
+                     if player_extra_max_hp < player_extra_max_hp_by_en andAlso player_level_ups > 0 then begin
+                        extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                        set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+                     end
                   end
                end
                //HP increase for odd endurance
                else if en_recalculation > 2 then begin
-                  player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2)) + (((player_level_ups+1) / 2) * (initial_player_en % 2));
-                  if player_extra_max_hp < player_extra_max_hp_by_en + (lifegiver_perk * 4 * (player_level_ups - 10)) then begin
-                     if initial_player_en % 2 == 0 andAlso player_level_ups > 0 then begin
-                        if player_extra_max_hp < player_extra_max_hp_by_en then begin
-                           extra_hp_remainder = player_extra_max_hp % player_level_ups;
-                        end
-                        else begin
-                           extra_hp_remainder = player_extra_max_hp - player_extra_max_hp_by_en;
-                        end
-                     end
-                     else begin
-                        if player_level_ups > 0 then begin
+                  player_hp_was_inc_gvar = get_sfall_global_int(player_hp_was_inc_gvar_name);
+                  call set_odd_hp_per_level;
+                  if player_hp_was_inc_gvar <= 1 then begin
+                     set_sfall_global(player_hp_was_inc_gvar_name, 2);
+                     hp_per_lvl_was_set_gvar = get_sfall_global_int(hp_per_lvl_was_set_gvar_name);
+                     player_extra_max_hp_by_en = ((player_level_ups) * ((initial_player_en / 2) + 2)) + (((player_level_ups+1) / 2) * (initial_player_en % 2));
+                     if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                        if initial_player_en % 2 == 0 andAlso player_level_ups > 0 then begin
                            if player_extra_max_hp < player_extra_max_hp_by_en then begin
                               extra_hp_remainder = player_extra_max_hp % player_level_ups;
                            end
@@ -155,36 +199,45 @@ procedure start begin
                               extra_hp_remainder = player_extra_max_hp - player_extra_max_hp_by_en;
                            end
                         end
-                        //extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
-                        if extra_hp_remainder < 0 then extra_hp_remainder = 1;
-                     end
-                     set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
-                  end
-                  else begin
-                     if en_recalculation >= 4 then begin
-                        if initial_player_en % 2 == 0 andAlso player_level_ups > 0  then begin
-                           extra_hp_remainder = player_extra_max_hp % player_level_ups;
-                        end
                         else begin
-                           if player_level_ups > 0 then extra_hp_remainder = player_extra_max_hp % player_level_ups;
-                           extra_hp_remainder = extra_hp_remainder - ((player_level_ups / 2) * (initial_player_en % 2));
+                           if player_level_ups > 0 then begin
+                              if player_extra_max_hp < player_extra_max_hp_by_en then begin
+                                 extra_hp_remainder = player_extra_max_hp % player_level_ups;
+                              end
+                              else begin
+                                 extra_hp_remainder = player_extra_max_hp - player_extra_max_hp_by_en;
+                              end
+                           end
                            if extra_hp_remainder < 0 then extra_hp_remainder = 1;
                         end
                         set_pc_extra_stat(STAT_max_hp, extra_hp_remainder + player_extra_max_hp_by_en);
+                     end
+                     else begin
+                        set_pc_extra_stat(STAT_max_hp, player_extra_max_hp + (player_level_ups + 1) / 2);
                      end
                   end
                end
             end
             if iq_recalculation > 0 then begin
-               initial_player_iq = get_pc_base_stat(STAT_iq) + gifted;
-               if initial_player_iq >= 10 then initial_player_iq = 10;
+               initial_player_iq = get_real_dude_real_base_stat(STAT_iq);
+               player_iq_max = sfall_func1("get_stat_max", STAT_iq);
+               player_iq_min = sfall_func1("get_stat_min", STAT_iq);
+               if initial_player_iq >= player_iq_max then
+                  initial_player_iq = player_iq_max;
+               else if initial_player_iq < player_iq_min then
+                  initial_player_iq = player_iq_min;
             end
          end
-            if (initial_player_en andAlso initial_player_en < 10) or (initial_player_iq andAlso initial_player_iq < 10) then begin
+            if (initial_player_en) orElse (initial_player_iq) then begin
                register_hook_proc_spec(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+               if en_recalculation > 2 then begin
+                  register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+               end
             end
          set_global_script_type(0);
          set_global_script_repeat(0);
       end
+      else
+         exit;
    end
 end
