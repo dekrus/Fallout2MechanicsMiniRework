@@ -1,4 +1,4 @@
-### Latest Test Version v2.0.0
+### Latest Version v2.0.0
 - Added compatibility with **SFALL 5.1+**.
 - Fixed typos and grammar mistakes throughout the text.
 - Refactored code for multiple scripts.
@@ -26,7 +26,7 @@
 ### Stats Recalculation Mod
 - Fixed HP decreasing when loading a saved game.
 ### Sneak Detection Mod
-- Sneak detection now correctly factors in **local light sources** (e.g., flares, lanterns, campfires) and dark corners, not just the overall map lighting.
+- Sneak detection now correctly factors in **local light sources** (e.g., flares, lanterns, campfires and dark corners), not just the overall map lighting.
 ### Steal Mod
 - Fixed a bug where damage resistance would stack if armor was removed during the player's "caught stealing" animation.
 ### Skill Books Mod
@@ -34,7 +34,7 @@
 - Added commentary messages when certain NPCs read books (can be disabled in settings).
 
 
-### Latest Version v1.99.0
+### Version v1.99.0
 ##### TraitsPlus
 - Added a mod that adds new unique properties to the character's starting traits.
 ##### Sneak Detection Mod
