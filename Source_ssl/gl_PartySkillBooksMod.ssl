@@ -137,7 +137,7 @@ variable Sonora_skill;
 variable book_forced_remove;
 variable min_int_to_understand;
 variable last_float_msg_tile;
-
+variable gGameTimeAdvance;
 
 
 export variable MMR_reader;
@@ -485,7 +485,7 @@ procedure check_max_books_add_to_low_iq(variable critter_obj,variable book_obj_p
    variable can_read_more = 1;
    variable critter_obj_int;
    variable books_limit;
-   variable dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
    variable max_int;
    variable rnd;
    if new_book_formula > 0 then begin
@@ -504,7 +504,7 @@ procedure check_max_books_add_to_low_iq(variable critter_obj,variable book_obj_p
          books_limit += critter_obj_int * max_books_read_int;
       end
       if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
-         dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+         dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
          books_limit += ((books_limit * dude_comprehension + 1) / 2);
       end
 
@@ -1032,7 +1032,7 @@ procedure get_book_bonus(variable critter_obj,variable skill,variable is_seconda
    variable original_max_skill = original_book_formula_max_skill;
    variable skill_level = has_skill(critter_obj, skill);
    variable skill_cost_div = 1;
-   variable dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+   variable dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
    if dude_comprehension > 0 andAlso comprehension_perk_party <= 0 then
       dude_comprehension = 0;
 
@@ -2154,6 +2154,12 @@ procedure check_book_remove(variable user, variable book_pid) begin
 end
 
 procedure gfade_in_10 begin
+   if gGameTimeAdvance > 0 then begin
+      game_time_advance(gGameTimeAdvance);
+      if Sonora <= 0 then
+         exec_map_update_scripts;
+   end
+   gGameTimeAdvance = 0;
    gfade_in(10);
 end
 
@@ -2191,10 +2197,10 @@ procedure book_read(variable user, variable target, variable book) begin
    //advance time
    time_advance = get_reading_time(target, user, target_int, user_int, user_can_read, party, book_pid);
    if time_advance > 0 then begin
-      game_time_advance(time_advance);
-      if Sonora <= 0 then
-         exec_map_update_scripts;
+      gGameTimeAdvance = time_advance;
    end
+   else
+      gGameTimeAdvance = 0;
 
    if joint_reading andAlso (len_array(party) > 1 orElse target != user) then begin
 
@@ -2425,7 +2431,7 @@ procedure get_books_limit(variable critter_obj) begin
       books_limit += critter_obj_int * max_books_read_int;
    end
    if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
-      dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+      dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
       books_limit += ((books_limit * dude_comprehension + 1) / 2);
    end
 
@@ -2441,7 +2447,7 @@ procedure get_max_books_limit(variable critter_obj) begin
       max_books_limit += critter_obj_int * max_books_read_int;
    end
    if critter_obj == dude_obj orElse comprehension_perk_party > 0 then begin
-      dude_comprehension = has_trait(TRAIT_PERK, dude_obj, PERK_comprehension_perk);
+      dude_comprehension = has_trait(TRAIT_PERK, real_dude_obj, PERK_comprehension_perk);
       max_books_limit += ((max_books_limit * dude_comprehension + 1) / 2);
    end
 
