@@ -77,7 +77,8 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Critical chance calculated separately per target.
 - Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
 
-**Gauss Weapons:** ![Secondary-Attack](images/GAUSS.gif)  
+**Gauss Weapons:**
+![Secondary-Attack](images/GAUSS.gif)  
 - An armor-penetrating attack that ignores 80% of a target's armor.
 - Can hit multiple targets in a straight line; maximum penetration depends on:
   - Weapon damage (including perk modifiers).
@@ -86,7 +87,8 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - No extra ammo cost for alternate fire.
 - Insufficient Strength can knock the attacker down.
 
-**Plasma Weapons:** ![Secondary-Attack](images/PLASMA.gif)  
+**Plasma Weapons:** 
+![Secondary-Attack](images/PLASMA.gif)  
 - Creates an explosion that damages all creatures within a configurable radius.
 - Damage falls off with distance from the blast center (configurable rate).
 - Alternate fire consumes 3 microfusion/small energy cells.
