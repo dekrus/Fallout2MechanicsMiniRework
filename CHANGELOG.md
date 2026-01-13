@@ -1,4 +1,5 @@
 ### Latest Version v2.0.0
+- Changed mod structure: the mod is now distributed as an unpacked folder instead of a .dat archive. All text files are accessible for viewing and editing.
 - Added compatibility with **SFALL 5.1+**.
 - Fixed typos and grammar mistakes throughout the text.
 - Refactored code for multiple scripts.
