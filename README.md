@@ -105,10 +105,10 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 
 **Assault Rifles:**
 ![Secondary-Attack](images/AIMED_BURST.gif)  
-- Added aimed burst fire mode for assault rifles
-- Bullet spread cone adjusts dynamically based on distance, skill, stats, and perks, determining how many bullets fly directly to the aim point
-- Hit chance shown is for the first bullet; subsequent bullets have progressively lower hit chance but can still hit the target's torso if the first misses the aimed body part
-- Optional: Can be enabled for other burst-fire weapons like Minigun and Flamer
+- Added aimed burst fire mode for assault rifles.
+- Bullet spread calculated based on distance, skill, SPECIAL, and perks.
+- Hit chance shown is for the first bullet; subsequent bullets have progressively lower hit chance but can still hit the target's torso if the first misses the aimed body part.
+- Optional: Can be enabled for other burst-fire weapons like Minigun and Flamer.
 
 
 ### Traits Plus
