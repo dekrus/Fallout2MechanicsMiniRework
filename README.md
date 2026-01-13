@@ -386,6 +386,7 @@ Adds unique properties to different attack types:
     healing_skill_max=0
     ```
 #### Medical Tools Mod
+**Tweaks are NOT compatible - you must choose which to use:**
 **Option 1:** Use EcCo's medical skills tweaks
 - In `mods/F2MechanicsMiniRework.ini` set:
     ```
