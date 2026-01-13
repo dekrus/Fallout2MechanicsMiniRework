@@ -364,7 +364,7 @@ Adds unique properties to different attack types:
 - No points are deducted if Intelligence decreases later
 
 ## Compatibility
-- Compatible with most Fallout 2-based games. Compatibility with Nevada, Sonora, or Fallout et tu can be enabled in `mods/F2MechanicsMiniRework.ini`  
+- Compatible with most Fallout 2-based games. For compatibility with Nevada, Sonora, or Fallout et tu, enable it in `mods/F2MechanicsMiniRework.ini`.
 - Fully compatible with [__FO2Tweaks__](https://github.com/BGforgeNet/FO2tweaks) and [__Fallout 2: Weapons Redone 2.3d__](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
 - All components except for the [Steal](#steal), [Healing](#healing) and [MedToolsMod](#medical-tools) are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
 ## Setting up compatibility with EcCo
