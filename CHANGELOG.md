@@ -1,8 +1,8 @@
 ### Latest Version v2.0.0
-- Changed mod structure: the mod is now distributed as an unpacked folder instead of a .dat archive. All text files are accessible for viewing and editing.
 - Added compatibility with **SFALL 5.1+**.
 - Fixed typos and grammar mistakes throughout the text.
 - Refactored code for multiple scripts.
+- Changed mod structure: the mod is now distributed as an unpacked folder instead of a .dat archive. All text files are accessible for viewing and editing.
 - Mods now automatically detect conflicts with the **EcCo** mod.  
   When starting a new game or loading a save for the first time, prompts appear allowing you to choose which mods to keep active and which to disable.
 ### Regen & Poison Mod
