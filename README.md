@@ -60,18 +60,16 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Damages all creatures along the projectile's path.
 - Hit/critical chance calculated separately per target.
 - Alternate fire has increased armor penetration (target laser defense ×0.2 — 80% ignored).
-- Energy cell consumption is calculated based on potential targets between shooter and main target.
+- Energy cell consumption is calculated based on potential targets between shooter and main target (2 x base attack cost + number of additional targets х base attack cost). 
   - On a miss, the beam travels in a different direction but can still hit up to the originally calculated number of targets.
   - Beam continues until it dissipates (max weapon range), hits an obstacle, or strikes the predetermined number of targets.
 - Maximum additional targets depends on weapon and ammo type, and can be configured in `F2MechanicsMiniRework.ini`.
-- Alternate attack consumes (2 x base attack cost + number of additional targets х base attack cost) energy cells.
 
 **Pulse Weapons:**  
 ![Secondary-Attack](images/PULSE_CHAIN.gif) ![Secondary-Attack](images/PULSE_BOUNCE.gif)  
 - Attack animation can be either instant chain lightning or traveling arc between targets (configurable in `F2MechanicsMiniRework.ini`).
 - Pulse and EMP weapons deal damage in a "chain" to up to X additional targets closest to each other.
 - Maximum distance and number of additional targets configurable in `F2MechanicsMiniRework.ini`.
-- Alternate fire consumes 3 microfusion/small energy cells.
 - Lightning cannot miss secondary targets once triggered and can hit the attacker if too close.
 - Lightning deals highly randomized damage to secondary targets, decreasing with each target.
 - Critical chance calculated separately per target.
@@ -85,13 +83,12 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
   - Per-target damage reduction (percentage based on target's armor).
 - Hit and critical chance calculated separately for each target.
 - No extra ammo cost for alternate fire.
-- Insufficient Strength can knock the attacker down.
+- Insufficient Strength may cause knockdown from weapon recoil.
 
 **Plasma Weapons:** 
 ![Secondary-Attack](images/PLASMA.gif)  
 - Creates an explosion that damages all creatures within a configurable radius.
 - Damage falls off with distance from the blast center (configurable rate).
-- Alternate fire consumes 3 microfusion/small energy cells.
 - Critical chance calculated separately for each target.
 - Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
 
