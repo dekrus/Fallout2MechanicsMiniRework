@@ -103,6 +103,40 @@ procedure sprintf_array(variable str, variable args) begin
    return str;
 end
 
+procedure sprintf3(variable str, variable arg1, variable arg2, variable arg3) begin
+   variable split, len, i, j, arg;
+   split := string_split(str, "%");
+   len := len_array(split);
+   str := "";
+   if (len > 0) then begin
+      str := split[0];
+      j := 0;
+      for (i := 1; i < len; i++) begin
+         if (split[i] == "") then begin
+            // Двойной процент '%%'
+            if (i < len - 1) then begin
+               str += "%" + split[i+1];
+               i++;
+            end
+         end else begin
+            // Определяем какой аргумент использовать
+            if (j == 0) then
+               arg := arg1;
+            else if (j == 1) then
+               arg := arg2;
+            else if (j == 2) then
+               arg := arg3;
+            else
+               arg := 0;
+
+            str += sprintf("%" + split[i], arg);
+            j++;
+         end
+      end
+   end
+   return str;
+end
+
 /**
  * Returns position of last occurance of substr in str, or -1 if not found
  */

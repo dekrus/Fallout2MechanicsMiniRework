@@ -1,3 +1,7 @@
+### Work In Progress v2.0.1
+### Secondary Attack Mod
+- Fixed: The **Aimed burst fire mode** is no longer incorrectly available to characters with the Fast Shot trait.
+
 ### Latest Version v2.0.0
 - Added compatibility with **SFALL 5.1+**.
 - Fixed typos and grammar mistakes throughout the text.

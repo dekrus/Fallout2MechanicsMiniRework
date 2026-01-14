@@ -1,11 +1,17 @@
 // This file is for RP changes and additions to command.h.
+
 // Its purpose is to keep actual command.h identical between UP and RP, easing maintenance.
 // Non-command.h additions should go to rpu.h.
 
 #ifndef COMMAND_EXTRA_H
 #define COMMAND_EXTRA_H
 
+#include                                     "RPU.h"
+#include "define_lite.h"
+#define STAT_gender                (34)
 
+#define GENDER_MALE   (0)
+#define GENDER_FEMALE (1)
 procedure vault_boxer_style(variable enable) begin
   variable style_item_pid;
   if not dude_is_male then return;

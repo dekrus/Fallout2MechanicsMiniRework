@@ -6752,7 +6752,7 @@ procedure CALCAPCOST begin
    gCurAtkType = atk_type;
    if AimedBurstMod > 0 then begin
       aimed_burst_allowed = 0;
-      if is_aimed <= 0 andAlso user == dude_obj andAlso item > 0 then begin
+      if is_aimed <= 0 andAlso user == dude_obj andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) <= 0 andAlso item > 0 then begin
          if obj_item_subtype(item) == item_type_weapon then begin
             if wpn_allow_alt_asault_rifles(item, atk_type) > 0 then begin
                aimed_burst_allowed = 1;
@@ -7952,6 +7952,9 @@ procedure TOHIT begin
    end
 
    if AimedBurstMod > 0 andAlso combat_data > 0 andAlso get_object_data(combat_data, C_ATTACK_MAIN_TARGET) == target then begin
+      if attacker == dude_obj andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) > 0 then
+         return;
+
       wpn = get_object_data(combat_data, C_ATTACK_WEAPON);
       attack_anim = get_attack_anim(wpn, get_object_data(combat_data, C_ATTACK_HIT_MODE));
       if attack_anim == ANIM_fire_burst orElse (attack_anim == ANIM_fire_continuous andAlso AimedBurstModAnyWeapon > 1) then begin

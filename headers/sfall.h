@@ -126,9 +126,9 @@
 #define ATKTYPE_PIERCINGKICK   (19)
 
 // Some possible values for the 4th argument to hs_removeinvobj
-#define RMOBJ_DROP             (0x49B875)  // If the object is dropped manually by the player from the inventory screen
-#define RMOBJ_TRADE            (0x47761D)  // If the object is offered up as a trade
-#define RMOBJ_DROPMULTI        (0x45C1CF)  // When dropping a part of a stack (RMOBJ_DROP occurs first)
+//#define RMOBJ_DROP             (0x49B875)  // If the object is dropped manually by the player from the inventory screen
+//#define RMOBJ_TRADE            (0x47761D)  // If the object is offered up as a trade
+//#define RMOBJ_DROPMULTI        (0x45C1CF)  // When dropping a part of a stack (RMOBJ_DROP occurs first)
 
 // Return values for "typeof"
 #define VALTYPE_NONE  (0) // not used yet
@@ -411,6 +411,8 @@
 #define unset_unique_id(obj)                                    sfall_func2("set_unique_id", obj, -1)
 #define unwield_slot(critter, slot)                             sfall_func2("unwield_slot", critter, slot)
 #define win_fill_color(x, y, width, height, color)              sfall_func5("win_fill_color", x, y, width, height, color)
+#define set_spray_settings(ctrMult, ctrDiv, tgtMult, tgtDiv)    sfall_func4("set_spray_settings", ctrMult, ctrDiv, tgtMult, tgtDiv)
+
 
 #define set_fake_perk_npc(npc, perk, level, image, desc)        sfall_func5("set_fake_perk_npc", npc, perk, level, image, desc)
 #define set_fake_trait_npc(npc, trait, active, image, desc)     sfall_func5("set_fake_trait_npc", npc, trait, active, image, desc)

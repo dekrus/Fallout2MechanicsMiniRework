@@ -1,4 +1,5 @@
 /*
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\SFALL_HEADERS\define_lite.h"
 	Copyright 1998-2003 Interplay Entertainment Corp.  All rights reserved.
 */
 
@@ -22,6 +23,9 @@
 #include "..\headers\ArtFid.h"
 #include "..\headers\Party.h"
 #include "..\headers\Reaction.h"
+
+
+#include "define_lite.h"
 
 // script.h: Script Procedure Types //
 #define no_proc           (0)
@@ -614,6 +618,7 @@
 #define DAM_CRIP_ARM_RIGHT    32
 #define DAM_BLIND             64
 #define DAM_DEAD             128
+#define NOT_DAM_DEAD         0xFFFFFF7F  
 #define DAM_HIT              256
 #define DAM_CRITICAL         512  // could be a critical hit or critical miss
 #define DAM_ON_FIRE         1024

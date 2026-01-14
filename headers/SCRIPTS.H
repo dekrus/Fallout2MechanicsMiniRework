@@ -1,5 +1,5 @@
 /*
-	Copyright 1998-2003 Interplay Entertainment Corp.  All rights reserved.
+   Copyright 1998-2003 Interplay Entertainment Corp.  All rights reserved.
 */
 
 #ifndef SCRIPTS_H
@@ -12,7 +12,7 @@
             scripts.lst. This is an ordered list and needs to
             conform exactly to scripts list. All defines in here
             need to be prepended with SCRIPT_ as a naming
-            convention.
+            convention. Modified for Companion Expansion.
 
    Created: October 06, 1997
 ******************************************************************/
@@ -275,7 +275,7 @@
 #define SCRIPT_ECRAIDER         (256)   // ECRaider.int    ; Random Encounter Raider
 #define SCRIPT_ECPEASNT         (257)   // ECPeasnt.int    ; Random Encounter Peasant
 #define SCRIPT_ECMRCHNT         (258)   // ECMrchnt.int    ; Random Encounter Merchant
-#define SCRIPT_ECGUARD          (259)   // ECGuard.int     ; Random Encounter Gaurd
+#define SCRIPT_ECGUARD          (259)   // ECGuard.int     ; Random Encounter Guard
 #define SCRIPT_SCRAWPAT         (260)   // SCRawpat.int    ; Rawhide patrons at NCR Entrance
 #define SCRIPT_WTELFLR2         (261)   // WTElFlr2.int    ; Electric Floor on Level 2 Sierra Base
 #define SCRIPT_WTPLTRP0         (262)   // WTPlTrp0.int    ; Plasma Trap for Sierra Base(-30)
@@ -352,6 +352,7 @@
 #define SCRIPT_ATDEATH          (333)   // ATDeath.int     ; Spatial telling the player about Nagor dead
 #define SCRIPT_SIFAKHLO         (334)   // SIFakhlo.int    ; Fake vault13 holo disk you get from Merk in ncr
 #define SCRIPT_SCLENNY          (335)   // SCLenny.int     ; Lenny guy in NCR entrance
+#define SCRIPT_SIPTBOX          (336)   // SIPtbox.int     ; Temporary box for the players crap.
 #define SCRIPT_NCPROSTI         (337)   // ncProsti.int    ; New Reno Prostitute with billions of messages
 #define SCRIPT_NCSLAVE          (338)   // ncSlave.int     ; New Reno Slaves
 #define SCRIPT_NCRICO           (339)   // ncRico.int      ; New Reno Rico, Monte's thug
@@ -527,7 +528,7 @@
 #define SCRIPT_ECTRAPPR         (509)   // ECTrappr.int    ; Random Encounter Trapper
 #define SCRIPT_SCCARKID         (510)   // SCCarkid.int    ; Carlson's kid NCR map 2
 #define SCRIPT_SCCARLSN         (511)   // SCCarlsn.int    ; Carlson NCR 2
-#define SCRIPT_ANIMFRVR         (512)   // Animfrv.int     ; Animate forever
+#define SCRIPT_ANIMFRVR         (512)   // animfrvr.int     ; Animate forever
 #define SCRIPT_SCOFJACK         (513)   // SCOfjack.int    ; Officer Jack NCR 1
 #define SCRIPT_SCENLONE         (514)   // SCEnlOne.int    ; The Enlightened One NCR 1
 #define SCRIPT_DIDOOR           (515)   // diDoor.int      ; Den Auto Closing Door
@@ -574,7 +575,7 @@
 #define SCRIPT_BCJOHN           (556)   // BCJohn.int      ; John vault 15 guy entrance
 #define SCRIPT_BCJONES          (557)   // BCJones.int     ; Jones doctor in vault 15
 #define SCRIPT_BCKARLA          (558)   // BCKarla.int     ; Karla Vault 15 guard
-#define SCRIPT_V15SENT          (558)   // V15sent.int     ; vault 15 secret entrance
+#define SCRIPT_V15SENT          (559)   // V15sent.int     ; vault 15 secret entrance
 #define SCRIPT_BCREBECC         (560)   // VCRebecc.int    ; Rebecca V15ent
 #define SCRIPT_MIDOOR           (561)   // miDoor.int      ; Modoc Doors
 #define SCRIPT_MCDTHCLW         (562)   // mcDthClw.int    ; Modoc Rose's "Chicken"
@@ -597,7 +598,7 @@
 #define SCRIPT_MCRAT            (579)   // mcRat.int       ; Modoc Garden Rat
 #define SCRIPT_ZISUNSPT         (580)   // ziSunSpt.int    ; Generic Sun Spot
 #define SCRIPT_MCBESS           (581)   // mcBess.int      ; Modoc Bess the Brahmin
-#define SCRIPT_MCJKYBOX         (582)   // mcJkyBox.int    ; Modoc Jerky box
+#define SCRIPT_MIJKYBOX         (582)   // miJkyBox.int    ; Modoc Jerky box
 #define SCRIPT_ZCCRPDEL         (583)   // ZCCrpDel.int    ; Craps Dealer
 #define SCRIPT_BCGENGRD         (584)   // BCGenGrd.int    ; Generic Guard for Vault 15, Khan Guard
 #define SCRIPT_MCSLAG           (585)   // mcSlag.int      ; Modoc Generic Slag
@@ -624,7 +625,7 @@
 #define SCRIPT_HCSUPER          (606)   // hcSuper.int     ; Supervisor in Broken Hills
 #define SCRIPT_HCZAIUS          (607)   // hcZaius.int     ; Zaius in Broken Hills
 #define SCRIPT_HCJACOB          (608)   // hcJacob.int     ; Jacob in Broken Hills
-#define SCRIPT_HICHEMS          (609)   // hchems.int      ; Chemistry Set in Broken Hills
+#define SCRIPT_HCHEMS           (609)   // hchems.int      ; Chemistry Set in Broken Hills
 #define SCRIPT_MIGSTPRP         (610)   // miGstPrp.int    ; Modoc Ghost Farm Prop
 #define SCRIPT_BSSDOR1          (611)   // BiSdor1.int     ; Shack doors on v15sent.map
 #define SCRIPT_BSCOMP1          (612)   // BSComp1.int     ; ibrary computer vault 15
@@ -654,7 +655,7 @@
 #define SCRIPT_BSCOMP5          (636)   // BSComp5.int     ; Computer terminal 5 Vault 15
 #define SCRIPT_BSPOWER          (637)   // BSPower.int     ; Power Generator in Vault 15
 #define SCRIPT_BSFIELD          (638)   // BSField.int     ; Force Field in Vault 15
-#define SCRIPT_PEASAN           (639)   // mcPeasan.int    ; Modoc Peasant Person
+// #define SCRIPT_MCPEASAN         (639)   // mcPeasan.int    ; Modoc Peasant Person
 #define SCRIPT_BSEMTR           (640)   // BSEmtr.int      ; Emitter in vault 15
 #define SCRIPT_OSV13DR          (641)   // OSV13Dr.int     ; Vault 13 Door
 #define SCRIPT_OSDOOR1          (642)   // OSdoor1.int     ; Vault 13 Door that shows the deathclaws.
@@ -785,7 +786,7 @@
 #define SCRIPT_ECCRAZY          (767)   // ECCrazy.int     ; Crazies from Random Encounter
 #define SCRIPT_ECCLMJMP         (768)   // ECClmJmp.int    ; Random Encounter Claim Jumpers
 #define SCRIPT_ECCANBAL         (769)   // ECCanbal.int    ; Random Encounter Cannibals
-#define SCRIPT_ECNOMSHA         (770)   // ECNomsha.int    ; Random Encounter Nomad Shamon
+#define SCRIPT_ECNOMSHA         (770)   // ECNomsha.int    ; Random Encounter Nomad Shaman
 #define SCRIPT_ECMARADR         (771)   // ECMaradr.int    ; Random Encounter Marauder
 #define SCRIPT_ECROGUE          (772)   // ECRogue.int     ; Random Encounter Rogue
 #define SCRIPT_ECHERMIT         (773)   // ECHermit.int    ; Random Encounter Hermit
@@ -856,7 +857,7 @@
 #define SCRIPT_VICENCOM         (838)   // VICenCom.int    ; Vault City Central Computer
 #define SCRIPT_VIALOCOM         (839)   // VIAloCom.int    ; Vault City Allocation Computer
 #define SCRIPT_VCDARROW         (840)   // VCDarrow.int    ; Vault City Sub-Amenities Officer Darrow
-#define SCRIPT_VCFARREL        (841)   // VCFarrel.int    ; Vault City Sub-Amenities Officer Farrell
+#define SCRIPT_VCFARREL         (841)   // VCFarrel.int    ; Vault City Sub-Amenities Officer Farrell
 #define SCRIPT_VCBARPAT         (842)   // VCBarPat.int    ; Vault City Bar Patron
 #define SCRIPT_VCWRKCIT         (843)   // VCWrkCit.int    ; Vault City Working Citizen
 #define SCRIPT_VCSLAVE          (844)   // VCSlave.int     ; Vault City Slave
@@ -887,10 +888,10 @@
 #define SCRIPT_QCPRSSEC         (869)   // QCPrsSec.int    ; President's personal intern (uh sectertary)
 #define SCRIPT_QCMURRAY         (870)   // QCMurray.int    ; Tom Murray, head of AEC
 #define SCRIPT_SSCRPDOR         (871)   // SSCrpDor.int    ; Craps Table door
-#define SCRIPT_MCPEASAN         (872)   // mcPeasan.int    ; Modoc Peseant, they attack the farm
+#define SCRIPT_MCPEASAN         (872)   // mcPeasan.int    ; Modoc Peasant, they attack the farm
 #define SCRIPT_VCTYCOCL         (873)   // VCtyCocl.int    ; Map Script Vault City Council Area
 #define SCRIPT_HSPURIFY         (874)   // HSPurify.int    ; Air Purifier for Broken Hills
-#define SCRIPT_ESENTRKS         (875)  // esEntRks.int    ; Military Base Enterance Rocks
+#define SCRIPT_ESENTRKS         (875)   // esEntRks.int    ; Military Base Enterance Rocks
 #define SCRIPT_RCGAMBLE         (876)   // RCGamble.int    ; Redding Generic Gamblers
 #define SCRIPT_HTCORPSE         (877)   // HTCorpse.int    ; Spatial script for corpses in Broken Hills
 #define SCRIPT_SCCHEAT          (878)   // SCCheat.int     ; Cheat Character for NCR
@@ -904,7 +905,7 @@
 #define SCRIPT_SSEMIEN1         (886)   // SSEmiEn1.int    ; Ncr emitters for ncr entrance on map 1
 #define SCRIPT_QIBSTDR1         (887)   // QIBstDr1.int    ; Blast Door for Reactor Off to remain closed
 #define SCRIPT_QIBSTDR2         (888)   // QIBstDr2.int    ; Blast Door for Reactor On to remain closed
-#define SCRIPT_VIDARBOX         (889)   // VIDarBox.int      ; Vault City Darrow Shop Box
+#define SCRIPT_VIDARBOX         (889)   // VIDarBox.int    ; Vault City Darrow Shop Box
 #define SCRIPT_HSCRLDR          (890)   // HSCrlDr.int     ; Jail cell door for Broken Hills
 #define SCRIPT_ECTLKMUT         (891)   // ecTlkMut.int    ; Military Base Conversation Mutants
 #define SCRIPT_FCCHEMST         (892)   // FCChemst.int    ; Chemist in San Francisco
@@ -1011,7 +1012,7 @@
 #define SCRIPT_HIBH1BOX         (993)   // HIBh1Box.int    ; Broken Hills Temp Inventory BoxtM
 #define SCRIPT_FCJUAVKI         (994)   // FCJuaVki.int    ; Juan/Vikkin in San Fran Elron Camp
 #define SCRIPT_HIMANHOL         (995)   // HIManHol.int    ; Manhole to Basement in Liz's Storea
-#define SCRIPT_FCELRONB         (996)   // SFElronb.int    ; Elron Base map Script
+#define SCRIPT_SFELRONB         (996)   // SFElronb.int    ; Elron Base map Script
 #define SCRIPT_HILADDER         (997)   // HILadder.int    ; Ladder up to Liz's Store
 #define SCRIPT_WIPNCHBG         (998)   // WIPnchBg.int    ; Punching Bag in the Sierra Depot
 #define SCRIPT_WIBAYDOR         (999)   // WIBayDor.int    ; Sierra Base Repair Bay Door
@@ -1065,7 +1066,7 @@
 #define SCRIPT_VCSLAV2          (1047)  // VCSlav2.int     ; Vault City Prisoner Slaves
 #define SCRIPT_VCBARCIT         (1048)  // VCBarCit.int    ; Vault City Bar Patrons
 #define SCRIPT_NIBASDOR         (1049)  // niBasDor.int    ; New Reno Locking Doors
-#define SCRIPT_NIFIGHTR         (1050)  // ncFightr.int    ; New Reno Boxer Actually Fighting
+#define SCRIPT_NCFIGHTR         (1050)  // ncFightr.int    ; New Reno Boxer Actually Fighting
 #define SCRIPT_RIVLTDOR         (1051)  // RIVltDor.int    ; Locked Vault Door in Redding
 #define SCRIPT_CCXARN           (1052)  // CcXarn.int      ; Xarn in Navarro
 #define SCRIPT_CCRAUL           (1053)  // CcRaul.int      ; Raul in Navarro
@@ -1120,8 +1121,8 @@
 #define SCRIPT_FCTNKGMR         (1102)  // FCTnkGmr.int    ; Tanker Gun Merchant San Fran
 #define SCRIPT_FCTNKBAR         (1103)  // FCTnkBar.int    ; Tanker Bartender
 #define SCRIPT_FCTNKMER         (1104)  // FCTnkMer.int    ; Tanker Merchant
-#define SCRIPT_FCTGUNTB         (1105)  // FCTGunTb.int    ; Tanker Gun Merchant's table YEAH yeah YEAH
-#define SCRIPT_FCTMERTB         (1106)  // FCTMerTb.int    ; Tanker Merchant Table
+#define SCRIPT_FITGUNTB         (1105)  // FITGunTb.int    ; Tanker Gun Merchant's table YEAH yeah YEAH
+#define SCRIPT_FITMERTB         (1106)  // FITMerTb.int    ; Tanker Merchant Table
 #define SCRIPT_FSPEMTR1         (1107)  // FSPEmtr1.int    ; Palace Emitter 1 in China Town
 #define SCRIPT_FSPEMTR2         (1108)  // FSPEmtr2.int    ; Palace Emitter 2 in China Town
 #define SCRIPT_FSPEMTR3         (1109)  // FSPEmtr3.int    ; Palace Emitter 3 in China Town
@@ -1163,7 +1164,7 @@
 #define SCRIPT_VTALOMRK         (1145)  // VTAloMrk.int    ; Spatial Script for Allocation Computer VCityp
 #define SCRIPT_CAVE7            (1146)  // Cave7.int       ; Fake Vault 13 map
 #define SCRIPT_NIDERMAL         (1147)  // niDermal.int    ; New Reno Dermal Pip Boy
-#define SCRIPTS_NCELDDOG        (1148)  // ncEldDog.int    ; New Reno Eldridge Dogs
+#define SCRIPT_NCELDDOG         (1148)  // ncEldDog.int    ; New Reno Eldridge Dogs
 #define SCRIPT_RCRATRAY         (1149)  // RCRatray.int    ; Rattray, Doc Johnson's assistant
 #define SCRIPT_HCHUSWIF         (1150)  // HCHusWif.int    ; Mutant Husband/Wife Broken HillsJ
 #define SCRIPT_FCLOGRD          (1151)  // FCLoGrd.int     ; Lo Pan Guard in San Fran
@@ -1185,7 +1186,7 @@
 #define SCRIPT_VITERM           (1167)  // viTerm.int      ; Vault City Vault Terminal
 #define SCRIPT_RCMOTGNG         (1168)  // RCMotGng.int    ; Frog Morton's gang
 #define SCRIPT_CCCHEAT          (1169)  // ccCheat.int     ; cheat character in Navarro
-#define SCRIPT_FCTNKRDR         (1170)  // FSTnkrDr.int    ; Tanker Doors in San Frans
+#define SCRIPT_FSTNKRDR         (1170)  // FSTnkrDr.int    ; Tanker Doors in San Frans
 #define SCRIPT_SCPEAON          (1171)  // SCPeaon.int     ; NCR Peaons
 #define SCRIPT_DIREBBOK         (1172)  // diRebBok.int    ; Den Becky's Book
 #define SCRIPT_HCSCORP          (1173)  // hcScorp.int     ; Broken Hills Scorpion
@@ -1319,5 +1320,278 @@
 #define SCRIPT_NIBISHLK         (1301)  // niBisHLk.int    ; New Reno Bishop Hard Locker
 #define SCRIPT_NIBISHDR         (1302)  // niBisHDr.int    ; New Reno Bishop Hard Locked Door
 #define SCRIPT_NTRICROM         (1303)  // ntRicRom.int    ; New Reno Richard Wright Room Spacial
-
+#define SCRIPT_MIMIRDOR         (1304)  // MIMirDor.int    ; Miria's Bedroom Door
+#define SCRIPT_MIDAVDOR         (1305)  // MIDavDor.int    ; Dave's Bedroom Door
+#define SCRIPT_SIPTBOX2         (1306)  // SIPtbox2.int    ; box where Merk hides your car trunk stuff
+#define SCRIPT_SFSHUTL1         (1307)  // sfshutl1.int    ; map script to Hubologist entrance (shuttle)
+#define SCRIPT_ABBEY            (1308)  // abbey.int       ; Abbey map script
+#define SCRIPT_ABBILBOX         (1309)  // abbilbox.int    ; bill's storage box
+#define SCRIPT_ABBILL           (1310)  // abbill.int      ; Abbey Bill
+#define SCRIPT_ABBOOK           (1311)  // abbook.int      ; Abbey library book
+#define SCRIPT_ABCHILD          (1312)  // abchild.int     ; Abbey child
+#define SCRIPT_ABDEATHC         (1313)  // abdeathc.int    ; Abbey monster
+#define SCRIPT_ABELAINE         (1314)  // abelaine.int    ; Abbey Elaine
+#define SCRIPT_ABGRAVE1         (1315)  // abgrave1.int    ; Abbey grave1
+#define SCRIPT_ABGRAVE2         (1316)  // abgrave2.int    ; Abbey grave2
+#define SCRIPT_ABHANK           (1317)  // abhank.int      ; Abbey Hank
+#define SCRIPT_ABHEALER         (1318)  // abhealer.int    ; Abbey Healer
+#define SCRIPT_ABJOHN           (1319)  // abjohn.int      ; Abbey John
+#define SCRIPT_ABMAX            (1320)  // abmax.int       ; Abbey Max
+#define SCRIPT_ABMERCH1         (1321)  // abmerch1.int    ; Abbey Merchant
+#define SCRIPT_ABMERCH2         (1322)  // abmerch2.int    ; Abbey Merchant 2
+#define SCRIPT_ABMERGRD         (1323)  // abmergrd.int    ; Abbey Merchant guard
+#define SCRIPT_ABMSPTSN         (1324)  // abmsptsn.int    ; Abbey Mrs. Peterson
+#define SCRIPT_ABPEOPLE         (1325)  // abpeople.int    ; Abbey People
+#define SCRIPT_ABPETSON         (1326)  // abpetson.int    ; Abbey Mr. Peterson
+#define SCRIPT_ABPUMP           (1327)  // abpump.int      ; Abbey water pump
+#define SCRIPT_ABSAMUEL         (1328)  // absamuel.int    ; Abbey Samuel
+#define SCRIPT_ABSTAND          (1329)  // abstand.int     ; Abbey stand
+#define SCRIPT_ABTHOMAS         (1330)  // abthomas.int    ; Abbey Thomas
+#define SCRIPT_ABTOM            (1331)  // abtom.int       ; Abbey Tom
+#define SCRIPT_ACOMPU           (1332)  // acompu.int      ; Abbey computer
+#define SCRIPT_AHMONK           (1333)  // ahmonk.int      ; Abbey Head Monk
+#define SCRIPT_AMONK1           (1334)  // amonk1.int      ; Abbey Monk1
+#define SCRIPT_AMONK2           (1335)  // amonk2.int      ; Abbey Monk2
+#define SCRIPT_AMONK3           (1336)  // amonk3.int      ; Abbey Monk3
+#define SCRIPT_AMONK4           (1337)  // amonk4.int      ; Abbey Monk4
+#define SCRIPT_AMONK5           (1338)  // amonk5.int      ; Abbey Monk5
+#define SCRIPT_ATRIBAL          (1339)  // atribal.int     ; Abbey tribal
+#define SCRIPT_ABMATT           (1340)  // abmatt.int      ; Abbey Matthew
+#define SCRIPT_VILL             (1341)  // vill.int        ; Village Map
+#define SCRIPT_ZCLVILLRAT       (1342)  // zclvillrat.int  ; Village Monster
+#define SCRIPT_VILANN           (1343)  // vilann.int      ; Ann in Village
+#define SCRIPT_TRIBEC1          (1344)  // tribec1.int     ; script for head warrior
+#define SCRIPT_TRIBEC2          (1345)  // tribec2.int     ; Script for Marli at well in tribe
+#define SCRIPT_TRIBEC3          (1346)  // tribec3.int     ; script for random people in tribe
+#define SCRIPT_TRIBEC4          (1347)  // tribec4.int     ; script for tribe shaman
+#define SCRIPT_TRIBEC5          (1348)  // tribec5.int     ; script for ghost in tribe
+#define SCRIPT_TRIBEC6          (1349)  // tribec6.int     ; man outside tent for sulik's sister.
+#define SCRIPT_TRIBEC7          (1350)  // tribec7.int     ; sulik's sister script
+#define SCRIPT_TRIBEI1          (1351)  // tribei1.int     ; script for well in tribe
+#define SCRIPT_TRIBEM1          (1352)  // tribem1.int     ; map script for tribe
+#define SCRIPT_TRIBEC8          (1353)  // tribec8.int     ; tribal fishermen/women
+#define SCRIPT_TRIBEC9          (1354)  // tribec9.int     ; Missing Tribal (Serin)
+#define SCRIPT_TRIBEM2          (1355)  // tribem2.int     ; Primitive Tribe Map 2
+#define SCRIPT_TRIBESP1         (1356)  // tribesp1.int    ; cave entrance spacial
+#define SCRIPT_TRIBESP2         (1357)  // tribesp2.int    ; cavein spacial
+#define SCRIPT_TRIBEC10         (1358)  // tribec10.int    ; Gecko in Tribe Cave
+#define SCRIPT_TRIBEC11         (1359)  // tribec11.int    ; Tribal guarding entrance to cave
+#define SCRIPT_TRIBEC5A         (1360)  // tribec5a.int    ; Karla's dead body
+#define SCRIPT_TRIBESP3         (1361)  // tribesp3.int    ; spacial to trigger seeing the ghost
+#define SCRIPT_SLVCC1           (1362)  // slvcc1.int      ; Head of Slaver Camp
+#define SCRIPT_SLVCC2           (1363)  // slvcc2.int      ; Guards at Slaver Camp
+#define SCRIPT_SLVCM1           (1364)  // slvcm1.int      ; Map Script to Slaver's Camp
+#define SCRIPT_SLVCC3           (1365)  // slvcc3.int      ; guard dog on Slaver Map
+#define SCRIPT_SLVCC5           (1366)  // slvcc5.int      ; Slaver on patrol
+#define SCRIPT_SLVCC4           (1367)  // slvcc4.int      ; slaves at Slaver Camp
+#define SCRIPT_SLVCO1           (1368)  // slvco1.int      ; script to locked slavepen door
+#define SCRIPT_HICDSHLF         (1369)  // hicdshlf.int    ; Chad's Shelf in BH map 2
+#define SCRIPT_HICHADDR         (1370)  // hichaddr.int    ; Door to Chad's house in BH 2
+#define SCRIPT_DCLILBBY         (1371)  // dclilbby.int    ; Abused boy in Den Residential
+#define SCRIPT_DCLBFTHR         (1372)  // dclbfthr.int    ; Drunken Father of Bobby
+#define SCRIPT_DCADDCT2         (1373)  // dcaddct2.int    ; Addicts who live in building which will become the orphanage
+#define SCRIPT_DCDEALER         (1374)  // dcdealer.int    ; Dealer/Body guard in Den Residential
+#define SCRIPT_DCPEASNT         (1375)  // dcpeasnt.int    ; Citizen of Den Residential
+#define SCRIPT_DCORPHN2         (1376)  // dcorphn2.int    ; Orphan living at the Orphanage
+#define SCRIPT_DCPESNT2         (1377)  // dcpesnt2.int    ; Peasant 2 of Den Residential
+#define SCRIPT_GCENCLEN         (1378)  // gcenclen.int    ; Enclave Verti Encounter near Gecko
+#define SCRIPT_GCENC            (1379)  // gcenc.int       ; gecko enclave patrol guard
+#define SCRIPT_GCENC2           (1380)  // gcenc2.int      ; gecko enclave patrol leader
+#define SCRIPT_HISAFE           (1381)  // hisafe.int      ; safe at hubologist stash
+#define SCRIPT_HCDORGRD         (1382)  // hcdorgrd.int    ; Door Guard at Hub Stash
+#define SCRIPT_HCSTLDR          (1383)  // hcstldr.int     ; Leader at the Hub Stash
+#define SCRIPT_HCGUARD          (1384)  // hcguard.int     ; generic Hub stash guard
+#define SCRIPT_HCGUARD2         (1385)  // hcguard2.int    ; guard of stash on level 2
+#define SCRIPT_HIMNDOR          (1386)  // himndor.int     ; Main Door to Hubologist Stash
+#define SCRIPT_HUBSTASH         (1387)  // hubstash.int    ; Map script to Hubologist Stash
+#define SCRIPT_HICONTNR         (1388)  // hicontnr.int    ; script to containers in Hub Stash
+#define SCRIPT_KCDUNBRA         (1389)  // kcdunbra.int    ; Dunton's brahmin in Klamath
+#define SCRIPT_SLVCO2           (1390)  // slvco2.int      ; door to slave holding (not the pen)
+#define SCRIPT_SLVCO3           (1391)  // slvco3.int      ; script to gate of big slave pen at slavers camp
+#define SCRIPT_TRIBEC12         (1392)  // tribec12.int    ; Chief to primitive tribe
+#define SCRIPT_NCBRKMN          (1393)  // ncbrkmn.int     ; Barking man in New Reno
+#define SCRIPT_EPA1             (1394)  // epa1.int        ; EPA Map Script (epax.map)
+#define SCRIPT_EPA2             (1395)  // epa2.int        ; SubLevels Map
+#define SCRIPT_EPA3             (1396)  // epa3.int        ; map for Doctor's warehouse
+#define SCRIPT_EPAC1            (1397)  // epac1.int       ; Script for depressed Mr Handy
+#define SCRIPT_EPAC2            (1398)  // epac2.int       ; Hologram 00000 script
+#define SCRIPT_EPAC3            (1399)  // epac3.int       ; Talking Toaster
+#define SCRIPT_EPAC4            (1400)  // epac4.int       ; Script for Hologram10001
+#define SCRIPT_EPAC5            (1401)  // epac5.int       ; Script Hologram 12001
+#define SCRIPT_EPAC6            (1402)  // epac6.int       ; Script for Hologram 10031
+#define SCRIPT_EPAC7            (1403)  // epac7.int       ; Script for Hologram 40011
+#define SCRIPT_EPAC8            (1404)  // epac8.int       ; Script for EPA Plants
+#define SCRIPT_EPAC9            (1405)  // epac9.int       ; Script for crafting computer
+#define SCRIPT_EPAC10           (1406)  // epac10.int      ; Script for Diplomatic player
+#define SCRIPT_EPAC11           (1407)  // epac11.int      ; Script for combat char from the vats
+#define SCRIPT_EPAC12           (1408)  // epac12.int      ; Script for Stealth Character
+#define SCRIPT_EPAC13           (1409)  // epac13.int      ; Docto'rs personal bodyguards
+#define SCRIPT_EPAC14           (1410)  // epac14.int      ; Script for bug spray
+#define SCRIPT_EPAC15           (1411)  // epac15.int      ; Script for captured tribals
+#define SCRIPT_EPAC16           (1412)  // epac16.int      ; Script for EPA ants
+#define SCRIPT_EPAC17           (1413)  // epac17.int      ; Script for EPA Doctor
+#define SCRIPT_EPAC18           (1414)  // epac18.int      ; Script for mutant fruit flies
+#define SCRIPT_EPAC19           (1415)  // epac19.int      ; Script for doctors crestures
+#define SCRIPT_EPAC20           (1416)  // epac20.int      ; Script for the moving robots
+#define SCRIPT_EPAC21           (1417)  // epac21.int      ; robot script
+#define SCRIPT_EPAI1            (1418)  // epai1.int       ; A leaflet for the EPA
+#define SCRIPT_EPAI2            (1419)  // epai2.int       ; Script for voice computer
+#define SCRIPT_EPAI3            (1420)  // epai3.int       ; Script for main research computer
+#define SCRIPT_EPAI4            (1421)  // epai4.int       ; Script for Electric Chair Computer
+#define SCRIPT_EPAI5            (1422)  // epai5.int       ; Script for Electronic doors
+#define SCRIPT_EPAI6            (1423)  // epai6.int       ; Script for Hologram Generator
+#define SCRIPT_EPAI7            (1424)  // epai7.int       ; Script for Security doors
+#define SCRIPT_EPAI8            (1425)  // epai8.int       ; Script for Elevator doors
+#define SCRIPT_EPAI9            (1426)  // epai9.int       ; Script for doors on ground level
+#define SCRIPT_EPAI10           (1427)  // epai10.int      ; Script for Random Chemicals
+#define SCRIPT_EPAI11           (1428)  // epai11.int      ; script for ground in arroyo
+#define SCRIPT_EPAI12           (1429)  // epai12.int      ; fertile ground 2 script
+#define SCRIPT_EPAI13           (1430)  // epai13.int      ; Script for Hibernation Computer
+#define SCRIPT_EPAI14           (1431)  // epai14.int      ; Script for Lighting Generator
+#define SCRIPT_EPAI15           (1432)  // epai15.int      ; Script for forcefield to release Holograms
+#define SCRIPT_EPAI16           (1433)  // epai16.int      ; Script for Plant spray
+#define SCRIPT_EPAI17           (1434)  // epai17.int      ; Script for Magnetic coil computer
+#define SCRIPT_EPAI18           (1435)  // epai18.int      ; Script for Forcedfield to warriors
+#define SCRIPT_EPAI19           (1436)  // epai19.int      ; Script for projection of Hologram00000
+#define SCRIPT_EPAI20           (1437)  // epai20.int      ; door to chemical level
+#define SCRIPT_EPAI21           (1438)  // epai21.int      ; Location Finder
+#define SCRIPT_EPAI22           (1439)  // epai22.int      ; Script for doors that look like elevators
+#define SCRIPT_EPAI23           (1440)  // epai23.int      ; Script for computer controlling forcefields
+#define SCRIPT_EPAI24           (1441)  // epai24.int      ; Script for forcefield for critters
+#define SCRIPT_EPAI25           (1442)  // epai25.int      ; Script for dynamite
+#define SCRIPT_EPAI26           (1443)  // epai26.int      ; Script for dynamite trigger
+#define SCRIPT_EPAI27           (1444)  // epai27.int      ; Script for finding paper
+#define SCRIPT_EPAI28           (1445)  // epai28.int      ; Script for passcoded locker
+#define SCRIPT_EPAS1            (1446)  // epas1.int       ; Elevator Spatial Script
+#define SCRIPT_EPAS2            (1447)  // epas2.int       ; Gas Level Spatial Script
+#define SCRIPT_EPAS3            (1448)  // epas3.int       ; Spatial script for electric chair
+#define SCRIPT_EPAS4            (1449)  // epas4.int       ; Spatial script for chemicals
+#define SCRIPT_EPAS5            (1450)  // epas5.int       ; Spatial script for elevator2
+#define SCRIPT_EPAS6            (1451)  // epas6.int       ; Spatial script for message about magnetic field
+#define SCRIPT_EPAS7            (1452)  // epas7.int       ; Spatial script on entry to the gas areas
+#define SCRIPT_EPAS8            (1453)  // epas8.int       ; Spatial script for access to vents idea
+#define SCRIPT_EPAI29           (1454)  // epai29.int      ; Vent to allow player to enter vent shafts of epa
+#define SCRIPT_EPAI30           (1455)  // epai30.int      ; Left Fan Script
+#define SCRIPT_EPAI31           (1456)  // epai31.int      ; Right Fan Script
+#define SCRIPT_EPAS2A           (1457)  // epas2a.int      ; Fumes near Mr. Chemmie (become harmless when fans fixed)
+#define SCRIPT_EPAI32           (1458)  // epai32.int      ; EPA Biology Terminal
+#define SCRIPT_EPAI33           (1459)  // epai33.int      ; Ground where EPA seeds can be planted
+#define SCRIPT_EPAS9            (1460)  // epas9.int       ; Spatial script for sprouted seeds
+#define SCRIPT_EPAC22           (1461)  // epac22.int      ; Malfunctioning hologram
+#define SCRIPT_EPAS10           (1462)  // epas10.int      ; spatial for EPA's Air, Water, and Power Facility Level
+#define SCRIPT_EPAC23           (1463)  // epac23.int      ; Monster in Doctor's maze
+#define SCRIPT_EPAI34           (1464)  // epai34.int      ; machine controlling hologram that gives static
+#define SCRIPT_VILCHILD         (1465)  // vilchild.int    ; Children at Vault Village
+#define SCRIPT_VSRAISPT         (1466)  // vsraispt.int    ; spatial for catching the raiders in the act at VC
+#define SCRIPT_CIVERTI          (1467)  // civerti.int     ; Flyable Vertibird
+#define SCRIPT_CISACTRL         (1468)  // cisactrl.int    ; Navarro Satellite control computer
+#define SCRIPT_QSVERTEL         (1469)  // esvertel.int    ; spatial for vertibird elevator at enclave
+#define SCRIPT_QCWRKBOT         (1470)  // qcwrkbot.int    ; Worker bot (enclave verti pad)
+#define SCRIPT_QINUKE           (1471)  // qinuke.int      ; Nuke at the Enclave
+#define SCRIPT_VIWELL           (1472)  // viwell.int      ; VC Courtyard Well
+#define SCRIPT_GIWELL           (1473)  // giwell.int      ; Gecko Well
+#define SCRIPT_PATCHINF         (1474)  // patchinf.int    ; Patch Information
+#define SCRIPT_SCRANGR          (1475)  // scrangr.int     ; Ranger at a safe house
+#define SCRIPT_NCRNGSH1         (1476)  // ncrngsh1.int    ; Maps script to Ranger Safe House 1
+#define SCRIPT_NCRNGSH2         (1477)  // ncrngsh2.int    ; Maps script to Ranger Safe House 2
+#define SCRIPT_NCRNGSH3         (1478)  // ncrngsh3.int    ; Maps script to Ranger Safe House 3
+#define SCRIPT_SIRNGMAP         (1479)  // sirngmap.int    ; Ranger Safe House Map
+#define SCRIPT_SCATKRNG         (1480)  // scatkrng.int    ; Ranger that aids you in attack on Slaver Camp
+#define SCRIPT_SCATKSLV         (1481)  // scatkslv.int    ; Slaver that aids you in attack on Ranger Safe Houses
+#define SCRIPT_KTCAVN1          (1482)  // ktcavn1.int     ; creates rubble when you destroy supports
+#define SCRIPT_KTCAVN2          (1483)  // ktcavn2.int     ; creates rubble when you destroy supports
+#define SCRIPT_KTCAVN3          (1484)  // ktcavn3.int     ; creates rubble when you destroy supports
+#define SCRIPT_KTCAVN4          (1485)  // ktcavn4.int     ; creates rubble when you destroy supports
+#define SCRIPT_KLARATCV         (1486)  // klaratcv.int    ; Rat Caves at Klamath
+#define SCRIPT_RTCAVN1          (1487)  // rtcavn1.int     ; Creates a cave in if the support beam is destroyed
+#define SCRIPT_SCDMYMK          (1488)  // scdmymk.int     ; Dummy script for Merk and his guards
+#define SCRIPT_KIVICDOR         (1489)  // kivicdor.int    ; Door to Vic's house in Klamath
+#define SCRIPT_SIMRKSTR         (1490)  // simrkstr.int    ; Script to stairs leading to Merk's basement
+#define SCRIPT_DCG1GRD2         (1491)  // dcg1grd2.int    ; Tyler's Friend (he's having the party)
+#define SCRIPT_WITRIPWR         (1492)  // witripwr.int    ; Trip Wire in SAD (level 2)
+#define SCRIPT_WSTRIPWR         (1493)  // wstripwr.int    ; Spatial for Trip Wire in SAD (level 2)
+#define SCRIPT_DCPROSTI         (1494)  // dcprosti.int    ; Prostitute at Tyler's Party (Den)
+#define SCRIPT_ESGOO            (1495)  // esgoo.int       ; Goo in EPA
+#define SCRIPT_WSTRPWR2         (1496)  // wstrpwr2.int    ; Spatial that trips the wire in SAD
+#define SCRIPT_ESHIB            (1497)  // eshib.int       ; Hibernation Chamber spatial
+#define SCRIPT_NSCODY           (1498)  // nscody          ; Spatial script for Cody's death
+#define SCRIPT_EPLKR            (1499)  // eplkr.int       ; Script controlling the lockers holding the NPC's belongings (EPA)
+#define SCRIPT_EASTER           (1500)  // easter.int      ; RP Easter Egg Map Script
+#define SCRIPT_EASTEREG         (1501)  // eastereg.int    ; Script for all those who helped make the RP possible
+#define SCRIPT_ZISMOKE          (1502)  // zismoke.int     ; Script used by cigs
+#define SCRIPT_PEEING           (1503)  // peeing.int      ; Script for player peeing
+#define SCRIPT_ABBASEM          (1504)  // abbasem.int     ; Abbey Basement
+#define SCRIPT_ABUNDGR          (1505)  // abundgr.int     ; Abbey Underground
+#define SCRIPT_TRIBEMER         (1506)  // tribemer.int    ; FSE-registered script
+#define SCRIPT_TRIBEMG1         (1507)  // tribemg1.int    ; FSE-registered script
+#define SCRIPT_TRIBEMG2         (1508)  // tribemg2.int    ; Second guard for Roy the Merchant
+#define SCRIPT_MERCHANT         (1509)  // tribem3.int     ; Map Script to Primitive Tribe Merchant Encounter
+#define SCRIPT_EPAI35           (1510)  // epai35.int      ; EPA museum computer
+#define SCRIPT_EPAI36           (1511)  // epai36.int      ; EPA petting zoo computer
+#define SCRIPT_EPAI37           (1512)  // epai37.int      ; EPA Character Modification Machine
+#define SCRIPT_ABJASON          (1513)  // abjason.int     ; Angry monk at Abbey
+#define SCRIPT_VILTODD          (1514)  // viltodd.int     ; Little Todd - Vault Village
+#define SCRIPT_VIBARON          (1515)  // vibaron.int     ; Robert Baron - Vault Village caravan provider
+#define SCRIPT_VIMERGRD         (1516)  // vimergrd.int    ; Merchant Guard - Robert Baron
+#define SCRIPT_TRIBEI2          (1517)  // tribei2.int     ; Crate of Stimpacks (Primitive Tribe)
+#define SCRIPT_EPAC24           (1518)  // epac24.int      ; Ravenous Humans at EPA Green Level
+#define SCRIPT_VILMERCH         (1519)  // vilmerch.int    ; Vault Village Merchant Map
+#define SCRIPT_EPAI38           (1520)  // epai38.int      ; force field panel (EPA level 7)
+#define SCRIPT_EPAI39           (1521)  // epai39.int      ; Fan to enter EPA base
+#define SCRIPT_FCBTGRD          (1522)  // fcbtgrd.int     ; Shi Motor Boat Guard
+#define SCRIPT_SFMBOAT          (1523)  // sfmboat.int     ; Script to Motor Boat at Shi Docks
+#define SCRIPT_FCBTECH          (1524)  // fcbtech.int     ; Shi Sub Tech Guard
+#define SCRIPT_ABJUNK           (1525)  // abjunk.int      ; Abbey Junk Piles
+#define SCRIPT_EPAI40           (1526)  // epai40.int      ; EPA Greenhouse stairs
+#define SCRIPT_EPAI41           (1527)  // epai41.int      ; EPA broken elevator shaft entrance
+#define SCRIPT_EPAS11           (1528)  // epas11.int      ; EPA elevator shaft entrance spatial
+#define SCRIPT_EPAI42           (1529)  // epai42.int      ; EPA elevator shaft level 1
+#define SCRIPT_EPAI43           (1530)  // epai43.int      ; EPA Locker with Solar Scorcher
+#define SCRIPT_FCDOKGRD         (1531)  // fcdokgrd.int    ; Shit Guard at Motor Boat
+#define SCRIPT_FCSBTEC1         (1532)  // fcsbtec1.int    ; Sub Power Console Techie
+#define SCRIPT_FCSBTEC2         (1533)  // fcsbtec2.int    ; Sub Target Console Techie
+#define SCRIPT_FCSBTEC3         (1534)  // fcsbtec3.int    ; Sub Torpedo Console Techie
+#define SCRIPT_HTTUNNEL         (1535)  // httunnel.int    ; spatial script for Broken Hills tunnels
+#define SCRIPT_FCDKWRK2         (1536)  // fcdkwrk2.int    ; Named Shi Dock Worker (gives info about sub)
+#define SCRIPT_SFSUB            (1537)  // sfsub.int       ; Shi Sub Map
+#define SCRIPT_FSSUBDR          (1538)  // fssubdr.int     ; Shi Sub Rusted Door
+#define SCRIPT_FSSUBINT         (1539)  // fssubint.int    ; Shi Sub Interior Greeting Spatial
+#define SCRIPT_FCSUBPWR         (1540)  // fcsubpwr.int    ; Shi Sub Power Console
+#define SCRIPT_FCSUBTCO         (1541)  // fcsubtco.int    ; Shi Sub Torpedo Console
+#define SCRIPT_FCSUBTAR         (1542)  // fcsubtar.int    ; Shi Sub Targeting Console
+#define SCRIPT_FCSUBTOR         (1543)  // fcsubtor.int    ; Shi Sub Torpedo Bay
+#define SCRIPT_FCSUBHAT         (1544)  // fcsubhat.int    ; Shi Sub Outer Hatch
+#define SCRIPT_FCSUBGRD         (1545)  // fcsubgrd.int    ; Shi Sub Guard
+#define SCRIPT_NCVERTI          (1546)  // ncverti.int     ; Vertibird at Salvatore Secret Transaction
+#define SCRIPT_FSSUBSP          (1547)  // fssubsp.int     ; Shi Sub Interior Text Spatial
+#define SCRIPT_EPAI44           (1548)  // epai44.int      ; Agility +1 serum at the EPA
+#define SCRIPT_ABGUARD          (1549)  // abguard.int     ; Retired Caravan Guard
+#define SCRIPT_FCDRSHNG         (1550)  // fcdrshng.int    ; Dr. Sheng
+#define SCRIPT_FCPLNTMN         (1551)  // fcplntmn.int    ; Dr. Sheng's Plant Creature
+#define SCRIPT_SFSHENG          (1552)  // sfsheng.int     ; Dr. Sheng's hideout
+#define SCRIPT_FCSHNGDR         (1553)  // fcshngdr.int    ; Door to Dr. Sheng's laboratory
+#define SCRIPT_FCSHNGD2         (1554)  // fcshngd2.int    ; Door to Dr. Sheng's experiments
+#define SCRIPT_TRIBESP4         (1555)  // tribesp4.int    ; Spatial script upon entering the main area of Umbra Tribe
+#define SCRIPT_WCRPBOT2         (1556)  // wcrpbot2.int    ; Sierra Base, Repair Robot (generic), level 4
+#define SCRIPT_WCSCBOT2         (1557)  // wcscbot2.int    ; Sierra Base, Security Robot (generic), level 4
+#define SCRIPT_WIBAYDR2         (1558)  // wibaydr2.int    ; Sierra Base Repair Bay Door (level 4)
+#define SCRIPT_CMOLD            (1559)  // cmold.int       ; Skipped entry
+#define SCRIPT_CMCERI           (1560)  // cmceri.int      ; Metzger's slave and potential companion
+#define SCRIPT_CMLARA           (1561)  // cmlara.int      ; Lara from The Den's companion Script
+#define SCRIPT_CMRHEA           (1562)  // cmrhea.int      ; Unarmed Combat Companion in NCR
+#define SCRIPT_CMANGEL          (1563)  // cmangel.int     ; Angela from New Reno Companion script
+#define SCRIPT_CMMASON          (1564)  // cmmason.int     ; Mason from New Reno Companion script
+#define SCRIPT_CMCHRIS          (1565)  // cmchris.int     ; Chris from New Reno Companion script
+#define SCRIPT_CMLILJ           (1566)  // cmlilj.int      ; Lil's Jesus from New Reno Companion script
+#define SCRIPT_CMSLAVER         (1567)  // cmslaver.int    ; Slave Vendor in The Den
+#define SCRIPT_CMSLAVE          (1568)  // cmslave.int     ; Generic Slave Companion
+#define SCRIPT_CMMIRIA          (1569)  // cmmiria.int     ; CE replacement Miria from Modoc
+#define SCRIPT_CMJONES          (1570)  // cmjones.int     ; CE replacement Doc Jones from V15 Squat
+//#define SCRIPT_ZMANSION         (1571)  // ZMANSION.int    ; Map script for zmansion
+//#define SCRIPT_ZGUYLOC          (1572)  // ZGUYLOC.int     ; Guy in New Reno giving Zmansion location
+//#define SCRIPT_ZDCTR            (1573)  // ZDCTR.int       ; Computer that heals PC in Zmansion
+//#define SCRIPT_ZYAKUZA          (1574)  // ZYAKUZA.int     ; Yakuzas in Zmansion
+//#define SCRIPT_ZYBOSS           (1575)  // ZYBOSS.int      ; Yakuzas in Zmansion Boss
+//#define SCRIPT_ZCINDY           (1576)  // zcindy.int      ; Zmansion Housekeeper
+//#define SCRIPT_ZPOOL            (1577)  // zpool.int       ; Zmansion Pool
 #endif // SCRIPTS_H

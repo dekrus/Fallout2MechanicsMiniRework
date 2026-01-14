@@ -30,6 +30,23 @@ procedure min(variable x, variable y) begin
    return y;
 end
 
+
+procedure math_clamp(variable val, variable a, variable b) begin
+   variable min, max;
+   if (a < b) then begin
+      min := a;
+      max := b;
+   end else begin
+      min := b;
+      max := a;
+   end
+   if (val < min) then
+      return min;
+   else if (val > max) then
+      return max;
+   else
+      return val;
+end
 /*procedure round(variable val) begin
    variable intp;
    intp := floor(val);

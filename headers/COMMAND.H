@@ -17,7 +17,7 @@
 *********************************************************/
 
 // include files that are needed after other declarations are made.
-#include "..\headers\reppoint.h"
+#include "reppoint.h"
 
 
 /*********************************************************
@@ -25,7 +25,7 @@
  should he attack people in a community
 *********************************************************/
 variable global_temp;
-
+#define ndebug(message) debug_msg(": " + message + "\n")
 #define Get_Rotation_Away_From_Dude(x)      rotation_to_tile(tile_num(dude_obj),tile_num(x))
 
 #define Run_Away_From_Dude_Dir              Get_Rotation_Away_From_Dude(self_obj)
@@ -35,7 +35,9 @@ variable global_temp;
 #define run_away_tile_dir(x)                tile_num_in_direction(tile_num(self_obj), x, run_away_from_dist)
 #define Run_Away_From_Dude_Tile             run_away_tile_dir(Run_Away_From_Dude_Dir)
 
-#define Current_Distance_From_Dude          tile_distance_objs(self_obj,dude_obj)
+#define Current_Distance_From_Obj(the_obj)  tile_distance_objs(self_obj,the_obj)
+#define Current_Distance_From_Dude          Current_Distance_From_Obj(dude_obj)
+#define distance_dude                       tile_distance_objs(self_obj,dude_obj)
 
 #define Future_Distance_From_Obj(x, y)      tile_num_in_direction(tile_num(x), ((has_trait(TRAIT_OBJECT,x,OBJECT_CUR_ROT) + 3)%6), y)
 #define Future_Distance_From_Dude(x)        Future_Distance_From_Obj(dude_obj, x)
@@ -45,7 +47,7 @@ variable global_temp;
                                                animate_##type##_to_tile(tile_num_in_direction(self_tile, global_temp, dist));                        \
                                                global_temp := (global_temp + 1) % 6;                                                                 \
                                                while ((anim_busy(self_obj) == false) and (global_temp != rotation_to_tile(x, self_tile))) do begin   \
-                                                  debug_msg("flee loop: rot == "+global_temp);                                                       \
+                                                  ndebug("flee loop: rot == "+global_temp);                                                       \
                                                   animate_##type##_to_tile(tile_num_in_direction(self_tile, global_temp, dist));                     \
                                                   global_temp := (global_temp + 1) % 6;                                                              \
                                                end                                                                                                   \
@@ -78,6 +80,19 @@ variable global_temp;
                                                    anim_move_to_point_rate(tile_num_in_direction(tile_num(the_obj), rotation_to_tile(tile_num(the_obj), self_tile), the_dist), get_follow_point_dist(the_obj))  \
                                                 end                                                             \
                                             end
+#define party_follow_dude_point(the_range, the_dist)                                                              \
+                                            if (Current_Distance_From_Dude > the_range) then begin                \
+                                                if (anim_busy(self_obj) == false) then begin                      \
+                                                   dest_tile := tile_num_in_direction(tile_num_in_direction(dude_tile, Run_Away_From_Dude_Dir, the_dist), random(0, 5), random(0, 2)); \
+                                                   if (Current_Distance_From_Dude > (the_range * 2)) then begin   \
+                                                      animate_run_to_tile(dest_tile);                             \
+                                                   end else begin                                                 \
+                                                      animate_move_to_tile(dest_tile);                            \
+                                                   end                                                            \
+                                                end else if (self_distance_from_dude < tile_distance(self_tile, dest_tile)) then begin  \
+                                                   reg_anim_clear(self_obj);                                      \
+                                                end                                                               \
+                                            end
 #define follow_dude_point(the_range, the_dist)     follow_obj_point(the_range, the_dist, dude_obj)
 
 #define Follow_Dude_Run_Only(X,Y)           if (Current_Distance_From_Dude > X) then begin                  \
@@ -102,18 +117,18 @@ variable global_temp;
                                                end                                                                                                                 \
                                             end
 
-#define next_and_face_obj(the_obj, the_type, the_rate)                                                                                                                       \
+#define next_and_face_obj(the_obj, the_type, the_rate)                                                                                                             \
                                              if (tile_distance_objs(self_obj, the_obj) > 1) then begin                                                             \
-                                                the_type(tile_num_in_direction(tile_num(the_obj), rotation_to_tile(tile_num(the_obj),tile_num(self_obj)), 1), the_rate);     \
+                                                the_type(tile_num_in_direction(tile_num(the_obj), rotation_to_tile(tile_num(the_obj),tile_num(self_obj)), 1)); /* Seraph's Fix: 'the_type' only takes one argument. Thanks Rob! */\
                                              end else if (rotation_to_tile(tile_num(self_obj),tile_num(the_obj)) != self_cur_rot) then begin                       \
                                                 if (anim_busy(self_obj) == false) then begin                                                                       \
                                                    Face_Critter(the_obj, self_obj);                                                                                \
                                                 end                                                                                                                \
                                              end
 
-#define point_next_and_face_obj(the_obj, the_type, the_rate)                                                                                                                 \
+#define point_next_and_face_obj(the_obj, the_type, the_rate)                                                                                                       \
                                              if (tile_distance_objs(self_obj, the_obj) > 1) then begin                                                             \
-                                                the_type(tile_num_in_direction(tile_num(the_obj), rotation_to_tile(tile_num(the_obj),tile_num(self_obj)), 1), the_rate) \
+                                                the_type(tile_num_in_direction(tile_num(the_obj), rotation_to_tile(tile_num(the_obj),tile_num(self_obj)), 1)) /* Seraph's Fix: 'the_type' only takes one argument. Thanks Rob! */\
                                              end else if (rotation_to_tile(tile_num(self_obj),tile_num(the_obj)) != self_cur_rot) then begin                       \
                                                 if (anim_busy(self_obj) == false) then begin                                                                       \
                                                    Face_Critter(the_obj, self_obj);                                                                                \
@@ -142,27 +157,28 @@ variable global_temp;
 variable dest_tile;
 variable step_tile;
 #define FAIL_STEP_ACTION                           if (tile_get_next_critter(tile_num_in_direction(self_tile, self_cur_rot, 1), self_elevation, 0) != 0) then begin \
-                                                      simulate_push(tile_num_in_direction(self_tile, self_cur_rot, 1))                                                                                                 \
+                                                      simulate_push(tile_num_in_direction(self_tile, self_cur_rot, 1))                                              \
                                                    end else step_tile := -10;
 //#define FAIL_STEP_ACTION                           step_tile := -5;
-#define move_to_point(the_tile, move_type, x)                                                                                                                                    \
+#define move_to_point(the_tile, move_type, x)                                                                                                                                                   \
                                                    if ((self_tile != the_tile) and (the_tile != 0)) then begin                                                                                  \
                                                       if ((dest_tile == the_tile) and (step_tile < 0)) then begin                                                                               \
                                                          step_tile += 1;                                                                                                                        \
+                                                         ndebug("step_tile: " + step_tile);                                                                                                  \
                                                       end else if (anim_busy(self_obj) == false) then begin                                                                                     \
                                                          dest_tile := the_tile;                                                                                                                 \
                                                          step_tile := the_tile;                                                                                                                 \
                                                          animate_##move_type##_to_tile(step_tile);                                                                                              \
-                                                         debug_msg("move_to_point: self_tile == "+self_tile);                                                                                   \
                                                          while ((anim_busy(self_obj) == false) and (((tile_distance(self_tile, the_tile)) >= (tile_distance(step_tile, the_tile))))) do begin   \
+                                                            ndebug("rot: " + rotation_to_tile(step_tile, self_tile));                                                                        \
                                                             step_tile := tile_num_in_direction(step_tile, rotation_to_tile(step_tile, self_tile), (x % tile_distance(step_tile, self_tile)));   \
-                                                            debug_msg("move_to_point: step_tile == "+step_tile);                                                                                \
+                                                            ndebug("step_var: " + step_tile);                                                                                                \
                                                             animate_##move_type##_to_tile(step_tile);                                                                                           \
                                                          end                                                                                                                                    \
                                                          if (anim_busy(self_obj) == false) then begin                                                                                           \
                                                             FAIL_STEP_ACTION                                                                                                                    \
                                                          end                                                                                                                                    \
-                                                      end else if ((tile_distance(self_tile, the_tile)) < (tile_distance(dest_tile, the_tile))) then begin                                        \
+                                                      end else if ((tile_distance(self_tile, the_tile)) < (tile_distance(dest_tile, the_tile))) then begin                                      \
                                                          reg_anim_clear(self_obj);                                                                                                              \
                                                       end                                                                                                                                       \
                                                    end
@@ -172,6 +188,23 @@ variable step_tile;
 #define anim_run_to_point_rate(the_tile, x)        move_to_point(the_tile, run, x)
 #define anim_run_to_point(the_tile)                anim_run_to_point_rate(the_tile, 1)
 
+// walk/run
+#define self_walk_to_tile(tile)             animate_move_obj_to_tile(self_obj,tile,ANIMATE_WALK)
+#define self_run_to_tile(tile)              animate_move_obj_to_tile(self_obj,tile,ANIMATE_RUN)
+#define self_run_to_tile_force(tile)        animate_move_obj_to_tile(self_obj,tile,ANIMATE_RUN_FORCE)
+#define dude_run_to_tile(tile)              animate_move_obj_to_tile(dude_obj,tile,ANIMATE_RUN)
+// rotate
+#define self_rotation_to_dude               rotation_to_tile(self_tile,dude_tile)
+#define obj_rotate(obj,dir)                 anim(obj,ANIMATE_ROTATION,dir)
+#define dude_rotate(dir)                    obj_rotate(dude_obj,dir)
+#define self_rotate(dir)                    obj_rotate(self_obj,dir)
+#define dude_rotation_to_self               rotation_to_tile(dude_tile,self_tile)
+#define self_look_at_dude                   anim(self_obj,ANIMATE_ROTATION,self_rotation_to_dude)
+// stand
+#define dude_stand                          animate_stand_obj(dude_obj)
+#define self_stand                          animate_stand_obj(self_obj)
+// and whatever
+#define self_set_frame(frame)               anim(self_obj,ANIMATE_SET_FRAME,frame)
 
 // map variables that share the same number throught the maps are listed here
 
@@ -180,7 +213,16 @@ variable step_tile;
 #define critter_weight(x)                   (100 + ((get_critter_stat(x,STAT_gender) == GENDER_MALE) * 50) + (get_critter_stat(x,STAT_st) * 5) - ((get_critter_stat(x,STAT_ag) + get_critter_stat(x,STAT_en))/3))
 #define critter_wearing_armor(x)            (obj_item_subtype(critter_inven_obj(x,INVEN_TYPE_WORN)) == item_type_armor)
 
+// items in hands
+#define get_left_hand(cr)                 critter_inven_obj(cr,INVEN_TYPE_LEFT_HAND)
+#define dude_left_hand                    get_left_hand(dude_obj)
+#define self_left_hand                    get_left_hand(self_obj)
+#define get_right_hand(cr)                critter_inven_obj(cr,INVEN_TYPE_RIGHT_HAND)
+#define dude_right_hand                   get_right_hand(dude_obj)
+#define self_right_hand                   get_right_hand(self_obj)
+
 #define dude_is_stupid                      (dude_iq <= 3)
+#define dude_is_stupid_talk                 (dude_iq + dude_smooth_talker <= 3)
 #define dude_name                           (obj_name(dude_obj))
 #define dude_gender                         (get_critter_stat(dude_obj,STAT_gender))
 #define dude_strength                       (get_critter_stat(dude_obj,STAT_st))
@@ -188,6 +230,7 @@ variable step_tile;
 #define dude_endurance                      (get_critter_stat(dude_obj,STAT_en))
 #define dude_charisma                       (get_critter_stat(dude_obj,STAT_ch))
 #define dude_iq                             (get_critter_stat(dude_obj,STAT_iq))
+#define dude_iq_talk                        (get_critter_stat(dude_obj,STAT_iq) + dude_smooth_talker)
 #define dude_agility                        (get_critter_stat(dude_obj,STAT_ag))
 #define dude_luck                           (get_critter_stat(dude_obj,STAT_lu))
 #ifndef dude_level
@@ -203,6 +246,10 @@ variable step_tile;
 #define dude_is_armed                       critter_is_armed(dude_obj)
 #define dude_wearing_armor                  critter_wearing_armor(dude_obj)
 
+#define get_armor(cr)                       critter_inven_obj(cr,INVEN_TYPE_WORN)
+#define dude_armor                          get_armor(dude_obj)
+#define self_armor                          get_armor(self_obj)
+
 #define dude_has_power_armor                (((obj_is_carrying_obj_pid(dude_obj, PID_POWERED_ARMOR)) +            \
                                               (obj_is_carrying_obj_pid(dude_obj, PID_ADVANCED_POWER_ARMOR)) +     \
                                               (obj_is_carrying_obj_pid(dude_obj, PID_ADVANCED_POWER_ARMOR_MK2)) + \
@@ -212,10 +259,18 @@ variable step_tile;
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_THROWING_KNIFE) or       \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_RIPPER) or               \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_COMBAT_KNIFE) or         \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_SWITCHBLADE) or          \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_SHIV) or                 \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_LIL_JESUS_WEAPON) or     \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_RIGHT_HAND)) == PID_WAKIZASHI_BLADE) or      \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_KNIFE) or                 \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_THROWING_KNIFE) or        \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_RIPPER) or                \
-                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_COMBAT_KNIFE))
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_COMBAT_KNIFE) or          \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_SWITCHBLADE) or           \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_SHIV) or                  \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_LIL_JESUS_WEAPON) or      \
+                                             (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_LEFT_HAND)) == PID_WAKIZASHI_BLADE))
 
 #define dude_wearing_power_armor            ((obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_WORN)) == PID_POWERED_ARMOR) or \
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_WORN)) == PID_ADVANCED_POWER_ARMOR) or \
@@ -235,6 +290,8 @@ variable step_tile;
                                              (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_WORN)) == PID_METAL_ARMOR_MK_II))
 
 #define dude_wearing_vault_suit             COND019(1)
+#define dude_wearing_coc_robe               (obj_pid(critter_inven_obj(dude_obj,INVEN_TYPE_WORN)) == PID_PURPLE_ROBE)
+
 #define dude_has_gambling_skills            ((dude_iq > 3) and (has_skill(dude_obj, SKILL_GAMBLING) >= 25))
 
 #define dude_is_sneaking                    (using_skill(dude_obj,SKILL_SNEAK))
@@ -247,6 +304,11 @@ variable step_tile;
                                              (critter_state(dude_obj) bwand DAM_CRIP_ARM_LEFT)  or \
                                              (critter_state(dude_obj) bwand DAM_CRIP_ARM_RIGHT))
 
+#define get_rads(cr)                        get_critter_stat(cr,STAT_current_rad)
+#define dude_rads                           get_rads(dude_obj)
+#define self_rads                           get_rads(self_obj)
+
+#define get_cur_rot(cr)                     has_trait(TRAIT_OBJECT,cr,OBJECT_CUR_ROT)
 #define dude_cur_rot                        (has_trait(TRAIT_OBJECT,dude_obj,OBJECT_CUR_ROT))
 #define dude_inv_rot                        ((dude_cur_rot + 3)%6)
 #define dude_tile                           (tile_num(dude_obj))
@@ -265,6 +327,7 @@ variable step_tile;
 #define dude_smooth_talker                  (has_trait(TRAIT_PERK,dude_obj,PERK_smooth_talker))
 
 #define dude_caps                           (item_caps_total(dude_obj))
+#define dude_caps_adjust(caps)              item_caps_adjust(dude_obj,caps)
 
 #define dude_has_car                        (global_var(GVAR_PLAYER_GOT_CAR))
 #define dude_is_pornstar                    dude_has_porn_star_rep
@@ -296,15 +359,18 @@ variable step_tile;
                                                 set_global_var(GVAR_PLAYER_MARRIED, spouse_female);                     \
                                              end                                                                        \
                                           end                                                                           \
-                                          debug_msg("set_dude_married")
+                                          ndebug("set_dude_married")
 #define dude_spouse_was_male              (global_var(GVAR_PLAYER_WAS_MARRIED) == spouse_male)
 #define dude_spouse_was_female            (global_var(GVAR_PLAYER_WAS_MARRIED) == spouse_female)
 #define dude_was_married                  (global_var(GVAR_PLAYER_WAS_MARRIED) != 0)
-#define set_dude_was_married              if (dude_is_married == false) then begin                                      \
+#define set_dude_was_married              ndebug("start: set_dude_was_married");                                     \
+                                          if ((dude_is_married) and (dude_was_married == false)) then begin             \
+                                             ndebug("   GVAR_PLAYER_WAS_MARRIED before == " + global_var(GVAR_PLAYER_WAS_MARRIED)); \
                                              set_global_var(GVAR_PLAYER_WAS_MARRIED, global_var(GVAR_PLAYER_MARRIED));  \
+                                             ndebug("   GVAR_PLAYER_WAS_MARRIED after == " + global_var(GVAR_PLAYER_WAS_MARRIED));  \
                                              set_global_var(GVAR_PLAYER_MARRIED, spouse_none);                          \
                                           end                                                                           \
-                                          debug_msg("set_dude_was_married")
+                                          ndebug("finished: set_dude_was_married")
 
 /*********************************************************
  General information dealing with a critter script
@@ -315,6 +381,7 @@ variable step_tile;
                                                end                                              \
                                             end else attack(dude_obj)
 
+// stats
 #define self_name                           (obj_name(self_obj))
 #define self_gender                         (get_critter_stat(self_obj,STAT_gender))
 #define self_strength                       (get_critter_stat(self_obj,STAT_st))
@@ -325,13 +392,36 @@ variable step_tile;
 #define self_agility                        (get_critter_stat(self_obj,STAT_ag))
 #define self_luck                           (get_critter_stat(self_obj,STAT_lu))
 
+// more stats
+#define get_strength(cr)                    get_critter_stat(cr,STAT_st)
+#define get_perception(cr)                  get_critter_stat(cr,STAT_pe)
+#define get_endurance(cr)                   get_critter_stat(cr,STAT_en)
+#define get_charisma(cr)                    get_critter_stat(cr,STAT_ch)
+#define get_iq(cr)                          get_critter_stat(cr,STAT_iq)
+#define get_agility(cr)                     get_critter_stat(cr,STAT_ag)
+#define get_luck(cr)                        get_critter_stat(cr,STAT_lu)
+
+// gender
+#define get_gender(cr)                      get_critter_stat(cr,STAT_gender)
+#define is_male(cr)                         (get_gender(cr) == GENDER_MALE)
+#define is_female(cr)                       (get_gender(cr) == GENDER_FEMALE)
 #define self_is_male                        (self_gender == GENDER_MALE)
 #define self_is_female                      (self_gender == GENDER_FEMALE)
+
 #define self_is_armed                       critter_is_armed(self_obj)
 #define self_wearing_armor                  critter_wearing_armor(self_obj)
 
-#define self_carrying_laser_pistol          ((obj_pid(critter_inven_obj(self_obj,INVEN_TYPE_LEFT_HAND)) == PID_LASER_PISTOL) or \
-                                             (obj_pid(critter_inven_obj(self_obj,INVEN_TYPE_RIGHT_HAND)) == PID_LASER_PISTOL))
+// perks and traits
+#define get_perk(cr,perk)                   has_trait(TRAIT_PERK,cr,perk)
+#define dude_perk(perk)                     get_perk(dude_obj,perk)
+#define self_perk(perk)                     get_perk(self_obj,perk)
+#define get_trait(cr,trait)                 has_trait(TRAIT_TRAIT,cr,trait)
+#define dude_trait(trait)                   get_trait(dude_obj,trait)
+#define self_trait(trait)                   get_trait(self_obj,trait)
+
+#define self_carrying_laser_pistol \
+   ((obj_pid(critter_inven_obj(self_obj,INVEN_TYPE_LEFT_HAND)) == PID_LASER_PISTOL) or \
+   (obj_pid(critter_inven_obj(self_obj,INVEN_TYPE_RIGHT_HAND)) == PID_LASER_PISTOL))
 
 #define self_is_sneaking                    (using_skill(self_obj,SKILL_SNEAK))
 #define self_is_walking                     (art_anim(obj_art_fid(self_obj)) == ANIM_walk)
@@ -341,15 +431,36 @@ variable step_tile;
 #define self_cur_rot                        (has_trait(TRAIT_OBJECT,self_obj,OBJECT_CUR_ROT))
 #define self_inv_rot                        ((self_cur_rot + 3)%6)
 #define self_tile                           (tile_num(self_obj))
+#define source_tile                         tile_num(source_obj)
 #define self_elevation                      (elevation(self_obj))
 
 #define self_pid                            (obj_pid(self_obj))
-#define self_team                           has_trait(TRAIT_OBJECT,self_obj,OBJECT_TEAM_NUM)
-#define self_ai                             has_trait(TRAIT_OBJECT,self_obj,OBJECT_AI_PACKET)
-#define self_visible                        obj_is_visible_flag(self_obj)
 
+// team
+#define self_team                           has_trait(TRAIT_OBJECT,self_obj,OBJECT_TEAM_NUM)
+#define get_team(cr)                        has_trait(TRAIT_OBJECT,cr,OBJECT_TEAM_NUM)
+#define set_team(cr,team)                   critter_add_trait(cr,TRAIT_OBJECT,OBJECT_TEAM_NUM,team)
+#define set_self_team(team)                 set_team(self_obj,team)
+
+// ai
+#define self_ai                             has_trait(TRAIT_OBJECT,self_obj,OBJECT_AI_PACKET)
+#define get_ai(cr)                          has_trait(TRAIT_OBJECT,cr,OBJECT_AI_PACKET)
+#define set_ai(cr,ai)                       critter_add_trait(cr,TRAIT_OBJECT,OBJECT_AI_PACKET,ai)
+#define set_self_ai(ai)                     set_ai(self_obj,ai)
+
+// visibility
+#define self_visible                        obj_is_visible_flag(self_obj)
+#define set_obj_invisible(cr)               set_obj_visibility(cr,1)
+#define set_obj_visible(cr)                 set_obj_visibility(cr,0)
+#define set_self_invisible                  set_obj_visibility(self_obj, true)
+#define set_self_visible                    set_obj_visibility(self_obj, false)
+#define is_visible(cr)                      has_trait(TRAIT_OBJECT,cr,OBJECT_VISIBILITY) // aka obj_is_visible_flag(x)
+
+// hp
 #define self_cur_hits                       (get_critter_stat(self_obj,STAT_current_hp))
 #define self_max_hits                       (get_critter_stat(self_obj,STAT_max_hp))
+#define get_cur_hits(cr)                    get_critter_stat(cr,STAT_current_hp)
+#define get_max_hits(cr)                    get_critter_stat(cr,STAT_max_hp)
 
 #define self_mental_block                   (has_trait(TRAIT_PERK,self_obj,PERK_mental_block))
 #define self_presence                       (has_trait(TRAIT_PERK,self_obj,PERK_presence))
@@ -357,21 +468,52 @@ variable step_tile;
 #define self_fortune_finder                 (has_trait(TRAIT_PERK,self_obj,PERK_fortune_finder))
 
 #define self_caps                           (item_caps_total(self_obj))
+#define self_caps_adjust(caps)              item_caps_adjust(self_obj,caps)
+
 #define self_fid                            (obj_art_fid(self_obj))
 
 #define skill_success(x,y,z)                (is_success(roll_vs_skill(x,y,z)))
 #define stat_success(x,y,z)                 (is_success(do_check(x,y,z)))
 
+/**
+ * Like `roll_vs_skill`, but for stat roll checks.
+ * Because `do_check` can't generate criticals.
+ * Returns one of the ROLL_* constants, can be used in `is_critical`.
+ * Average luck of 5 provides DnD-like 1/20 chance to upgrade success to critical.
+ * For failures, engine doesn't use mods, we follow suit.
+ * Maybe Jinxed should work here too.
+ * @arg {ObjPtr} who Critter
+ * @arg {int} stat STAT_*
+ * @arg {int} mod Difficulty mod
+ * @ret {int}
+ */
+procedure roll_vs_stat(variable who, variable stat, variable mod) begin
+   variable rnd = random(1, 100);
+   variable success = is_success(do_check(who, stat, mod));
+   // success
+   if success then begin
+       // critical
+       if (rnd + (get_critter_stat(who, STAT_lu) - 5)) > 95 then return ROLL_CRITICAL_SUCCESS;
+       else return ROLL_SUCCESS;
+   end else begin // failure
+     // critical
+     if rnd > 95 then return ROLL_CRITICAL_FAILURE;
+   end
+   return ROLL_FAILURE;
+end
+
 #define self_can_see_dude                   obj_can_see_obj(self_obj,dude_obj)
+#define self_can_hear_dude                  obj_can_hear_obj(self_obj,dude_obj)
 #define self_distance_from_dude             tile_distance(self_tile, dude_tile)
 #define self_is_high                        drug_influence(self_obj)
 
 #define self_item(x)                        obj_carrying_pid_obj(self_obj, x)
 #define self_item_count(x)                  obj_is_carrying_obj_pid(self_obj, x)
-
+#define get_item(cr,pid)                    obj_carrying_pid_obj(cr,pid)
+#define get_item_count(cr,pid)              obj_is_carrying_obj_pid(cr,pid)
 
 // some timer event macros
-#define check_set_obj_visiblility(the_obj, x)      if (obj_is_visible_flag(the_obj) == x) then set_obj_visibility(the_obj, x)
+#define check_set_obj_visiblility(the_obj, x)       if (obj_is_visible_flag(the_obj) == x) then set_obj_visibility(the_obj, x)
 
 #define flush_add_timer_event(obj, time, param)    rm_fixed_timer_event(obj, param);               \
                                                    add_timer_event(obj, time, param)
@@ -421,7 +563,9 @@ variable step_tile;
 /***************************************************************
 ****************  Dialogue Information   ***********************
 ***************************************************************/
-#define floater(x)              float_msg(self_obj, message_str(NAME,x), FLOAT_COLOR_NORMAL)
+#ifndef floater
+   #define floater(x)           float_msg(self_obj, message_str(NAME,x), FLOAT_COLOR_NORMAL)
+#endif
 #define floater_rand(x,y)       floater(random(x,y))
 
 #define dude_floater(x)         float_msg(dude_obj, message_str(NAME,x), FLOAT_COLOR_NORMAL)
@@ -441,12 +585,12 @@ variable forced_node;
                                                          in_dialog := false;                       \
                                                       end else call x
 
-#define force_dialog_start(the_node)            debug_msg("force_dialog_start("+forced_node+"): "+self_name);  \
+#define force_dialog_start(the_node)            ndebug("force_dialog_start("+forced_node+"): "+self_name);  \
                                                       forced_node := the_node;                                    \
                                                       dialogue_system_enter
 
 #define check_forced_dialog                           if (forced_node != 0) then begin          \
-                                                         debug_msg("calling forced dialog: "+forced_node);\
+                                                         ndebug("calling forced dialog: "+forced_node);\
                                                          start_dialog_at_node(forced_node);     \
                                                          forced_node := 0;                      \
                                                       end
@@ -558,14 +702,6 @@ FLOAT_MSG_BLUE
 #define trunc(x)                (x * -(x<1))
 
 /******************************************************************
- General commands getting information about a critter
-******************************************************************/
-#define critter_is_male         (get_critter_stat(self_obj,STAT_gender) == GENDER_MALE)
-#define critter_is_female       (get_critter_stat(self_obj,STAT_gender) == GENDER_FEMALE)
-/*#define critter_is_armed        (((obj_item_subtype(critter_inven_obj(self_obj,INVEN_TYPE_RIGHT_HAND))) == item_type_weapon)  \
-                                or ((obj_item_subtype(critter_inven_obj(self_obj,INVEN_TYPE_LEFT_HAND))) == item_type_weapon))
-*/
-/******************************************************************
  General commands setting and getting the map exit
 ******************************************************************/
 // note set either exit or next to 0 for invalid
@@ -666,12 +802,12 @@ FLOAT_MSG_BLUE
 #define vault_fake_13B_visit                (town_known(AREA_FAKE_VAULT_13B) == MARK_STATE_VISITED)
 
 #define mark_on_map(x)                      if (town_known(x) == MARK_STATE_UNKNOWN) then begin          \
-                                               debug_msg("  mark_on_map("+x+")");                        \
+                                               ndebug("  mark_on_map("+x+")");                        \
                                                mark_area_known(MARK_TYPE_TOWN, x, MARK_STATE_KNOWN);     \
                                             end
 
 #define unmark_on_map(x)                    if (town_known(x) != MARK_STATE_UNKNOWN) then begin          \
-                                               debug_msg(" unmark_on_map("+x+")");                       \
+                                               ndebug(" unmark_on_map("+x+")");                       \
                                                mark_area_known(MARK_TYPE_TOWN, x, MARK_STATE_UNKNOWN);   \
                                             end
 
@@ -716,7 +852,7 @@ FLOAT_MSG_BLUE
 #define max_stomach_size               (100 + (2 * (dude_endurance - 10)))
 #define dude_stomach_amt               (global_var(GVAR_DUDE_STOMACH))
 #define dude_can_eat_food(amt)         ((dude_stomach_amt + amt) <= max_stomach_size)
-#define dude_eat_food(amt)             inc_global_var(GVAR_DUDE_STOMACH, amt);                             \
+#define dude_eat_food(amt)             inc_global_var_amt(GVAR_DUDE_STOMACH, amt); /* Seraph's Fix: changed 'inc_global_var' to inc_global_var_amt */\
                                        if (global_var(GVAR_DUDE_STOMACH) < 0) then                         \
                                           set_global_var(GVAR_DUDE_STOMACH,0);                             \
                                        else if (global_var(GVAR_DUDE_STOMACH) > max_stomach_size) then     \
@@ -771,7 +907,7 @@ variable removed_qty;
 #define remove_armor(who_obj)                                                                            \
             if (critter_wearing_armor(who_obj)) then begin                                               \
                restock_obj := critter_inven_obj(who_obj,INVEN_TYPE_WORN);                                \
-               debug_msg("armour pid == "+obj_pid(restock_obj));                                         \
+               ndebug("armour pid == "+obj_pid(restock_obj));                                         \
                rm_obj_from_inven(who_obj, restock_obj);                                                  \
                add_obj_to_inven(who_obj, restock_obj);                                                   \
             end
@@ -830,7 +966,7 @@ variable removed_qty;
            if (obj_is_carrying_obj_pid(who_obj, weapon_pid)) then begin                      \
               wield_obj_critter(who_obj, obj_carrying_pid_obj(who_obj, weapon_pid));         \
            end else begin                                                                    \
-              debug_msg("NOT ARMING THE WEAPON!!!");                                         \
+              ndebug("NOT ARMING THE WEAPON!!!");                                            \
            end                                                                               \
         end                                                                                  \
         if (ammo_pid != 0) then begin                                                        \
@@ -931,6 +1067,7 @@ variable removed_qty;
 // is_sex_god is temporary for when the player gets the sex perk ***
 #define is_sex_god               ((global_var(GVAR_PLAYER_SEX_LEVEL)>=100) or (dude_has_porn_star_rep))
 #define have_sex_time_obj(x)     (((get_critter_stat(x,STAT_en)) * random(4,8)) * ONE_GAME_MINUTE)
+#define have_quickie_time_obj(x) (((get_critter_stat(x,STAT_en)) * random(2,4)) * ONE_GAME_MINUTE)
 #define have_sex_time            have_sex_time_obj(dude_obj)
 #define advance_sex_time         game_time_advance(have_sex_time)
 // these are to be compared to sex_rating
@@ -950,13 +1087,16 @@ variable removed_qty;
 #define dude_sex_rating          obj_sex_rating(dude_obj)
 #define self_sex_rating          obj_sex_rating(self_obj)
 #define up_sex_status_amt(x)     inc_global_var_amt(GVAR_PLAYER_SEX_LEVEL, dude_sex_rating * x);   \
-                                 if (global_var(GVAR_SEX_COUNTER) >= 9) then begin                 \
-                                    set_global_var(GVAR_SEXPERT, 1);                               \
-                                 end                                                               \
-                                 if (dude_sex_rating >= sex_rating_great) then begin               \
+                                 inc_global_var_amt(GVAR_SEX_COUNTER, x);                          \
+                                 if (global_var(GVAR_SEX_COUNTER) >= 10) then begin                \
                                     set_global_var(GVAR_GIGALO, 1);                                \
                                  end                                                               \
-                                 inc_global_var_amt(GVAR_SEX_COUNTER, x)
+                                 if (dude_sex_rating >= sex_rating_great) then begin               \
+                                    set_global_var(GVAR_SEXPERT, 1);                               \
+                                 end                                                               \
+                                 if (global_var(GVAR_DUDE_VIRGIN) == 1) then                       \
+                                    set_global_var(GVAR_DUDE_VIRGIN,0)
+
 #define up_sex_status            up_sex_status_amt(1)
 #define do_default_sex           advance_sex_time;    \
                                  up_sex_status
@@ -1090,11 +1230,11 @@ variable removed_qty;
 #define set_is_click                                  set_lvar_bit_off(LVAR_Flags, is_float_bit)
 #define create_out_of_business(tile, elev, pid)                                                                                                                       \
          if ((tile_contains_pid_obj(tile, elev, PID_OUT_OF_BUSINESS_NORTH) == 0) and (tile_contains_pid_obj(tile, elev, PID_OUT_OF_BUSINESS_EAST) == 0)) then begin   \
-            global_temp := create_object_sid(pid, 0, 0, SCRIPT_ZICLOSED);                                                                                                \
-            set_obj_visibility(global_temp,true);                                                                                                                        \
-            move_to(global_temp, tile, elev);                                                                                                                            \
+            global_temp := create_object_sid(pid, 0, 0, SCRIPT_ZICLOSED);                                                                                             \
+            set_obj_visibility(global_temp,true);                                                                                                                     \
+            move_to(global_temp, tile, elev);                                                                                                                         \
          end                                                                                                                                                          \
-         debug_msg("created out of business @ tile == " + tile + " / elevation == " + elev)
+         ndebug("created out of business @ tile == " + tile + " / elevation == " + elev)
 #define create_north_out_of_business(x, e)            create_out_of_business(x, e, PID_OUT_OF_BUSINESS_NORTH)
 #define create_east_out_of_business(x, e)             create_out_of_business(x, e, PID_OUT_OF_BUSINESS_EAST)
 
@@ -1147,11 +1287,11 @@ variable removed_qty;
                                                             dec_global_var_amt(GVAR_WRIGHT_FAMILY_COUNTER,x);                    \
                                                          end                                                                     \
                                                       end                                                                        \
-                                                      debug_msg("\nfamily standings: ");                                         \
-                                                      debug_msg("\n  Salvatore == "+global_var(GVAR_SALVATORE_FAMILY_COUNTER));  \
-                                                      debug_msg("\n  Bishop == "+global_var(GVAR_BISHOP_FAMILY_COUNTER));        \
-                                                      debug_msg("\n  Mordino == "+global_var(GVAR_MORDINO_FAMILY_COUNTER));      \
-                                                      debug_msg("\n  Wright == "+global_var(GVAR_WRIGHT_FAMILY_COUNTER))
+                                                      ndebug("\nfamily standings: ");                                         \
+                                                      ndebug("\n  Salvatore == "+global_var(GVAR_SALVATORE_FAMILY_COUNTER));  \
+                                                      ndebug("\n  Bishop == "+global_var(GVAR_BISHOP_FAMILY_COUNTER));        \
+                                                      ndebug("\n  Mordino == "+global_var(GVAR_MORDINO_FAMILY_COUNTER));      \
+                                                      ndebug("\n  Wright == "+global_var(GVAR_WRIGHT_FAMILY_COUNTER))
 #define family_crushed(x)                             (((x == family_salvatore) and (global_var(GVAR_SALVATORE_FAMILY_COUNTER) <= -1)) or \
                                                        ((x == family_bishop) and (global_var(GVAR_BISHOP_FAMILY_COUNTER) <= -1)) or       \
                                                        ((x == family_mordino) and (global_var(GVAR_MORDINO_FAMILY_COUNTER) <= -1)) or     \
@@ -1184,6 +1324,10 @@ variable removed_qty;
 #define raiders_bonenose_bit                          bit_4
 #define raiders_alarm_bit                             bit_5
 #define know_raiders_trap_bit                         bit_6
+//begin added by killap
+#define raiders_scout_left_bit                        bit_7
+//end added by killap
+
 
 #define raiders_dead                                  gvar_bit(GVAR_RAIDERS_FLAGS, raiders_dead_bit)
 #define set_raiders_dead                              set_gvar_bit_on(GVAR_RAIDERS_FLAGS, raiders_dead_bit)
@@ -1199,6 +1343,18 @@ variable removed_qty;
 #define know_raiders_trap                             gvar_bit(GVAR_RAIDERS_FLAGS, know_raiders_trap_bit)
 #define set_know_raiders_trap                         set_gvar_bit_on(GVAR_RAIDERS_FLAGS, know_raiders_trap_bit)
 #define off_know_raiders_trap                         set_gvar_bit_off(GVAR_RAIDERS_FLAGS, know_raiders_trap_bit)
+//added by killap
+#define raiders_scout_left                            gvar_bit(GVAR_RAIDERS_FLAGS, raiders_scout_left_bit)
+#define set_raiders_scout_left                        set_gvar_bit_on(GVAR_RAIDERS_FLAGS, raiders_scout_left_bit)
+//end added by killap
 // raiders macros end
+
+//see the file for disambiguation
+#include "command_extra.h"
+
+#define prone_to_gas(x) ( \
+  not protected_from_gas(x) and (critter_kill_type(x) != KILL_TYPE_robot_kills) \
+)
+#define can_be_gas_poisoned(x) ((x == dude_obj) and not (protected_from_gas(x)))
 
 #endif // COMMAND_H
