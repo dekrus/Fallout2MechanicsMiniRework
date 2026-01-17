@@ -52,7 +52,7 @@
 - [Stats Recalculation](#stats-recalculation)
 
 ### Secondary Attack
-**(Requires set in ddraw.ini: AllowUnsafeScripting=2 for sfall 4.4+ or AllowUnsafeScripting=1 for sfall 5.1+)**
+**(Requires set in ddraw.ini: AllowUnsafeScripting=2 for sfall 4.4+ or AllowUnsafeScripting=1 for sfall 5.1+)** 
 This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapons.
 - Alternate Fire activates with an Aimed Shot to the torso, or can be set to always be active (configurable).
 
@@ -75,7 +75,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Critical chance calculated separately per target.
 - Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
 
-**Gauss Weapons:**
+**Gauss Weapons:**  
 ![Secondary-Attack](images/GAUSS.gif)  
 - An armor-penetrating attack that ignores 80% of a target's armor.
 - Can hit multiple targets in a straight line; maximum penetration depends on:
@@ -92,18 +92,18 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Critical chance calculated separately for each target.
 - Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
 
-**Pistols & SMGs:**
+**Pistols & SMGs:** 
 ![Secondary-Attack](images/PISTOLS_SMGS.gif)  
 - Non-energy Pistols and SMGs allow you to fire two single shots to the body of the same target for the cost of one aimed shot.
 - Second shot hit chance reduced by (15 + Wpn STR req * 3), but cannot be lower than 1/2 of the initial hit chance.
 
-**Shotguns:**
+**Shotguns:** 
 ![Secondary-Attack](images/SHOTGUN.gif)
 - Aimed shots to the body knock back enemies and can knock them down.
 - Affects targets closer than 10 hexes / half the weapon's maximum range.
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
 
-**Assault Rifles:**
+**Assault Rifles:** 
 ![Secondary-Attack](images/AIMED_BURST.gif)  
 - Added aimed burst fire mode for assault rifles.
 - Bullet spread calculated based on distance, skill, SPECIAL, and perks.
