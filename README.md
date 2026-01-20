@@ -54,7 +54,7 @@
 ### Secondary Attack
 **(Requires set in ddraw.ini: AllowUnsafeScripting=2 for sfall 4.4+ or AllowUnsafeScripting=1 for sfall 5.1+)**  
 This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapons.
-- Alternate Fire activates with an Aimed Shot to the torso, or can be set to always be active (configurable).
+- All of the Alternate Fire activates with an Aimed Shot to the torso, or can be set to always be active (configurable).
 
 **Laser Weapons:** ![Secondary-Attack](images/LASER_SLOW.gif)  
 - Damages all creatures along the projectile's path.
