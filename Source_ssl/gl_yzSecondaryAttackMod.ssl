@@ -3213,11 +3213,11 @@ procedure exec_dmg_script(variable target, variable target_sid, variable attacke
       if attacker > 0 then begin
          target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
          attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
-
+         target_in_party = is_in_array(target, party_member_list(1));
          if attacker_team != target_team then
             set_obj_script_objects(target_sid, attacker, atk_weapon);
-         else if dmg_value > 0 andAlso target_team == real_orig_target_team then begin
-            target_in_party = is_in_array(target, party_member_list(1));
+         else if dmg_value > 0 andAlso (target_team == real_orig_target_team orElse not(target_in_party)) then begin
+
             target_cur_hp = get_object_data(target, OBJ_DATA_CUR_HP);
             target_max_hp = get_critter_stat(target, STAT_max_hp);
             attacker_ch = get_critter_stat(attacker, STAT_ch);
