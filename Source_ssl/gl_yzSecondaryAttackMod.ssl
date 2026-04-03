@@ -36,7 +36,7 @@
 #define FLAGS_GHOST_OBJECT (0xA000101D) //OBJECT_NO_SAVE,FLAG_NOBLOCK,FLAG_SHOOTTHRU,OBJECT_HIDDEN,FLAG_FLAT,FLAG_LIGHTTHRU,FLAG_NOHIGHLIGHT
 #define FLAGS_OBJECT_INERT (0x80000014) //OBJECT_NO_SAVE,FLAG_NOBLOCK,FLAG_SHOOTTHRU
 #define FLAGS_OBJECT_PROJECTILE (0xA0000035) //OBJECT_HIDDEN,OBJECT_NO_SAVE,FLAG_NOBLOCK,FLAG_LIGHTING,FLAG_LIGHTTHRU,FLAG_SHOOTTHRU
-#define FLAGS_OBJECT_PROJECTILE_visible (0xA0000034) //OBJECT_HIDDEN,OBJECT_NO_SAVE,FLAG_NOBLOCK,FLAG_LIGHTING,FLAG_LIGHTTHRU,FLAG_SHOOTTHRU
+#define FLAGS_OBJECT_PROJECTILE_visible (0xA0000034) //OBJECT_NO_SAVE,FLAG_NOBLOCK,FLAG_LIGHTING,FLAG_LIGHTTHRU,FLAG_SHOOTTHRU
 
 #define MASK_OBJ_REMOVE_DEAD_FLAGS (0xFFFEFFE7)
 
@@ -98,7 +98,7 @@
 #define RIGHT_HAND             1
 #define base_alt_ammo_cost     1
 #define set_frame_no_refresh(obj,frame) call_offset_v3(0x48AA84, obj, frame, 0)
-#define is_alt_fire_aimed(attacker, target, target_bodypart) (target_bodypart == BODY_HIT_TORSO orElse (attack_is_aimed andAlso obj_type(real_orig_target) != OBJ_TYPE_CRITTER andAlso attacker == dude_obj) orElse ((attacker != dude_obj) andAlso (target_bodypart == BODY_UNCALLED orElse target_bodypart < 0)))
+#define is_alt_fire_aimed(attacker, target_bodypart) (gFastShotAimedActivated > 0 orElse target_bodypart == BODY_HIT_TORSO orElse (attacker == dude_obj andAlso attack_is_aimed andAlso obj_type(real_orig_target) != OBJ_TYPE_CRITTER) orElse ((attacker != dude_obj) andAlso (target_bodypart == BODY_UNCALLED orElse target_bodypart < 0)))
 #define PROTO_CR_BASE_DT(damage_type) (104 + (4 * damage_type))
 #define PROTO_CR_BONUS_DT(damage_type) (244 + (4 * damage_type))
 #define PROTO_CR_BASE_DR(damage_type) (132 + (4 * damage_type))
@@ -121,6 +121,7 @@
 #define DMG_TYPE_FLAG_BURST 16
 #define DMG_TYPE_FLAG_BURST_HEAVY 32
 #define DMG_FLAG_MULT 100000
+#define OUTLINE_GREEN_PROJ   0xC501
 #define OUTLINE_BLINKING_CYAN 0xEBF0
 #define OUTLINE_BLINKING_ORANGE 0xEE48
 #define combat_speed_mem_adr 0x66399C
@@ -147,7 +148,12 @@
 
 #define reg_anim_heal_critter(critter_obj, amount, delay) call_offset_v4(0x414E98, critter_obj, amount, 0x42D1A4, delay)
 
-#define reg_anim_toggle_outline(critter_obj, outline_bool, delay) call_offset_v3(0x4153A8, critter_obj, outline_bool, delay)
+#define reg_anim_toggle_outline(critter_obj, outline_bool, delay) \
+   if sfall_515 <= 0 then \
+      call_offset_v3(0x4153A8, critter_obj, outline_bool, delay); \
+   else \
+      sfall_func3("reg_anim_toggle_outline", critter_obj, outline_bool, delay)
+
 #define tile_num_beyond(start_tile, next_tile, range) call_offset_r3(0x4B1B84, start_tile, next_tile, range)
 #define FLAG_OBJECT_HIDDEN 0x01
 #define hide_obj_without_flag(obj) call_offset_v2(0x48AE68, obj, read_int(0x51964C))
@@ -183,6 +189,8 @@
 #define alt_fire_pulse 8
 #define alt_fire_aimed_burst 16
 #define alt_fire_double_tap 32
+#define alt_fire_shotgun_knockback 64
+
 
 #define InterfaceBarEnabled_adr 0x518F10
 
@@ -264,6 +272,7 @@ variable sfall_ver_maj;
 variable ver_build;
 variable ver_minor;
 variable sfall_510;
+variable sfall_515;
 variable YAAM_active;
 variable COMBAT_SPEED_MAX;
 
@@ -273,6 +282,7 @@ variable LaserSecondaryAttackMod;
 variable LaserHitChance;
 variable LaserForced;
 variable LaserCustomPids;
+variable LaserDisabledPids;
 variable LaserAmmoBaseCost;
 variable LaserFID;
 variable LaserFID_expl;
@@ -293,6 +303,7 @@ variable ElecSameTargets;
 //variable ElecRNDTargets;
 variable ElecCustomPids;
 variable ElecLastMaxRange;
+variable PulseDisabledPids;
 variable laser_new_main_target;
 variable laser_new_target_npc;
 variable GaussSecondaryAttackMod;
@@ -302,20 +313,27 @@ variable GaussDamageReductionPerTarget;
 variable GaussDamageReduction;
 variable GaussForced;
 variable GaussCustomPids;
+variable GaussDisabledPids;
 variable PlasmaSecondaryAttackMod;
 variable PlasmaBlastRadius;
 variable PlasmaDamageReductionPerTile;
 variable PlasmaForced;
 variable PlasmaCustomPids;
+variable PlasmaDisabledPids;
 variable ShotgunSecondaryAttackMod;
 variable ShotgunKnockbackMin;
 variable ShotgunKnockbackMax;
 variable ShotgunForced;
+variable ShotgunKnockbackDisabledPids;
+variable ShotgunKnockbackCustomPids;
 variable PistolSecondaryAttackMod;
 variable PistolDoubleTapForced;
+variable DoubleTapCustomPids;
+variable DoubleTapDisabledPids;
 variable PistolDoubleTapToHitPenalty;
 variable AimedBurstMod;
 variable AimedBurstModAnyWeapon;
+variable AimedBurstDisabledPids;
 variable AllowSniperPerk;
 variable show_float_dmg;
 variable Sonora;
@@ -396,9 +414,14 @@ variable weapon_point_max_frames;
 //variable weapon_sfx_hit;
 variable move_and_wait = 1;
 variable dmg_was_set_to_zero;
+variable gLastAtkType;
 variable gCurAtkType;
 variable gLastCritterCalledTarget;
 variable gLastCritterCalledTargetTorsoName;
+variable gAimedFastShotTweakEnabled;
+variable gFastShotCanUseMore;
+variable gFastShotAimedAllowed;
+variable gFastShotAimedActivated;
 
 variable ammo_mult;
 variable ammo_div;
@@ -436,7 +459,7 @@ variable gAimedBurstTarget;
 variable critter_injure_ORIG;
 variable critter_injure_modded;
 variable last_combat_speed = -1;
-variable last_ap_cost_aimed;
+
 variable InterfaceBarWindow;
 variable SoundEffectsEnabled = -1;
 variable PlayerSpeedup1;
@@ -1225,6 +1248,7 @@ procedure calc_dmg_laser_main_target(variable attacker, variable target, variabl
    if dmg < min_dmg then begin
       dmg = 0;
    end
+
    return dmg;
 end
 
@@ -3176,11 +3200,43 @@ end
 
 procedure exec_dmg_script(variable target, variable target_sid, variable attacker, variable dmg_value, variable real_orig_target_team, variable atk_weapon) begin
    variable target_team;
+   variable attacker_team;
+   variable target_max_hp;
+   variable target_cur_hp;
+   variable attacker_ch;
+   variable target_in_party;
+   variable ff_agression;
+   variable chance;
+
    if target_sid > 0 then begin
-      target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
       set_obj_script_fixed_value(target_sid, dmg_value);
-      if attacker > 0 andAlso ((target_team == real_orig_target_team) orElse dmg_value > 30 orElse not(random(0,4))) then begin
-         set_obj_script_objects(target_sid, attacker, atk_weapon);
+      if attacker > 0 then begin
+         target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+         attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
+
+         if attacker_team != target_team then
+            set_obj_script_objects(target_sid, attacker, atk_weapon);
+         else if dmg_value > 0 andAlso target_team == real_orig_target_team then begin
+            target_in_party = is_in_array(target, party_member_list(1));
+            target_cur_hp = get_object_data(target, OBJ_DATA_CUR_HP);
+            target_max_hp = get_critter_stat(target, STAT_max_hp);
+            attacker_ch = get_critter_stat(attacker, STAT_ch);
+
+            if ((dmg_value > target_max_hp / 5) orElse (target_cur_hp <= 10 + target_max_hp / 2)) then begin
+               if target_in_party then
+                  chance = 37 - (attacker_ch - 1) * 35 / 9;
+               else
+                  chance = 90 - (attacker_ch - 1) * 65 / 9;
+
+               if chance > 0 then
+                  ff_agression = random(0, 100) < chance;
+            end
+         end
+
+         if ff_agression then
+            set_obj_script_objects(target_sid, attacker, atk_weapon);
+         else
+            set_obj_script_objects(target_sid, 0, 0);
       end
       exec_obj_script_proc(target_sid, damage_proc);
    end
@@ -3945,7 +4001,7 @@ procedure plasma_alt_explosion begin
       reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
       reg_anim_play_sfx(exlposion, sfx, -1);
       reg_anim_animate_reverse(exlposion, ANIM_stand, 0);
-      reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, 2);
+      reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, 3);
       reg_anim_destroy(exlposion);
       reg_anim_end();
 
@@ -4065,12 +4121,13 @@ procedure create_hidden_projectile(variable cur_proj_pid, variable cur_rot, vari
       end else
          set_flags(projectile, FLAGS_OBJECT_PROJECTILE);
 
-      set_outline(projectile, OUTLINE_BLINKING_CYAN);
+      set_object_data(projectile, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
    end
    if gWeaponDamageType == DMG_plasma then begin
       if is_laser > 0 then begin
+         set_object_data(projectile, OBJ_DATA_FID, LaserFID);
          set_flags(projectile, FLAGS_OBJECT_PROJECTILE bwor FLAG_TRANSENERGY);
-         set_outline(projectile, OUTLINE_GREEN_GLOW);
+         set_object_data(projectile, OBJ_DATA_OUTLINE, OUTLINE_GREEN_PROJ);
       end else
          set_flags(projectile, FLAGS_OBJECT_PROJECTILE);
    end
@@ -4078,7 +4135,7 @@ procedure create_hidden_projectile(variable cur_proj_pid, variable cur_rot, vari
       set_flags(projectile, FLAGS_OBJECT_PROJECTILE);
       if is_laser > 0 then begin
          set_object_data(projectile, OBJ_DATA_FID, LaserFID);
-         set_outline(projectile, OUTLINE_BLINKING_ORANGE);
+         set_object_data(projectile, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_ORANGE);
       end
    end
    set_object_data(projectile, OBJ_DATA_ROTATION, cur_rot);
@@ -4162,37 +4219,6 @@ procedure callback_tile_refresh_display begin
    tile_refresh_display;
 end
 
-//procedure get_back_and_forth_tile(variable current_index) begin
-   //variable arr_len = len_array(gPulseTileAttackedArray);
-   //variable next_index;
-   //variable next_tile;
-   //if arr_len <= 1 then
-      //return 0;
-//
-   //next_index = current_index + gPulseBackward;
-//
-   //if next_index < 0 then begin
-      //gPulseBackward = 1;
-      //next_index = 1;
-   //end else if next_index >= arr_len then begin
-      //gPulseBackward = -1;
-      //next_index = arr_len - 2;
-   //end
-//
-   //if next_index < 0 orElse next_index >= arr_len then
-      //return 0;
-//
-   //next_tile = array_key(gPulseTileAttackedArray, next_index);
-//
-   //if next_tile > 0 then begin
-      //gPulseBackwardKey = next_index;
-      //gPulseTileAttackedCount += 1;
-      //return next_tile;
-   //end
-//
-   //return 0;
-//end
-
 procedure get_next_chain_tile(variable cur_tile, variable cur_elevation, variable lof_check_obj) begin
    variable critter;
    variable critter_tile;
@@ -4225,9 +4251,6 @@ procedure get_next_chain_tile(variable cur_tile, variable cur_elevation, variabl
 
    if gPulseTileAttackedCount >= ElecMaxTargets then
       return 0;
-
-   //if gPulseBackward != 0 then return
-      //get_back_and_forth_tile(gPulseBackwardKey);
 
    min_living_dist = 999;
    min_dead_dist = 999;
@@ -4325,10 +4348,10 @@ procedure get_next_chain_tile(variable cur_tile, variable cur_elevation, variabl
 
 
          if min_dead_dist * 2 < min_living_attacked_dist then begin
-            chance_for_attacked = 20; // Минимальный шанс на атакованного живого
+            chance_for_attacked = 20;
          end
          else if min_living_attacked_dist * 2 < min_dead_dist then begin
-            chance_for_attacked = 80; // Максимальный шанс на атакованного живого
+            chance_for_attacked = 80;
          end
          else begin
             chance_for_attacked = 50 + (distance_diff * 10);
@@ -4361,437 +4384,6 @@ procedure get_next_chain_tile(variable cur_tile, variable cur_elevation, variabl
          if temp_distance <= target_min_dist + max_allowed_dist then begin
             set_array(possible_map, temp_critter, tile_num(temp_critter));
             possible_count += 1;
-         end
-      end
-   end
-
-   if possible_count > 0 then begin
-      possible_array = create_array(possible_count * 2, 0);
-      possible_count = 0;
-
-      foreach temp_critter:critter_tile in possible_map begin
-         set_array(possible_array, possible_count * 2, critter_tile);
-         set_array(possible_array, possible_count * 2 + 1, temp_critter);
-         possible_count += 1;
-      end
-
-      selected_index = random(0, possible_count - 1);
-      result_tile = get_array(possible_array, selected_index * 2);
-      critter = get_array(possible_array, selected_index * 2 + 1);
-
-      if get_array(living_map, critter) > 0 then
-         gPulseTileNextDistance = get_array(living_map, critter);
-      else if get_array(living_map_attacked, critter) > 0 then
-         gPulseTileNextDistance = get_array(living_map_attacked, critter);
-      else if get_array(dead_map, critter) > 0 then
-         gPulseTileNextDistance = get_array(dead_map, critter);
-
-      free_array(possible_array);
-   end
-
-   if living_map != 0 then free_array(living_map);
-   if dead_map != 0 then free_array(dead_map);
-   if living_map_attacked != 0 then free_array(living_map_attacked);
-   if possible_map != 0 then free_array(possible_map);
-
-   if result_tile > 0 then begin
-      if ElecSameTargets <= 1 then begin
-         set_array(gPulseTileAttackedArray, result_tile, 1);
-         if ElecSameTargets < 0 then
-            gPulseNextTileCritter = critter;
-      end
-      gPulseTileAttackedCount += 1;
-      return result_tile;
-   end
-   else if ElecSameTargets == 1 then begin
-      arr_len = len_array(gPulseTileAttackedArray);
-      if arr_len > 1 then begin
-         clear_array(gPulseTileAttackedArray);
-         set_array(gPulseTileAttackedArray, cur_tile, 1);
-         return get_next_chain_tile(cur_tile, cur_elevation, lof_check_obj);
-      end
-   end
-
-   return 0;
-end
-
-procedure get_next_chain_tile_ikd(variable cur_tile, variable cur_elevation, variable lof_check_obj) begin
-   variable critter;
-   variable critter_tile;
-   variable distance;
-   variable blocker;
-   variable is_alive;
-   variable radius;
-   variable critters_in_radius;
-   variable result_tile;
-   variable critter_cur_anim;
-   variable living_map;
-   variable dead_map;
-   variable min_living_dist;
-   variable min_dead_dist;
-   variable max_allowed_dist;
-   variable possible_map;
-   variable possible_array;
-   variable possible_count;
-   variable selected_index;
-   variable temp_critter;
-   variable temp_distance;
-   variable arr_len;
-   variable was_attacked;
-   variable living_map_attacked;
-   variable min_living_attacked_dist;
-   variable distance_diff;
-   variable chance_for_attacked;
-   variable target_map; // Новая переменная для выбранного мапа
-   variable target_min_dist; // Новая переменная для минимального расстояния
-
-   if gPulseTileAttackedCount >= ElecMaxTargets then
-      return 0;
-
-   //if gPulseBackward != 0 then return
-      //get_back_and_forth_tile(gPulseBackwardKey);
-
-   min_living_dist = 999;
-   min_dead_dist = 999;
-   min_living_attacked_dist = 999;
-   radius = ElecRadius;
-   critters_in_radius = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_CRITTER);
-
-   foreach critter in critters_in_radius begin
-      if critter <= 0 then
-         continue;
-
-      critter_tile = tile_num(critter);
-      was_attacked = 0;
-
-      if ElecSameTargets <= 1 then begin
-         if get_array(gPulseTileAttackedArray, critter_tile) > 0 then begin
-            if ElecSameTargets>= 1 then
-               was_attacked = 1;
-            else
-               continue;
-         end
-      end
-
-      if not(obj_is_visible_flag(critter)) then
-         continue;
-
-      if critter_tile == cur_tile then
-         continue;
-
-      blocker = get_electricity_path_block(lof_check_obj, critter);
-      if blocker > 0 then
-         continue;
-
-      is_alive = (get_critter_stat(critter, STAT_current_hp) > 0 andAlso
-                  not(is_dead(critter)) andAlso
-                  get_array(death_array, critter) <= 0);
-
-      if is_alive <= 0 and was_attacked then
-         continue;
-
-      distance = tile_distance(cur_tile, critter_tile);
-
-      if is_alive then begin
-         if was_attacked then begin
-            if living_map_attacked == 0 then
-               living_map_attacked = create_array_map;
-
-            set_array(living_map_attacked, critter, distance);
-            if distance < min_living_attacked_dist then
-               min_living_attacked_dist = distance;
-         end
-         else begin
-            if living_map == 0 then
-               living_map = create_array_map;
-
-            set_array(living_map, critter, distance);
-            if distance < min_living_dist then
-               min_living_dist = distance;
-         end
-      end
-      else begin
-         critter_cur_anim = art_anim(obj_art_fid(critter));
-         if critter_cur_anim == ANIM_electrified_to_nothing_sf orElse
-            critter_cur_anim == ANIM_exploded_to_nothing_sf then
-               continue;
-
-         if dead_map == 0 then
-            dead_map = create_array_map;
-
-         set_array(dead_map, critter, distance);
-         if distance < min_dead_dist then
-            min_dead_dist = distance;
-      end
-   end
-
-   free_array(critters_in_radius);
-
-   possible_map = create_array_map;
-   possible_count = 0;
-
-   // Шаг 1: Всегда сначала неатакованные живые
-   if living_map != 0 then begin
-      target_map = living_map;
-      target_min_dist = min_living_dist;
-   end
-   // Шаг 2: Если нет неатакованных живых
-   else if len_array(living_map_attacked) > 0 orElse len_array(dead_map) > 0 then begin
-      // Определяем какой мап использовать
-      if len_array(living_map_attacked) > 0 andAlso len_array(dead_map) > 0 then begin
-         // Оба есть - динамический выбор
-         distance_diff = min_dead_dist - min_living_attacked_dist;
-         chance_for_attacked = 50 + (distance_diff * 10);
-         if chance_for_attacked < 20 then chance_for_attacked = 20;
-
-         if random(1, 100) <= chance_for_attacked then begin
-            target_map = living_map_attacked;
-            target_min_dist = min_living_attacked_dist;
-         end
-         else begin
-            target_map = dead_map;
-            target_min_dist = min_dead_dist;
-         end
-      end
-      else if len_array(living_map_attacked) > 0 then begin
-         // Только атакованные живые
-         target_map = living_map_attacked;
-         target_min_dist = min_living_attacked_dist;
-      end
-      else begin
-         // Только трупы
-         target_map = dead_map;
-         target_min_dist = min_dead_dist;
-      end
-   end
-
-   // Добавляем цели из выбранного мапа
-   if target_map != 0 then begin
-      max_allowed_dist = target_min_dist / 2 + 1;
-
-      foreach temp_critter:temp_distance in target_map begin
-         if temp_distance <= target_min_dist + max_allowed_dist then begin
-            set_array(possible_map, temp_critter, tile_num(temp_critter));
-            possible_count += 1;
-         end
-      end
-   end
-
-   if possible_count > 0 then begin
-      possible_array = create_array(possible_count * 2, 0);
-      possible_count = 0;
-
-      foreach temp_critter:critter_tile in possible_map begin
-         set_array(possible_array, possible_count * 2, critter_tile);
-         set_array(possible_array, possible_count * 2 + 1, temp_critter);
-         possible_count += 1;
-      end
-
-      selected_index = random(0, possible_count - 1);
-      result_tile = get_array(possible_array, selected_index * 2);
-      critter = get_array(possible_array, selected_index * 2 + 1);
-
-      if get_array(living_map, critter) > 0 then
-         gPulseTileNextDistance = get_array(living_map, critter);
-      else if get_array(living_map_attacked, critter) > 0 then
-         gPulseTileNextDistance = get_array(living_map_attacked, critter);
-      else if get_array(dead_map, critter) > 0 then
-         gPulseTileNextDistance = get_array(dead_map, critter);
-
-      free_array(possible_array);
-   end
-
-   if living_map != 0 then free_array(living_map);
-   if dead_map != 0 then free_array(dead_map);
-   if living_map_attacked != 0 then free_array(living_map_attacked);
-   if possible_map != 0 then free_array(possible_map);
-
-   if result_tile > 0 then begin
-      if ElecSameTargets <= 1 then begin
-         set_array(gPulseTileAttackedArray, result_tile, 1);
-         if ElecSameTargets < 0 then
-            gPulseNextTileCritter = critter;
-      end
-      gPulseTileAttackedCount += 1;
-      return result_tile;
-   end
-   else if ElecSameTargets == 1 then begin
-      arr_len = len_array(gPulseTileAttackedArray);
-      if arr_len > 1 then begin
-         clear_array(gPulseTileAttackedArray);
-         set_array(gPulseTileAttackedArray, cur_tile, 1);
-         return get_next_chain_tile(cur_tile, cur_elevation, lof_check_obj);
-      end
-   end
-
-   return 0;
-end
-
-procedure get_next_chain_tile_old2(variable cur_tile, variable cur_elevation, variable lof_check_obj) begin
-   variable critter;
-   variable critter_tile;
-   variable distance;
-   variable blocker;
-   variable is_alive;
-   variable radius;
-   variable critters_in_radius;
-   variable result_tile;
-   variable critter_cur_anim;
-   variable living_map;
-   variable dead_map;
-   variable min_living_dist;
-   variable min_dead_dist;
-   variable max_allowed_dist;
-   variable possible_map;
-   variable possible_array;
-   variable possible_count;
-   variable selected_index;
-   variable temp_critter;
-   variable temp_distance;
-   variable arr_len;
-   variable was_attacked;
-   variable living_map_attacked;
-   variable min_living_attacked_dist;
-   variable distance_diff;
-   variable chance_for_attacked;
-
-   if gPulseTileAttackedCount >= ElecMaxTargets then
-      return 0;
-
-   //if gPulseBackward != 0 then return
-   //get_back_and_forth_tile(gPulseBackwardKey);
-
-   min_living_dist = 999;
-   min_dead_dist = 999;
-   min_living_attacked_dist = 999;
-   radius = ElecRadius;
-   critters_in_radius = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_CRITTER);
-
-   foreach critter in critters_in_radius begin
-      if critter <= 0 then
-         continue;
-
-      critter_tile = tile_num(critter);
-      was_attacked = 0;
-
-      if ElecSameTargets <= 1 then begin
-         if get_array(gPulseTileAttackedArray, critter_tile) > 0 then
-            was_attacked = 1;
-      end
-
-      if not(obj_is_visible_flag(critter)) then
-         continue;
-
-      if critter_tile == cur_tile then
-         continue;
-
-      blocker = get_electricity_path_block(lof_check_obj, critter);
-      if blocker > 0 then
-         continue;
-
-      is_alive = (get_critter_stat(critter, STAT_current_hp) > 0 andAlso
-                  not(is_dead(critter)) andAlso
-                  get_array(death_array, critter) <= 0);
-
-      if is_alive <= 0 and was_attacked then
-         continue;
-
-      distance = tile_distance(cur_tile, critter_tile);
-
-      if is_alive then begin
-         if was_attacked then begin
-            if living_map_attacked == 0 then
-               living_map_attacked = create_array_map;
-
-            set_array(living_map_attacked, critter, distance);
-            if distance < min_living_attacked_dist then
-               min_living_attacked_dist = distance;
-         end
-         else begin
-            if living_map == 0 then
-               living_map = create_array_map;
-
-            set_array(living_map, critter, distance);
-            if distance < min_living_dist then
-               min_living_dist = distance;
-         end
-      end
-      else begin
-         critter_cur_anim = art_anim(obj_art_fid(critter));
-         if critter_cur_anim == ANIM_electrified_to_nothing_sf orElse
-            critter_cur_anim == ANIM_exploded_to_nothing_sf then
-               continue;
-
-         if dead_map == 0 then
-            dead_map = create_array_map;
-
-         set_array(dead_map, critter, distance);
-         if distance < min_dead_dist then
-            min_dead_dist = distance;
-      end
-   end
-
-   free_array(critters_in_radius);
-
-   possible_map = create_array_map;
-   possible_count = 0;
-
-   if living_map != 0 then begin
-      max_allowed_dist = min_living_dist / 2 + 1;
-
-      foreach temp_critter:temp_distance in living_map begin
-         if temp_distance <= min_living_dist + max_allowed_dist then begin
-            set_array(possible_map, temp_critter, tile_num(temp_critter));
-            possible_count += 1;
-         end
-      end
-   end
-
-   if possible_count == 0 then begin
-      if len_array(living_map_attacked) > 0 andAlso len_array(dead_map) > 0 then begin
-         distance_diff = min_dead_dist- min_living_attacked_dist;
-         chance_for_attacked = 50 + (distance_diff * 10);
-         if chance_for_attacked < 20 then chance_for_attacked = 20;
-
-         if random(1, 100) <= chance_for_attacked then begin
-            max_allowed_dist = min_living_attacked_dist / 2 + 1;
-
-            foreach temp_critter:temp_distance in living_map_attacked begin
-               if temp_distance <= min_living_attacked_dist + max_allowed_dist then begin
-                  set_array(possible_map, temp_critter, tile_num(temp_critter));
-                  possible_count += 1;
-               end
-            end
-         end
-         else begin
-            max_allowed_dist = min_dead_dist / 2 + 1;
-
-            foreach temp_critter:temp_distance in dead_map begin
-               if temp_distance <= min_dead_dist + max_allowed_dist then begin
-                  set_array(possible_map, temp_critter, tile_num(temp_critter));
-                  possible_count += 1;
-               end
-            end
-         end
-      end
-      else if len_array(living_map_attacked) > 0 then begin
-         max_allowed_dist = min_living_attacked_dist / 2 + 1;
-
-         foreach temp_critter:temp_distance in living_map_attacked begin
-            if temp_distance <= min_living_attacked_dist + max_allowed_dist then begin
-               set_array(possible_map, temp_critter, tile_num(temp_critter));
-               possible_count += 1;
-            end
-         end
-      end
-      else if len_array(dead_map) > 0 then begin
-         max_allowed_dist = min_dead_dist / 2 + 1;
-
-         foreach temp_critter:temp_distance in dead_map begin
-            if temp_distance <= min_dead_dist + max_allowed_dist then begin
-               set_array(possible_map, temp_critter, tile_num(temp_critter));
-               possible_count += 1;
-            end
          end
       end
    end
@@ -5010,7 +4602,7 @@ procedure callback_electrical_chain_dmg_next_tile begin
    else
       set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE_visible);
 
-   set_outline(emp_expl, OUTLINE_BLINKING_CYAN);
+   set_object_data(emp_expl, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
    reg_anim_combat_check(0);
    reg_anim_begin();
    if ElecSameTargets >= 0 then
@@ -5055,7 +4647,7 @@ procedure callback_electrical_chain_dmg_next_tile begin
          else
             set_flags(expl_on_path, FLAGS_OBJECT_PROJECTILE_visible);
 
-         set_outline(expl_on_path, OUTLINE_BLINKING_CYAN);
+         set_object_data(expl_on_path, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
          set_array(gPulseExplToDestroyArray, expl_on_path, 1);
          reg_anim_unset_flag(expl_on_path, OBJECT_HIDDEN, 0);
          reg_anim_animate_and_hide(expl_on_path, ANIM_stand, 0);
@@ -5089,7 +4681,7 @@ procedure callback_electrical_chain_dmg_next_tile begin
          else
             set_flags(proj, FLAGS_OBJECT_PROJECTILE_visible);
 
-         set_outline(proj, OUTLINE_BLINKING_CYAN);
+         set_object_data(proj, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
          reg_anim_combat_check(0);
          reg_anim_begin();
          reg_anim_unset_flag(proj, OBJECT_HIDDEN, -1);
@@ -5141,7 +4733,7 @@ procedure hide_proj_on_target_hit_and_play_sound(variable attacker, variable tar
 
    if gSoundHitTarget > 0 then
       weapon_hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, attack_hit_mode, sound_target);
-   else if alt_fire_proc != alt_fire_gauss andAlso alt_fire_proc != alt_fire_plasma then begin
+   else if (alt_fire_proc != alt_fire_gauss andAlso alt_fire_proc != alt_fire_plasma) orElse (alt_fire_proc == alt_fire_gauss andAlso gWeaponProjPid > 0) then begin
       sound_target = target;
       weapon_hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, attack_hit_mode, sound_target);
    end
@@ -5167,7 +4759,7 @@ procedure hide_proj_on_target_hit_and_play_sound(variable attacker, variable tar
          //reg_anim_animate_and_move(projectile, target_tile, ANIMATE_RUN, (weapon_point_max_frames));
       if end_tile != target_tile then
          reg_anim_animate_and_move(projectile, end_tile, ANIM_walk, -1);
-      else
+      else if obj_type(target) == OBJ_TYPE_CRITTER then
          weapon_hit_sfx = 0;
    end
    reg_anim_animate_reverse(placeholder, ANIM_point, -1);
@@ -5207,7 +4799,7 @@ procedure laser_line_dmg(variable attacker,variable target, variable new_end_til
    variable new_tar_tile;
    variable dmg;
    variable projectile;
-   variable projectile_pid = gWeaponProjPid;
+   variable projectile_pid = PID_PROJ_LASER;
    variable wpn_sfx_attack;
    variable dmg_to_tar;
    variable close_range;
@@ -6096,6 +5688,9 @@ procedure electrical_chain_dmg(variable attacker,variable target, variable new_e
 
 
    projectile = create_hidden_projectile(projectile_pid, atkr_rot, 0, false, 6, 0x10000);
+   if get_outline(projectile) == OUTLINE_NONE then
+      set_object_data(projectile, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
+
    max_frames_projectile = get_art_max_frames(obj_art_fid(projectile));
    gProjToHideOnTargetHit = projectile;
 
@@ -6197,7 +5792,7 @@ procedure electrical_chain_dmg_fail(variable attacker) begin
    set_object_data(attacker_dummy, OBJ_DATA_ROTATION, atkr_rot);
    emp_expl = create_object_sid(PID_EXPLOSION_EMP_1, atkr_tile, atkr_elev, -1);
    set_object_data(emp_expl, OBJ_DATA_FID, TRNBLK_FID);
-   set_outline(emp_expl, OUTLINE_BLINKING_CYAN);
+   set_object_data(emp_expl, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
    set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE);
    set_object_data(emp_expl, OBJ_DATA_LIGHT_DISTANCE, 6);
    set_object_data(emp_expl, OBJ_DATA_LIGHT_INTENSITY, 0x8000);
@@ -6429,6 +6024,9 @@ procedure set_attacker_coord_and_anim_projectile begin
             hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, obstacle);
             end_tile = tile_num(obstacle);
          end
+         else
+            hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, target);
+
       end
 
       atkr_rot = rotation_to_tile(attacker_tile, target_tile);
@@ -6709,65 +6307,6 @@ procedure get_attack_anim(variable weapon,variable attack_type) begin
    return attack_anim;
 end
 
-procedure wpn_allow_alt_asault_rifles(variable weapon_ptr, variable atk_type) begin
-   variable wpn_cur_anim;
-   variable is_burst;
-   variable pid;
-   variable attack_anim;
-   variable wpn_caliber;
-   variable allowed_array;
-
-   if alt_fire_selected > 0 orElse weapon_ptr <= 0 then
-      return 0;
-
-   pid = obj_pid(weapon_ptr);
-   if AimedBurstModAnyWeapon < 1 then begin
-      wpn_caliber = get_proto_data(pid, PROTO_WP_CALIBER);
-      if wpn_caliber == gShotgunCaliber then
-         return 0;
-   end
-   wpn_cur_anim = get_proto_data(pid, PROTO_WP_ANIM);
-   attack_anim = get_attack_anim(weapon_ptr, atk_type);
-   if attack_anim == ANIM_fire_burst orElse (attack_anim == ANIM_fire_continuous andAlso AimedBurstModAnyWeapon > 1) then
-      is_burst = 1;
-
-   allowed_array = [PID_HK_G11, PID_HK_G11E];
-   if is_burst > 0 andAlso (AimedBurstModAnyWeapon > 0 orElse wpn_cur_anim == WPN_ANIM_RIFLE orElse wpn_cur_anim == WPN_ANIM_BIG_GUN orElse is_in_array(pid, allowed_array)) then begin
-      //alt_fire_selected = alt_fire_aimed_burst;
-      return 1;
-   end
-   else
-      return 0;
-end
-
-procedure CALCAPCOST begin
-   variable user = get_sfall_arg;
-   variable atk_type = get_sfall_arg;
-   variable is_aimed = get_sfall_arg;
-   variable default_ap_cost = get_sfall_arg;
-   variable item = get_sfall_arg;
-   variable cur_ammo;
-   variable attack_result;
-   one_time_AFTERHITROLL = 0;
-   gCurAtkType = atk_type;
-   if AimedBurstMod > 0 then begin
-      aimed_burst_allowed = 0;
-      if is_aimed <= 0 andAlso user == dude_obj andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) <= 0 andAlso item > 0 then begin
-         if obj_item_subtype(item) == item_type_weapon then begin
-            if wpn_allow_alt_asault_rifles(item, atk_type) > 0 then begin
-               aimed_burst_allowed = 1;
-            end
-         end
-      end
-   end
-
-   if is_aimed > 0 then
-      last_ap_cost_aimed = default_ap_cost;
-   else begin
-      last_ap_cost_aimed = default_ap_cost + 1;
-   end
-end
-
 procedure get_weapon_ammo_cost(variable wpn_pid, variable rounds = 1) begin
    variable new_ammo_cost = ecco_ammocost_map[wpn_pid];
 
@@ -6836,11 +6375,233 @@ procedure calculate_and_apply_alt_attack_cost(variable weapon, variable alt_atk_
    if apply_cost > 0 then
       set_weapon_ammo_count(weapon, cur_ammo - alt_attack_cost);
 
+   if cur_ammo >= 2 * alt_attack_cost + base_cost then
+      gFastShotCanUseMore = 1;
+   else
+      gFastShotCanUseMore = 0;
+
    return alt_attack_cost;
 end
 
+procedure wpn_allow_any_alt_attack(variable weapon_ptr, variable attack_type, variable bodypart = BODY_HIT_TORSO, variable attacker = -1) begin
+   variable pid;
+   variable cur_atk_anim;
+   variable apply_ammo;
+   variable temp_alt_fire;
+   variable ammo_pid;
+   variable damage_type;
+   variable cur_wpn_anim;
 
-procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable target) begin
+   if weapon_ptr <= 0 then
+      return 0;
+
+   pid = obj_pid(weapon_ptr);
+
+   if ShotgunSecondaryAttackMod > 0 then
+      if get_proto_data(pid, PROTO_WP_CALIBER) == gShotgunCaliber then
+         return 1;
+
+   cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
+   if cur_atk_anim != ANIM_fire_single then
+      return 0;
+
+   temp_alt_fire = alt_fire_selected;
+   alt_fire_selected = 0;
+
+   if LaserSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod >= 2) then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_laser) orElse (is_in_array(pid, LaserCustomPids)) then begin
+         if LaserForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_laser, 1, 0) >= 0) then begin
+            alt_fire_selected = temp_alt_fire;
+            return 1;
+         end
+      end
+   end
+
+   if PlasmaSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse PlasmaSecondaryAttackMod >= 2) then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_plasma) orElse (is_in_array(pid, PlasmaCustomPids)) then begin
+         if PlasmaForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_plasma, 1, 0) >= 0) then begin
+            alt_fire_selected = temp_alt_fire;
+            return 1;
+         end
+      end
+   end
+
+   if ElecSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse ElecSecondaryAttackMod >= 2) then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_electrical) orElse (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_emp) orElse (is_in_array(pid, ElecCustomPids)) then begin
+         if ElecForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_pulse, 1, 0) >= 0) then begin
+            alt_fire_selected = temp_alt_fire;
+            return 1;
+         end
+      end
+   end
+
+   if GaussSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse GaussSecondaryAttackMod >= 2) then begin
+      ammo_pid = get_proto_data(pid, PROTO_WP_AMMO_PID);
+      if (is_in_array(pid, GaussCustomPids) orElse (ammo_pid == PID_2MM_EC_AMMO) orElse (Sonora > 0 andAlso pid == pid_sonora_railgun)) then begin
+         if GaussForced > 0 orElse is_alt_fire_aimed(attacker, bodypart) then begin
+            alt_fire_selected = temp_alt_fire;
+            return 1;
+         end
+      end
+   end
+
+
+   if PistolSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse PistolSecondaryAttackMod >= 2) then begin
+      damage_type = get_proto_data(pid, PROTO_WP_DMG_TYPE);
+      cur_wpn_anim = get_proto_data(pid, PROTO_WP_ANIM);
+
+      if (cur_wpn_anim == WPN_ANIM_PISTOL orElse cur_wpn_anim == WPN_ANIM_SMG)
+      andAlso damage_type == DMG_normal_dam then begin
+         variable foced = 0;
+         if PistolDoubleTapForced == 1 orElse (PistolDoubleTapForced > 1 andAlso get_ranged_weapon_skill_lvl(attacker, weapon_ptr) >= PistolDoubleTapForced) then begin
+            foced = 1;
+         end
+
+         if foced > 0 orElse is_alt_fire_aimed(attacker, bodypart) then begin
+            if calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_double_tap, 1, 0) >= 0 then begin
+               alt_fire_selected = temp_alt_fire;
+               return 1;
+            end
+         end
+      end
+   end
+
+   alt_fire_selected = temp_alt_fire;
+   return 0;
+end
+
+procedure get_weapon_custom_alt_attack_type(variable weapon_pid) begin
+   variable allowed_types;
+
+   if weapon_pid <= 0 then
+      return 0;
+
+   //TODO make it so that some/all alternate firing modes can be combined
+   if is_in_array(weapon_pid, PlasmaCustomPids) then
+      allowed_types = allowed_types bwor alt_fire_plasma;
+   else if is_in_array(weapon_pid, DoubleTapCustomPids) then
+      allowed_types = allowed_types bwor alt_fire_double_tap;
+   else if is_in_array(weapon_pid, ElecCustomPids) then
+      allowed_types = allowed_types bwor alt_fire_pulse;
+   else if is_in_array(weapon_pid, LaserCustomPids) then
+      allowed_types = allowed_types bwor alt_fire_laser;
+   else if is_in_array(weapon_pid, GaussCustomPids) then
+      allowed_types = allowed_types bwor alt_fire_gauss;
+   else if get_proto_data(weapon_pid, PROTO_WP_CALIBER) == gShotgunCaliber then
+      allowed_types = allowed_types bwor alt_fire_shotgun_knockback;
+
+   return allowed_types;
+end
+
+procedure is_wpn_alt_fire_prohibited(variable weapon_pid, variable alt_fire_type) begin
+   variable custom_alt_attack_type = get_weapon_custom_alt_attack_type(weapon_pid);
+
+   if custom_alt_attack_type > 0 andALso (custom_alt_attack_type bwand alt_fire_type) != alt_fire_type then
+      return 1;
+
+   if alt_fire_type == alt_fire_plasma andAlso is_in_array(weapon_pid, PlasmaDisabledPids) then
+      return 1;
+   else if alt_fire_type == alt_fire_pulse andAlso is_in_array(weapon_pid, PulseDisabledPids) then
+      return 1;
+   else if alt_fire_type == alt_fire_laser andAlso is_in_array(weapon_pid, LaserDisabledPids) then
+      return 1;
+   else if alt_fire_type == alt_fire_double_tap andAlso is_in_array(weapon_pid, DoubleTapDisabledPids) then
+      return 1;
+   else if alt_fire_type == alt_fire_shotgun_knockback andAlso is_in_array(weapon_pid, ShotgunKnockbackDisabledPids) then
+      return 1;
+   else if alt_fire_type == alt_fire_gauss andAlso is_in_array(weapon_pid, GaussDisabledPids) then
+      return 1;
+
+   return 0;
+end
+
+procedure wpn_allow_alt_asault_rifles(variable weapon_ptr, variable atk_type) begin
+   variable wpn_cur_anim;
+   variable is_burst;
+   variable pid;
+   variable attack_anim;
+   variable wpn_caliber;
+   variable allowed_array;
+
+   if alt_fire_selected > 0 orElse weapon_ptr <= 0 then
+      return 0;
+
+   pid = obj_pid(weapon_ptr);
+
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_aimed_burst) then
+      return 0;
+
+   if AimedBurstModAnyWeapon < 1 then begin
+      wpn_caliber = get_proto_data(pid, PROTO_WP_CALIBER);
+      if wpn_caliber == gShotgunCaliber then
+         return 0;
+   end
+   wpn_cur_anim = get_proto_data(pid, PROTO_WP_ANIM);
+   attack_anim = get_attack_anim(weapon_ptr, atk_type);
+   if attack_anim == ANIM_fire_burst orElse (attack_anim == ANIM_fire_continuous andAlso AimedBurstModAnyWeapon > 1) then
+      is_burst = 1;
+
+   allowed_array = [PID_HK_G11, PID_HK_G11E];
+   if is_burst > 0 andAlso (AimedBurstModAnyWeapon > 0 orElse wpn_cur_anim == WPN_ANIM_RIFLE orElse wpn_cur_anim == WPN_ANIM_BIG_GUN orElse is_in_array(pid, allowed_array)) then begin
+      //alt_fire_selected = alt_fire_aimed_burst;
+      return 1;
+   end
+   else
+      return 0;
+end
+
+procedure CALCAPCOST begin
+   variable user = get_sfall_arg;
+   variable atk_type = get_sfall_arg;
+   variable is_aimed = get_sfall_arg;
+   variable default_ap_cost = get_sfall_arg;
+   variable item = get_sfall_arg;
+   variable attack_result;
+   variable new_ap_cost;
+   variable fast_shot;
+   one_time_AFTERHITROLL = 0;
+   gFastShotAimedAllowed = 0;
+   gCurAtkType = atk_type;
+
+   if gAimedFastShotTweakEnabled > 0 then
+      fast_shot = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot);
+   //fastshot aimed
+   if fast_shot > 0 andAlso user == dude_obj andAlso item > 0 andAlso obj_item_subtype(item) == item_type_weapon andAlso get_attack_anim(item, atk_type) == ANIM_fire_single then begin
+
+      if is_aimed <= 0 andAlso wpn_allow_any_alt_attack(item, atk_type) > 0 then begin
+         gFastShotAimedAllowed = 1;
+      end
+
+      if gAimedFastShotTweakEnabled >= 2 then begin
+         if gFastShotAimedActivated orElse is_aimed then
+            new_ap_cost = default_ap_cost + gAimedFastShotTweakEnabled - is_aimed;
+      end
+      else if gFastShotAimedActivated andAlso not(is_aimed) then
+         new_ap_cost = default_ap_cost + 1;
+   end
+   //AimedBurst no fastshot
+   else if AimedBurstMod > 0 then begin
+      aimed_burst_allowed = 0;
+      if is_aimed <= 0 andAlso user == dude_obj andAlso item > 0 then begin
+         if obj_item_subtype(item) == item_type_weapon then begin
+            if wpn_allow_alt_asault_rifles(item, atk_type) > 0 then begin
+               aimed_burst_allowed = 1;
+            end
+         end
+      end
+   end
+
+   //fast shot aimed
+   if new_ap_cost > 0 then begin
+      //if fast_shot <= 0 then
+         set_sfall_arg(3, new_ap_cost);
+
+      set_sfall_return(new_ap_cost);
+   end
+   gLastAtkType = gCurAtkType;
+end
+
+procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker) begin
    variable ammo_pid;
    variable cur_atk_anim;
    variable pid;
@@ -6853,13 +6614,16 @@ procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variabl
 
    pid = obj_pid(weapon_ptr);
 
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_gauss) then
+      return 0;
+
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
    if cur_atk_anim != ANIM_fire_single then
       return 0;
 
    ammo_pid = get_proto_data(pid, PROTO_WP_AMMO_PID);
 
-   if (GaussForced > 0 orElse is_alt_fire_aimed(attacker, target, bodypart)) then begin
+   if (GaussForced > 0 orElse is_alt_fire_aimed(attacker, bodypart)) then begin
       if is_in_array(pid, GaussCustomPids) orElse ammo_pid == PID_2MM_EC_AMMO orElse (Sonora > 0 andAlso pid == pid_sonora_railgun) then begin
          alt_fire_selected = alt_fire_gauss;
          return 1;
@@ -6869,7 +6633,7 @@ procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variabl
    return 0;
 end
 
-procedure wpn_allow_alt_pulse(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable target, variable apply_ammo = 1) begin
+procedure wpn_allow_alt_pulse(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable apply_ammo = 1) begin
    variable pid;
    variable damage_type;
    variable cur_atk_anim;
@@ -6882,6 +6646,9 @@ procedure wpn_allow_alt_pulse(variable weapon_ptr, variable attack_type, variabl
 
    pid = obj_pid(weapon_ptr);
 
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_pulse) then
+      return 0;
+
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
    if cur_atk_anim != ANIM_fire_single then
       return 0;
@@ -6890,7 +6657,7 @@ procedure wpn_allow_alt_pulse(variable weapon_ptr, variable attack_type, variabl
 
 
    if (damage_type == DMG_electrical) orElse (damage_type == DMG_emp) orElse is_in_array(pid, ElecCustomPids) then begin
-      if ElecForced > 0 orElse (is_alt_fire_aimed(attacker, target, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_pulse, 1, apply_ammo) >= 0) then begin
+      if ElecForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_pulse, 1, apply_ammo) >= 0) then begin
          alt_fire_selected = alt_fire_pulse;
          return 1;
       end
@@ -6899,7 +6666,7 @@ procedure wpn_allow_alt_pulse(variable weapon_ptr, variable attack_type, variabl
    return 0;
 end
 
-procedure wpn_allow_alt_plasma(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable target, variable apply_ammo = 1) begin
+procedure wpn_allow_alt_plasma(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable apply_ammo = 1) begin
    variable pid;
    variable damage_type;
    variable cur_atk_anim;
@@ -6912,6 +6679,9 @@ procedure wpn_allow_alt_plasma(variable weapon_ptr, variable attack_type, variab
 
    pid = obj_pid(weapon_ptr);
 
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_plasma) then
+      return 0;
+
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
    if cur_atk_anim != ANIM_fire_single then
       return 0;
@@ -6919,7 +6689,7 @@ procedure wpn_allow_alt_plasma(variable weapon_ptr, variable attack_type, variab
    damage_type = get_proto_data(pid, PROTO_WP_DMG_TYPE);
 
    if (damage_type == DMG_plasma) orElse (is_in_array(pid, PlasmaCustomPids)) then begin
-      if PlasmaForced > 0 orElse (is_alt_fire_aimed(attacker, target, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_plasma, 1, apply_ammo) >= 0) then begin
+      if PlasmaForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_plasma, 1, apply_ammo) >= 0) then begin
          alt_fire_selected = alt_fire_plasma;
          return 1;
       end
@@ -6928,7 +6698,7 @@ procedure wpn_allow_alt_plasma(variable weapon_ptr, variable attack_type, variab
    return 0;
 end
 
-procedure wpn_allow_alt_pistol(variable weapon_ptr, variable attack_type, variable attacker, variable target, variable hit_chance, variable bodypart, variable apply_ammo = 1) begin
+procedure wpn_allow_alt_pistol(variable weapon_ptr, variable attack_type, variable attacker, variable hit_chance, variable bodypart, variable apply_ammo = 1) begin
    variable damage_type;
    variable cur_wpn_anim;
    variable cur_atk_anim;
@@ -6943,15 +6713,21 @@ procedure wpn_allow_alt_pistol(variable weapon_ptr, variable attack_type, variab
 
    pid = obj_pid(weapon_ptr);
 
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_double_tap) then
+      return 0;
+
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
    if cur_atk_anim != ANIM_fire_single then
+      return 0;
+
+   if is_in_array(pid, DoubleTapDisabledPids) then
       return 0;
 
    damage_type = get_proto_data(pid, PROTO_WP_DMG_TYPE);
    cur_wpn_anim = get_proto_data(pid, PROTO_WP_ANIM);
 
-   if (cur_wpn_anim == WPN_ANIM_PISTOL orElse cur_wpn_anim == WPN_ANIM_SMG)
-   andAlso damage_type == DMG_normal_dam then begin
+   if (is_in_array(pid,DoubleTapCustomPids) orElse ((cur_wpn_anim == WPN_ANIM_PISTOL orElse cur_wpn_anim == WPN_ANIM_SMG)
+   andAlso damage_type == DMG_normal_dam)) then begin
       if PistolDoubleTapForced == 1 orElse (PistolDoubleTapForced > 1 andAlso get_ranged_weapon_skill_lvl(attacker, weapon_ptr) >= PistolDoubleTapForced) then begin
          foced = 1;
       end
@@ -6961,7 +6737,7 @@ procedure wpn_allow_alt_pistol(variable weapon_ptr, variable attack_type, variab
             return 0;
       end
 
-      if (foced > 0 orElse is_alt_fire_aimed(attacker, target, bodypart)) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_double_tap, 1, apply_ammo) >= 0 then begin
+      if (foced > 0 orElse is_alt_fire_aimed(attacker, bodypart)) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_double_tap, 1, apply_ammo) >= 0 then begin
          alt_fire_selected = alt_fire_double_tap;
          return 1;
       end
@@ -6970,7 +6746,7 @@ procedure wpn_allow_alt_pistol(variable weapon_ptr, variable attack_type, variab
    return 0;
 end
 
-procedure wpn_allow_alt_laser(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable target, variable apply_ammo = 0) begin
+procedure wpn_allow_alt_laser(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker, variable apply_ammo = 0) begin
    variable pid;
    variable damage_type;
    variable cur_atk_anim;
@@ -6983,6 +6759,9 @@ procedure wpn_allow_alt_laser(variable weapon_ptr, variable attack_type, variabl
 
    pid = obj_pid(weapon_ptr);
 
+   if is_wpn_alt_fire_prohibited(pid, alt_fire_laser) then
+      return 0;
+
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
    if cur_atk_anim != ANIM_fire_single then
       return 0;
@@ -6990,7 +6769,7 @@ procedure wpn_allow_alt_laser(variable weapon_ptr, variable attack_type, variabl
    damage_type = get_proto_data(pid, PROTO_WP_DMG_TYPE);
 
    if (damage_type == DMG_laser) orElse (is_in_array(pid, LaserCustomPids)) then begin
-      if LaserForced > 0 orElse (is_alt_fire_aimed(attacker, target, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_laser, 1, apply_ammo) >= 0) then begin
+      if LaserForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_laser, 1, apply_ammo) >= 0) then begin
          alt_fire_selected = alt_fire_laser;
          return 1;
       end
@@ -7096,29 +6875,6 @@ procedure AFTERHITROLL begin
          set_array(cur_attack_results_arr, real_orig_target, DMG_DODGE);
 
       gWeapon = get_object_data(combat_data, C_ATTACK_WEAPON);
-      if attacker == dude_obj then begin
-         finesse = has_trait(TRAIT_TRAIT, attacker, TRAIT_finesse);
-         if traits_plus > 0 andAlso allow_critical <= 1 then begin
-            if attacker == dude_obj andAlso (finesse > 0 orElse finesse_plus > 1) then begin
-               allow_critical = 1;
-            end
-            else begin
-               allow_critical = 0;
-            end
-         end
-         bloody_mess = has_trait(TRAIT_TRAIT, attacker, TRAIT_bloody_mess);
-         one_hander = has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander);
-         weapon_handling = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
-         sharpshooter = has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
-         bonus_crit_power_roll = get_critter_stat(attacker, STAT_better_crit);
-         bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
-         living_anatomy = has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk);
-         night_vision = has_trait(TRAIT_PERK, attacker, PERK_night_vision);
-         if AllowSniperPerk then begin
-            sniper = has_trait(TRAIT_PERK, attacker, PERK_sniper);
-         end
-      end
-
       if gWeapon > 0 then begin
          gWeaponPid = obj_pid(gWeapon);
          weapon_flags = get_proto_data(gWeaponPid, PROTO_FLAG_EXT);
@@ -7164,8 +6920,32 @@ procedure AFTERHITROLL begin
          end
       end
 
+      if attacker == dude_obj then begin
+         finesse = has_trait(TRAIT_TRAIT, attacker, TRAIT_finesse);
+         gPyromaniac_perk = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
+         if allow_critical <= 1 then begin
+            if attacker == dude_obj andAlso ((gWeaponDamageType == DMG_fire andALso gPyromaniac_perk) orElse (traits_plus > 0 andAlso (finesse > 0 orElse finesse_plus > 1))) then begin
+               allow_critical = 1;
+            end
+            else begin
+               allow_critical = 0;
+            end
+         end
+         bloody_mess = has_trait(TRAIT_TRAIT, attacker, TRAIT_bloody_mess);
+         one_hander = has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander);
+         weapon_handling = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
+         sharpshooter = has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
+         bonus_crit_power_roll = get_critter_stat(attacker, STAT_better_crit);
+         bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
+         living_anatomy = has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk);
+         night_vision = has_trait(TRAIT_PERK, attacker, PERK_night_vision);
+         if AllowSniperPerk then begin
+            sniper = has_trait(TRAIT_PERK, attacker, PERK_sniper);
+         end
+      end
+
       // electrical and EMP set new proj_pid and weapon_cur_ammo
-      if wpn_allow_alt_pulse(gWeapon, Atktype, target_bodypart, attacker, target) > 0 then begin
+      if wpn_allow_alt_pulse(gWeapon, Atktype, target_bodypart, attacker) > 0 then begin
          if ElecForced <= 0 andAlso attacker != dude_obj then begin
             rnd = random(0, 100);
             attacker_iq = get_critter_stat(attacker, STAT_iq);
@@ -7268,7 +7048,7 @@ procedure AFTERHITROLL begin
       // electrical and EMP set new proj_pid and weapon_cur_ammo
 
       // plasma set new proj_pid and weapon_cur_ammo
-      if wpn_allow_alt_plasma(gWeapon, Atktype, target_bodypart, attacker, target) then begin
+      if wpn_allow_alt_plasma(gWeapon, Atktype, target_bodypart, attacker) then begin
          //ai plasma_alt use
          if PlasmaForced <= 0 andAlso attacker != dude_obj then begin
             rnd = random(0, 100);
@@ -7335,7 +7115,7 @@ procedure AFTERHITROLL begin
       // plasma set new proj_pid and weapon_cur_ammo end
 
       // laser get new targets
-      if wpn_allow_alt_laser(gWeapon, Atktype, target_bodypart, attacker, target) then begin
+      if wpn_allow_alt_laser(gWeapon, Atktype, target_bodypart, attacker) then begin
          if target == real_orig_target orElse atk_rslt == CRITICAL_MISS then
             combat_target_atk_result = atk_rslt;
          else
@@ -7461,7 +7241,7 @@ procedure AFTERHITROLL begin
          return;
       end
       // gauss get new targets
-      if wpn_allow_alt_gauss(gWeapon, Atktype, target_bodypart, attacker, target) then begin
+      if wpn_allow_alt_gauss(gWeapon, Atktype, target_bodypart, attacker) then begin
          if target == real_orig_target orElse atk_rslt == CRITICAL_MISS then
             combat_target_atk_result = atk_rslt;
          else
@@ -7504,7 +7284,7 @@ procedure AFTERHITROLL begin
       //gauss end
 
       // pistols double tap
-      if PistolSecondaryAttackMod > 0 andAlso wpn_allow_alt_pistol(gWeapon, Atktype, attacker, target, hit_chance, target_bodypart) > 0 then begin
+      if PistolSecondaryAttackMod > 0 andAlso wpn_allow_alt_pistol(gWeapon, Atktype, attacker, hit_chance, target_bodypart) > 0 then begin
          gDoubleTapHitChance = hit_chance - PistolDoubleTapToHitPenalty - weapon_min_st * 3;
          if gDoubleTapHitChance < hit_chance / 2 then
             gDoubleTapHitChance = hit_chance / 2;
@@ -7697,7 +7477,7 @@ procedure COMBATDAMAGE begin
          // plasma aoe dmg end
 
          //shotgun alt fire(knockback)
-         if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj or ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso weapon_caliber == gShotgunCaliber andAlso (target_bodypart == BODY_HIT_TORSO or ShotgunForced > 0 or ((attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED) andAlso is_single_shot andAlso not(random(0,2)))) then begin
+         if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso is_wpn_alt_fire_prohibited(gWeaponPid, alt_fire_shotgun_knockback) <= 0 andAlso (weapon_caliber == gShotgunCaliber orElse is_in_array(gWeaponPid, ShotgunKnockbackCustomPids)) andAlso (target_bodypart == BODY_HIT_TORSO orElse ShotgunForced > 0 orElse ((attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED) andAlso is_single_shot andAlso not(random(0,2)))) then begin
             if target == attacker orElse (attacker_flags bwand DAM_BACKWASH) then begin
                call lvar_full_reset;
                return;
@@ -8019,19 +7799,19 @@ procedure Change_torso_name(variable attacker, variable target) begin
    if weapon <= 0 then
       return;
 
-   if LaserForced <= 0 andAlso wpn_allow_alt_laser(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, target, false) > 0 then begin
+   if LaserForced <= 0 andAlso wpn_allow_alt_laser(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, false) > 0 then begin
       msg_id = 101;
    end
-   else if PlasmaForced <= 0 andAlso wpn_allow_alt_plasma(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, target, false) > 0 then begin
+   else if PlasmaForced <= 0 andAlso wpn_allow_alt_plasma(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, false) > 0 then begin
       msg_id = 102;
    end
-   else if ElecForced <= 0 andAlso wpn_allow_alt_pulse(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, target, false) > 0 then begin
+   else if ElecForced <= 0 andAlso wpn_allow_alt_pulse(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, false) > 0 then begin
       if ElecSameTargets < 0 then
          msg_id = 103;
       else
          msg_id = 104;
    end
-   else if GaussForced <= 0 andAlso wpn_allow_alt_gauss(weapon, gCurAtkType, BODY_HIT_TORSO, attacker, target) > 0 then begin
+   else if GaussForced <= 0 andAlso wpn_allow_alt_gauss(weapon, gCurAtkType, BODY_HIT_TORSO, attacker) > 0 then begin
       msg_id = 105;
    end
 
@@ -8044,15 +7824,60 @@ procedure Change_torso_name(variable attacker, variable target) begin
    end
 end
 
+procedure set_aimed_button_fast_shot begin
+   variable hand;
+   variable current_mode_adr;
+   variable current_mode;
+
+   if gFastShotCanUseMore then begin
+      hand = (0x5970F8 + (active_hand * 0x18));
+      current_mode_adr = (hand + 0x10);
+      current_mode = read_int(current_mode_adr);
+      write_int(current_mode_adr, current_mode + 1);
+   end
+   else begin
+      gFastShotAimedActivated = 0;
+      intface_redraw;
+   end
+   gFastShotAimedActivated = 0;
+end
+
+procedure set_non_aimed_button_fast_shot begin
+   variable hand = (0x5970F8 + (active_hand * 0x18));
+   variable current_mode_adr = (hand + 0x10);
+   variable current_mode = read_int(current_mode_adr);
+   variable new_mode = current_mode - 1;
+   if new_mode < 0 then
+      new_mode = 0;
+
+   write_int(current_mode_adr, 1);
+
+   call set_aimed_button_fast_shot in 0;
+end
+
+procedure FastShotAimedDisable begin
+   gFastShotAimedAllowed = 0;
+end
+
+
 procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
+
    call restore_torso_name;
    if target > 0 andAlso is_attacking andAlso can_be_attacked then begin
       real_orig_target = target;
-      if attack_is_aimed andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
-         call Change_torso_name(dude_obj, target);
+      if attack_is_aimed then begin
+         if has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) then begin
+            if gFastShotAimedActivated <= 0 then begin
+               call FastShotAimedDisable in 0;
+               call set_non_aimed_button_fast_shot;
+               gFastShotAimedActivated = 1;
+            end
+         end
+         else if obj_type(target) == OBJ_TYPE_CRITTER then
+            call Change_torso_name(dude_obj, target);
       end
    end
 end
@@ -8144,7 +7969,7 @@ procedure MOUSECLICK begin
    variable mouse_y ;
    variable IFACEBAR_X;
    variable IFACEBAR_Y;
-   if aimed_burst_allowed > 0 then begin
+   if aimed_burst_allowed > 0 orElse gFastShotAimedAllowed > 0 then begin
       is_pressed = get_sfall_arg;
       mouse_button = get_sfall_arg;
       if is_pressed == 0 andAlso mouse_button == MOUSE_BTN_RIGHT then begin
@@ -8168,7 +7993,7 @@ procedure KEYPRESS begin
    variable is_pressed;
    variable dx_key;
    variable game_mode;
-   if aimed_burst_allowed > 0 then begin
+   if aimed_burst_allowed > 0 orElse gFastShotAimedAllowed > 0 then begin
       is_pressed = get_sfall_arg;
       dx_key = get_sfall_arg;
       if dx_key == DIK_N andAlso is_pressed == 1 then begin
@@ -8290,6 +8115,8 @@ procedure start begin
       set_proto_data(pid_trans_block, PROTO_FID, INVISIBLE_MISC_FID);
       SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
       if SecondaryAttackMod > 0 then begin
+         gAimedFastShotTweakEnabled = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AllowFastShot");
+
          AnimationsAtOnceLimit = get_ini_setting("ddraw.ini|Misc|AnimationsAtOnceLimit");
          if AnimationsAtOnceLimit < 127 then
             set_ini_setting("ddraw.ini|Misc|AnimationsAtOnceLimit", 127);
@@ -8306,12 +8133,15 @@ procedure start begin
          ver_build = sfall_ver_build;
          COMBAT_SPEED_MAX = 127;
          if sfall_ver_maj >= 5 then begin
-            if ver_build >= 8 orElse sfall_ver_maj > 5 orElse ver_minor > 0 then begin
-               if ver_minor > 0 then begin
-                  sfall_510 = 1;
-                  COMBAT_SPEED_MAX = 50;
-                  unsafe_script;
+            if sfall_ver_maj > 5 orElse ver_minor > 0 then begin
+               sfall_510 = 1;
+
+               if sfall_ver_maj > 5 orElse ver_minor > 1 orElse (ver_minor == 1 andAlso ver_build >= 5) then begin
+                  sfall_515 = 1;
                end
+
+               COMBAT_SPEED_MAX = 50;
+               unsafe_script;
             end
          end
          //if sfall_510 <= 0 then
@@ -8366,7 +8196,11 @@ procedure start begin
             LaserHitChance = 1;
             LaserForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserForcedActivation");
 
+            LaserDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserDisabledPids"), ",");
+            fix_array(LaserDisabledPids);
+
             LaserCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|LaserCustomPids"), ",");
+            fix_array(LaserCustomPids);
 
             laser_max_targets_two_handed_micro_fusion = 1 + get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|MaxAddTargets_TWMFC");
             if laser_max_targets_two_handed_micro_fusion < 1 then laser_max_targets_two_handed_micro_fusion = 999;
@@ -8403,7 +8237,12 @@ procedure start begin
 
             ElecForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseForcedActivation");
             //ElecFriendlyFire = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseDiableFriendlyFire");
+            PulseDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseDisabledPids"), ",");
+            fix_array(PulseDisabledPids);
+
             ElecCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PulseCustomPids"), ",");
+            fix_array(ElecCustomPids);
+
          end
 
          GaussSecondaryAttackMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussSecondaryAttackMod");
@@ -8422,7 +8261,11 @@ procedure start begin
 
             GaussForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussForcedActivation");
 
+            GaussDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussDisabledPids"), ",");
+            fix_array(GaussDisabledPids);
+
             GaussCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|GaussCustomPids"), ",");
+            fix_array(GaussCustomPids);
          end
 
          PlasmaSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaSecondaryAttackMod");
@@ -8437,7 +8280,12 @@ procedure start begin
 
             PlasmaForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaForcedActivation");
 
+
+            PlasmaDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaDisabledPids"), ",");
+            fix_array(PlasmaDisabledPids);
+
             PlasmaCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaCustomPids"), ",");
+            fix_array(PlasmaCustomPids);
          end
 
          ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
@@ -8452,18 +8300,33 @@ procedure start begin
             ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
             if ShotgunKnockbackMax < 1 then ShotgunKnockbackMax = 5;
             ShotgunForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunForcedActivation");
+
+
+            ShotgunKnockbackDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackDisabledPids"), ",");
+            fix_array(ShotgunKnockbackDisabledPids);
+
+            ShotgunKnockbackCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackCustomPids"), ",");
+            fix_array(ShotgunKnockbackCustomPids);
          end
 
          PistolSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolSecondaryAttackMod");
          if PistolSecondaryAttackMod > 0 then begin
             PistolDoubleTapToHitPenalty = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenalty");
             PistolDoubleTapForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolForcedActivation");
+
+            DoubleTapCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|DoubleTapCustomPids"), ",");
+            fix_array(DoubleTapCustomPids);
+
+            DoubleTapDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|DoubleTapDisabledPids"), ",");
+            fix_array(DoubleTapDisabledPids);
          end
 
          AimedBurstMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AimedBurstSecondaryAttackMod");
          if AimedBurstMod > 0 then begin
             AimedBurstModAnyWeapon = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AimedBurstAnyWeapon");
 
+            AimedBurstDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AimedBurstDisabledPids"), ",");
+            fix_array(AimedBurstDisabledPids);
          end
 
          SecondaryAttackMod_msg = add_extra_msg_file(msg_file);

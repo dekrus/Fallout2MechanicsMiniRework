@@ -5910,7 +5910,7 @@ procedure ADJUSTPOISON begin
             actual_poison_amount = poison_amount - (poison_amount * critter_poison_resist / 100);
             amount_was_ret = 1;
          end
-         else if critter != dude_obj then begin
+         else if poison_amount > 0 andAlso critter != dude_obj then begin
             poison_amount = (combat_diff) * poison_amount / (1 + combat_diff);
             if poison_amount <= 0 then poison_amount = 1;
             set_sfall_return(poison_amount);
@@ -6582,7 +6582,7 @@ procedure start begin
       regen_perk_name = modmsg(msg_perk_regen);
 
       if RegenMod > 0 orElse PoisonMod > 0 then begin
-         if PoisonMod > 0 andAlso sfall_508 orElse sfall_510 then begin
+         if PoisonMod > 0 then begin
             if get_ini_setting("ddraw.ini|Misc|NPCPoisonDamage") > 0 then begin
                set_ini_setting("ddraw.ini|Misc|NPCPoisonDamage", 0);
             end

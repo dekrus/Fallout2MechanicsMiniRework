@@ -1,6 +1,14 @@
 ### Work In Progress v2.0.1
 ### Secondary Attack Mod
-- Fixed: The **Aimed burst fire mode** is no longer incorrectly available to characters with the Fast Shot trait.
+- **Fixed crashes with sfall 5.1.5+:**
+  - Crashes caused by projectiles with colored outlines (Pulse and Laser weapons).
+  - Crashes occurring when critters died from alternative fire attacks.
+- **Added a setting** that allows characters with the **Fast Shot** trait to use alternative attacks.
+- **Fixed:** Aimed burst fire mode is no longer incorrectly available to characters with the Fast Shot trait.
+- **Fixed for sfall 5.1.4+:** Double Tap now correctly consumes 2 bullets when shooting at non-living targets (doors, walls, containers, etc.).
+- **Slightly improved animation** for alternative fire attacks with plasma weapons.
+### Regen & Poison Mod
+- **Fixed for sfall 5.0.8+:** Poison removal now works correctly for companions.
 
 ### Latest Version v2.0.0
 - Added compatibility with **SFALL 5.1+**.
