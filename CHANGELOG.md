@@ -10,7 +10,6 @@
 - **Fixed for sfall 5.1.4+:** Double Tap now correctly consumes 2 bullets when shooting at non-living targets (doors, walls, containers, etc.).
 - **Slightly improved animation** for alternative fire attacks with plasma weapons.
 - **Fixed friendly fire:** Random alternative fire hits no longer turn companions hostile. Only intentional attacks on allies can trigger aggression.
-
 ### Regen & Poison Mod
 - **Fixed for sfall 5.0.8+:** Poison removal now works correctly for companions.
 
