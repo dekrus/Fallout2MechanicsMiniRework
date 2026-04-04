@@ -1,4 +1,4 @@
-### Work In Progress v2.0.1
+### Latest Version v2.0.1
 - Added compatibility with EcCo v1.0 and v0.9.9 lite.
 ### Secondary Attack Mod
 - **Fixed crashes with sfall 5.1.5+:**
@@ -13,7 +13,7 @@
 ### Regen & Poison Mod
 - **Fixed for sfall 5.0.8+:** Poison removal now works correctly for companions.
 
-### Latest Version v2.0.0
+### Version v2.0.0
 - Added compatibility with **SFALL 5.1+**.
 - Fixed typos and grammar mistakes throughout the text.
 - Refactored code for multiple scripts.
