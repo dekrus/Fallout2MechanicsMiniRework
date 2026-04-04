@@ -150,9 +150,9 @@
 
 #define reg_anim_toggle_outline(critter_obj, outline_bool, delay) \
    if sfall_515 <= 0 then \
-      call_offset_v3(0x4153A8, critter_obj, outline_bool, delay); \
-   else \
-      sfall_func3("reg_anim_toggle_outline", critter_obj, outline_bool, delay)
+      call_offset_v3(0x4153A8, critter_obj, outline_bool, delay)
+   //else \
+      //sfall_func3("reg_anim_toggle_outline", critter_obj, outline_bool, delay)
 
 #define tile_num_beyond(start_tile, next_tile, range) call_offset_r3(0x4B1B84, start_tile, next_tile, range)
 #define FLAG_OBJECT_HIDDEN 0x01
@@ -245,9 +245,12 @@
 
 #define OUTLINE_TYPE_MASK 0xFFFFFF
 #define OUTLINE_DISABLED 0x80000000
+#define OUTLINE_NOT_DISABLED 0x7FFFFFFF
 
 #define ECCO_COMBAT_INI_FILE                "ecco_config\\combat.ini"
 #define ECCO_INI_AMMOCOST_SECTION    "AMMOCOST"
+
+#define TARGET_HIGHLIGHT read_int(0x6639B0) //0 = off, 1 = on, 2 = targeting only
 
 
 #include "define_extra.h"
@@ -3789,7 +3792,9 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
       //if get_array(combat_targets_array, target) <= 0 then
          //set_object_data(target, OBJ_DATA_DAMAGE_FLAGS, (get_object_data(target, OBJ_DATA_DAMAGE_FLAGS) bwor DAM_DEAD));
       death_anim = get_death_anim(target, target_cur_anim, attacker, cur_dmg, flags, dmg_type, dmg_source_tile);
-      reg_anim_toggle_outline(target, true, -1);
+      //reg_anim_toggle_outline(target, true, -1);
+      if TARGET_HIGHLIGHT == 1 then
+         set_object_data(target, OBJ_DATA_OUTLINE, get_object_data(target, OBJ_DATA_OUTLINE) bwand OUTLINE_NOT_DISABLED);
       reg_anim_unset_flag(target, FLAG_FLAT, 0);
       reg_anim_unset_flag(target, FLAG_NOBLOCK, -1);
       //standardt death anim

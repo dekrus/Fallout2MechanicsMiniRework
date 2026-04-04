@@ -4,11 +4,13 @@
 - **Fixed crashes with sfall 5.1.5+:**
   - Crashes caused by projectiles with colored outlines (Pulse and Laser weapons).
   - Crashes occurring when critters died from alternative fire attacks.
+- **Fixed highlighting:** Dying creatures (from alternative attacks) now respect the in-game TARGET HIGHLIGHT setting. Previously, they always showed colored outlines (red for enemies, green for friends) regardless of the setting.
 - **Added a setting** that allows characters with the **Fast Shot** trait to use alternative attacks.
 - **Fixed:** Aimed burst fire mode is no longer incorrectly available to characters with the Fast Shot trait.
 - **Fixed for sfall 5.1.4+:** Double Tap now correctly consumes 2 bullets when shooting at non-living targets (doors, walls, containers, etc.).
 - **Slightly improved animation** for alternative fire attacks with plasma weapons.
 - **Fixed friendly fire:** Random alternative fire hits no longer turn companions hostile. Only intentional attacks on allies can trigger aggression.
+
 ### Regen & Poison Mod
 - **Fixed for sfall 5.0.8+:** Poison removal now works correctly for companions.
 
