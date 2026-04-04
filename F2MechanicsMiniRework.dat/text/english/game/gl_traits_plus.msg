@@ -39,7 +39,7 @@
 {209}{}{The good thing is that everyone around you has more misses and critical failures in combat. The bad thing is, so do you!}
 {210}{}{You studied less-combative skills as you were growing up. Your combat skills start at a lower level, but First Aid, Doctor, Speech and Barter are substantially improved.}
 {211}{}{You are more easily addicted to chems, and most of their effects on you are increased by 50%. However, you recover faster from withdrawal effects.}
-{212}{}{Chems no longer cause negative side effects or addiction, allowing for higher doses. However, their duration and potency are reduced by half, except for their healing and detoxifying effects.}
+{212}{}{You are resistant to chems. Your Endurance is increased and chems no longer cause negative side effects or addiction, allowing for higher doses. However, their duration and potency are reduced by half, except for their healing and detoxifying effects.}
 {213}{}{You've got the "right" stuff. Members of the opposite sex are attracted to you, but those of the same sex tend to become quite jealous.}
 {214}{}{Since you spent more time improving your skills than a normal person, you gain a higher maximum hit chance and 5 additional skill points per level. Stronger perks become available earlier, but you gain a perk every four levels.}
 {215}{}{You have more innate abilities than most, so you have not spent as much time honing your skills. Your primary statistics are each +1, but you lose -10% on all skills to start, and receive 5 less skill points per level.}

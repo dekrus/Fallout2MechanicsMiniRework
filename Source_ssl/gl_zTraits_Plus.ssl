@@ -2501,6 +2501,14 @@ procedure set_traits_desc begin
                ini_was_set = 1;
             end
          end
+         else if trait_num == TRAIT_drug_resistant then begin
+            // TRAIT_drug_resistant + 1 en
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t12|StatMod");
+            if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               set_ini_setting(perks_ini_path+"|t12|StatMod","2|1");
+               ini_was_set = 1;
+            end
+         end
       end
       else begin
          if trait_desc != "" andAlso trait_desc == new_trait_desc then begin
@@ -2513,6 +2521,14 @@ procedure set_traits_desc begin
             trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
             if trait_stat_mod == "13|5" then begin
                set_ini_setting(perks_ini_path+"|t5|StatMod","");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_drug_resistant then begin
+            // TRAIT_drug_resistant + 1 en
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t12|StatMod");
+            if trait_stat_mod == "2|1" then begin
+               set_ini_setting(perks_ini_path+"|t12|StatMod","");
                ini_was_set = 1;
             end
          end
@@ -2859,6 +2875,12 @@ procedure rm_traits_desc begin
          set_ini_setting(perks_ini_path+"|t5|StatMod","");
          ini_was_set = 1;
       end
+      trait_stat_mod = get_ini_string(perks_ini_path+"|t12|StatMod");
+      if trait_stat_mod == "2|1" then begin
+         set_ini_setting(perks_ini_path+"|t12|StatMod","");
+         ini_was_set = 1;
+      end
+
       set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",0);
       if ini_was_set > 0 then begin
          call game_close in 1;
