@@ -60,6 +60,7 @@
 #define msg_ecco_healing_4 83
 #define msg_ecco_healing_5 84
 
+#define ECCO_HEALING_SKILLS  "ecco_config\\misc.ini|HEALING_SKILLS|" //FA kits
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -824,7 +825,7 @@ procedure start begin
    variable was_disabled;
    if game_loaded then begin
       MedToolsMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
-      ECCO_heal_tweak = get_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_use_mod");
+      ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_SKILLS+"skill_use_mod");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
       if Sonora > 0 then begin
          doc_bag_pid = Sonora_doc_bag_pid;
@@ -836,31 +837,31 @@ procedure start begin
                set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod", 0);
             end
             else begin
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_use_mod", 0);
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91", 0);
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47", 0);
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409", 0);
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_use_mod", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_91", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_47", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_409", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_408", 0);
             end
             call game_exit_to_menu in 1;
             return;
          end
          else begin
-            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91");
+            ECCO_heal_tweak = get_ini_string(ECCO_HEALING_SKILLS+"skill_item_91");
             if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_91", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_91", 0);
 
-            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47");
+            ECCO_heal_tweak = get_ini_string(ECCO_HEALING_SKILLS+"skill_item_47");
             if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_47", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_47", 0);
 
-            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409");
+            ECCO_heal_tweak = get_ini_string(ECCO_HEALING_SKILLS+"skill_item_409");
             if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_409", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_409", 0);
 
-            ECCO_heal_tweak = get_ini_string("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408");
+            ECCO_heal_tweak = get_ini_string(ECCO_HEALING_SKILLS+"skill_item_408");
             if ECCO_heal_tweak != "" andAlso ECCO_heal_tweak != "0" then
-               set_ini_setting("mods\\ecco\\misc.ini|HEALING_SKILLS|skill_item_408", 0);
+               set_ini_setting(ECCO_HEALING_SKILLS+"skill_item_408", 0);
 
          end
 

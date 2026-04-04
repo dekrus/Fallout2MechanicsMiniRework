@@ -246,6 +246,10 @@
 #define OUTLINE_TYPE_MASK 0xFFFFFF
 #define OUTLINE_DISABLED 0x80000000
 
+#define ECCO_COMBAT_INI_FILE                "ecco_config\\combat.ini"
+#define ECCO_INI_AMMOCOST_SECTION    "AMMOCOST"
+
+
 #include "define_extra.h"
 #include "DEFINE.H"
 #include "sfall.h"
@@ -6308,7 +6312,10 @@ procedure get_attack_anim(variable weapon,variable attack_type) begin
 end
 
 procedure get_weapon_ammo_cost(variable wpn_pid, variable rounds = 1) begin
-   variable new_ammo_cost = ecco_ammocost_map[wpn_pid];
+   variable new_ammo_cost;
+   if ecco_ammocost_map != -1 then
+      new_ammo_cost = ecco_ammocost_map[wpn_pid];
+
 
    if new_ammo_cost > 0 then
       return new_ammo_cost * rounds;
@@ -6372,7 +6379,7 @@ procedure calculate_and_apply_alt_attack_cost(variable weapon, variable alt_atk_
    if cur_ammo < alt_attack_cost + base_cost then
       return -1;
 
-   if apply_cost > 0 then
+   if weapon > 0 andAlso apply_cost > 0 then
       set_weapon_ammo_count(weapon, cur_ammo - alt_attack_cost);
 
    if cur_ammo >= 2 * alt_attack_cost + base_cost then
@@ -7042,7 +7049,7 @@ procedure AFTERHITROLL begin
             reg_anim_end();
 
          end
-         else
+         else if gWeapon > 0 then
             set_weapon_ammo_count(gWeapon, weapon_cur_ammo);
       end
       // electrical and EMP set new proj_pid and weapon_cur_ammo
@@ -7109,7 +7116,7 @@ procedure AFTERHITROLL begin
             reg_anim_destroy(timer);
             reg_anim_end();
          end
-         else
+         else if gWeapon > 0 then
             set_weapon_ammo_count(gWeapon, weapon_cur_ammo);
       end
       // plasma set new proj_pid and weapon_cur_ammo end
@@ -8332,7 +8339,10 @@ procedure start begin
          SecondaryAttackMod_msg = add_extra_msg_file(msg_file);
 
          //ecco AMMOCOST
-         ecco_ammocost_map = get_ini_section_int_to_int("ecco\\combat.ini","AMMOCOST", true);
+         ecco_ammocost_map = get_ini_section_int_to_int(ECCO_COMBAT_INI_FILE, ECCO_INI_AMMOCOST_SECTION, true);
+         if len_array(ecco_ammocost_map) <= 0 then
+            ecco_ammocost_map = -1;
+
 
          register_hook_proc(HOOK_ITEMDAMAGE, ITEMDAMAGE);
          register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);

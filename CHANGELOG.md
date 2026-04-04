@@ -1,4 +1,5 @@
 ### Work In Progress v2.0.1
+- Added compatibility with EcCo v1.0 and v0.9.9 lite.
 ### Secondary Attack Mod
 - **Fixed crashes with sfall 5.1.5+:**
   - Crashes caused by projectiles with colored outlines (Pulse and Laser weapons).

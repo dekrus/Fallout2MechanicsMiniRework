@@ -251,6 +251,7 @@
 
 #define PID_TYPE(value) ((value) / 0x1000000)
 
+#define ECCO_HEALING_OPTION   "ecco_config\\misc.ini|HEALING_DRUGS|skill_max"
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -6589,13 +6590,13 @@ procedure start begin
          end
          sfall_unsafescripting = get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting");
          if RegenMod > 0 then begin
-            ECCO_heal_tweak = get_ini_setting("mods\\ecco\\misc.ini|HEALING_DRUGS|skill_max");
+            ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_OPTION);
             if ECCO_heal_tweak > 0 then begin
                if ecco_heal_mod_handler <= 0 then begin
                   set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod", 0);
                end
                else begin
-                  set_ini_setting("mods\\ecco\\misc.ini|HEALING_DRUGS|skill_max", 0);
+                  set_ini_setting(ECCO_HEALING_OPTION, 0);
                   if sfall_unsafescripting < 1 orElse (sfall_510 <= 0 andAlso sfall_unsafescripting < 2) then begin
                      set_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting", 2 - sfall_510);
                      sfall_unsafescripting = 2;
