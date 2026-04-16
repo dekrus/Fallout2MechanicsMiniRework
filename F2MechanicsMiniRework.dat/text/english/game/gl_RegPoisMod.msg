@@ -13,7 +13,7 @@
 {13}{}{%1% applies poison to the %2%.} //%1% = npc_name, %2% - weapon name
 {14}{}{You apply poison to the %2%.}
 {15}{}{You apply the last drops of poison to the %2% and discard the useless remains of the poison gland.}
-{16}{}{Poison from the weapon starts dripping onto the ground. Applying even more poison to the %2% isn't possible.}
+{16}{}{Poison from the weapon is dripping onto the ground. Applying any more to the %2% isn't possible.}
 {17}{}{You apply the last drops of poison to the weapon %1% holds and discard the useless remnants of the poison gland.}
 {18}{}{You failed to poison your target undetected.}
 {19}{}{You heal %2% hit point.} //player if 1 hp
@@ -32,7 +32,7 @@
 {32}{}{Hey! Back off.}
 {33}{}{%1% uses the %2%.}
 {34}{}{%1% applies the last drops of poison to the %2% and discards the useless remains of the poison gland.} //%1% = NPC name, %2% = weapon name
-{35}{}{ Poison from the weapon starts dripping onto the ground. You can't apply more poison to the %2%.}
+{35}{}{ Poison from the weapon starts dripping onto the ground. You can't apply any more.}
 {36}{}{Poison is already dripping from the weapon. You can't apply more poison to the %2%.}
 
 {38}{}{Your body stops healing.}
