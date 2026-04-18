@@ -61,6 +61,10 @@
 #define msg_ecco_healing_5 84
 
 #define ECCO_HEALING_SKILLS  "ecco_config\\misc.ini|HEALING_SKILLS|" //FA kits
+#define ECCO_APCOST  "ecco_config\\combat.ini|APCOST|inventory_cost_per_action"
+#define ECCO_APCOST_QP_DISCOUNT 1
+#define Inventory_AP_Cost_ini_AP "mods\\inven_ap_cost.ini|ap_cost|UseItem"
+#define Inventory_AP_Cost_ini_QP "mods\\inven_ap_cost.ini|quick_pocket|ReduceCostBy"
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -84,6 +88,11 @@ variable doc_bag_pid = PID_DOCTORS_BAG;
 variable sfall_mods_config;
 variable combat_direct_controll;
 variable fo2tweaks_ini_healing;
+variable inven_use_ap_cost;
+variable inven_use_ap_cost_min;
+variable inven_use_ap_cost_quick_pockets_discount;
+
+
 
 export variable combat_med_tool_used;
 
@@ -580,34 +589,76 @@ procedure med_tool_split_and_set_charge(variable user, variable med_tool_obj, va
    add_obj_to_inven(user, med_tool_obj);
 end
 
-procedure meditem_use begin
+procedure USEOBJON begin
    variable target = get_sfall_arg;
    variable user = get_sfall_arg;
    variable obj = get_sfall_arg;
    variable objpid = obj_pid(obj);
-   variable objname = obj_name(obj);
-   variable tar_name = obj_name(target);
-   variable user_FA = has_skill(user, SKILL_FIRST_AID);
-   variable user_DOC = has_skill(user, SKILL_DOCTOR);
-   variable tar_max_hp = get_critter_stat(target, STAT_max_hp);
-   variable tar_cur_hp = get_critter_stat(target, STAT_current_hp);
-   variable leftHand  = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
-   variable rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
-   variable tar_lost_hp = tar_max_hp - tar_cur_hp;
-   variable skill_bonus = first_aid_kit_bonus;
+   variable objname;
+   variable tar_name;
+   variable user_FA;
+   variable user_DOC;
+   variable tar_max_hp;
+   variable tar_cur_hp;
+   variable leftHand;
+   variable rightHand;
+   variable tar_lost_hp;
+   variable skill_bonus;
    variable obj_charges;
    variable new_obj_charges;
    variable hp_healed;
-   variable heal_cost = 1;
+   variable heal_cost;
    variable heal_chance;
    variable min_heal_chance;
    variable max_heal_chance;
-   variable healer_perk = has_trait(TRAIT_PERK, user, PERK_healer);
+   variable healer_perk;
    variable rnd;
-   variable player_level = get_pc_stat(PCSTAT_level);
+   variable player_level;
+   variable ap;
+   variable cost;
+   variable min_cost;
+   variable qp_discount;
+
+   if objpid != PID_FIRST_AID_KIT andAlso
+      objpid != PID_FIELD_MEDIC_KIT andAlso
+      objpid != doc_bag_pid andAlso
+      objpid != PID_PARAMEDICS_BAG then
+      return;
+
+   //check ap inven cost in combat
+   cost = inven_use_ap_cost;
+   if cost > 0 andAlso user == dude_obj andAlso combat_is_initialized then begin
+      if (get_game_mode bwand INVENTORY) then begin
+         ap = get_critter_current_ap(user);
+         min_cost = inven_use_ap_cost_min;
+         qp_discount = has_trait(TRAIT_PERK, user, PERK_quick_pockets) * inven_use_ap_cost_quick_pockets_discount;
+         cost -= qp_discount;
+         if cost < min_cost then
+            cost = min_cost;
+         if (ap < cost) then begin
+            set_sfall_return(0);
+            return;
+         end
+      end
+   end
+
+   objname = obj_name(obj);
+   tar_name = obj_name(target);
+   user_FA = has_skill(user, SKILL_FIRST_AID);
+   user_DOC = has_skill(user, SKILL_DOCTOR);
+   tar_max_hp = get_critter_stat(target, STAT_max_hp);
+   tar_cur_hp = get_critter_stat(target, STAT_current_hp);
+   leftHand  = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
+   rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
+   tar_lost_hp = tar_max_hp - tar_cur_hp;
+   skill_bonus = first_aid_kit_bonus;
+   heal_cost = 1;
+   healer_perk = has_trait(TRAIT_PERK, user, PERK_healer);
+   player_level = get_pc_stat(PCSTAT_level);
+
    if ET_TU == 0 then healer_perk = healer_perk * 2;
    //DOC
-   if (objpid == doc_bag_pid or objpid == PID_PARAMEDICS_BAG) then begin
+   if (objpid == doc_bag_pid orElse objpid == PID_PARAMEDICS_BAG) then begin
    //item charges restore
       if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
       if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,doc_max_charges);
@@ -698,7 +749,7 @@ procedure meditem_use begin
       end
    end
    //FA
-   if objpid == PID_FIRST_AID_KIT or objpid == PID_FIELD_MEDIC_KIT then begin
+   if objpid == PID_FIRST_AID_KIT orElse objpid == PID_FIELD_MEDIC_KIT then begin
       if objpid == PID_FIRST_AID_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(min_charges,max_charges));
       if objpid == PID_FIRST_AID_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,max_charges);
       if objpid == PID_FIELD_MEDIC_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
@@ -827,6 +878,48 @@ procedure start begin
       MedToolsMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
       ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_SKILLS+"skill_use_mod");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+
+      //CHECK AND SET INVEN AP COST
+      //check EcCo
+      inven_use_ap_cost = get_ini_setting(ECCO_APCOST);
+      if inven_use_ap_cost > 0 then begin
+         if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost") == "" then begin
+            set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost", 2);
+         end
+         inven_use_ap_cost = 2;
+         if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|qp_discount") == "" then begin
+            set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|qp_discount", 1);
+         end
+         inven_use_ap_cost_quick_pockets_discount = 1;
+         inven_use_ap_cost_min = 0;
+         if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost") == "" then begin
+            set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost", inven_use_ap_cost_min);
+         end
+      end
+      //check Inventory AP Cost Mk II
+      else begin
+         inven_use_ap_cost = get_ini_setting(Inventory_AP_Cost_ini_AP);
+         if inven_use_ap_cost > 0 then begin
+            if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost") == ""  then begin
+               set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost", inven_use_ap_cost);
+            end
+            inven_use_ap_cost_quick_pockets_discount = get_ini_setting(Inventory_AP_Cost_ini_QP);
+            if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|qp_discount") == "" then begin
+               set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|qp_discount", inven_use_ap_cost_quick_pockets_discount);
+            end
+            inven_use_ap_cost_min = 1;
+            if get_ini_string("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost") == "" then begin
+               set_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost", inven_use_ap_cost_min);
+            end
+         end
+         //check MMR
+         else begin
+            inven_use_ap_cost = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost");
+            inven_use_ap_cost_quick_pockets_discount = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|qp_discount");
+            inven_use_ap_cost_min = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost");
+         end
+      end
+
       if Sonora > 0 then begin
          doc_bag_pid = Sonora_doc_bag_pid;
       end
@@ -874,7 +967,7 @@ procedure start begin
          if sfall_mods_config <= 0 then sfall_mods_config = "";
          combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
          register_hook_proc(HOOK_CALCAPCOST, apcost_handler);
-         register_hook_proc(HOOK_USEOBJON, meditem_use);
+         register_hook_proc(HOOK_USEOBJON, USEOBJON);
          register_hook_proc(HOOK_USESKILL, use_skill_on_dead_handler);
          register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
          register_hook_proc(HOOK_REMOVEINVENOBJ, inv_move);

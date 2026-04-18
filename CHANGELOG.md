@@ -1,3 +1,12 @@
+### WIP
+- Added compatibility options with different Inventory AP Cost mods.
+### Traits Plus
+- Some tweaks to underperforming traits.
+### Regen & Poison Mod
+- Scripted effects from healing items (stimpaks, super stimpaks, healing powder) no longer trigger if use is blocked by other mods.
+- Fixed typos and text errors in messages.
+- Golden gecko bites now poison the target, as mentioned by Slim and other trappers in Klamath.
+
 ### Latest Version v2.0.1
 - Added compatibility with EcCo v1.0 and v0.9.9 lite.
 ### Secondary Attack Mod
