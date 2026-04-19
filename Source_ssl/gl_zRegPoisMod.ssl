@@ -3151,8 +3151,8 @@ procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critt
          critter_uninjure(critter, injures);
       end
    end
-
-   hp_lost = get_critter_stat(critter, STAT_max_hit_points) - get_critter_stat(critter, STAT_current_hp);
+   extra_stat_before_a = get_critter_stat(critter, STAT_current_hp);
+   hp_lost = get_critter_stat(critter, STAT_max_hit_points) - extra_stat_before_a;
    tarHR = get_critter_stat(critter, STAT_heal_rate);
 
    if fast_meta <= 0 then begin
@@ -3243,7 +3243,7 @@ procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critt
    if in_combat andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then
       cur_game_time += 50;
 
-   extra_stat_before_a = get_critter_extra_stat(critter, drug_stat_a);
+
    extra_stat_expected_a = drug_stat_value1_a;
    extra_stat_before_b = get_critter_extra_stat(critter, drug_stat_b);
    extra_stat_expected_b = drug_stat_value1_b;
