@@ -446,6 +446,7 @@ variable anim_priority_byte;
 variable gAntidoteHealingWasSet;
 variable gSuperAntidoteHealingWasSet;
 variable apply_drug_script;
+variable g_drug_was_removed;
 variable g_drug_stats_to_apply;
 variable inven_use_ap_cost;
 variable inven_use_ap_cost_min;
@@ -3825,16 +3826,15 @@ end
 
 procedure REMOVEINVENOBJ begin
    variable removed_obj = get_sfall_arg_at(1);
-   variable removed_obj_pid;
    variable drug_ptr;
    variable drug_pid;
    variable drug_hr;
    variable target;
    if apply_drug_script > 0 then begin
+      g_drug_was_removed = 1;
       drug_ptr = get_array(g_drug_stats_to_apply, g_drug_ptr);
-      if drug_ptr > 0 andAlso obj_is_carrying_obj(get_array(g_drug_stats_to_apply, g_drug_user), drug_ptr) <= 0 then begin
-         drug_pid = get_array(g_drug_stats_to_apply, g_drug_pid);
-
+      drug_pid = get_array(g_drug_stats_to_apply, g_drug_pid);
+      if drug_ptr > 0 andAlso removed_obj > 0 andAlso obj_pid(removed_obj) == drug_pid then begin
          if apply_drug_script == 1 then begin
             call drug_effect_after_use(drug_pid);
          end
@@ -3859,8 +3859,6 @@ procedure REMOVEINVENOBJ begin
 
    if drug_target > 0 then
       call check_max_hr;
-
-
 end
 
 inline procedure modify_antidote_healing_flag(variable set_flag) begin
@@ -3900,15 +3898,17 @@ inline procedure modify_super_antidote_healing_flag(variable set_flag) begin
       end
    end
 end
+procedure intface_redraw_call begin
+   intface_redraw;
+end
 
 
-
-procedure CALCAPCOST begin
+procedure check_drug_used_from_hands begin
    variable drug_ptr;
    variable drug_pid;
    variable drug_hr;
    variable target;
-   if apply_drug_script > 0 then begin
+   if apply_drug_script > 0 andAlso g_drug_was_removed <= 0 then begin
       drug_ptr = get_array(g_drug_stats_to_apply, g_drug_ptr);
       if drug_ptr > 0 andAlso obj_is_carrying_obj(get_array(g_drug_stats_to_apply, g_drug_user), drug_ptr) <= 0 then begin
          drug_pid = get_array(g_drug_stats_to_apply, g_drug_pid);
@@ -3933,6 +3933,19 @@ procedure CALCAPCOST begin
             clear_array(g_drug_stats_to_apply);
          end
       end
+   end
+
+   if drug_target > 0 then
+      call check_max_hr;
+end
+
+procedure CALCAPCOST begin
+   variable drug_ptr;
+   variable drug_pid;
+   variable drug_hr;
+   variable target;
+   if apply_drug_script > 0 andAlso g_drug_was_removed <= 0 then begin
+      call check_drug_used_from_hands;
    end
 
    if drug_target > 0 then
@@ -4003,6 +4016,7 @@ procedure USEOBJON begin
 
 
    if RegenMod > 0 then begin
+      g_drug_was_removed = 0;
          //prevent stimpak overusage
       if user != dude_obj then begin
          if objpid == PID_STIMPAK then
@@ -4063,6 +4077,8 @@ procedure USEOBJON begin
    if user == dude_obj andAlso check_hr then begin
       drug_target = target;
    end
+   if apply_drug_script then
+      call intface_redraw_call in 0;
 
    if PoisonMod > 0 then begin
       if get_poison(user) < 11 then begin
