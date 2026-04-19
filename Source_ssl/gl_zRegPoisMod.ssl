@@ -1872,7 +1872,7 @@ procedure check_regen_tag begin
    //variable hp_missing;
    //variable next_regen;
 
-   if RegenMod <= 0 then
+   if RegenMod <= 0 orElse on_global_map > 0 then
       return;
    hr = get_critter_stat(dude_obj, STAT_heal_rate);
    if hr >= min_hr_to_regen andAlso (combat_is_initialized orElse (dude_cur_hits < dude_max_hits orElse has_fake_perk_npc(dude_obj, regen_perk_name) <= 0) orElse (PoisonMod > 0 andAlso get_poison(dude_obj) > 0)) then begin
