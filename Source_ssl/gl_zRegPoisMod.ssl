@@ -4451,28 +4451,45 @@ procedure set_drugs_proto begin
       end
       // Nevada food
       if Nevada > 0 then begin
-         //232
+         //Medical pajamas
          if get_proto_data(232,PROTO_AR_PERK)== PERK_faster_healing then
             set_proto_data(232, PROTO_AR_PERK, PERK_presence);
          // mutafruit heal
-         set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_A, -2);
-         set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_B, STAT_current_hp);
-         set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_A, 0);
-         set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_B, 1);
+         if get_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_A) == -2 andAlso get_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_B) == STAT_current_hp then begin
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_A, STAT_current_hp);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_STAT_B, -1);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_A, 1);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_2_A, 0);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_3_A, 0);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_1_B, 0);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_2_B, 0);
+            set_proto_data(PID_MUTATED_FRUIT, PROTO_DR_AMOUNT_3_B, 0);
+         end
          // iguana
-         set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_STAT_C, STAT_poison_resist);
-         set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 3);
-         set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -3);
-         set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_3_C , 0);
-         // pretty & glamour care kit
-         set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
-         set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
+         if get_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_STAT_C) == STAT_heal_rate then begin
+            set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_STAT_C, STAT_poison_resist);
+            set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 3);
+            set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -3);
+            set_proto_data(PID_IGUANA_ON_A_STICK, PROTO_DR_AMOUNT_3_C , 0);
+         end
+         if get_proto_data(90, PROTO_DR_STAT_C) == STAT_heal_rate then begin
+            set_proto_data(90, PROTO_DR_STAT_C, STAT_poison_resist);
+            set_proto_data(90, PROTO_DR_AMOUNT_1_C, 15);
+            set_proto_data(90, PROTO_DR_AMOUNT_2_C , 0);
+            set_proto_data(90, PROTO_DR_AMOUNT_3_C , 0);
+         end
+
          // iguana bits
-         set_proto_data(103, PROTO_DR_STAT_C, STAT_poison_resist);
-         set_proto_data(103, PROTO_DR_AMOUNT_1_C, 7);
-         set_proto_data(103, PROTO_DR_AMOUNT_2_C , -7);
-         // nuka heal
-         set_proto_data(106, PROTO_DR_AMOUNT_1_A, 1);
+         if get_proto_data(PID_MEAT_ON_A_STICK, PROTO_DR_STAT_C) == STAT_heal_rate then begin
+            set_proto_data(PID_MEAT_ON_A_STICK, PROTO_DR_STAT_C, STAT_poison_resist);
+            set_proto_data(PID_MEAT_ON_A_STICK, PROTO_DR_AMOUNT_1_C, 7);
+            set_proto_data(PID_MEAT_ON_A_STICK, PROTO_DR_AMOUNT_2_C , -7);
+            set_proto_data(PID_MEAT_ON_A_STICK, PROTO_DR_AMOUNT_3_C , 0);
+         end
+         // nuka cola
+         if get_proto_data(PID_NUKA_COLA, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(PID_NUKA_COLA, PROTO_DR_AMOUNT_1_A, 1);
+
          // water
          set_proto_data(126, PROTO_DR_STAT_A, STAT_current_hp);
          set_proto_data(126, PROTO_DR_STAT_B, STAT_current_poison);
@@ -4480,6 +4497,12 @@ procedure set_drugs_proto begin
          set_proto_data(126, PROTO_DR_AMOUNT_1_A, 1);
          set_proto_data(126, PROTO_DR_AMOUNT_1_B, -4);
          set_proto_data(126, PROTO_DR_AMOUNT_1_C, -3);
+         set_proto_data(126, PROTO_DR_AMOUNT_2_A, 0);
+         set_proto_data(126, PROTO_DR_AMOUNT_2_B, 0);
+         set_proto_data(126, PROTO_DR_AMOUNT_2_C, 0);
+         set_proto_data(126, PROTO_DR_AMOUNT_3_A, 0);
+         set_proto_data(126, PROTO_DR_AMOUNT_3_B, 0);
+         set_proto_data(126, PROTO_DR_AMOUNT_3_C, 0);
          //clear water  8
          set_proto_data(212, PROTO_DR_STAT_A, STAT_current_hp);
          set_proto_data(212, PROTO_DR_STAT_B, STAT_current_poison);
@@ -4487,23 +4510,36 @@ procedure set_drugs_proto begin
          set_proto_data(212, PROTO_DR_AMOUNT_1_A, 2);
          set_proto_data(212, PROTO_DR_AMOUNT_1_B, -7);
          set_proto_data(212, PROTO_DR_AMOUNT_1_C, -7);
-         // the ashes of the forefather poison for 6, not 25
-         set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
+         set_proto_data(212, PROTO_DR_AMOUNT_2_A, 0);
+         set_proto_data(212, PROTO_DR_AMOUNT_2_B, 0);
+         set_proto_data(212, PROTO_DR_AMOUNT_2_C, 0);
+         set_proto_data(212, PROTO_DR_AMOUNT_3_A, 0);
+         set_proto_data(212, PROTO_DR_AMOUNT_3_B, 0);
+         set_proto_data(212, PROTO_DR_AMOUNT_3_C, 0);
+
+         // the ashes of the forefather poison for 6 and not 25
+         if get_proto_data(218, PROTO_DR_STAT_A) == STAT_current_poison then
+            set_proto_data(218, PROTO_DR_AMOUNT_1_A, 6);
          //meat jerky
-         set_proto_data(PID_MEAT_JERKY, PROTO_DR_STAT_B, STAT_current_hp);
-         set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_1_B, 1);
-         set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_2_B, 0);
-         set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_3_B, 0);
-         //pirog max hp + ac instead of hr
+         if get_proto_data(PID_MEAT_JERKY, PROTO_DR_STAT_B) == STAT_heal_rate then begin
+            set_proto_data(PID_MEAT_JERKY, PROTO_DR_STAT_B, STAT_current_hp);
+            set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_1_B, 1);
+            set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_2_B, 0);
+            set_proto_data(PID_MEAT_JERKY, PROTO_DR_AMOUNT_3_B, 0);
+         end
+         //apple pie max hp + ac instead of hr
          set_proto_data(343, PROTO_DR_STAT_A, STAT_max_hp);
          set_proto_data(343, PROTO_DR_STAT_B, STAT_current_hp);
-         set_proto_data(343, PROTO_DR_STAT_C, STAT_ac);
-         set_proto_data(343, PROTO_DR_AMOUNT_1_A, 4);
-         set_proto_data(343, PROTO_DR_AMOUNT_1_B, 4);
-         set_proto_data(343, PROTO_DR_AMOUNT_1_C, 3);
-         set_proto_data(343, PROTO_DR_AMOUNT_2_A, 0);
+         set_proto_data(343, PROTO_DR_STAT_C, -1);
+         set_proto_data(343, PROTO_DR_AMOUNT_1_A, 3);
+         set_proto_data(343, PROTO_DR_AMOUNT_1_B, 3);
+         set_proto_data(343, PROTO_DR_AMOUNT_1_C, 0);
+         set_proto_data(343, PROTO_DR_AMOUNT_2_A, -3);
          set_proto_data(343, PROTO_DR_AMOUNT_2_B, 0);
-         set_proto_data(343, PROTO_DR_AMOUNT_2_C, -3);
+         set_proto_data(343, PROTO_DR_AMOUNT_2_C, 0);
+         set_proto_data(343, PROTO_DR_AMOUNT_3_A, 0);
+         set_proto_data(343, PROTO_DR_AMOUNT_3_B, 0);
+         set_proto_data(343, PROTO_DR_AMOUNT_3_C, 0);
          //mantis
          set_proto_data(419, PROTO_DR_STAT_A, STAT_current_hp);
          set_proto_data(419, PROTO_DR_STAT_B, STAT_crit_chance);
@@ -4511,7 +4547,7 @@ procedure set_drugs_proto begin
          set_proto_data(419, PROTO_DR_AMOUNT_1_A, 3);
          set_proto_data(419, PROTO_DR_AMOUNT_1_B, 1);
          set_proto_data(419, PROTO_DR_AMOUNT_1_C, 0);
-         set_proto_data(419, PROTO_DR_DURATION_1, 15);
+         set_proto_data(419, PROTO_DR_DURATION_1, 30);
          set_proto_data(419, PROTO_DR_AMOUNT_2_A, 0);
          set_proto_data(419, PROTO_DR_AMOUNT_2_B, -1);
          set_proto_data(419, PROTO_DR_AMOUNT_2_C, 0);
@@ -4520,71 +4556,176 @@ procedure set_drugs_proto begin
          set_proto_data(419, PROTO_DR_AMOUNT_3_B, 0);
          set_proto_data(419, PROTO_DR_AMOUNT_3_C, 0);
          //rootbeer
-         set_proto_data(423, PROTO_DR_AMOUNT_1_A, 3);
+         if get_proto_data(423, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(423, PROTO_DR_AMOUNT_1_A, 3);
          //milk
-         set_proto_data(440, PROTO_DR_STAT_B, STAT_current_hp);
-         set_proto_data(440, PROTO_DR_STAT_C, STAT_current_poison);
-         set_proto_data(440, PROTO_DR_AMOUNT_1_B, 2);
-         set_proto_data(440, PROTO_DR_AMOUNT_1_C, -4);
-         set_proto_data(440, PROTO_DR_AMOUNT_2_B, 0);
-         set_proto_data(440, PROTO_DR_AMOUNT_2_C, 0);
+         if get_proto_data(440, PROTO_DR_STAT_B) == STAT_heal_rate then begin
+            set_proto_data(440, PROTO_DR_STAT_B, STAT_current_hp);
+            set_proto_data(440, PROTO_DR_STAT_C, STAT_current_poison);
+            set_proto_data(440, PROTO_DR_AMOUNT_1_B, 2);
+            set_proto_data(440, PROTO_DR_AMOUNT_1_C, -4);
+            set_proto_data(440, PROTO_DR_AMOUNT_2_B, 0);
+            set_proto_data(440, PROTO_DR_AMOUNT_2_C, 0);
+            set_proto_data(440, PROTO_DR_AMOUNT_3_B, 0);
+            set_proto_data(440, PROTO_DR_AMOUNT_3_C, 0);
+         end
          //burger
          set_proto_data(468, PROTO_DR_STAT_A, STAT_current_hp);
+         set_proto_data(468, PROTO_DR_STAT_B, STAT_current_rad);
          set_proto_data(468, PROTO_DR_STAT_C, STAT_carry_amt);
          set_proto_data(468, PROTO_DR_AMOUNT_1_A, 2);
+         set_proto_data(468, PROTO_DR_AMOUNT_1_B, 2);
          set_proto_data(468, PROTO_DR_AMOUNT_1_C, 3);
          set_proto_data(468, PROTO_DR_DURATION_1, 930);
          set_proto_data(468, PROTO_DR_AMOUNT_2_A, 0);
+         set_proto_data(468, PROTO_DR_AMOUNT_2_B, 0);
          set_proto_data(468, PROTO_DR_AMOUNT_2_C, -3);
          set_proto_data(468, PROTO_DR_DURATION_2, 0);
          set_proto_data(468, PROTO_DR_AMOUNT_3_A, 0);
          set_proto_data(468, PROTO_DR_AMOUNT_3_B, 0);
          set_proto_data(468, PROTO_DR_AMOUNT_3_C, 0);
          //pizza max hp instead of hr
-         set_proto_data(581, PROTO_DR_AMOUNT_1_A, 2);
-         set_proto_data(581, PROTO_DR_STAT_B, STAT_max_hp);
-         set_proto_data(581, PROTO_DR_STAT_C, STAT_melee_dmg);
-         set_proto_data(581, PROTO_DR_AMOUNT_1_B, 2);
-         set_proto_data(581, PROTO_DR_AMOUNT_2_B, -2);
-         set_proto_data(581, PROTO_DR_AMOUNT_1_C, 1);
-         set_proto_data(581, PROTO_DR_AMOUNT_2_C, -1);
-         //cola heal hp instead of hr
-         set_proto_data(583, PROTO_DR_STAT_A, STAT_current_hp);
-         set_proto_data(583, PROTO_DR_AMOUNT_1_A, 3);
-         set_proto_data(583, PROTO_DR_AMOUNT_2_A, 0);
-         //обед кќрќванщика
-         set_proto_data(672, PROTO_DR_STAT_A, STAT_max_hp);
-         set_proto_data(672, PROTO_DR_STAT_B, STAT_carry_amt);
-         set_proto_data(672, PROTO_DR_AMOUNT_1_A, 10);
-         set_proto_data(672, PROTO_DR_AMOUNT_1_B, 15);
-         set_proto_data(672, PROTO_DR_DURATION_1, 1440);
-         set_proto_data(672, PROTO_DR_AMOUNT_2_A, -10);
-         set_proto_data(672, PROTO_DR_AMOUNT_2_B, -15);
-         //potroh heal hp instead of hr
-         set_proto_data(708, PROTO_DR_STAT_A, STAT_current_hp);
-         set_proto_data(708, PROTO_DR_AMOUNT_1_A, 4);
-         set_proto_data(708, PROTO_DR_AMOUNT_2_A, 0);
+         if get_proto_data(581, PROTO_DR_STAT_B) == STAT_heal_rate then begin
+            set_proto_data(581, PROTO_DR_STAT_A, STAT_max_hp);
+            set_proto_data(581, PROTO_DR_STAT_B, STAT_current_hp);
+            set_proto_data(581, PROTO_DR_STAT_C, STAT_melee_dmg);
+            set_proto_data(581, PROTO_DR_AMOUNT_1_A, 2);
+            set_proto_data(581, PROTO_DR_AMOUNT_1_B, 3);
+            set_proto_data(581, PROTO_DR_AMOUNT_1_C, 1);
+            set_proto_data(581, PROTO_DR_AMOUNT_2_A, -2);
+            set_proto_data(581, PROTO_DR_AMOUNT_2_B, 0);
+            set_proto_data(581, PROTO_DR_AMOUNT_2_C, -1);
+            set_proto_data(581, PROTO_DR_AMOUNT_3_A, 0);
+            set_proto_data(581, PROTO_DR_AMOUNT_3_B, 0);
+            set_proto_data(581, PROTO_DR_AMOUNT_3_C, 0);
+         end
+
+         //cola cherry heal hp instead of inc hr
+         if get_proto_data(583, PROTO_DR_STAT_A) == STAT_heal_rate then begin
+            set_proto_data(583, PROTO_DR_STAT_A, STAT_current_hp);
+            set_proto_data(583, PROTO_DR_AMOUNT_1_A, 2);
+            set_proto_data(583, PROTO_DR_AMOUNT_2_A, 0);
+            set_proto_data(583, PROTO_DR_AMOUNT_3_A, 0);
+         end
+         //Caravan lunch
+         if get_proto_data(672, PROTO_DR_STAT_A) == STAT_heal_rate then begin
+            set_proto_data(672, PROTO_DR_STAT_A, STAT_max_hp);
+            set_proto_data(672, PROTO_DR_STAT_B, STAT_current_hp);
+            set_proto_data(672, PROTO_DR_STAT_C, STAT_carry_amt);
+            set_proto_data(672, PROTO_DR_AMOUNT_1_A, 5);
+            set_proto_data(672, PROTO_DR_AMOUNT_1_B, 10);
+            set_proto_data(672, PROTO_DR_AMOUNT_1_C, 10);
+            set_proto_data(672, PROTO_DR_DURATION_1, 1440);
+            set_proto_data(672, PROTO_DR_AMOUNT_2_A, -5);
+            set_proto_data(672, PROTO_DR_AMOUNT_2_B, 0);
+            set_proto_data(672, PROTO_DR_AMOUNT_2_C, -10);
+            set_proto_data(672, PROTO_DR_AMOUNT_3_A, 0);
+            set_proto_data(672, PROTO_DR_AMOUNT_3_B, 0);
+            set_proto_data(672, PROTO_DR_AMOUNT_3_C, 0);
+         end
+         //Offal with spices
+         if get_proto_data(708, PROTO_DR_STAT_A) == STAT_heal_rate then begin
+            set_proto_data(708, PROTO_DR_STAT_A, STAT_current_hp);
+            set_proto_data(708, PROTO_DR_AMOUNT_1_A, 2);
+            set_proto_data(708, PROTO_DR_AMOUNT_2_A, 0);
+            set_proto_data(708, PROTO_DR_AMOUNT_3_A, 0);
+         end
+         if get_proto_data(708, PROTO_DR_STAT_C) == STAT_sequence then begin
+            set_proto_data(708, PROTO_DR_DURATION_1, 30);
+            set_proto_data(708, PROTO_DR_AMOUNT_1_C, 2);
+            set_proto_data(708, PROTO_DR_AMOUNT_2_C, -2);
+            set_proto_data(708, PROTO_DR_AMOUNT_3_C, 0);
+         end
+
          //drgn meat crit instead of hr
-         set_proto_data(743, PROTO_DR_STAT_A, STAT_crit_chance);
-         set_proto_data(743, PROTO_DR_STAT_B, STAT_current_hp);
-         set_proto_data(743, PROTO_DR_AMOUNT_1_A, 2);
-         set_proto_data(743, PROTO_DR_AMOUNT_1_B, 10);
-         set_proto_data(743, PROTO_DR_AMOUNT_2_A, -2);
-         set_proto_data(743, PROTO_DR_AMOUNT_2_B, 0);
-         set_proto_data(743, PROTO_DR_AMOUNT_3_A, 0);
-         set_proto_data(743, PROTO_DR_AMOUNT_3_B, 0);
+         if get_proto_data(743, PROTO_DR_STAT_A) == STAT_current_hp then begin
+            set_proto_data(743, PROTO_DR_AMOUNT_1_A, 3);
+            set_proto_data(743, PROTO_DR_AMOUNT_2_A, 0);
+            set_proto_data(743, PROTO_DR_AMOUNT_3_A, 0);
+         end
+         if get_proto_data(743, PROTO_DR_STAT_B) == STAT_heal_rate then begin
+            set_proto_data(743, PROTO_DR_STAT_B, STAT_crit_chance);
+            set_proto_data(743, PROTO_DR_AMOUNT_1_B, 2);
+            set_proto_data(743, PROTO_DR_AMOUNT_2_B, -2);
+            set_proto_data(743, PROTO_DR_AMOUNT_3_B, 0);
+         end
+
       end
       // Sonora food
       else if Sonora > 0 then begin
-         set_proto_data(64, PROTO_DR_STAT_A, STAT_current_hp);
-         set_proto_data(64, PROTO_DR_STAT_B, STAT_max_hp);
+         //IGUANA_ON_A_STICK
+         if get_proto_data(60, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(60, PROTO_DR_AMOUNT_1_A, 1);
+         //MUTATED_FRUIT
+         if get_proto_data(61, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(61, PROTO_DR_AMOUNT_1_A, 1);
+         //MEAT_JERKY
+         if get_proto_data(62, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(62, PROTO_DR_AMOUNT_1_A, 1);
+
+         //BOX_OF_NOODLES
+         if get_proto_data(63, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(63, PROTO_DR_AMOUNT_1_A, 2);
+
+         //Maggots
+         if get_proto_data(65, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(65, PROTO_DR_AMOUNT_1_A, 1);
+         //Fried Brahmin Offal
+         if get_proto_data(66, PROTO_DR_STAT_A) == STAT_current_hp then begin
+            set_proto_data(66, PROTO_DR_AMOUNT_1_A, 2);
+            set_proto_data(66, PROTO_DR_AMOUNT_2_A, 0);
+            set_proto_data(66, PROTO_DR_AMOUNT_3_A, 0);
+         end
+         if get_proto_data(66, PROTO_DR_STAT_B) == STAT_sequence then begin
+            set_proto_data(66, PROTO_DR_DURATION_1, 30);
+            set_proto_data(66, PROTO_DR_AMOUNT_1_B, 2);
+            set_proto_data(66, PROTO_DR_AMOUNT_2_B, -2);
+            set_proto_data(66, PROTO_DR_AMOUNT_3_B, 0);
+         end
+         //Rat soup
+         if get_proto_data(67, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(67, PROTO_DR_AMOUNT_1_A, 2);
+         //Rotten dish
+         if get_proto_data(69, PROTO_DR_STAT_A) == -2 andAlso get_proto_data(69, PROTO_DR_STAT_B) == STAT_current_poison then begin
+            set_proto_data(69, PROTO_DR_AMOUNT_1_A, 1);
+            set_proto_data(69, PROTO_DR_AMOUNT_1_B, 5);
+         end
+         //Fried cockroach
+         if get_proto_data(70, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(70, PROTO_DR_AMOUNT_1_A, 1);
+         //Chips
+         if get_proto_data(71, PROTO_DR_STAT_A) == STAT_current_hp then
+            set_proto_data(71, PROTO_DR_AMOUNT_1_A, 1);
+         //NUKA_COLA
+         if get_proto_data(106, PROTO_DR_STAT_A) == -2 andAlso get_proto_data(106, PROTO_DR_STAT_B) == STAT_current_hp then begin
+            set_proto_data(106, PROTO_DR_AMOUNT_1_A, 1);
+            set_proto_data(106, PROTO_DR_AMOUNT_1_B, 2);
+         end
+         //NUKA_COLA RAD
+         if get_proto_data(107, PROTO_DR_STAT_A) == -2 andAlso get_proto_data(107, PROTO_DR_STAT_B) == STAT_current_hp then begin
+            set_proto_data(107, PROTO_DR_AMOUNT_1_A, 1);
+            set_proto_data(107, PROTO_DR_AMOUNT_1_B, 2);
+         end
+         if get_proto_data(108, PROTO_DR_STAT_A) == -2 andAlso get_proto_data(108, PROTO_DR_STAT_B) == STAT_current_hp then begin
+            set_proto_data(108, PROTO_DR_STAT_A, STAT_current_hp);
+            set_proto_data(108, PROTO_DR_STAT_B, STAT_current_poison);
+            set_proto_data(108, PROTO_DR_STAT_C, STAT_current_rad);
+            set_proto_data(108, PROTO_DR_AMOUNT_1_A, 3);
+            set_proto_data(108, PROTO_DR_AMOUNT_1_B, -5);
+            set_proto_data(108, PROTO_DR_AMOUNT_1_C, -5);
+         end
+
+
+         //FROZEN_DINNER
+         set_proto_data(64, PROTO_DR_STAT_A, STAT_max_hp);
+         set_proto_data(64, PROTO_DR_STAT_B, STAT_current_hp);
          set_proto_data(64, PROTO_DR_STAT_C, -1);
-         set_proto_data(64, PROTO_DR_AMOUNT_1_A, 10);
+         set_proto_data(64, PROTO_DR_AMOUNT_1_A, 2);
          set_proto_data(64, PROTO_DR_AMOUNT_1_B, 2);
          set_proto_data(64, PROTO_DR_AMOUNT_1_C, 0);
          set_proto_data(64, PROTO_DR_DURATION_1, 1440);
-         set_proto_data(64, PROTO_DR_AMOUNT_2_A, 0);
-         set_proto_data(64, PROTO_DR_AMOUNT_2_B, -2);
+         set_proto_data(64, PROTO_DR_AMOUNT_2_A, -2);
+         set_proto_data(64, PROTO_DR_AMOUNT_2_B, 0);
          set_proto_data(64, PROTO_DR_AMOUNT_2_C, 0);
          set_proto_data(64, PROTO_DR_DURATION_2, 0);
          set_proto_data(64, PROTO_DR_AMOUNT_3_A, 0);
@@ -4598,11 +4739,11 @@ procedure set_drugs_proto begin
          set_proto_data(68, PROTO_DR_STAT_A, STAT_max_hp);
          set_proto_data(68, PROTO_DR_STAT_B, STAT_current_poison);
          set_proto_data(68, PROTO_DR_STAT_C, STAT_current_hp);
-         set_proto_data(68, PROTO_DR_AMOUNT_1_A, 5);
-         set_proto_data(68, PROTO_DR_AMOUNT_1_B, -10);
-         set_proto_data(68, PROTO_DR_AMOUNT_1_C, 12);
+         set_proto_data(68, PROTO_DR_AMOUNT_1_A, 4);
+         set_proto_data(68, PROTO_DR_AMOUNT_1_B, -6);
+         set_proto_data(68, PROTO_DR_AMOUNT_1_C, 4);
          set_proto_data(68, PROTO_DR_DURATION_1, 2880);
-         set_proto_data(68, PROTO_DR_AMOUNT_2_A, -5);
+         set_proto_data(68, PROTO_DR_AMOUNT_2_A, -4);
          set_proto_data(68, PROTO_DR_AMOUNT_2_B, 0);
          set_proto_data(68, PROTO_DR_AMOUNT_2_C, 0);
          set_proto_data(68, PROTO_DR_DURATION_2, 0);
@@ -7081,7 +7222,7 @@ procedure DESCRIPTIONOBJ begin
          //end
       //end
    //end
-   if (obj_item_subtype(obj) != item_type_drug) then begin
+   if (obj_item_subtype(obj) == item_type_drug) then begin
       objPid = obj_pid(obj);
       item_description = proto_data(objPid, it_description);
       item_description = get_array(string_split(item_description, Sonora_drug_desc_separator), 0);

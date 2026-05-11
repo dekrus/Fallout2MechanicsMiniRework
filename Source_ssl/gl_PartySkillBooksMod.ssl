@@ -1274,12 +1274,12 @@ procedure set_books_proto_stats begin
    variable book_pid;
    foreach book_pid in books_pids_array begin
       if book_pid > 0 then begin
-         set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwor ITEM_ACTION_USEON));
-         if (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand ITEM_ACTION_USE) == ITEM_ACTION_USE then begin
-            set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand bwnot(ITEM_ACTION_USE)));
-         end
+         set_proto_data(book_pid, PROTO_IT_FLAGS, (get_proto_data(book_pid, PROTO_IT_FLAGS) bwand bwnot(ITEM_ACTION_USE) bwor ITEM_ACTION_USEON));
          if get_proto_data(book_pid, PROTO_IT_COST) <= 0 then
             set_proto_data(book_pid, PROTO_IT_COST, 10 + 5 *get_proto_data(book_pid, PROTO_IT_WEIGHT));
+
+         if Sonora then
+            set_proto_data(book_pid, PROTO_SCRIPTID, -1);
       end
    end
 
@@ -2465,32 +2465,33 @@ procedure DESCRIPTIONOBJ begin
    variable skill;
    variable skill2;
    variable cur_book_count;
-   variable books_limit;
+   //variable books_limit;
    variable max_books_limit;
    variable books_name;
+   if Sonora <= 0 then
+      return;
 
    if obj > 0 andAlso (obj_item_subtype(obj) == item_type_misc_item) then begin
       book_pid = obj_pid(obj);
       if is_in_array(book_pid, books_pids_array) then begin
          item_description = proto_data(book_pid, it_description);
-         books_limit = get_books_limit(dude_obj);
-         if books_limit > 0 then begin
+         //books_limit = get_books_limit(dude_obj);
+         //if books_limit > 0 then begin
             //max_books_limit = get_max_books_limit(dude_obj);
-            cur_book_count = get_sfall_global_int(get_gvar_name(book_pid));
+            //cur_book_count = get_sfall_global_int(get_gvar_name(book_pid));
             //if cur_book_count > books_limit then
                //books_limit = cur_book_count;
             //if cur_book_count >= max_books_limit then
-               //new_item_description = item_description  + "  Вы полностью изучили эту книгу и вынесли из неё все, что могли.";
+               //new_item_description = item_description + " You have fully studied this book and learned everything you could from it.";
             //else
-            books_name = proto_data(book_pid, it_name);
-               new_item_description = item_description  + " Вы освоили " + cur_book_count + " " + books_name + ".";
-         end
-         else begin
-            new_item_description = item_description + " Содержимое слишком сложно для вашего уровня понимания.";
-         end
+            //books_name = proto_data(book_pid, it_name);
+               //new_item_description = item_description + " You have read " + cur_book_count + " " + books_name + ".";
+            //end
+            //else begin
+               //new_item_description = item_description + " The content is too complex for your understanding.";
+            //end
 
-
-         if Sonora > 0 andAlso book_pid != SONORA_PID_BEMIS_BOOK then begin
+         if Sonora > 0 andAlso book_pid != SONORA_PID_BEMIS_BOOK andAlso book_pid != SONORA_PID_COMIC then begin
             item_description = string_split(item_description, Sonora_book_desc_separator);
             len = len_array(item_description) - 1;
             new_item_description = "";
@@ -2500,9 +2501,9 @@ procedure DESCRIPTIONOBJ begin
             if new_book_formula > 0 then begin
                skill = get_skill_F2(book_pid);
                skill2 = second_skill_array[book_pid] - 1;
-               new_item_description +=  message_str_game(GAME_MSG_SKILL, 100 + skill)+": +"+base_skill_book_bonus;
+               new_item_description += "\\n" + message_str_game(GAME_MSG_SKILL, 100 + skill)+": +"+base_skill_book_bonus+".";
                if skill2 >= 0 then
-                  new_item_description += ", " + message_str_game(GAME_MSG_SKILL, 100 + skill2)+": +"+base_second_skill_book_bonus;
+                  new_item_description += "\\n" + message_str_game(GAME_MSG_SKILL, 100 + skill2)+": +"+base_second_skill_book_bonus+".";
 
             end
          end
