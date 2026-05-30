@@ -54,13 +54,13 @@
 ### Secondary Attack
 **(Requires set in ddraw.ini: AllowUnsafeScripting=2 for sfall 4.4+ or AllowUnsafeScripting=1 for sfall 5.1+)**  
 This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapons.
-- All of the Alternate Fire activates with an Aimed Shot to the torso, or can be set to always be active (configurable).
+- The alternate fire mode is activated by an Aimed Shot to the torso, or can be set to always be active (configurable).
 
 **Laser Weapons:** ![Secondary-Attack](images/LASER_SLOW.gif)  
 - Damages all creatures along the projectile's path.
 - Hit/critical chance calculated separately per target.
-- Alternate fire has increased armor penetration (target laser defense ×0.2 — 80% ignored).
-- Energy cell consumption is calculated based on potential targets between shooter and main target (2 x base attack cost + number of additional targets х base attack cost). 
+- Alternate fire has increased armor penetration (target laser defense *0.2 — 80% ignored).
+- Energy cell consumption is calculated based on potential targets between shooter and main target (2 * base attack cost + number of additional targets * base attack cost).
   - On a miss, the beam travels in a different direction but can still hit up to the originally calculated number of targets.
   - Beam continues until it dissipates (max weapon range), hits an obstacle, or strikes the predetermined number of targets.
 - Maximum additional targets depends on weapon and ammo type, and can be configured in `F2MechanicsMiniRework.ini`.
@@ -73,7 +73,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Lightning cannot miss secondary targets once triggered and can hit the attacker if too close.
 - Lightning deals highly randomized damage to secondary targets, decreasing with each target.
 - Critical chance calculated separately per target.
-- Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
+- Alternate attack consumes (2 * base attack cost, minimum 3) energy cells.
 
 **Gauss Weapons:**  
 ![Secondary-Attack](images/GAUSS.gif)  
@@ -90,7 +90,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Creates an explosion that damages all creatures within a configurable radius.
 - Damage falls off with distance from the blast center (configurable rate).
 - Critical chance calculated separately for each target.
-- Alternate attack consumes (2 x base attack cost, but no less than 3) energy cells.
+- Alternate attack consumes (2 * base attack cost, minimum 3) energy cells.
 
 **Pistols & SMGs:**  
 ![Secondary-Attack](images/PISTOLS_SMGS.gif)  
@@ -120,60 +120,123 @@ All new trait properties are scripted and will function even if the traits thems
 Each new property for a specific trait can be enabled, disabled, or forcibly activated, even if the player does not possess the trait, when the option is enabled in the .ini settings file.  
 
 **Fast Metabolism:**
+- [+] Heals HP while Healing Rate > 0: based on Healing Rate (with Regen mod) or 0.5% Max HP * (Endurance + Healing Rate / 10) (without HRegen mod). Also cures 1 random injury every 5 seconds.
 - [+] All food and chems remove 33% more poison and radiation.
+- [+] +6 Healing Rate.
+- [+] Super Stimpak and Hypo(from Federation Crash Site special encounter) also heal injuries on use. (Regen mod only)
 - [±] All food and chems heal/remove 33% more HP.
 - [±] All food and chems take effect and wear off twice as fast.
-- [±] If the Healing mod is enabled, HP regeneration is increased by 33%. However, if poisoned, effectiveness is reduced by 50% (higher poison resistance reduces this penalty).
+- [±] If the Healing mod is enabled, HP regeneration is increased by 33%.
+- [-] Dynamic regen penalty: depends on the amount of poison and radiation (up to 20% penalty each, stacking to 40%).
+- [−] Endurance does not increase poison and radiation resistance. *(Vanilla)*
+
+**Small Frame:**
+- [+] +1 Agility. *(Vanilla)*
+- [+] +10% Sneak effectiveness.
+- [+] Reduces maximum hit chance against the player by 8% (stacks with other sources).
+- [−] Carry weight reduced to 25 + (15 × Strength). *(Vanilla)*
 
 **Bruiser:**
-- [+] Maximum damage from unarmed, melee, and throwing weapons (excluding grenades) is doubled.
+- [+] Both minimum and maximum damage from unarmed, melee, and throwing weapons (excluding grenades) are doubled.
 - [+] The "Melee Damage" attribute now affects the maximum damage of throwing weapons.
+- [+] +10 HP.
+- [+] +2 Strength. *(Vanilla)*
+- [−] -2 Action Points. *(Vanilla)*
+
+**Heavy-Handed:**
+- [+] Penetrates a portion of the target's armor (10% + 4% per Strength, up to 50%).
+- [+] "Melee Damage" is added to minimum damage for unarmed, melee, and thrown weapon attacks (excluding grenades).
+- [+] The "Melee Damage" attribute now also affects the damage of throwing weapons.
+- [+] Non-critical melee/throwing attacks have a chance to knock down targets (based on damage, Strength, armor, weapon weight, target's Endurance and target species).
+- [+] +4 to "Melee Damage". *(Vanilla)*
+- [−] -30 to critical hit roll. *(Vanilla)*
 
 **One-Hander:**
-- [+] One-handed unarmed attacks receive a +20% hit chance bonus.
+- [+] One-handed attacks (unarmed too) receive a +20% hit chance bonus.
 - [+] Can attack with one-handed weapons even when both arms are injured (the +20% hit chance bonus does not apply in this case).
 - [+] Bonus: +5 to critical effect power.
 - [+] +3 Strength bonus for one-handed weapon requirement checks (does not affect melee weapon damage).
 
 **Finesse:**
-- [+] Player's area damage attacks can now deal critical damage, penetrate armor, and knock down/out additional targets.
-- [+] Affects all types of area attacks: burst fire, grenades, flamethrowers, and alternative fire modes.
+- [+] +10% to hit, critical chance and roll.
+- [+] Excess hit chance above 95% is converted into additional critical chance and critical roll (+1% per 10% excess).
+- [−] Enemies gain +30% damage resistance against all player's attacks. *(Vanilla)*
 
 **Kamikaze:** *(Compatible with "AutoMoveToAttack" in sfall 5.0+)*
 - [+] Player can "attack on the move", reducing attack cost by 1 AP per 2 steps (minimum 1 AP for non-targeted, 2 AP for targeted attacks).
 - [+] Sequence increased by 10.
 - [−] Each step reduces hit chance by 3%. Hit penalty and AP reduction bonus reset to zero after attacking, performing other actions (looting, using items, etc.), or at the end of the turn.
 
-**Heavy-Handed:**
-- [+] "Melee Damage" is added to minimum damage for unarmed, melee, and thrown weapon attacks (excluding grenades).
-- [+] The "Melee Damage" attribute now also affects the damage of throwing weapons.
-- [+] Non-critical melee/throwing attacks have a chance to knock down targets (based on damage, Strength, weapon weight, target's Endurance and species).
-- [+] Player's critical miss severity reduced by 30%.
-
 **Bloody Mess:**
-- [+] First kill each turn restores 2 AP; subsequent kills in same turn restore 1 AP.
+- [+] First kill or inflicted limb/eye injury each turn restores 2 AP; subsequent kills or injuries in the same turn restore 1 AP.
 - [±] Critical miss severity increased by 30% for everyone (including player).
-- [±] Player now always dies in the most gruesome way possible.
+- [~] Player and NPCs now always die in the most gruesome way possible. *(Vanilla)*
 
 **Jinxed:**
-- [±] Reduces maximum hit chance by 5% for both players and NPCs.
+- [±] Reduces maximum hit chance by 5% for both players and NPCs
 - [±] Time limit removed — critical misses can occur from the start of the game.
+- [±] 50% chance to convert a miss into a critical miss for everyone (including player). *(Vanilla)*
 
 **Chem Reliant:**
-- [±] Chem/food effects on stats amplified by 50%, rounded to the nearest integer (-1 → -2, +1 → +2)
+- [+] Faster recovery from chem addictions. *(Vanilla)*
+- [+] After consuming enough effective doses (12-20; ×2 for Alcohol and Nuka-Cola), grants permanent
+      Stat bonuses. Bonuses are awarded gradually, sometimes starting from the very first dose.
+      A dose counts only if it changed at least one stat and did not display "That does nothing."
+      Gifted characters need +50% more doses.
+  - Mentats: +1 INT, +15% XP.
+  - Buffout: +1 STR, +1 EN, +25 carry weight.
+  - Psycho: +1 AG, +5% crit chance and all types of damage resistance.
+  - Jet: +1 PE, +1 AP, +3 Sequence.
+  - Nuka-Cola: +5 AC, +5 Sequence.
+  - Alcohol: +1 CH.
+- [±] Chem/food effects on stats amplified by 50%, rounded to the nearest integer (-1 → -2, +1 → +2).
+- [−] Twice the chance to become addicted. *(Vanilla)*
 
 **Chem Resistant:**
+- [+] +1 Endurance.
 - [+] Food and chems no longer cause addiction.
 - [+] Stats return to normal immediately after the first chem/food effect wears off.
-- [+] Can take 50% more doses, rounded up.
+- [+] Can take 50% more doses, rounded up. *(Vanilla)*
 - [±] Positive and negative effects of chems and food reduced by 50%, rounded toward zero:
   - Negative values become less negative (-3 → -1, -1 → 0)
   - Positive values round up (+1 → +1, +2 → +3)
+- [−] Chem/food duration reduced by 50%. *(Vanilla)*
 
 **Skilled:**
 - [+] Increases maximum hit chance by 4%.
 - [+] 50% chance for the player's critical miss to become a regular miss.
+- [+] Player's critical miss severity reduced by 30%.
 - [+] Reduces perk level requirement by 4 (e.g., a level 9 perk becomes available at level 5, a level 12 perk at level 8).
+- [+] +5 skill points per level. *(Vanilla)*
+- [−] Perks are gained every 4 levels instead of every 3. *(Vanilla)*
+
+## Perks
+Some perks have been reworked (more to come later).
+
+**Faster Healing** (2 ranks without Fast Metabolism, 1 rank with Fast Metabolism; a refund occurs if the player had 2 ranks and gained the trait):
+- Rank 1 (without Fast Metabolism): +2 to healing rate. Fully recovers health and all injuries in less than a day of rest (via Pip-Boy rest, not on the world map).
+- Rank 2 (without Fast Metabolism): +6 to healing rate (total). HP regen at half effectiveness and 1 guaranteed injury healed every 5 seconds.
+- Rank 1 (with Fast Metabolism): ×2 passive health regeneration from Fast Metabolism. *(Scripted)*
+
+**Pyromaniac** (1 rank):
+- [+] +5 damage to fire attacks.
+- [+] Fire area attacks can deal critical damage to all targets in the area of attack (not just the primary target).
+- [+] Own fire still deals damage but leaves no burns. *(Regen mod only)*
+
+**Weapon Handling** (1 rank):
+- [+] Strength requirements for weapon use reduced by 3.
+- [+] Area attacks can deal critical damage to targets in the area of effect.
+- [+] (With Burst mod) Strength requirements for burst fire recoil control also reduced by 3.
+
+**Demolition Expert** (1 rank):
+- [+] Explosions deal +10 damage.
+- [+] Explosive weapons can deal critical damage to targets in the blast radius.
+- [+] Planted explosives always detonate on time.
+
+**Dodger** (1 rank):
+- [+] +5 to Armor Class.
+- [+] Reduces maximum hit chance against the player by 5% (stacks with other sources).
+
 
 ### Skill Books
 This mod allows you to use skill books on companions to increase their skills, and also allows you to change the amount of bonus skill points and the number of skills that increase when reading books.
@@ -235,6 +298,7 @@ This is a rework of the original poison mechanics, designed to make poison more 
 - NPCs and companions can apply poison to their own weapons if they have a radscorpion tail in their inventory.
 - When poisoned, NPCs and companions can use an antidote (or other healing items) if available in their inventory. They can do so during combat, out of combat, while traveling on the world map, and while resting.
 - Added a new perk, **"Toxicologist"**, available from level 6 and requiring Science above 50% or Outdoorsman above 70%. This perk adds poison damage when using Needler pistol, increases the effectiveness of all poisoned weapons, and raises your poison resistance cap to 100%.
+- Golden gecko bites now poison the target, as mentioned by Slim and other trappers in Klamath.
 
 ### Healing
 **(Requires set in ddraw.ini: SpeedInterfaceCounterAnims=2)**  
@@ -243,7 +307,7 @@ Replaces instant Stimpak healing with healing over time.
 
 - All creatures with a Healing Rate of 6 or higher begin to regenerate a portion of their HP at the end of their turn in combat, or every 5 seconds when out of combat (configurable in the `.ini` file).
 - Using a Stimpak increases the Healing Rate for 15 seconds (3 rounds). Afterwards, a penalty is applied to the Healing Rate to prevent Stimpak abuse.
-- The Super Stimpak instantly restores HP based on the target’s maximum HP and current Healing Rate, but not less than 60 HP, while temporarily reducing the Healing Rate (depending on the actual HP restored). The delayed damage from the Super Stimpak is proportional to the amount of HP actually restored and the difference between the Healing Rate and the applied penalty.
+- The Super Stimpak instantly restores HP based on the target's maximum HP and current Healing Rate, but never less than 60 HP, while temporarily reducing the Healing Rate (depending on the actual HP restored). The delayed damage from the Super Stimpak is proportional to the amount of HP actually restored and the difference between the Healing Rate and the applied penalty.
   - Additionally, if enabled in the `.ini` file, the Super Stimpak can heal crippled limbs at the cost of increased post-effect damage.
 - The Fast Metabolism trait enhances the effects of Stimpaks and Super Stimpaks if **Traits Plus** is enabled.
 - Wanamingos and centaurs have passive HP regeneration (configurable in the `.ini` file).
@@ -299,7 +363,7 @@ Removes randomness from sneaking. Detection is now determined by skill level and
 #### Sneak Detection 
 *(Recommended: set "DontTurnOffSneakIfYouRun=1" in ddraw.ini for convenience)*
 ![Sneak](images/SNEAK.gif)  
-Color-coded sneak detection compatible with both vanilla and overhauled sneak systems.
+Provides color-coded sneak detection compatible with both vanilla and overhauled sneak systems.
 While a sneaking player is within an observing NPC's line of sight, that NPC will be highlighted with one of the following colors:
 - **Green** — Player not detected; safe to approach
 - **Yellow** — Player not detected, but will be detected if moving 4 steps closer
@@ -321,7 +385,7 @@ Overhauls vanilla's pickpocketing where target perception was ignored, high stea
 - Failed attempts trigger scripted scenes instead of city-wide battles
 - Temporary reputation/speech/barter penalties that fade over time  
   *(Avoided if steal target and all witnesses are eliminated quickly)*
-- Can steal items from hand when skill > 155 + (target's Perception × 5)
+- Can steal items from the target's hand when skill > 155 + (target's Perception * 5)
 - View pocket contents with skill requirement (failures may anger target)
 - **Increase success chance:** sneaking, darkness, unconscious/blinded targets (and others)
 - **Reduce success chance:** being seen, item weight/size, consecutive attempts (and others)
@@ -336,7 +400,7 @@ Adds unique properties to different attack types:
   - Favors maximum damage over minimum damage against lightly armored targets
 - **Thrust:**
   - Partially ignores target's DR/DT (based on attacker's melee damage & weapon max damage)
-  - ×1.5 critical hit chance
+  - *1.5 critical hit chance
 
 **Sledgehammers, Clubs, Cattle Prods:**
 - **Swing:**
@@ -355,19 +419,19 @@ Adds unique properties to different attack types:
 **Endurance & Health:**
 - HP now recalculates when base Endurance increases (via perks/implants).
 - **Optional:** Fixes vanilla issue where odd Endurance values provided no benefit.
-  - Odd Endurance gives **+0.5 HP/level**, rounding up on even levels.  
+  - Odd Endurance gives +0.5 HP/level, rounded up on even levels.
     *Example: Odd Endurance 1 → bonus +1 MAX HP on level 2, No HP bonus on level 3, bonus +1 MAX HP on level 4, No HP bonus on level 5, alternating*
 
 **Intelligence & Skill Points:**
 - When base Intelligence increases (via perks/implants), receive retroactive skill points:
-	*Bonus = (Current Level - 1) × (Intelligence Increase) × 2*
+	*Bonus = (Current Level - 1) * (Intelligence Increase) * 2*
 - No points are deducted if Intelligence decreases later
 
 ## Compatibility
 - Compatible with most Fallout 2-based games. For compatibility with Nevada, Sonora, or Fallout et tu, enable it in `mods/F2MechanicsMiniRework.ini`.
 - Fully compatible with [__FO2Tweaks__](https://github.com/BGforgeNet/FO2tweaks) and [__Fallout 2: Weapons Redone 2.3d__](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
 - All components except for the [Steal](#steal), [Healing](#healing) and [MedToolsMod](#medical-tools) are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
-## Setting up compatibility with EcCo
+## How to Set Up Compatibility with EcCo
 **Automatic conflict detection:**
 - When launching the game and starting a **new game** or **loading any save**, this mod will automatically detect conflicts with EcCo and show prompts allowing you to choose which features to keep active.
 **Or configure manually:**
@@ -426,7 +490,7 @@ StealRebalance=1
 FO2_ECCO=1
     ```   
 - This keeps specific F2MechanicsMiniRework features:
-	- Stealing items from NPCs' hands (when skill > 155 + Perception×5)
+	- Stealing items from NPCs' hands (when skill > 155 + Perception*5)
 	- Pocket peeking with skill requirements
 	- *(Other steal mechanics will use EcCo's tweaks)*
 

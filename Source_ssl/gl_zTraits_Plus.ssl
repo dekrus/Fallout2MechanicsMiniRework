@@ -1,4 +1,4 @@
-#define SMALL_FRAME_DODGE 10
+#define SMALL_FRAME_DODGE 8
 #define DODGER_DODGE 5
 #define JINXED_MISS 5
 #define ONE_HANDER_HIT_BONUS 20
@@ -24,15 +24,24 @@
 #define skilled_perk_level_bonus (4)
 
 #define fast_meta_duration_div (2)
-#define heavy_handed_luck_bonus (6)
+#define skilled_luck_bonus (6)
 #define bloody_mess_luck_penalty (-7)
 #define ap_bonus_kill_first (2)
+//#define ap_bonus_kill_second (2)
 #define ap_bonus_kill (1)
 #define MAX_TRAITS 16
 #define flags_offset 100000
 
+#define timed_hp_regen 1
+#define timed_ap_give 5
 #define timed_ap_debt 10
-
+#define timed_rad_rm 100
+#define timed_rad_rm_get_time            get_array(drug_addict_array, ARRAY_CHEM_RAD_RM_TIME)
+#define timed_rad_rm_get_time_next       (game_time() - timed_rad_rm_get_time)
+#define timed_rad_rm_set_time(time_ticks) set_array(drug_addict_array, ARRAY_CHEM_RAD_RM_TIME, time_ticks)
+#define timed_rad_rm_is_time_set         (timed_rad_rm_get_time != 0)
+#define timed_rad_rm_clear_time          set_array(drug_addict_array, ARRAY_CHEM_RAD_RM_TIME, 0)
+#define timed_rad_rm_repeat_time         ONE_GAME_HOUR
 
 #define STAT_drug_rnd -2
 //#define drug_addict_stats(drug_stat) ((drug_stat >= STAT_st andAlso drug_stat <= STAT_poison_resist andAlso drug_stat != STAT_max_move_points andAlso drug_stat != STAT_heal_rate andAlso drug_stat != STAT_max_hp) orElse drug_stat == STAT_drug_rnd)
@@ -79,15 +88,129 @@
 #define MOUSE_CURSOR_CROSSHAIR 20
 
 //Nevada drugs
+#define PID_MENTATS_NEVADA                  (337)
 #define PID_MENTATS_AROM                    (338)
-#define PID_M_STMPK_RING                    (164)
-#define PID_M_MILASHKA                      (259)
+#define PID_NEVADA_FIGHTING_STIM            (164)
+#define PID_NEVADA_CARAMEL                  (259)
+#define PID_NEVADA_DIESEL_GUM               (525)
+#define PID_NEVADA_CADAVER_AMPHET           (718)
+#define PID_NEVADA_NUT_SOLUTION             (675)
+
+//ecco drugs
+#define PID_ECCO_HERCULES                   (620)
+
+//olympus2207 drugs
+#define PID_OLYMP_SURGE                      (223) //"Lazaret"
+#define PID_OLYMP_RESISTANOL                 (229)
+#define PID_OLYMP_COMBATID                 (230)
+#define PID_OLYMP_BRAINNIAC                 (231)
+#define PID_OLYMP_STRONGHOLD                (232)
+#define PID_OLYMP_DROP                     (233) //"Kaplya"
 
 //sfall 5
 #define set_heave_ho_tweak_mod(mod)                             metarule3(202, mod, 0, 0)
 #define _combat_turn_running read_int(0x51093C)
 
+#define ARRAY_CHEM_NAME "MMR_DRUG_ADDICT_ARR"
+#define ARRAY_CHEM_RAD_RM_TIME -10
+#define DA_LAST_PERK 1000000
 
+#define DA_DRUG_MENTATS     11
+#define DA_DRUG_BUFFOUT     12
+#define DA_DRUG_PSYCHO      13
+#define DA_DRUG_JET         14
+#define DA_DRUG_NUKACOLA    15
+#define DA_DRUG_RADX        16
+#define DA_DRUG_RADAWAY     17
+#define DA_DRUG_ALCOHOL     18
+//Nevada
+#define DA_DRUG_NEVADA_AP_DRUGS    19
+
+// Mentats
+#define da_mentats_perk_name             trait_msg(300)
+#define da_mentats_perk_desc1            trait_msg(301)
+#define da_mentats_perk_desc2            trait_msg(302)
+#define da_mentats_perk_desc3            trait_msg(303)
+#define da_mentats_add_msg               trait_msg(304)
+
+// BUFFOUT
+#define da_buffout_perk_name             trait_msg(310)
+#define da_buffout_perk_desc1            trait_msg(311)
+#define da_buffout_perk_desc2            trait_msg(312)
+#define da_buffout_perk_desc3            trait_msg(313)
+#define da_buffout_add_msg               trait_msg(314)
+
+// PSYCHO
+#define da_psycho_perk_name              trait_msg(320)
+#define da_psycho_perk_desc1             trait_msg(321)
+#define da_psycho_perk_desc2             trait_msg(322)
+#define da_psycho_perk_desc3             trait_msg(323)
+#define da_psycho_add_msg                trait_msg(324)
+
+// JEt
+#define da_jet_perk_name                 trait_msg(330)
+#define da_jet_perk_desc1                trait_msg(331)
+#define da_jet_perk_desc2                trait_msg(332)
+#define da_jet_perk_desc3                trait_msg(333)
+#define da_jet_add_msg                   trait_msg(334)
+
+// COLA
+#define is_pid_cola_sonora(drug_pid)      (drug_pid == 107)
+#define is_pid_cola_nevada(drug_pid)      (drug_pid == 473 orElse drug_pid == 583 orElse drug_pid == 584)
+#define is_pid_cola(drug_pid)             ((drug_pid == PID_NUKA_COLA) orElse (Sonora > 0 andAlso is_pid_cola_sonora(drug_pid)) orElse (Nevada > 0 andAlso is_pid_cola_nevada(drug_pid)))
+#define da_nukacola_perk_name             trait_msg(340)
+#define da_nukacola_perk_desc1            trait_msg(341)
+#define da_nukacola_perk_desc2            trait_msg(342)
+#define da_nukacola_perk_desc3            trait_msg(343)
+#define da_nukacola_add_msg               trait_msg(344)
+
+// RADX
+#define da_radx_perk_name                trait_msg(350)
+#define da_radx_perk_desc1               trait_msg(351)
+#define da_radx_perk_desc2               trait_msg(352)
+#define da_radx_perk_desc3               trait_msg(353)
+#define da_radx_add_msg                  trait_msg(354)
+
+// RADAWAY
+#define da_radaway_perk_name             trait_msg(360)
+#define da_radaway_perk_desc1            trait_msg(361)
+#define da_radaway_perk_desc2            trait_msg(362)
+#define da_radaway_perk_desc3            trait_msg(363)
+#define da_radaway_add_msg               trait_msg(364)
+
+// AL GUL
+#define is_pid_alcohol_sonora(drug_pid)  (drug_pid >= 120 andAlso drug_pid <= 125)
+#define is_pid_alcohol_nevada(drug_pid)  (drug_pid == 758 orElse drug_pid == 719 orElse drug_pid == 423 orElse drug_pid == 476)
+#define is_pid_alcohol_ecco(drug_pid)    (drug_pid == 542) //bottle of wine
+#define is_pid_alcohol_oplymp(drug_pid)  (Olympus2207 > 0 andAlso (drug_pid == 234 orElse drug_pid == 235 orElse drug_pid == 236)) //bottle of wine
+#define is_pid_alcohol(drug_pid)         ((Sonora <= 0 andAlso (is_pid_alcohol_ecco(drug_pid) orElse drug_pid == PID_BEER orElse drug_pid == PID_BOOZE orElse drug_pid == PID_GAMMA_GULP_BEER orElse drug_pid == PID_ROENTGEN_RUM orElse drug_pid == PID_ROT_GUT orElse (Nevada > 0 andAlso is_pid_alcohol_nevada(drug_pid)))) orElse (Sonora > 0 andAlso is_pid_alcohol_sonora(drug_pid)))
+#define da_alcohol_perk_name             trait_msg(370)
+#define da_alcohol_perk_desc1            trait_msg(371)
+#define da_alcohol_perk_desc2            trait_msg(372)
+#define da_alcohol_perk_desc3            trait_msg(373)
+#define da_alcohol_add_msg               trait_msg(374)
+
+
+// NEVADA JEt
+#define da_nevada_amph_perk_name                 trait_msg(3330)
+#define da_nevada_amph_perk_desc1                trait_msg(3331)
+#define da_nevada_amph_add_msg                   trait_msg(3334)
+
+
+#define COMBAT_TURN_START      (1)
+#define COMBAT_TURN_END       (0)
+#define COMBAT_END_ABRUPT      (-1) //combat ends abruptly (by script or by pressing Enter during PC turn)
+#define COMBAT_END_NORMAL      (-2) //combat ends normally (hook always runs at the end of combat)
+
+
+#define right_hand_healed_msg    (trait_msg(6))
+#define right_leg_healed_msg     (trait_msg(7))
+#define left_hand_healed_msg     (trait_msg(8))
+#define left_leg_healed_msg      (trait_msg(9))
+#define eyes_healed_msg          (trait_msg(10))
+#define msg_player_1_hp_healed   (trait_msg(11))
+#define msg_player_many_hp_healed   (trait_msg(12))
+#define finesse_to_hit_bonus     10
 
 
 #include "define.h"
@@ -95,6 +218,8 @@
 #include "command.h"
 #include "sfall.h"
 #include "F2MMR.h"
+#include "lib.strings.h"
+
 
 variable traits_plus_cur_version;
 variable traits_plus_version_Sonora = "Sonora";
@@ -103,13 +228,17 @@ variable traits_plus_version_et_tu = "et_tu";
 variable Nevada;
 variable Sonora;
 variable et_tu;
+variable Olympus2207;
 variable TraitsPlus;
 variable RegenMod;
 variable Lvar_wpn_max_dmg;
 variable Lvar_wpn_min_dmg;
-
+variable AimedBurstMod;
+variable v1_2_new_install;
 variable dude_trait_1;
 variable dude_trait_2;
+variable in_char_screen;
+variable repeat_in_char_screen;
 
 
 variable traits_plus_msg_file;
@@ -120,12 +249,31 @@ variable array_drugs_ini;
 
 
 variable main_attacker;
+variable gPyromaniacBonus;
+variable gDemolitionExpertBonus;
 
 // TRAIT_fast_metabolism
 variable fast_metabolism;
+variable fast_metabolism_MMR_regen;
+variable fast_metabolism_fast_healing_perk_stat = "FMMRTPFH";
+variable gLastRegenTime;
+variable gLastGameTime;
+variable gPartialTicks;
+variable gAccumulatedHealForCrip;
+variable gCripHealThreshold;
+variable gTotalHealedThisRest;
+variable gGlobalMapSpeedMult;
+variable timed_hp_regen_global;
+variable gFasterHealingPerk;
+variable characterEditorSelectedItem;
+variable timer_is_up;
 
 // TRAIT_drug_addict
 variable drug_addict;
+variable drug_addict_array;
+variable da_check;
+variable drug_addict_stat_check_array;
+variable last_xp_mod;
 
 // TRAIT_drug_resistant
 variable drug_resistant;
@@ -135,6 +283,10 @@ variable bruiser;
 variable in_description;
 variable scr_repeat;
 variable overlay_created;
+variable g_HH_target;
+variable g_HH_dt_pen;
+variable g_HH_dr_pen;
+variable g_HH_dmg_type;
 variable bruiser_heavy_handed_pid_0;
 variable bruiser_heavy_handed_min_0;
 variable bruiser_heavy_handed_max_0;
@@ -169,13 +321,17 @@ variable kamikaze_last_tile;
 
 //TRAIT_finesse
 variable finesse;
+variable finesse_hit_to_crit;
+variable finesse_hit_to_crit_bonus;
+variable finesse_bonus_added;
 
 
 //TRAIT_bloody_mess
 variable bloody_mess;
+variable bloody_mess_inj_arr;
 variable bloody_mess_ap_debt;
 variable bloody_mess_player_death_changed;
-variable bloody_mess_death_count;
+variable bloody_mess_bonus_count;
 variable bloody_mess_last_ap_attack;
 variable bloody_mess_no_ap_end;
 variable dude_turn;
@@ -186,7 +342,6 @@ variable jinxed_removed;
 variable jinxed_unsafe_set_max_roll;
 
 variable living_anatomy_bonus;
-variable pyromaniac_bonus;
 
 variable unlucky_attacker;
 variable attacker_orig_extra_luck;
@@ -268,6 +423,28 @@ procedure one_hander_weapon_bonus_add(variable weapon) begin
       set_proto_data(weapon_pid, PROTO_WP_MIN_ST, 1);
 end
 
+procedure finess_rm_crit_bonuses begin
+   if finesse_hit_to_crit_bonus != 0 then begin
+      set_critter_extra_stat(real_dude_obj, STAT_better_crit, get_critter_extra_stat(real_dude_obj, STAT_better_crit) - finesse_hit_to_crit_bonus);
+      set_critter_extra_stat(real_dude_obj, STAT_crit_chance, get_critter_extra_stat(real_dude_obj, STAT_crit_chance) - finesse_hit_to_crit_bonus);
+      finesse_hit_to_crit_bonus = 0;
+      finesse_hit_to_crit = 0;
+   end
+   finesse_bonus_added = 0;
+end
+
+procedure finess_add_crit_bonuses begin
+   call finess_rm_crit_bonuses;
+   if finesse_bonus_added <= 0 andAlso finesse_hit_to_crit > 0 then begin
+      finesse_hit_to_crit_bonus = finesse_hit_to_crit;
+      set_critter_extra_stat(real_dude_obj, STAT_better_crit, get_critter_extra_stat(real_dude_obj, STAT_better_crit) + finesse_hit_to_crit_bonus);
+      set_critter_extra_stat(real_dude_obj, STAT_crit_chance, get_critter_extra_stat(real_dude_obj, STAT_crit_chance) + finesse_hit_to_crit_bonus);
+      finesse_hit_to_crit = 0;
+      finesse_bonus_added = 1;
+      call finess_rm_crit_bonuses when _combat_turn_running <= 0;
+   end
+end
+
 procedure TOHIT begin
    variable hit_capped = get_sfall_arg;
    variable attacker  = get_sfall_arg;
@@ -313,6 +490,9 @@ procedure TOHIT begin
          end
       end
 
+      if finesse then
+         new_hit_chance += finesse_to_hit_bonus;
+
       if skilled > 0 then begin
          new_hit_chance += SKILLED_HIT_BONUS;
          max_hit_cap += SKILLED_HIT_BONUS;
@@ -342,6 +522,15 @@ procedure TOHIT begin
       new_hit_chance -= kamikaze_tohit_penalty * kamikaze_hex_walked_num;
    if AutoMoveToAttack_move_dist > 0 then
       new_hit_chance -= kamikaze_tohit_penalty * AutoMoveToAttack_move_dist;
+
+   //PEKR_finesse
+   if attacker == real_dude_obj andAlso finesse then begin
+      //if body_part == BODY_UNCALLED orElse body_part == BODY_HIT_TORSO then begin
+         finesse_hit_to_crit = round((new_hit_chance - new_hit_cap) / 10.0);
+      //end
+      if finesse_hit_to_crit > 0 andAlso combat_data > 0 andAlso get_object_data(combat_data, C_ATTACK_TARGET) then
+         call finess_add_crit_bonuses;
+   end
 
    if new_hit_chance >= new_hit_cap then begin
       if new_hit_cap != hit_capped then begin
@@ -416,7 +605,7 @@ end
 // Increases the severity of the critical failure effect by "temporarily" reducing the luck value.
 // Formula for calculating the power of a critical miss within the game:
 // randomBetween(1, 100) - 5 * (attacker_LUCK - 5); weakest effect at <= 20, strongest effect at > 95
-procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable has_heavy_handed) begin
+procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable has_skilled) begin
    variable luck_penalty;
    if attacker <= 0 orELSE obj_type(attacker) != OBJ_TYPE_CRITTER then
       return;
@@ -424,8 +613,8 @@ procedure add_luck_penalty(variable attacker,variable has_bloody_mess, variable 
       call remove_luck_penalty;
    end
    //add heavy handed bonus
-   if attacker == real_dude_obj andAlso has_heavy_handed > 0 then begin
-      luck_penalty += heavy_handed_luck_bonus;
+   if attacker == real_dude_obj andAlso has_skilled > 0 then begin
+      luck_penalty += skilled_luck_bonus;
    end
    //add bloody mess penalty
    if has_bloody_mess > 0 then begin
@@ -643,41 +832,47 @@ procedure CALCAPCOST begin
 end
 
 
-procedure get_crit_mult(variable crit_power_roll,variable target) begin
+procedure get_crit_mult(variable crit_power_roll, variable target) begin
    variable crit_mult = 2;
    variable crit_flags = (DAM_BYPASS bwor DAM_HIT);
    variable target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+
    if crit_power_roll <= 20 then begin
       crit_mult = 3;
       if random(0,2) then crit_flags = DAM_HIT;
    end
    else if crit_power_roll <= 45 then begin
       crit_mult = 3;
-      if not(random(0,2)) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+      if not(random(0,3)) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
    end
    else if crit_power_roll <= 75 then begin
       crit_mult = 4;
-      if random(0,1) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+      if random(0,2) then crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
    end
    else if crit_power_roll <= 100 then begin
       crit_mult = 5;
-      crit_flags = crit_flags bwor DAM_KNOCKED_OUT;
+      if random(0,5) then
+         crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+      else
+         crit_flags = crit_flags bwor DAM_KNOCKED_OUT;
    end
    else begin
       crit_mult = 6;
-      if crit_power_roll >= 111 then begin
+      crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
+      if crit_power_roll >= 114 andAlso target_kill_type < 18 then begin
          crit_flags = crit_flags bwor DAM_DEAD;
       end
    end
 
    if target_kill_type > 17 then begin
-      if crit_mult >= 4 then crit_mult = 3;
-
+      if crit_mult > 4 then crit_mult = 4;
       if crit_power_roll >= 100 then begin
-         crit_flags = (DAM_BYPASS bwor DAM_HIT bwor DAM_KNOCKED_DOWN);
+         crit_flags = crit_flags bwor DAM_KNOCKED_DOWN;
       end
-      if random(0,1) then crit_flags = DAM_HIT;
+      if not(random(0,2)) then
+         crit_flags = crit_flags bwand (bwnot DAM_BYPASS);
    end
+
    return crit_mult + (flags_offset * crit_flags);
 end
 
@@ -736,7 +931,7 @@ procedure calc_crit_dmg(variable attacker, variable target, variable weapon, var
          ammo_dmg_mult = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_MULT);
          ammo_dmg_div = get_proto_data(weapon_ammo_pid, PROTO_AM_DMG_DIV);
       end
-      if (weapon_anim >= WPN_ANIM_PISTOL) or (weapon_damage_type != DMG_normal_dam andAlso weapon_anim <= 0) then begin
+      if (weapon_anim >= WPN_ANIM_PISTOL) orElse (weapon_damage_type != DMG_normal_dam andAlso weapon_anim <= 0) then begin
          bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
       end
    end
@@ -797,7 +992,7 @@ procedure calc_crit_dmg(variable attacker, variable target, variable weapon, var
    end
    if weapon_damage_type == DMG_fire orElse weapon_pid == PID_MOLOTOV_COCKTAIL then begin
       pyromaniac = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
-      dmg += pyromaniac_bonus * pyromaniac;
+      dmg += gPyromaniacBonus * pyromaniac;
    end
    tar_flags *= flags_offset;
    return (dmg + tar_flags);
@@ -825,73 +1020,275 @@ procedure return_ap_debt begin
    call return_ap_debt2 when _combat_turn_running <= 0;
 end
 
-procedure timed_event_p_proc begin
-   if fixed_param == timed_ap_debt then begin
-      call ap_hide;
-      call return_ap_debt;
-   end
-end
+
+procedure da_radaway_timer begin
+   variable current_time;
+   variable next_time;
+   variable missed_cycles;
+   variable delay;
+   variable rad_to_remove;
+
+   if not(has_fake_perk_npc(real_dude_obj, da_radaway_perk_name)) then
+      return;
 
 
-procedure AFTERHITROLL begin
-   variable attack_result = get_sfall_arg;
-   variable attacker = get_sfall_arg;
-   variable target = get_sfall_arg;
-   variable new_attack_result = -1;
-   variable attacker_crit;
-   variable attacker_luck;
-   variable fail_roll;
-   variable sniper;
-   variable rnd;
-   variable attacker_cur_ap;
-   main_attacker = attacker;
-   //kamikaze
-   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
-      kamikaze_ap_used = 1;
-   end
+   current_time = game_time;
+   next_time = timed_rad_rm_get_time;
 
-   if jinxed > 0 then begin
-      if attack_result == ROLL_FAILURE then begin
-         fail_roll = jinxed_remove_and_get_roll;
-         if fail_roll <= ROLL_CRITICAL_FAILURE then begin
-            new_attack_result = ROLL_CRITICAL_FAILURE;
-            attack_result = new_attack_result;
-         end
-         else begin
-            skilled_prevent_crit_fail = ROLL_FAILURE;
-         end
-      end
-   end
-   // set critical miss bonus roll
-   if attack_result == ROLL_CRITICAL_FAILURE then begin
-      // bloody_mess increases the effect of a critical miss for an attacker by 30
-      //skilled reduces chance of a critical miss for an attacker
-      if skilled > 0 andAlso attacker == real_dude_obj andAlso random(0,1) then begin
-         new_attack_result = ROLL_FAILURE;
-      end
-      if bloody_mess > 0 orElse (heavy_handed > 0 andAlso attacker == real_dude_obj) then begin
-         call add_luck_penalty(attacker,bloody_mess,heavy_handed);
-      end
-   end
-
-   // check for bloody mess attack with last ap
-   if attacker == real_dude_obj andAlso bloody_mess > 0 andAlso bloody_mess_last_ap_attack > 0 then begin
-      add_global_timer_event(0, timed_ap_debt);
-      attacker_cur_ap = get_critter_current_ap(attacker);
-      bloody_mess_ap_debt = 1;
-      set_object_data(attacker, OBJ_DATA_CUR_ACTION_POINT, attacker_cur_ap + bloody_mess_ap_debt);
-   end
-
-   if new_attack_result >= ROLL_CRITICAL_FAILURE then begin
-      set_sfall_return(new_attack_result);
-      set_sfall_arg(0, new_attack_result);
-      new_attack_result = -1;
+   if (next_time == 0) then begin
+      next_time = current_time + timed_rad_rm_repeat_time;
+      timed_rad_rm_set_time(next_time);
+      delay = timed_rad_rm_repeat_time;
+      add_global_timer_event(delay, timed_rad_rm);
       return;
    end
+
+   if (current_time >= next_time) then begin
+      missed_cycles = ((current_time - next_time) / timed_rad_rm_repeat_time) + 1;
+
+      if get_critter_stat(real_dude_obj, STAT_current_rad) > 0 then begin
+         rad_to_remove = get_critter_stat(real_dude_obj, STAT_en) / 3 + (2 * has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism));
+         if rad_to_remove < 1 then
+            rad_to_remove = 1;
+         rad_to_remove *= missed_cycles;
+         radiation_dec(real_dude_obj, rad_to_remove);
+      end
+      next_time = next_time + (missed_cycles * timed_rad_rm_repeat_time);
+      timed_rad_rm_set_time(next_time);
+   end
+
+   delay = next_time - current_time;
+   if (delay <= 0) then
+      delay = ONE_GAME_HOUR;
+
+   if get_critter_stat(real_dude_obj, STAT_current_rad) > 0 then
+      add_global_timer_event(delay, timed_rad_rm);
+   else
+      timed_rad_rm_set_time(0);
 end
 
-procedure give_ap_for_kills(variable attacker) begin
-   if bloody_mess_death_count <= 0 then begin
+
+procedure ADJUSTRADS begin
+   variable critter = get_sfall_arg;
+   variable amount = get_sfall_arg;
+
+   if critter == real_dude_obj andAlso amount > 0 andAlso get_critter_stat(real_dude_obj, STAT_current_rad) <= 0 then begin
+      call da_radaway_timer;
+   end
+end
+
+procedure heal_random_injury(variable critter, variable count = 1, variable chance = 100) begin
+   variable state;
+   variable uninjure;
+   variable guaranteed;
+   variable remaining_chance;
+   variable messages;
+   variable injures;
+   variable rnd;
+   variable roll_chance;
+   variable i, key, injury;
+   if (chance < 1 orElse count <= 0) then
+      return 0;
+
+   state = critter_state(critter);
+   if ((state bwand all_injuries) == 0) then
+      return 0;
+
+   if chance > 100 then begin
+      guaranteed = chance / 100;
+      remaining_chance = chance % 100;
+   end
+   else
+      remaining_chance = chance;
+
+   if (critter == dude_obj) then
+      messages = [right_hand_healed_msg, left_leg_healed_msg, left_hand_healed_msg, right_leg_healed_msg, eyes_healed_msg];
+
+   injures = [DAM_CRIP_ARM_RIGHT, DAM_CRIP_LEG_LEFT, DAM_CRIP_ARM_LEFT, DAM_CRIP_LEG_RIGHT, DAM_BLIND];
+   rnd = random(0, 4);
+
+   while (count > 0) do begin
+      for (i = 0; i < 5; i++) begin
+         key = ((rnd + i) % 5);
+         injury = injures[key];
+         if (state bwand injury) then begin
+            if (guaranteed > 0) then begin
+               roll_chance = 100;
+               guaranteed--;
+            end
+            else begin
+               roll_chance = remaining_chance;
+            end
+            if (roll_chance >= random(1, 100)) then begin
+               uninjure = uninjure bwor injury;
+               state = state bwand (bwnot(injury));
+               if (critter == dude_obj) then
+                  display_msg(messages[key]);
+               count--;
+               if (count <= 0) then
+                  break;
+            end
+         end
+      end
+      count--;
+      rnd = random(0, 4);
+      if ((state bwand all_injuries) == 0) then
+         break;
+   end
+
+   if (uninjure != 0) then
+      critter_uninjure(critter, uninjure);
+
+   return uninjure;
+end
+
+procedure display_regen_msg(variable critter, variable RegenTickHP) begin
+   if (critter == real_dude_obj) then begin
+      if (RegenTickHP == 1) then
+         display_msg(parse_str_2(msg_player_1_hp_healed, obj_name(critter), RegenTickHP));
+      else
+         display_msg(parse_str_2(msg_player_many_hp_healed, obj_name(critter), RegenTickHP));
+   end
+end
+
+procedure apply_regen_tick_simple(variable critter, variable count) begin
+   variable critter_max_hp;
+   variable critter_cur_hp;
+   variable critter_en;
+   variable critter_healing_rate;
+   variable local_RegenTickHP;
+   variable amount;
+   variable penalty_percent;
+
+   if count < 1 then
+      return 0;
+
+   critter_healing_rate = get_critter_stat(critter, STAT_heal_rate);
+   if (critter_healing_rate < 1) then
+      return -1;
+
+   critter_max_hp = get_critter_stat(critter, STAT_max_hp);
+   critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
+
+   critter_en = get_critter_stat(critter, STAT_en);
+   critter_healing_rate = (critter_healing_rate / 10.0 + critter_en);
+
+   amount = get_poison(critter);
+   if amount > 0 then begin
+      penalty_percent += 5.0 + (amount) * 0.2;
+      if penalty_percent > 25.0 then
+         penalty_percent = 25.0;
+   end
+
+   amount = get_critter_stat(critter, STAT_current_rad);
+   if amount > 0 then begin
+      penalty_percent += 5.0 + (amount) * 0.05;
+   end
+
+   if penalty_percent > 0.0 then begin
+      if penalty_percent > 40.0 then
+         penalty_percent = 40.0;
+      critter_healing_rate *= (100.0 - penalty_percent) / 100.0;
+   end
+
+   if (critter_cur_hp < critter_max_hp) then begin
+      if gFasterHealingPerk then begin
+         if fast_metabolism > 0 then begin
+            local_RegenTickHP = ceil((critter_max_hp / 100.0) * 1.0 * critter_healing_rate);
+            if (local_RegenTickHP < 2) then
+                 local_RegenTickHP = 2;
+         end
+         else begin
+            local_RegenTickHP = ceil((critter_max_hp / 100.0) * 0.3 * critter_healing_rate);
+            if (local_RegenTickHP < 1) then
+                 local_RegenTickHP = 1;
+         end
+      end
+      else begin
+         local_RegenTickHP = ceil((critter_max_hp / 100.0) * 0.5 * critter_healing_rate);
+         if (local_RegenTickHP < 1) then
+              local_RegenTickHP = 1;
+      end
+
+      local_RegenTickHP = count * local_RegenTickHP;
+
+      if (critter_cur_hp + local_RegenTickHP > critter_max_hp) then
+         local_RegenTickHP = critter_max_hp - critter_cur_hp;
+
+
+
+      if (local_RegenTickHP > 0) then begin
+         critter_heal(critter, local_RegenTickHP);
+         call display_regen_msg(critter, local_RegenTickHP);
+      end
+   end
+   else begin
+      local_RegenTickHP = 0;
+   end
+
+   if (critter_is_crippled(critter)) then begin
+      call heal_random_injury(critter, count);
+   end
+
+   return local_RegenTickHP;
+end
+
+procedure dude_timed_hp_regen begin
+   variable regen_per_tick;
+   variable ticks_passed;
+   variable intervals_passed;
+   variable remainder_ticks;
+   variable total_regen;
+   variable next_timer;
+   variable on_global_map;
+   variable game_time_now;
+
+   if (fast_metabolism <= 0 andAlso gFasterHealingPerk < 2) orElse fast_metabolism_MMR_regen > 0 then begin
+      gLastRegenTime = 0;
+      timer_is_up = 0;
+      return;
+   end
+
+   game_time_now = game_time;
+
+   if (gLastRegenTime == 0) then begin
+      gLastRegenTime = game_time_now - 50;
+   end
+
+   if (combat_is_initialized) then begin
+      return;
+   end
+
+   ticks_passed = game_time_now - gLastRegenTime;
+   intervals_passed = ticks_passed / 50;
+   remainder_ticks = ticks_passed % 50;
+
+   regen_per_tick = apply_regen_tick_simple(real_dude_obj, intervals_passed);
+
+   gLastRegenTime = gLastRegenTime + (intervals_passed * 50);
+
+   if (get_game_mode bwand WORLDMAP) then
+      on_global_map = 1;
+
+   next_timer = 50 - remainder_ticks;
+   if (next_timer <= 0) then begin
+      next_timer = 50;
+   end
+
+   add_global_timer_event(next_timer + (on_global_map * timed_hp_regen_global), timed_hp_regen);
+   timer_is_up = 1;
+end
+
+procedure give_ap_for_injures_add_time begin
+   add_global_timer_event(0, timed_ap_give);
+end
+
+procedure give_ap_for_injures_when begin
+   call give_ap_for_injures_add_time when _combat_turn_running <= 0;
+end
+
+procedure give_ap_for_bloody_mess(variable attacker) begin
+   if bloody_mess_bonus_count <= 0 then begin
       set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + ap_bonus_kill_first - bloody_mess_ap_debt));
       bloody_mess_ap_debt = 0;
    end
@@ -899,7 +1296,156 @@ procedure give_ap_for_kills(variable attacker) begin
       set_critter_current_ap(attacker, (get_critter_current_ap(attacker) + ap_bonus_kill - bloody_mess_ap_debt));
       bloody_mess_ap_debt = 0;
    end
-   bloody_mess_death_count ++;
+   bloody_mess_bonus_count++;
+end
+
+procedure give_ap_for_injures begin
+   variable critter;
+   variable critter_injures;
+   if bloody_mess <= 0 andAlso dude_turn <= 0 orElse main_attacker != real_dude_obj then
+      return;
+
+   foreach critter in list_as_array(LIST_CRITTERS) begin
+      critter_injures = (get_object_data(critter, OBJ_DATA_DAMAGE_FLAGS) bwand all_injuries);
+      if critter_injures > get_array(bloody_mess_inj_arr, critter) then begin
+         call give_ap_for_bloody_mess(real_dude_obj);
+      end
+   end
+   call return_ap_debt2;
+end
+
+
+procedure Drop_Weapons(variable target,variable hand) begin
+   variable weapon;
+   variable weapon_pid;
+   variable weapon_anim;
+   variable weapon_rh_flags_ext;
+   variable weapon_lh_flags_ext;
+   variable tar_pid;
+   variable tar_hex;
+   variable tar_critter_type;
+   variable tar_critter_flags;
+   variable dropped_hex;
+   variable blocking_obj;
+   variable count;
+   variable max_count = 6;
+   if target <= 0 then
+      return;
+
+   tar_pid = obj_pid(target);
+   tar_critter_flags = get_proto_data(tar_pid, PROTO_CR_FLAGS);
+
+   if tar_critter_flags bwand CFLG_NODROP then
+      return;
+
+   tar_hex = tile_num(target);
+   tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+
+   if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
+      weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
+      if weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+         weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      end
+      if ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER))))) then begin
+         rm_obj_from_inven(target, weapon);
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
+         if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+         while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+            count += 1;
+            blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+            if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+            if count > max_count then begin
+               dropped_hex = tar_hex;
+               break;
+            end
+         end
+         move_to(weapon, dropped_hex, elevation(target));
+      end
+   end
+   //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
+   else if critter_inven_obj(target, INVEN_TYPE_LEFT_HAND) then begin
+      weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
+      if weapon > 0 then begin
+         weapon_pid = obj_pid(weapon);
+         weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
+         weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+      end
+      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) orElse (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) orElse (weapon_lh_flags_ext bwand WEAPON_2HAND)) then begin
+         rm_obj_from_inven(target, weapon);
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
+         if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+         while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
+            count += 1;
+            blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+            if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
+            if count > max_count then begin
+               dropped_hex = tar_hex;
+               break;
+            end
+         end
+         move_to(weapon, dropped_hex, elevation(target));
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if fixed_param == timed_hp_regen then begin
+      call dude_timed_hp_regen;
+   end
+   else if fixed_param == timed_ap_give then begin
+      call give_ap_for_injures;
+   end
+   else if fixed_param == timed_ap_debt then begin
+      call ap_hide;
+   end
+   else if fixed_param == timed_rad_rm then begin
+      call da_radaway_timer;
+   end
+end
+
+procedure RestoreHeavyHandedPenalty begin
+   if g_HH_target then begin
+      set_critter_extra_stat(g_HH_target, STAT_dmg_thresh + g_HH_dmg_type, get_critter_extra_stat(g_HH_target, STAT_dmg_thresh + g_HH_dmg_type) + g_HH_dt_pen);
+      set_critter_extra_stat(g_HH_target, STAT_dmg_resist + g_HH_dmg_type, get_critter_extra_stat(g_HH_target, STAT_dmg_resist + g_HH_dmg_type) + g_HH_dr_pen);
+      g_HH_target = 0;
+   end
+end
+
+procedure ApplyHeavyHandedPenalty(variable attacker, variable target, variable weapon) begin
+   variable dt_stat, dr_stat, extra_dt, extra_dr;
+   variable target_dt, target_dr, dmg_type, penalty;
+
+   call RestoreHeavyHandedPenalty;
+
+   if weapon then
+      dmg_type = get_proto_data(obj_pid(weapon), PROTO_WP_DMG_TYPE);
+   else
+      dmg_type = get_proto_data(obj_pid(attacker), PROTO_CR_DMG_TYPE);
+
+   dt_stat = STAT_dmg_thresh + dmg_type;
+   dr_stat = STAT_dmg_resist + dmg_type;
+
+   extra_dt = get_critter_extra_stat(target, dt_stat);
+   extra_dr = get_critter_extra_stat(target, dr_stat);
+   target_dt = get_critter_base_stat(target, dt_stat) + extra_dt;
+   target_dr = get_critter_base_stat(target, dr_stat) + extra_dr;
+
+   penalty = 10 + get_critter_stat(attacker, STAT_st) * 4;
+   //if penalty > 50 then penalty = 50;
+
+   g_HH_target = target;
+   g_HH_dmg_type = dmg_type;
+   g_HH_dt_pen = ceil((target_dt * penalty) / 100.0);
+   g_HH_dr_pen = ceil((target_dr * penalty) / 100.0);
+
+   set_critter_extra_stat(target, dt_stat, extra_dt - g_HH_dt_pen);
+   set_critter_extra_stat(target, dr_stat, extra_dr - g_HH_dr_pen);
 end
 
 procedure get_attack_anim(variable weapon,variable attack_type) begin
@@ -944,6 +1490,100 @@ procedure weapon_is_grenade(variable weapon,variable attack_type) begin
    end
 
    return is_grenade;
+end
+
+procedure get_all_injures begin
+   variable critter;
+   variable critter_injures;
+   if not(array_exists(bloody_mess_inj_arr)) then
+      bloody_mess_inj_arr = create_array_map;
+   else
+      clear_array(bloody_mess_inj_arr);
+
+   foreach critter in list_as_array(LIST_CRITTERS) begin
+      critter_injures = (get_object_data(critter, OBJ_DATA_DAMAGE_FLAGS) bwand all_injuries);
+      set_array(bloody_mess_inj_arr, critter, critter_injures);
+   end
+end
+
+procedure AFTERHITROLL begin
+   variable attack_result = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable target = get_sfall_arg;
+   variable new_attack_result = -1;
+   variable attacker_crit;
+   variable attacker_luck;
+   variable fail_roll;
+   variable sniper;
+   variable rnd;
+   variable attacker_cur_ap;
+   variable weapon;
+   variable wpn_anim;
+   variable atk_type;
+   main_attacker = attacker;
+   //kamikaze
+   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
+      kamikaze_ap_used = 1;
+   end
+
+   if jinxed > 0 then begin
+      if attack_result == ROLL_FAILURE then begin
+         fail_roll = jinxed_remove_and_get_roll;
+         if fail_roll <= ROLL_CRITICAL_FAILURE then begin
+            new_attack_result = ROLL_CRITICAL_FAILURE;
+            attack_result = new_attack_result;
+         end
+         else begin
+            skilled_prevent_crit_fail = ROLL_FAILURE;
+         end
+      end
+   end
+   // set critical miss bonus roll
+   if attack_result == ROLL_CRITICAL_FAILURE then begin
+      // bloody_mess increases the effect of a critical miss for an attacker by 30
+      //skilled reduces chance of a critical miss for an attacker
+      if skilled > 0 andAlso attacker == real_dude_obj andAlso random(0,1) then begin
+         new_attack_result = ROLL_FAILURE;
+      end
+      if bloody_mess > 0 orElse (skilled > 0 andAlso attacker == real_dude_obj) then begin
+         call add_luck_penalty(attacker,bloody_mess, skilled);
+      end
+   end
+
+   // check for bloody mess attack with last ap
+   if attacker == real_dude_obj andAlso bloody_mess > 0 then begin
+      if bloody_mess_last_ap_attack > 0 then begin
+         add_global_timer_event(0, timed_ap_debt);
+         attacker_cur_ap = get_critter_current_ap(attacker);
+         bloody_mess_ap_debt = 1;
+         set_object_data(attacker, OBJ_DATA_CUR_ACTION_POINT, attacker_cur_ap + bloody_mess_ap_debt);
+      end
+
+      call get_all_injures;
+      call give_ap_for_injures_when;
+   end
+
+   // heavy_handed reduce target dr dt
+   if heavy_handed > 0 andAlso attacker == real_dude_obj andAlso attack_result >= ROLL_SUCCESS then begin
+      weapon = get_object_data(combat_data, C_ATTACK_WEAPON);
+      if weapon > 0 then begin
+         atk_type = get_object_data(combat_data, C_ATTACK_HIT_MODE);
+         if weapon_is_grenade(weapon,atk_type) > 0 then
+            wpn_anim = 99;
+         else begin
+            wpn_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
+         end
+      end
+      if weapon <= 0 orElse wpn_anim <= WPN_ANIM_SPEAR orElse wpn_anim == 14 orElse wpn_anim == 11 orElse wpn_anim == 12 then
+         call ApplyHeavyHandedPenalty(attacker, target, weapon);
+   end
+
+   if new_attack_result >= ROLL_CRITICAL_FAILURE then begin
+      set_sfall_return(new_attack_result);
+      set_sfall_arg(0, new_attack_result);
+      new_attack_result = -1;
+      return;
+   end
 end
 
 procedure check_combat_targets_death begin
@@ -1044,8 +1684,8 @@ procedure COMBATDAMAGE begin
             end
          end
       end
-         //TRAIT_finesse aoe attack crit
-      if finesse > 0 then begin
+         //PERK_weapon_handling_perk aoe attack crit
+      if has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) > 0 then begin
          //roll for aoe crit
          if target != get_object_data(combat_data,C_ATTACK_TARGET) then begin
             rnd = random(0, 100);
@@ -1094,7 +1734,7 @@ end
 
 procedure ONDEATH begin
    if bloody_mess > 0 andAlso dude_turn > 0 andAlso main_attacker == real_dude_obj then begin
-      call give_ap_for_kills(real_dude_obj);
+      call give_ap_for_bloody_mess(real_dude_obj);
    end
 end
 
@@ -1110,6 +1750,9 @@ procedure ITEMDAMAGE begin
    variable new_min_wpn_dmg;
    variable melee_dmg;
    variable wpn_max_dmg;
+   variable demolition_expert_perk;
+   if heavy_handed > 0 then
+      call RestoreHeavyHandedPenalty;
    if (bruiser > 0 orElse heavy_handed > 0) andAlso attacker == real_dude_obj then begin
       default_min_wpn_dmg = get_sfall_arg_at(0);
       default_max_wpn_dmg = get_sfall_arg_at(1);
@@ -1135,8 +1778,9 @@ procedure ITEMDAMAGE begin
             new_min_wpn_dmg = default_min_wpn_dmg + melee_dmg;
             new_max_wpn_dmg = default_max_wpn_dmg;
          end
-         //TRAIT_bruiser max dmg
+         //TRAIT_bruiser max and min dmg
          if bruiser > 0 then begin
+            new_min_wpn_dmg *= 2;
             new_max_wpn_dmg *= 2;
          end
 
@@ -1159,7 +1803,25 @@ procedure ITEMDAMAGE begin
          set_sfall_arg(1, new_max_wpn_dmg);
       end
    end
-   if finesse > 0 then begin
+   else begin
+      demolition_expert_perk = has_trait(TRAIT_PERK, real_dude_obj, PERK_demolition_expert_perk);
+      if demolition_expert_perk then begin
+         weapon = get_sfall_arg_at(2);
+         if weapon > 0 andAlso get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE) == DMG_explosion then begin
+            default_min_wpn_dmg = get_sfall_arg_at(0);
+            default_max_wpn_dmg = get_sfall_arg_at(1);
+
+            new_min_wpn_dmg = default_min_wpn_dmg + gDemolitionExpertBonus * demolition_expert_perk;
+            new_max_wpn_dmg = default_max_wpn_dmg + gDemolitionExpertBonus * demolition_expert_perk;
+
+            set_sfall_return(new_min_wpn_dmg);
+            set_sfall_arg(0, new_min_wpn_dmg);
+            set_sfall_return(new_max_wpn_dmg);
+            set_sfall_arg(1, new_max_wpn_dmg);
+         end
+      end
+   end
+   if has_trait(TRAIT_PERK, real_dude_obj, PERK_weapon_handling_perk) > 0 then begin
       Lvar_wpn_max_dmg = default_max_wpn_dmg;
       Lvar_wpn_min_dmg = default_min_wpn_dmg;
    end
@@ -1209,7 +1871,7 @@ procedure drug_save(variable drug_obj) begin
          call drug_restore;
       //end
    end
-   // ñreate array if it doesn't exist
+   // create array if it doesn't exist
    if not(array_exists(drug_orig_stats)) then begin
       drug_orig_stats = create_array_list((DRUG_MAX_STATS+1));
    end
@@ -1227,7 +1889,7 @@ end
 
 
 
-// new stats for TRAIT_fast_metaboli
+// new drug stats for TRAIT_fast_metaboli
 procedure get_new_stat_fm(variable stat_value,variable stat) begin
 variable new_value = stat_value;
    if stat_value != 0 then begin
@@ -2263,22 +2925,26 @@ procedure sfall_4_unset_unarmed_dmg_bytes begin
    write_byte(0x47253A, 0x75);
 end
 
-procedure get_dude_traits(variable critter) begin
+procedure get_real_dude_traits begin
    variable trait_1 = read_int(0x66BE40);
    variable trait_2 = read_int(0x66BE44);
    variable traits_have_changed = dude_traits_changed(trait_1, trait_2);
 
    if traits_have_changed > 0 then begin
       if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
-         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) then begin
             fast_metabolism = 1;
+            if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 then begin
+               add_global_timer_event(50, timed_hp_regen);
+               timer_is_up = 1;
+            end
          end else begin
             fast_metabolism = 0;
          end
       end
 
       if bruiser >= 0 andAlso bruiser < 2 then begin
-         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) then begin
             bruiser = 1;
          end else begin
             bruiser = 0;
@@ -2286,7 +2952,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
      if small_frame >= 0 andAlso small_frame < 2 then begin
-         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) then begin
             small_frame = 1;
          end else begin
             small_frame = 0;
@@ -2294,7 +2960,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if one_hander >= 0 andAlso one_hander < 2 then begin
-         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) then begin
             one_hander = 1;
             //call one_hander_uncripple;
          end
@@ -2306,7 +2972,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if finesse >= 0 andAlso finesse < 2 then begin
-         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) then begin
             finesse = 1;
          end else begin
             finesse = 0;
@@ -2314,7 +2980,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if kamikaze >= 0 andAlso kamikaze < 2 then begin
-         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) then begin
             kamikaze = 1;
          end else begin
             kamikaze = 0;
@@ -2322,7 +2988,7 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if heavy_handed >= 0 andAlso heavy_handed < 2 then begin
-         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) then begin
             heavy_handed = 1;
          end else begin
             heavy_handed = 0;
@@ -2357,15 +3023,17 @@ procedure get_dude_traits(variable critter) begin
       end
 
       if drug_addict >= 0 andAlso drug_addict < 2 then begin
-         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) then begin
             drug_addict = 1;
+            drug_addict_stat_check_array = create_array_map;
+            call da_radaway_timer;
          end else begin
             drug_addict = 0;
          end
       end
 
       if drug_resistant >= 0 andAlso drug_resistant < 2 then begin
-         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) andAlso critter == real_dude_obj then begin
+         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) then begin
             drug_resistant = 1;
          end else begin
             drug_resistant = 0;
@@ -2386,6 +3054,13 @@ procedure get_dude_traits(variable critter) begin
          call sfall_4_unset_unarmed_dmg_bytes;
       end
    end
+
+   gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+   if timer_is_up <= 0 andAlso fast_metabolism_MMR_regen <= 0 andAlso gFasterHealingPerk >= 2 then begin
+      add_global_timer_event(50, timed_hp_regen);
+      timer_is_up = 1;
+   end
+
    return traits_have_changed;
 end
 
@@ -2408,6 +3083,464 @@ procedure can_mod_drugs(variable drug_pid) begin
    return can_mod;
 end
 
+procedure get_xp_mod begin
+   variable lvl = get_pc_stat(PCSTAT_level);
+   variable old_xp = get_pc_stat(PCSTAT_experience);
+   variable new_xp;
+   variable test_amount = 100;
+   //set xp to 0
+   write_int(0x6681B4, 0);
+   // set lvl to 100
+   write_int(0x6681B0, 100);
+
+   give_exp_points(test_amount);
+   new_xp = get_pc_stat(PCSTAT_experience);
+
+   write_int(0x6681B4, old_xp);
+   write_int(0x6681B0, lvl);
+
+   if (new_xp != 0) then
+      return ((new_xp * 100) / test_amount);
+   else
+      return 0;
+end
+
+procedure get_da_mentats_bonus begin
+   variable current;
+   current = get_array(drug_addict_array, DA_DRUG_MENTATS);
+   if (current == 0) then
+      return 0;
+   else begin
+      current = 4 + (current % 100000) / 1000;
+      if current > 15 then
+         current = 15;
+      return current;
+   end
+end
+
+procedure set_da_mentats_bonus(variable new_bonus) begin
+   variable current;
+   variable doses;
+   variable perk_level;
+   variable flag;
+   variable new_value;
+
+   current = get_array(drug_addict_array, DA_DRUG_MENTATS);
+
+   doses = current % 1000;
+   perk_level = (current / 1000) % 100;
+   flag = current / 1000000;
+
+   new_value = doses + (perk_level * 1000) + (new_bonus * 100000) + (flag * 1000000);
+
+   set_array(drug_addict_array, DA_DRUG_MENTATS, new_value);
+end
+
+procedure da_set_xp_mod() begin
+   variable cur_xp_mod;
+   variable da_cur_bonus = get_da_mentats_bonus();
+   if (da_cur_bonus == 0) then
+      return;
+
+   cur_xp_mod = get_xp_mod();
+   last_xp_mod = cur_xp_mod + da_cur_bonus;
+   display_msg("last_xp_mod=" + last_xp_mod);
+   set_xp_mod(last_xp_mod);
+end
+
+procedure add_da_xp_mod(variable da_full_bonus, variable bonus_to_add) begin
+   variable cur_xp_mod = get_xp_mod;
+   variable new_total_mod;
+   if cur_xp_mod != last_xp_mod then begin
+      if cur_xp_mod < last_xp_mod orElse cur_xp_mod > 130 then
+         new_total_mod = cur_xp_mod + da_full_bonus + bonus_to_add;
+      else
+         new_total_mod = cur_xp_mod + bonus_to_add;
+   end
+   else
+      new_total_mod = cur_xp_mod + bonus_to_add;
+
+   last_xp_mod = new_total_mod;
+
+   set_xp_mod(new_total_mod);
+end
+
+procedure inc_all_dmg_res(variable target, variable bonus_to_add) begin
+   variable i;
+
+   if bonus_to_add == 0 then
+      return;
+
+   for (i := STAT_dmg_resist; i <= STAT_dmg_resist_explosion; i++) begin
+      set_critter_extra_stat(target, i, get_critter_extra_stat(target, i) + bonus_to_add);
+   end
+end
+
+procedure drug_addict_add_perk(variable normalized_pid, variable perk_lvl) begin
+   variable bonus;
+   variable dr_bonus;
+   variable crit_bonus;
+   variable cur_xp_mod;
+
+   // PID_MENTATS
+   if normalized_pid == DA_DRUG_MENTATS then begin
+      bonus = 4 + perk_lvl;
+      if (perk_lvl == 1) then begin
+         set_fake_perk(da_mentats_perk_name, 1, 140, sprintf(da_mentats_perk_desc1, bonus));
+         call add_da_xp_mod(0, bonus);
+      end
+      else if (perk_lvl >= 2 and perk_lvl <= 11) then begin
+         if bonus <= 7 then
+            set_fake_perk(da_mentats_perk_name, 1, 140, sprintf(da_mentats_perk_desc1, bonus));
+         else begin
+            set_fake_perk(da_mentats_perk_name, 1, 140, sprintf(da_mentats_perk_desc2, bonus));
+         end
+
+         call add_da_xp_mod(bonus, 1);
+      end
+      else if (perk_lvl >= 12) then begin
+         set_critter_base_stat(real_dude_obj, STAT_iq, get_critter_base_stat(real_dude_obj, STAT_iq) + 1);
+         set_fake_perk(da_mentats_perk_name, 1, 140, sprintf(da_mentats_perk_desc3, bonus-1));
+         display_msg(da_mentats_add_msg);
+         return DA_LAST_PERK;
+      end
+      display_msg(da_mentats_add_msg);
+   end
+   //PID_BUFFOUT
+   else if (normalized_pid == DA_DRUG_BUFFOUT) then begin
+      bonus = 3 + perk_lvl * 2;
+      if (perk_lvl == 1) then begin
+         set_critter_extra_stat(real_dude_obj, STAT_carry_amt, get_critter_extra_stat(real_dude_obj, STAT_carry_amt) + bonus);
+         set_fake_perk(da_buffout_perk_name, 1, 126, sprintf(da_buffout_perk_desc1, bonus));
+      end
+      else if (perk_lvl >= 2 and perk_lvl <= 10) then begin
+         if perk_lvl <= 5 then
+            set_fake_perk(da_buffout_perk_name, 1, 126, sprintf(da_buffout_perk_desc1, bonus));
+         else begin
+            set_fake_perk(da_buffout_perk_name, 1, 126, sprintf(da_buffout_perk_desc2, bonus));
+            set_critter_base_stat(real_dude_obj, STAT_st, get_critter_base_stat(real_dude_obj, STAT_st) + 1);
+         end
+         set_critter_extra_stat(real_dude_obj, STAT_carry_amt, get_critter_extra_stat(real_dude_obj, STAT_carry_amt) + 2);
+      end
+      else if (perk_lvl >= 11) then begin
+         set_critter_extra_stat(real_dude_obj, STAT_carry_amt, get_critter_extra_stat(real_dude_obj, STAT_carry_amt) + 2);
+         set_critter_base_stat(real_dude_obj, STAT_en, get_critter_base_stat(real_dude_obj, STAT_en) + 1);
+         set_fake_perk(da_buffout_perk_name, 1, 155, sprintf(da_buffout_perk_desc3, bonus));
+         display_msg(da_buffout_add_msg);
+         return DA_LAST_PERK;
+      end
+      display_msg(da_buffout_add_msg);
+   end
+    //PID_PSYCHO
+   else if (normalized_pid == DA_DRUG_PSYCHO) then begin
+      if (perk_lvl == 1) then begin
+         dr_bonus = 1;
+         crit_bonus = 1;
+         call inc_all_dmg_res(real_dude_obj, dr_bonus);
+         set_critter_extra_stat(real_dude_obj, STAT_crit_chance, get_critter_extra_stat(real_dude_obj, STAT_crit_chance) + crit_bonus);
+         set_fake_perk(da_psycho_perk_name, 1, 144, sprintf2(da_psycho_perk_desc1, dr_bonus, crit_bonus));
+         display_msg(da_psycho_add_msg);
+      end
+      else if (perk_lvl >= 2 and perk_lvl <= 9) then begin
+         if (perk_lvl % 2 == 0) then begin
+             call inc_all_dmg_res(real_dude_obj, 1);
+         end else begin
+             set_critter_extra_stat(real_dude_obj, STAT_crit_chance, get_critter_extra_stat(real_dude_obj, STAT_crit_chance) + 1);
+         end
+
+         dr_bonus = (perk_lvl / 2) + 1;
+         crit_bonus = ((perk_lvl + 1) / 2);
+
+         if (perk_lvl <= 5) then
+             set_fake_perk(da_psycho_perk_name, 1, 144, sprintf2(da_psycho_perk_desc1, dr_bonus, crit_bonus));
+         else
+             set_fake_perk(da_psycho_perk_name, 1, 144, sprintf2(da_psycho_perk_desc2, dr_bonus, crit_bonus));
+
+         display_msg(da_psycho_add_msg);
+      end
+      else if (perk_lvl >= 10) then begin
+         dr_bonus = ((perk_lvl - 1) / 2) + 1;
+         crit_bonus = (perk_lvl) / 2;
+         set_critter_base_stat(real_dude_obj, STAT_ag, get_critter_base_stat(real_dude_obj, STAT_ag) + 1);
+         set_fake_perk(da_psycho_perk_name, 1, 144, sprintf2(da_psycho_perk_desc3, dr_bonus, crit_bonus));
+         display_msg(da_psycho_add_msg);
+         return DA_LAST_PERK;
+      end
+   end
+   // PID_JET
+   else if (normalized_pid == DA_DRUG_JET) then begin
+      if (perk_lvl == 1) then begin
+         bonus = 2;
+         set_critter_extra_stat(real_dude_obj, STAT_sequence, get_critter_extra_stat(real_dude_obj, STAT_sequence) + bonus);
+         set_fake_perk(da_jet_perk_name, 1, 24, sprintf(da_jet_perk_desc1, bonus));
+      end
+      else if (perk_lvl == 5 orElse perk_lvl == 10) then begin
+         bonus = 3;
+         if (perk_lvl == 5) then begin
+            set_critter_extra_stat(real_dude_obj, STAT_sequence, get_critter_extra_stat(real_dude_obj, STAT_sequence) + 1);
+            set_fake_perk(da_jet_perk_name, 1, 24, sprintf(da_jet_perk_desc1, bonus));
+         end
+         else if perk_lvl == 10 then begin
+            set_fake_perk(da_jet_perk_name, 1, 24, sprintf(da_jet_perk_desc2, bonus));
+            set_critter_base_stat(real_dude_obj, STAT_pe, get_critter_base_stat(real_dude_obj, STAT_pe) + 1);
+         end
+      end
+      else if (perk_lvl >= 15) then begin
+         bonus = 3;
+         set_critter_extra_stat(real_dude_obj, STAT_max_move_points, get_critter_extra_stat(real_dude_obj, STAT_max_move_points) + 1);
+         set_fake_perk(da_jet_perk_name, 1, 136, sprintf(da_jet_perk_desc3, bonus));
+         display_msg(da_jet_add_msg);
+         return DA_LAST_PERK;
+      end
+      if perk_lvl == 1 orElse perk_lvl == 5 orElse perk_lvl == 10 then
+         display_msg(da_jet_add_msg);
+   end
+   // Cadaveric amphetamine
+   else if normalized_pid == DA_DRUG_NEVADA_AP_DRUGS then begin
+      if (perk_lvl == 1) then begin
+         set_critter_extra_stat(real_dude_obj, STAT_max_move_points, get_critter_extra_stat(real_dude_obj, STAT_max_move_points) + 1);
+         set_fake_perk(da_nevada_amph_perk_name, 1, 24, sprintf(da_nevada_amph_perk_desc1, bonus));
+         display_msg(da_nevada_amph_add_msg);
+         return DA_LAST_PERK;
+      end
+   end
+   // PID_NUKA_COLA
+   else if normalized_pid == DA_DRUG_NUKACOLA then begin
+      if (perk_lvl == 4 orElse perk_lvl == 10 orElse perk_lvl == 16 orElse perk_lvl == 22 orElse perk_lvl == 29) then begin
+         bonus = 1 + perk_lvl / 6;
+         set_critter_extra_stat(real_dude_obj, STAT_ac, get_critter_extra_stat(real_dude_obj, STAT_ac) + 1);
+         set_critter_extra_stat(real_dude_obj, STAT_sequence, get_critter_extra_stat(real_dude_obj, STAT_sequence) + 1);
+         if perk_lvl < 12 then
+            set_fake_perk(da_nukacola_perk_name, 1, 101, sprintf(da_nukacola_perk_desc1, bonus));
+         else if perk_lvl < 25 then
+            set_fake_perk(da_nukacola_perk_name, 1, 101, sprintf(da_nukacola_perk_desc2, bonus));
+         else begin
+            set_fake_perk(da_nukacola_perk_name, 1, 101, sprintf(da_nukacola_perk_desc3, 5));
+            display_msg(da_nukacola_add_msg);
+            return DA_LAST_PERK;
+         end
+         display_msg(da_nukacola_add_msg);
+      end
+   end
+   // PID_RADAWAY
+   else if normalized_pid == DA_DRUG_RADAWAY then begin
+      if (perk_lvl == 6) then begin
+         register_hook_proc(HOOK_ADJUSTRADS, ADJUSTRADS);
+         set_fake_perk(da_radaway_perk_name, 1, 12, sprintf(da_radaway_perk_desc1, 0));
+         display_msg(da_radaway_add_msg);
+         call da_radaway_timer;
+         return DA_LAST_PERK;
+      end
+   end
+   //ALCOHOL
+   else if normalized_pid == DA_DRUG_ALCOHOL then begin
+      if (perk_lvl >= 30) then begin
+         set_critter_base_stat(real_dude_obj, STAT_ch, get_critter_base_stat(real_dude_obj, STAT_ch) + 1);
+         set_fake_perk(da_alcohol_perk_name, 1, 3, sprintf(da_alcohol_perk_desc1, 0));
+         display_msg(da_alcohol_add_msg);
+         return DA_LAST_PERK;
+      end
+   end
+end
+
+procedure get_min_doses_for_level(variable perk_lvl, variable luck) begin
+   variable multiplier = (100.0 + (8 - luck) * 8);
+   variable min_doses = ceil((perk_lvl * multiplier) / 100.0);
+   if min_doses < 1 then
+      min_doses = 1;
+
+   return min_doses;
+end
+
+procedure get_perk_chance(variable luck) begin
+   variable chance = (50 + (luck * 5));
+   return chance;
+end
+
+procedure get_guarantee_threshold(variable luck) begin
+   if luck >= 9 then
+      return 0;
+
+   return 3 - (luck / 3);
+end
+
+procedure da_normalize_pid(variable drug_pid) begin
+   if (Nevada <= 0 andAlso drug_pid == PID_MENTATS) orElse (Nevada andAlso (drug_pid == PID_MENTATS_NEVADA orElse drug_pid == PID_MENTATS_AROM)) orElse (Olympus2207 andAlso (drug_pid == PID_OLYMP_BRAINNIAC orElse drug_pid == PID_OLYMP_DROP)) then begin
+      return DA_DRUG_MENTATS;
+   end
+   else if drug_pid == PID_BUFFOUT orElse (drug_pid == PID_ECCO_HERCULES) orElse (Olympus2207 andAlso (drug_pid == PID_OLYMP_STRONGHOLD orElse drug_pid == PID_OLYMP_DROP)) then begin
+      return DA_DRUG_BUFFOUT;
+   end
+   else if (drug_pid == PID_PSYCHO orElse (Nevada andAlso drug_pid == PID_NEVADA_FIGHTING_STIM)) orElse (Olympus2207 andAlso drug_pid == PID_OLYMP_RESISTANOL) then begin
+      return DA_DRUG_PSYCHO;
+   end
+   else if (Nevada <= 0 andAlso drug_pid == PID_JET) orElse (Olympus2207 andAlso drug_pid == PID_OLYMP_COMBATID) then begin
+      return DA_DRUG_JET;
+   end
+   else if (Nevada andAlso (drug_pid == PID_NEVADA_CADAVER_AMPHET orElse drug_pid == PID_NEVADA_DIESEL_GUM)) then begin
+      return DA_DRUG_NEVADA_AP_DRUGS;
+   end
+   else if (is_pid_cola(drug_pid)) then begin
+      return DA_DRUG_NUKACOLA;
+   end
+   else if (drug_pid == PID_RAD_X) then begin
+      return DA_DRUG_RADX;
+   end
+   else if (drug_pid == PID_RADAWAY orElse (Nevada andAlso drug_pid == PID_NEVADA_NUT_SOLUTION)) then begin
+      return DA_DRUG_RADAWAY;
+   end
+   else if (is_pid_alcohol(drug_pid) orElse (Nevada andAlso drug_pid == PID_NEVADA_CARAMEL)) then begin
+      return DA_DRUG_ALCOHOL;
+   end
+
+   return 0;
+end
+
+procedure drug_addict_add_dose(variable drug_pid) begin
+   variable current;
+   variable doses;
+   variable perk_level;
+   variable bad_luck_counter;
+   variable luck;
+   variable chance;
+   variable guarantee;
+   variable roll;
+   variable is_last_perk_lvl;
+   variable normalized_pid = da_normalize_pid(drug_pid);
+   variable is_gifted;
+   variable min_doses;
+
+   if (normalized_pid == 0) then
+      return;
+
+   current = get_array(drug_addict_array, normalized_pid);
+   if (current / DA_LAST_PERK) > 0 then
+      return;
+
+   doses = current % 1000;
+   perk_level = (current / 1000) % 100;
+   bad_luck_counter = (current / 100000) % 1000;
+   is_last_perk_lvl = (current / DA_LAST_PERK) * DA_LAST_PERK;
+
+   luck = get_critter_stat(dude_obj, STAT_lu);
+   doses += 1;
+   is_gifted = has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_gifted);
+
+   min_doses = get_min_doses_for_level(perk_level + 1, luck);
+   // gifted nerf
+   if is_gifted then
+      min_doses = (min_doses * 3) / 2;
+
+   if (doses >= min_doses) then begin
+      if (perk_level == 0) then begin
+         perk_level += 1;
+         bad_luck_counter = 0;
+         is_last_perk_lvl = drug_addict_add_perk(normalized_pid, perk_level);
+      end
+      else begin
+         roll = random(1, 100);
+         chance = get_perk_chance(luck) - 20 * is_gifted;
+         guarantee = get_guarantee_threshold(luck);
+
+         if (roll <= chance orElse bad_luck_counter >= guarantee) then begin
+            perk_level += 1;
+            bad_luck_counter = 0;
+            is_last_perk_lvl = drug_addict_add_perk(normalized_pid, perk_level);
+         end
+         else begin
+            bad_luck_counter += 1;
+         end
+      end
+   end
+
+   if (doses > 999) then
+      doses = 999;
+
+   if (perk_level > 99) then
+      perk_level = 99;
+
+   drug_addict_array[normalized_pid] = doses + (perk_level * 1000) + (bad_luck_counter * 100000) + is_last_perk_lvl;
+end
+
+procedure drug_addict_stat_check begin
+   variable target = get_array(drug_addict_stat_check_array, -3);
+   variable drug_pid = get_array(drug_addict_stat_check_array, -2);
+   variable stat;
+   variable value;
+
+   if drug_pid <= 0 orElse target <= 0 then
+      return;
+
+   foreach stat:value in drug_addict_stat_check_array begin
+      if stat >= STAT_st andAlso stat <= STAT_current_rad andAlso get_critter_stat(target, stat) != value then begin
+         da_check = 0;
+         call drug_addict_add_dose(drug_pid);
+         return;
+      end
+   end
+   da_check = 0;
+end
+
+procedure drug_addict_stat_check_set(variable target, variable drug_pid) begin
+   variable stat;
+   variable value;
+   variable i;
+   clear_array(drug_addict_stat_check_array);
+
+   set_array(drug_addict_stat_check_array, -3, target);
+   set_array(drug_addict_stat_check_array, -2, drug_pid);
+   for (i := 0; i <= 2; i++) begin
+      stat = get_proto_data(drug_pid, PROTO_DR_STAT_A + (4 * i));
+      if stat >= STAT_st andAlso stat <= STAT_current_rad then
+         set_array(drug_addict_stat_check_array, stat, get_critter_stat(target, stat));
+   end
+   da_check = 1;
+end
+
+procedure NUKA_COLA_MODIFY(variable drug_obj) begin
+   variable drug_pid = obj_pid(drug_obj);
+   variable stat;
+   variable value;
+   variable i;
+   variable has_immediate_effect;
+   variable stat_is_cur_hp = -1;
+   variable total_effect;
+
+   if not(is_pid_cola(drug_pid)) then
+      return;
+
+   for (i = 0; i <= 2; i++) begin
+      stat = get_proto_data(drug_pid, PROTO_DR_STAT_A + (4 * i));
+      value = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + (4 * i));
+
+      if stat >= STAT_st andAlso value != 0 then
+         has_immediate_effect = 1;
+      else if stat == STAT_current_hp then
+         stat_is_cur_hp = i;
+   end
+
+   if has_immediate_effect == 0 then begin
+      if stat_is_cur_hp != -1 then begin
+         i = stat_is_cur_hp;
+         total_effect = get_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + (4 * i))
+                      + get_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + (4 * i))
+                      + get_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + (4 * i));
+
+         if total_effect >= 0 then
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + (4 * i), 1);
+         else
+            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + (4 * i), -1);
+      end
+      else begin
+         set_proto_data(drug_pid, PROTO_DR_STAT_A, STAT_current_hp);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A, 1);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A, 0);
+         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A, 0);
+      end
+   end
+end
+
+
 procedure drug_modify(variable drug_obj, variable target) begin
    variable drug_pid;
    if target <= 0 orElse drug_obj <= 0 orElse obj_item_subtype(drug_obj) != item_type_drug then
@@ -2415,14 +3548,16 @@ procedure drug_modify(variable drug_obj, variable target) begin
 
    drug_pid = obj_pid(drug_obj);
 
+   call NUKA_COLA_MODIFY(drug_obj);
 
-
+   if drug_addict > 0 andAlso target == real_dude_obj then
+      call drug_addict_stat_check_set(real_dude_obj, drug_pid);
 
    if can_mod_drugs(drug_pid) <= 0 then
       return;
 
    if target == real_dude_obj then begin
-      call get_dude_traits(real_dude_obj);
+      call get_real_dude_traits;
 
       call drug_save(drug_obj);
       modded_drug_pid = drug_pid;
@@ -2444,9 +3579,11 @@ procedure drug_modify(variable drug_obj, variable target) begin
 end
 
 procedure USEOBJON begin
-   variable target = get_sfall_arg_at(0);
-   variable obj = get_sfall_arg_at(2);
+   variable target;
+   variable obj;
    if fast_metabolism > 0 orElse drug_resistant > 0 orElse drug_addict > 0 then begin
+      target = get_sfall_arg_at(0);
+      obj = get_sfall_arg_at(2);
       call drug_modify(obj,target);
    end
 end
@@ -2461,9 +3598,8 @@ procedure set_traits_desc begin
    variable traits_to_ignore = [TRAIT_fast_shot, TRAIT_good_natured, TRAIT_sex_appeal, TRAIT_gifted];
    variable trait_plus_desc;
    variable trait_ini_path_desc_plus;
-   variable trait_ini_desc_plus_was_set;
    variable ini_was_set;
-   variable new_version;
+
    variable version = get_ini_string(perks_ini_path + "|Traits|Traits_plus_version");
    if version != traits_plus_cur_version then begin
       set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",traits_plus_cur_version);
@@ -2493,7 +3629,32 @@ procedure set_traits_desc begin
             set_ini_setting(trait_ini_path_desc_plus, 1);
             ini_was_set = 1;
          end
-         if trait_num == TRAIT_kamikaze then begin
+
+         if trait_num == TRAIT_fast_metabolism then begin
+            // TRAIT_fast_metabolism + 4 heal_rate
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
+            if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               set_ini_setting(perks_ini_path+"|t0|StatMod","14|4");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_bruiser then begin
+            // TRAIT_bruiser + 10 HP
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t1|StatMod");
+            if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               set_ini_setting(perks_ini_path+"|t1|StatMod","7|10");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_finesse then begin
+            // TRAIT_finesse +10 crit roll
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t4|StatMod");
+            if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               set_ini_setting(perks_ini_path+"|t4|StatMod","16|10");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_kamikaze then begin
             // TRAIT_kamikaze + 5 seq
             trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
             if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
@@ -2516,8 +3677,24 @@ procedure set_traits_desc begin
             set_ini_setting(trait_ini_path_desc_plus, 0);
             ini_was_set = 1;
          end
-         if trait_num == TRAIT_kamikaze then begin
-            // TRAIT_kamikaze + 5 seq
+         if trait_num == TRAIT_bruiser then begin
+            // TRAIT_bruiser - 10 HP
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t1|StatMod");
+            if trait_stat_mod == "7|10" then begin
+               set_ini_setting(perks_ini_path+"|t1|StatMod","");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_finesse then begin
+            // TRAIT_finesse -10 crit roll
+             trait_stat_mod = get_ini_string(perks_ini_path+"|t4|StatMod");
+             if trait_stat_mod == "16|10" then begin
+                 set_ini_setting(perks_ini_path+"|t4|StatMod","");
+                 ini_was_set = 1;
+             end
+         end
+         else if trait_num == TRAIT_kamikaze then begin
+            // TRAIT_kamikaze - 5 seq
             trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
             if trait_stat_mod == "13|5" then begin
                set_ini_setting(perks_ini_path+"|t5|StatMod","");
@@ -2525,10 +3702,18 @@ procedure set_traits_desc begin
             end
          end
          else if trait_num == TRAIT_drug_resistant then begin
-            // TRAIT_drug_resistant + 1 en
+            // TRAIT_drug_resistant - 1 en
             trait_stat_mod = get_ini_string(perks_ini_path+"|t12|StatMod");
             if trait_stat_mod == "2|1" then begin
                set_ini_setting(perks_ini_path+"|t12|StatMod","");
+               ini_was_set = 1;
+            end
+         end
+         else if trait_num == TRAIT_fast_metabolism then begin
+            // TRAIT_fast_metabolism - 4 heal_rate
+            trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
+            if trait_stat_mod == "14|4" then begin
+               set_ini_setting(perks_ini_path+"|t0|StatMod","");
                ini_was_set = 1;
             end
          end
@@ -2565,7 +3750,7 @@ procedure check_drugs_pid begin
    variable drugs_array;
    variable ini_was_set;
    if Nevada > 0 then begin
-      drugs_array = [PID_MENTATS, PID_PSYCHO, PID_JET, PID_BUFFOUT, PID_M_STMPK_RING, PID_MENTATS_AROM];
+      drugs_array = [PID_MENTATS_NEVADA, PID_PSYCHO, PID_JET, PID_BUFFOUT, PID_NEVADA_FIGHTING_STIM, PID_MENTATS_AROM];
    end
    else begin
       drugs_array = [PID_MENTATS, PID_PSYCHO, PID_JET, PID_BUFFOUT];
@@ -2621,7 +3806,7 @@ procedure check_drugs_pid begin
             new_drug_count_num = drug_count + new_drug_count;
             drugs_ini_path_drug_num = drugs_ini_path + "|" + new_drug_count_num;
             set_ini_setting(drugs_ini_path_drug_num + "|PID",drug_pid);
-            if Nevada > 0 andAlso (drug_pid == PID_M_STMPK_RING orElse drug_pid == PID_PSYCHO) then begin
+            if Nevada > 0 andAlso (drug_pid == PID_NEVADA_FIGHTING_STIM orElse drug_pid == PID_PSYCHO) then begin
                set_ini_setting(drugs_ini_path_drug_num + "|NumEffects", 1);
             end
             else if Nevada > 0 andAlso drug_pid == PID_JET then begin
@@ -2742,6 +3927,7 @@ end
 procedure COMBATTURN begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
+   variable remaining;
 
    if turn_status >= 1 andAlso critter == dude_obj then begin
       main_attacker = dude_obj;
@@ -2750,10 +3936,22 @@ procedure COMBATTURN begin
    else
       dude_turn = 0;
 
-   bloody_mess_death_count = 0;
+   bloody_mess_bonus_count = 0;
    if kamikaze_hex_walked_num > 0 then begin
       kamikaze_hex_walked_num = 0;
       intface_redraw;
+   end
+
+   if (fast_metabolism orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 andAlso critter == real_dude_obj andAlso turn_status == COMBAT_TURN_END then begin
+      remaining = 50 - ((game_time - gLastRegenTime) % 50);
+      if (remaining <= 0) then
+         remaining = 50;
+
+      remove_timer_event(timed_hp_regen);
+      call apply_regen_tick_simple(real_dude_obj, 1);
+      gLastRegenTime = game_time + 50;
+      add_global_timer_event(remaining + 50, timed_hp_regen);
+      timer_is_up = 1;
    end
 end
 
@@ -2765,6 +3963,8 @@ procedure set_dude_traits_from_ini begin
       set_array(disabled_traits_arr, TRAIT_fast_metabolism, (TRAIT_fast_metabolism + 1));
       fast_metabolism = -1;
    end
+   else if get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod") > 0 then
+      fast_metabolism_MMR_regen = 1;
 
    bruiser = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Bruiser");
    if bruiser <= 0 then begin
@@ -2776,6 +3976,9 @@ procedure set_dude_traits_from_ini begin
    if small_frame <= 0 then begin
       set_array(disabled_traits_arr, TRAIT_small_frame, (TRAIT_small_frame + 1));
       small_frame = -1;
+   end
+   else begin
+      set_ini_setting("ddraw.ini|Misc|SmallFrameFix", 1);
    end
 
    one_hander = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|One_Hander");
@@ -2825,6 +4028,14 @@ procedure set_dude_traits_from_ini begin
       set_array(disabled_traits_arr, TRAIT_drug_addict, (TRAIT_drug_addict + 1));
       drug_addict = -1;
    end
+   else begin
+      drug_addict_array = load_array(ARRAY_CHEM_NAME);
+      if (drug_addict_array == 0) then begin
+         v1_2_new_install = 1;
+         drug_addict_array = create_array_map;
+         save_array(ARRAY_CHEM_NAME, drug_addict_array);
+      end
+   end
 
    drug_resistant = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Chem_Resistant");
    if drug_resistant <= 0 then begin
@@ -2870,6 +4081,22 @@ procedure rm_traits_desc begin
          end
          set_ini_setting(trait_ini_path_desc_plus,0);
       end
+
+      trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
+      if trait_stat_mod == "14|4" then begin
+         set_ini_setting(perks_ini_path+"|t0|StatMod","");
+         ini_was_set = 1;
+      end
+      trait_stat_mod = get_ini_string(perks_ini_path+"|t1|StatMod");
+      if trait_stat_mod == "7|10" then begin
+         set_ini_setting(perks_ini_path+"|t1|StatMod","");
+         ini_was_set = 1;
+      end
+      trait_stat_mod = get_ini_string(perks_ini_path+"|t4|StatMod");
+      if trait_stat_mod == "16|10" then begin
+         set_ini_setting(perks_ini_path+"|t4|StatMod","");
+         ini_was_set = 1;
+      end
       trait_stat_mod = get_ini_string(perks_ini_path+"|t5|StatMod");
       if trait_stat_mod == "13|5" then begin
          set_ini_setting(perks_ini_path+"|t5|StatMod","");
@@ -2880,6 +4107,7 @@ procedure rm_traits_desc begin
          set_ini_setting(perks_ini_path+"|t12|StatMod","");
          ini_was_set = 1;
       end
+
 
       set_ini_setting(perks_ini_path+"|Traits|Traits_plus_version",0);
       if ini_was_set > 0 then begin
@@ -3049,15 +4277,187 @@ procedure DESCRIPTIONOBJ begin
    end
 end
 
+procedure is_perk_window_open begin
+   variable pid;
+   variable idx;
+
+   if not(get_game_mode bwand CHARSCREEN) then
+      return 0;
+
+   pid = read_int(0x5705E0);
+
+   if (pid <= 0 orElse pid > 50) then begin
+      return 0;
+   end
+
+   idx = read_int(0x6ADD90 + pid * 4);
+   return (idx != -1 andAlso idx < read_int(0x6ADF24));
+end
+
+procedure set_repeat_perk_desc begin
+   if (repeat_in_char_screen == 1) then
+       return;
+
+   set_global_script_type(1);
+   set_global_script_repeat(1);
+   repeat_in_char_screen = 1;
+end
+
+procedure restore_characterEditorSelectedItem begin
+   write_int(0x5707D0, characterEditorSelectedItem);
+   if (get_game_mode bwand CHARSCREEN) then
+      call_offset_v1(0x4D6F5C, read_int(0x57060C));
+end
+
+procedure set_faster_healing_desc begin
+   variable current_state;
+   variable prev_state;
+   variable cur_gvar;
+   variable add;
+   if in_char_screen then begin
+      cancel (restore_characterEditorSelectedItem);
+      cancel (set_repeat_perk_desc);
+      gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+      if fast_metabolism == 0 orElse fast_metabolism == 1 then begin
+         if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then begin
+            fast_metabolism = 1;
+         end else begin
+            fast_metabolism = 0;
+         end
+
+         call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
+      end
+      else
+         call set_repeat_perk_desc when (gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
+   end
+
+   if (fast_metabolism > 0) then begin
+      current_state = 1 + (fast_metabolism_MMR_regen <= 0);
+   end
+   else begin
+      if in_char_screen then begin
+         characterEditorSelectedItem = read_int(0x5707D0);
+         write_int(0x5707D0, -1);
+      end
+      if gFasterHealingPerk > 1 orElse ((gFasterHealingPerk > 0) andAlso is_perk_window_open) then begin
+         current_state = 3 + (fast_metabolism_MMR_regen <= 0);
+         if in_char_screen then
+            call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse (gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
+      end
+      else begin
+         current_state = 5;
+      end
+      if in_char_screen then
+         call restore_characterEditorSelectedItem when (is_perk_window_open == 0);
+   end
+
+   cur_gvar = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
+   if (cur_gvar == current_state) then
+      return;
+
+   prev_state = cur_gvar;
+   if (gFasterHealingPerk > 0) then begin
+      if (prev_state != 0) then begin
+         if ((prev_state <= 2) != (current_state <= 2)) then begin
+            if (gFasterHealingPerk > 0) then begin
+               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
+                  set_perk_stat_mag(PERK_faster_healing, 3);
+               else
+                  set_perk_stat_mag(PERK_faster_healing, 2);
+            end
+            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+            add = 1;
+         end
+         else if ((prev_state == 1) != (current_state == 1)) andAlso ((prev_state == 3) != (current_state == 3)) then begin
+            if (gFasterHealingPerk > 0) then begin
+               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
+                  set_perk_stat_mag(PERK_faster_healing, 3);
+               else
+                  set_perk_stat_mag(PERK_faster_healing, 2);
+
+            end
+            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+            add = 1;
+         end
+      end
+      else if v1_2_new_install > 0 then begin
+         set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+         critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+      end
+   end
+
+   if (current_state == 1) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(31101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 1);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 8);
+   end
+   else if (current_state == 2) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(21101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 1);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 0);
+   end
+   else if (current_state == 3) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+   end
+   else if (current_state == 4) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+   end
+   else begin
+      set_perk_desc(PERK_faster_healing, trait_msg(1101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 2);
+      if (get_game_mode bwand CHARSCREEN) then begin
+         //set_and_refresh;
+         //call_offset_v0(0x4365AC); //characterEditorDrawCard()
+          //write_int(0x5707D0, -1);
+      end
+   end
+
+   if (add) then
+      critter_add_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, add);
+
+   set_sfall_global(fast_metabolism_fast_healing_perk_stat, current_state);
+   v1_2_new_install = 0;
+end
+
 procedure GAMEMODECHANGE begin
    variable game_exit = get_sfall_arg;
    variable last_game_mode = get_sfall_arg;
    variable game_mode = get_game_mode;
-   if game_mode == 0 orElse (game_mode bwand COMBAT) then begin
-      call get_dude_traits(real_dude_obj);
+   if in_char_screen > 0 then begin
+      cancel (restore_characterEditorSelectedItem);
+      cancel (set_repeat_perk_desc);
+      in_char_screen = 0;
    end
-   else if skilled > 0 andAlso (game_mode bwand CHARSCREEN) then
-      call get_and_set_perk_level_mod;
+   if (repeat_in_char_screen == 1) then begin
+      set_global_script_type(3);
+      set_global_script_repeat(0);
+      repeat_in_char_screen = 0;
+   end
+
+   if game_mode == 0 orElse (game_mode bwand COMBAT) then begin
+      call get_real_dude_traits;
+   end
+   else if (game_mode bwand CHARSCREEN) then begin
+      if skilled > 0 then
+         call get_and_set_perk_level_mod;
+
+      in_char_screen = 1;
+      call set_repeat_perk_desc;
+   end
 
    if sfall_508 <= 0 andAlso (heavy_handed > 0 orElse bruiser > 0) then begin
       if (game_mode bwand INVENTORY) andAlso not(last_game_mode bwand INVENTORY) then begin
@@ -3105,6 +4505,10 @@ end
 
 procedure REMOVEINVENOBJ begin
    variable RMOBJ_reason = get_sfall_arg_at(3);
+
+   if da_check then
+      call drug_addict_stat_check;
+
    if modded_drug_pid > 0 then begin
       call drug_restore;
    end
@@ -3158,13 +4562,15 @@ procedure DISPLAYDAMAGE begin
          new_min_wpn_dmg = default_min_wpn_dmg;
          new_max_wpn_dmg = default_max_wpn_dmg;
          //TRAIT_heavy_handed min dmg
+         //TRAIT_heavy_handed min dmg
          if heavy_handed > 0 then begin
             //new_min_wpn_dmg = default_min_wpn_dmg + (melee_dmg + 1) / 2; // ecco
             new_min_wpn_dmg = default_min_wpn_dmg + melee_dmg;
             new_max_wpn_dmg = default_max_wpn_dmg;
          end
-         //TRAIT_bruiser max dmg
+         //TRAIT_bruiser max and min dmg
          if bruiser > 0 then begin
+            new_min_wpn_dmg *= 2;
             new_max_wpn_dmg *= 2;
          end
 
@@ -3253,6 +4659,138 @@ procedure CANUSEWEAPON begin
    end
 end
 
+
+procedure set_last_xp_mod begin
+   last_xp_mod = get_xp_mod;
+end
+
+procedure RESTTIMER begin
+   variable game_time_current;
+   variable rest_event_type;
+   variable rest_hours;
+   variable rest_minutes;
+   variable max_hp;
+   variable current_hp;
+   variable heal_amount;
+   variable ticks_passed;
+   variable total_ticks;
+   variable min_heal;
+   variable crip_chance;
+   variable crip_count;
+   if gFasterHealingPerk != 1 then
+      return;
+
+   if get_critter_stat(real_dude_obj, STAT_heal_rate) <= 0 then
+      return;
+
+   game_time_current = get_sfall_arg;
+   rest_event_type = get_sfall_arg;
+   rest_hours = get_sfall_arg;
+   rest_minutes = get_sfall_arg;
+
+   if (gLastGameTime == 0) then begin
+      gLastGameTime = game_time_current;
+      gAccumulatedHealForCrip = 0;
+      gTotalHealedThisRest = 0;
+      max_hp = get_critter_stat(real_dude_obj, STAT_max_hp);
+      gCripHealThreshold = max_hp / 5;
+      if (gCripHealThreshold < 1) then begin
+         gCripHealThreshold = 1;
+      end
+      return;
+   end
+
+   ticks_passed = game_time_current - gLastGameTime;
+
+   if (ticks_passed <= 0) then begin
+      gLastGameTime = game_time_current;
+      return;
+   end
+
+   if (ticks_passed > 864000) then begin
+      gLastGameTime = game_time_current;
+      gPartialTicks = 0;
+      gAccumulatedHealForCrip = 0;
+      gTotalHealedThisRest = 0;
+      return;
+   end
+
+   gLastGameTime = game_time_current;
+
+   total_ticks = ticks_passed + gPartialTicks;
+   max_hp = get_critter_stat(real_dude_obj, STAT_max_hp);
+   heal_amount = (max_hp * total_ticks) / 864000;
+
+   min_heal = total_ticks / 6000;
+   if (min_heal < 0) then begin
+      min_heal = 0;
+   end
+
+   if (heal_amount < min_heal) then begin
+      heal_amount = min_heal;
+   end
+
+   gPartialTicks = total_ticks % 6000;
+
+   if (heal_amount > 0) then begin
+      critter_heal(real_dude_obj, heal_amount);
+      gTotalHealedThisRest = gTotalHealedThisRest + heal_amount;
+   end
+
+   gAccumulatedHealForCrip = gAccumulatedHealForCrip + heal_amount;
+
+   crip_count = gAccumulatedHealForCrip / gCripHealThreshold;
+   if (crip_count > 0) then begin
+      call heal_random_injury(real_dude_obj, crip_count, 100);
+      gAccumulatedHealForCrip = gAccumulatedHealForCrip % gCripHealThreshold;
+   end
+
+   if (rest_event_type == 1 or rest_event_type == -1) then begin
+      current_hp = get_critter_stat(real_dude_obj, STAT_current_hp);
+      if (current_hp >= max_hp) then begin
+         critter_uninjure(real_dude_obj,  all_injuries);
+      end
+      else if (gAccumulatedHealForCrip > 0 and gCripHealThreshold > 0) then begin
+         crip_chance = (gAccumulatedHealForCrip * 100) / gCripHealThreshold;
+         call heal_random_injury(real_dude_obj, 1, crip_chance);
+      end
+
+      gLastGameTime = 0;
+      gPartialTicks = 0;
+      gAccumulatedHealForCrip = 0;
+      gTotalHealedThisRest = 0;
+   end
+end
+
+procedure set_new_perk_stats begin
+
+   gPyromaniacBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
+   if gPyromaniacBonus < 0 then
+      gPyromaniacBonus = 5;
+
+   gDemolitionExpertBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|DemolitionExpertBonus");
+   if gDemolitionExpertBonus < 0 then
+      gDemolitionExpertBonus = 10;
+
+   //PERK_dodger
+   set_perk_desc(PERK_dodger, trait_msg(1101 + PERK_dodger));
+   set_perk_ranks(PERK_dodger, 1);
+   //PERK_pyromaniac_perk
+   set_perk_desc(PERK_pyromaniac_perk, sprintf(trait_msg(10000 * RegenMod + 1101 + PERK_pyromaniac_perk), gPyromaniacBonus));
+   set_perk_ranks(PERK_pyromaniac_perk, 1);
+   //PERK_weapon_handling_perk
+   set_perk_desc(PERK_weapon_handling_perk, trait_msg(10000 * AimedBurstMod + 1101 + PERK_weapon_handling_perk));
+   set_perk_str(PERK_weapon_handling_perk, 0);
+   set_perk_ranks(PERK_weapon_handling_perk, 1);
+
+   //PERK_demolition_expert_perk
+   set_perk_desc(PERK_demolition_expert_perk, sprintf(trait_msg(1101 + PERK_demolition_expert_perk), gDemolitionExpertBonus));
+   set_perk_ranks(PERK_demolition_expert_perk, 1);
+
+   //PERK_faster_healing
+   call set_faster_healing_desc;
+end
+
 procedure start begin
    if (game_loaded) then begin
       TraitsPlus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
@@ -3261,6 +4799,7 @@ procedure start begin
       ver_major = sfall_ver_major;
       ver_minor = sfall_ver_minor;
       ver_build = sfall_ver_build;
+
       if ver_major >= 5 then begin
          AutoMoveToAttack = get_ini_setting("ddraw.ini|Misc|AutoMoveToAttack");
 
@@ -3285,14 +4824,23 @@ procedure start begin
       end
       Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
+      et_tu = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
       if Sonora > 0 then begin
          traits_plus_cur_version = traits_plus_version_Sonora + traits_plus_cur_version;
       end
-      et_tu = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
-      if et_tu  > 0 then begin
+      else if et_tu  > 0 then begin
          traits_plus_cur_version = traits_plus_version_et_tu + traits_plus_cur_version;
       end
 
+      if Nevada <= 0 andAlso Sonora <= 0 andAlso et_tu <= 0 then begin
+         //Fallout_2 = 1;
+         //if get_proto_data(542, PROTO_FID) == 197 then begin
+            //Megamod = 1;
+         //end
+         if get_proto_data(595, PROTO_FID) == 171 then begin
+            Olympus2207 = 1;
+         end
+      end
 
       call set_dude_traits_from_ini;
 
@@ -3304,7 +4852,7 @@ procedure start begin
          register_hook_proc(HOOK_MOVECOST, MOVECOST);
 
       end
-      if heavy_handed >= 0 orElse bruiser >= 0 orElse finesse >= 0 then begin
+      //if heavy_handed >= 0 orElse bruiser >= 0 orElse finesse >= 0 then begin
          register_hook_proc(HOOK_ITEMDAMAGE, ITEMDAMAGE);
          if sfall_508 > 0 then begin
             register_hook_proc(54, DISPLAYDAMAGE); //HOOK_DISPLAYDAMAGE
@@ -3313,17 +4861,18 @@ procedure start begin
             register_hook_proc(HOOK_ADJUSTFID, ADJUSTFID);
             register_hook_proc(HOOK_DESCRIPTIONOBJ, DESCRIPTIONOBJ);
          end
-      end
+      //end
       if skilled >= 0 andAlso sfall_508 > 0 then begin
          register_hook_proc(56, ATTACKHITROLL); //HOOK_ATTACKHITROLL
       end
+
       register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
       register_hook_proc(HOOK_CALCAPCOST, CALCAPCOST);
       register_hook_proc_spec(HOOK_ONDEATH, ONDEATH);
       register_hook_proc(HOOK_AFTERHITROLL, AFTERHITROLL);
       register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
       register_hook_proc_spec(HOOK_TOHIT, TOHIT);
-      if fast_metabolism >= 0 orElse drug_resistant >= 0 orElse drug_addict >= 0 orElse bloody_mess > 0 then begin
+      if fast_metabolism >= 0 orElse drug_resistant >= 0 orElse drug_addict >= 0 then begin
          register_hook_proc_spec(HOOK_USEOBJON, USEOBJON);
          register_hook_proc(HOOK_REMOVEINVENOBJ, REMOVEINVENOBJ);
       end
@@ -3332,18 +4881,58 @@ procedure start begin
       if one_hander >= 0 orElse kamikaze >= 0 then begin
          register_hook_proc(HOOK_TARGETOBJECT, TARGETOBJECT);
       end
-
+      register_hook_proc(HOOK_RESTTIMER, RESTTIMER);
       if one_hander >= 0 then begin
          register_hook_proc_spec(HOOK_CANUSEWEAPON, CANUSEWEAPON);
          intface_redraw;
       end
       traits_plus_msg_file = add_extra_msg_file(new_msg_file);
       RegenMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+      if RegenMod > 0 then
+         RegenMod = 1;
+      else
+         RegenMod = 0;
+
       call check_ini_path;
-      call get_dude_traits(real_dude_obj);
+      call get_real_dude_traits;
+
+      if has_fake_perk_npc(real_dude_obj, da_radaway_perk_name) then begin
+         register_hook_proc(HOOK_ADJUSTRADS, ADJUSTRADS);
+      end
+
+      if get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod") > 0 then begin
+         AimedBurstMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AimedBurstSecondaryAttackMod");
+         if AimedBurstMod > 0 then
+            AimedBurstMod = 1;
+         else
+            AimedBurstMod = 0;
+
+      end
+      call da_set_xp_mod in 0;
+      call set_new_perk_stats;
+
+      if (fast_metabolism >= 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 then begin
+         gLastRegenTime = game_time - random(10,30);
+         add_global_timer_event(gLastRegenTime + 50, timed_hp_regen);
+         timer_is_up = 1;
+         gGlobalMapSpeedMult = get_ini_setting("ddraw.ini|Misc|WorldMapTimeMod");
+         if gGlobalMapSpeedMult > 0 then begin
+            if gGlobalMapSpeedMult > 100 then
+               gGlobalMapSpeedMult = 100;
+            timed_hp_regen_global = 6000 / (101 - gGlobalMapSpeedMult);
+            if timed_hp_regen_global < 600 then
+               timed_hp_regen_global = 600;
+         end
+      end
    end
    else begin
-      if(heavy_handed > 0 orElse bruiser > 0) andAlso read_int(0x59E940) == 0 andAlso loot_obj <= 0 then begin
+      if repeat_in_char_screen then begin
+         set_global_script_type(3);
+         set_global_script_repeat(0);
+         call set_faster_healing_desc;
+         repeat_in_char_screen = 0;
+      end
+      else if (heavy_handed > 0 orElse bruiser > 0) andAlso read_int(0x59E940) == 0 andAlso loot_obj <= 0 then begin
          set_global_script_type(3);
          set_global_script_repeat(0);
          display_stats;

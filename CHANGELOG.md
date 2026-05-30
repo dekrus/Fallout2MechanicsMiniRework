@@ -1,13 +1,27 @@
-### WIP
+## WIP
 - Added compatibility options with different Inventory AP Cost mods.
-### Traits Plus
-- Some tweaks to underperforming traits.
-### Regen & Poison Mod
+### Secondary Attack Mod
+- Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
+## Traits Plus
+Some tweaks to underperforming traits:
+- **Fast Metabolism**: Heals HP based on Healing Rate (or Endurance + Healing Rate) and cures 1 random injury every 5 seconds. All food and chems remove 33% more poison and radiation, heal/remove 33% more HP, and take effect/wear off twice as fast. If Healing mod is enabled, HP regeneration is increased by 33%.
+- **Bruiser**: Increases both minimum and maximum unarmed, melee, and throwing weapon damage (excluding grenades) by 100%. +2 Strength, +10 HP, -2 AP. Melee Damage attribute now affects throwing weapons.
+- **Heavy Handed**: Penetrates a portion of the target's armor (10% + 4% per Strength). Melee Damage attribute is added to minimum damage for unarmed, melee, and thrown weapon attacks (excluding grenades). Non-critical melee/throwing attacks have a chance to knock down targets. Critical hits are weaker (-30 to crit roll). Melee Damage attribute now affects throwing weapons.
+- **Finesse**: +10% hit and critical chance and +10 critical hit strength. Excess hit chance above 95% is converted into additional critical chance and critical strength (+1% per 10% excess). All critical hits bypass armor. Enemies gain +30% damage resistance against all player's attacks. AoE critical hits moved to a separate perk.
+- **One-Hander**: One-handed unarmed attacks receive +20% hit chance bonus. Can attack with one-handed weapons even when both arms are injured. +5 to critical hit strength with one-handed weapons. +3 Strength bonus for one-handed weapon requirement checks.
+- **Bloody Mess**: Restores AP for both kills and injuries inflicted on enemies. First kill or injury per turn grants +2 AP, subsequent ones grant +1 AP. Critical miss severity increased by 30% for everyone (including player).
+- **Chem Resistant**: +1 Endurance. Food and chems no longer cause addiction. Stats return to normal immediately after effects wear off. Can take 50% more doses. Positive and negative effects of chems reduced by 50%.
+- **Chem Reliant**: Chem/food effects on stats amplified by 50%. After consuming enough doses (12-20), grants permanent SPECIAL bonuses: Mentats (+1 INT, +15% XP), Buffout (+1 STR, +1 EN, +25 carry weight), Psycho (+1 AG, +5% crit, +DR), Jet (+1 PE, +1 AP, +3 Sequence), Nuka-Cola (+5 AC, +5 Sequence), Alcohol (+1 CH).
+- **Skilled**: Increases maximum hit chance by 4%. 50% chance for critical miss to become regular miss. Reduces perk level requirement by 4. Player's critical miss severity reduced by 30%.
+## Regen & Poison Mod
 - Scripted effects from healing items (stimpaks, super stimpaks, healing powder) no longer trigger if use is blocked by other mods.
-- Reducing the healing effect and adding other effects to food in Sonora and Nevada.
-- Fixed typos and text errors in messages.
+- Reduced healing effect and added other effects to food in Sonora and Nevada.
+- The **Fast Metabolism** trait's healing penalty is now dynamic: it depends on the amount of poison and radiation instead of a flat check for their presence.
+- Fixed some typos and text errors in messages.
 - Golden gecko bites now poison the target, as mentioned by Slim and other trappers in Klamath.
-### Skill Books Mod
+### Secondary Attack Mod
+- Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
+## Skill Books Mod
 - Fixed erroneous addition of Russian text in book descriptions.
 
 ### Latest Version v2.0.1

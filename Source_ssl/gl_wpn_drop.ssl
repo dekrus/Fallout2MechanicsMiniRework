@@ -35,7 +35,7 @@ procedure clear_lvars begin
 end
 
 //original procedure by Nirran http://www.nirran.com/Fallout2Scripts.php
-//Slightly changed so that weapons do not fall out of the hands of prone opponents and opponents with unarmed weapons
+//Slightly changed so that weapons do not fall out of the hands of opponents with unarmed weapons
 //Also modified to prevent weapons from dropping behind the wall
 procedure Drop_Weapons(variable target,variable hand) begin
    variable weapon;
@@ -43,29 +43,42 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable weapon_anim;
    variable weapon_rh_flags_ext;
    variable weapon_lh_flags_ext;
-   variable tar_pid = obj_pid(target);
-   variable tar_hex = tile_num(target);
-   variable tar_state = critter_state(target);
-   variable tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+   variable tar_pid;
+   variable tar_hex;
+   variable tar_critter_type;
    variable tar_critter_flags;
    variable dropped_hex;
    variable blocking_obj;
-   variable count = 0;
+   variable count;
    variable max_count = 6;
-   if target > 0 then tar_critter_flags = get_proto_data(tar_pid, PROTO_CR_FLAGS);
+   variable is_throwing_weapon;
+   if target <= 0 then
+      return;
+
+   tar_pid = obj_pid(target);
+   tar_critter_flags = get_proto_data(tar_pid, PROTO_CR_FLAGS);
+
+   if tar_critter_flags bwand CFLG_NODROP then
+      return;
+
+   tar_hex = tile_num(target);
+   tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+
    if critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
       if weapon > 0 then begin
          weapon_pid = obj_pid(weapon);
          weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+         if weapon_anim <= WPN_ANIM_NONE andAlso get_proto_data(weapon_pid, PROTO_WP_PROJ_PID) > 0 then
+            is_throwing_weapon = 1;
       end
-      if ((hand == BODY_HIT_RIGHT_ARM) or ((weapon_rh_flags_ext bwand 512) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN or weapon_anim == WPN_ANIM_ROCKET_LAUNCHER))))) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso not((tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > WPN_ANIM_NONE then begin
+      if ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER))))) andAlso (weapon_anim > WPN_ANIM_NONE orElse is_throwing_weapon) then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
-         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
+         blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
          if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
-         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or blocking_obj do begin
+         while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
             dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
             blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
@@ -79,19 +92,21 @@ procedure Drop_Weapons(variable target,variable hand) begin
       end
    end
    //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
-   if critter_inven_obj(target, INVEN_TYPE_LEFT_HAND) then begin
+   else if critter_inven_obj(target, INVEN_TYPE_LEFT_HAND) then begin
       weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
       if weapon > 0 then begin
          weapon_pid = obj_pid(weapon);
          weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
+         if weapon_anim <= WPN_ANIM_NONE andAlso get_proto_data(weapon_pid, PROTO_WP_PROJ_PID) > 0 then
+            is_throwing_weapon = 1;
       end
-      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) or (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) or (weapon_lh_flags_ext bwand 512)) andAlso (not(tar_critter_flags bwand CFLG_NODROP)) andAlso (not(tar_state bwand CRITTER_IS_PRONE)) andAlso weapon_anim > 0 then begin
+      if ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) orElse (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) orElse (weapon_lh_flags_ext bwand WEAPON_2HAND)) andAlso (weapon_anim > WPN_ANIM_NONE orElse is_throwing_weapon) then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
          if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
-         while (tile_contains_obj_pid(dropped_hex, elevation(dude_obj), 33554499) != 0) or blocking_obj do begin
+         while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
             dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
             blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
@@ -104,7 +119,6 @@ procedure Drop_Weapons(variable target,variable hand) begin
          move_to(weapon, dropped_hex, elevation(target));
       end
    end
-   call clear_lvars();
 end
 
 
@@ -114,8 +128,9 @@ procedure STDPROCEDURE begin
    variable target_in_party;
    variable party_bonus;
    variable exp_target;
+   variable finesse;
    if combat_is_initialized then begin
-      if target_who_can_drop andAlso ((target_bodypart == BODY_HIT_LEFT_ARM or target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0 andAlso target_who_can_drop_hp != get_critter_stat(target_who_can_drop, STAT_current_hp)) then begin
+      if target_who_can_drop > 0 andAlso ((target_bodypart == BODY_HIT_LEFT_ARM orElse target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0 andAlso target_who_can_drop_hp != get_critter_stat(target_who_can_drop, STAT_current_hp)) then begin
          party = party_member_list(0);
          target_in_party = is_in_array(target_who_can_drop, party);
          if not(target_in_party) then party_bonus = 1;
@@ -123,7 +138,7 @@ procedure STDPROCEDURE begin
          if rnd < WpnDropNonCrit + WpnDropNonCrit * 7 * party_bonus andAlso atk_rslt == HIT then begin
             call Drop_Weapons(target_who_can_drop,target_bodypart);
          end
-         if rnd < WpnDropCrit + WpnDropCrit * party_bonus andAlso atk_rslt == CRITICAL_HIT then begin
+         if ((combat_data > 0 andAlso get_object_data(combat_data, C_ATTACK_SOURCE) == real_dude_obj andAlso has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_finesse)) orElse rnd < WpnDropCrit + WpnDropCrit * party_bonus) andAlso atk_rslt == CRITICAL_HIT then begin
             call Drop_Weapons(target_who_can_drop,target_bodypart);
          end
          call clear_lvars();

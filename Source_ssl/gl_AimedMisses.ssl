@@ -764,7 +764,7 @@ procedure is_tile_in_cone_coord(variable check_tile, variable attacker_tile, var
 
    distance_to_projection_sq = (check_x - projection_x)^2 + (check_y - projection_y)^2;
 
-   width_factor = min_cone_width + width_range * (1 - exponent(-projection_length / 20.0)); // Для менее привилегированных направлений
+   width_factor = min_cone_width + width_range * (1 - exponent(-projection_length / 20.0));
    cone_radius_sq = width_factor^2;
 
    temp_rot = rotation_to_tile(attacker_tile, check_tile);

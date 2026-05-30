@@ -390,13 +390,15 @@ variable ammo_dmg_mult_changed = -1;
 variable bonus_crit_power_roll;
 variable bonus_ranged_damage;
 variable living_anatomy;
+variable gDemolitionExpert;
+variable gDemolitionExpertBonus;
 variable gPyromaniac_perk;
 variable gPyromaniac_bonus;
 variable gLivingAnatomyBonus;
 variable night_vision;
 variable sniper;
 variable sharpshooter;
-variable weapon_handling;
+variable gWeaponHandlingPerk;
 variable bloody_mess;
 variable one_hander;
 variable one_hander_bonus;
@@ -453,7 +455,7 @@ variable alt_atk_wait_for_report;
 variable traits_plus;
 variable kamikaze;
 variable allow_critical;
-variable finesse_plus;
+//variable finesse_plus;
 //variable bloody_mess_plus;
 //variable anim_priority_byte;
 //variable priority_disabled;
@@ -739,7 +741,7 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target, variable t
    variable target_ac;
    variable attacker_team = has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM);
    variable attacker_pe = get_critter_stat(attacker, STAT_pe);
-   variable attacker_st = (get_critter_stat(attacker, STAT_st) + weapon_handling);
+   variable attacker_st = (get_critter_stat(attacker, STAT_st) + gWeaponHandlingPerk);
    variable attacker_is_blind = Is_Blind(attacker);
    variable difficulty = combat_difficulty;
    variable tar_cur_frm = get_object_data(target, OBJ_DATA_CUR_FRM);
@@ -823,8 +825,8 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target, variable t
 
 
    // get weapon_handling_perk bonus to Strength. Works past 10 Strength
-   if weapon_handling then begin
-      attacker_st = attacker_st + 3 * weapon_handling;
+   if gWeaponHandlingPerk then begin
+      attacker_st = attacker_st + 3 * gWeaponHandlingPerk;
    end
    // get strength penalty
    if attacker_st < weapon_min_st then begin
@@ -941,7 +943,9 @@ procedure lvar_full_reset begin
    kamikaze = 0;
    bloody_mess = 0;
    one_hander = 0;
-   weapon_handling = 0;
+   gDemolitionExpert = 0;
+   gPyromaniac_perk = 0;
+   gWeaponHandlingPerk = 0;
    sharpshooter = 0;
    bonus_crit_power_roll = 0;
    bonus_ranged_damage = 0;
@@ -1156,6 +1160,8 @@ procedure calc_dmg_electric(variable attacker, variable target, variable add_to_
 
 
    weapon_dmg = random(gWeaponMinDmg, gWeaponMaxDmg);
+   if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+      weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
    if ElecDamageReductionPerTarget != 0 then
        weapon_dmg = weapon_dmg * (ElecDamageReductionPerTarget ^ gPulseTileAttackedCount);
@@ -1170,6 +1176,7 @@ procedure calc_dmg_electric(variable attacker, variable target, variable add_to_
 
    if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
       dmg += gPyromaniac_perk * gPyromaniac_bonus;
+
 
    if dmg < min_dmg then begin
       return DMG_ZERO;
@@ -1203,6 +1210,8 @@ procedure calc_dmg_laser_main_target(variable attacker, variable target, variabl
    target_dt = get_critter_stat(target,STAT_dmg_thresh_laser);
    target_dr = get_critter_stat(target,STAT_dmg_resist_laser);
    weapon_dmg = random(gWeaponMinDmg, gWeaponMaxDmg);
+   if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+      weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
    //Increase target_dr if it attacker has TRAIT_finesse
    if finesse then begin
       target_dr = target_dr + 30;
@@ -1368,6 +1377,9 @@ procedure calc_dmg_laser(variable attacker, variable target, variable laser_targ
       if target_dr > 90 then target_dr = 90;
       if target_dr < 0 then target_dr = 0;
 
+      if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+         weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
+
       dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
 
       if gLivingAnatomyBonus > 0 then begin
@@ -1460,6 +1472,9 @@ procedure calc_dmg(variable attacker, variable target, variable weapon_dmg, vari
       target_dr = 90;
    else if target_dr < 0 then
       target_dr = 0;
+
+   if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+      weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
    dmg = round(((weapon_dmg - target_dt) * (100.0 - target_dr) / 100.0) * crit_mult);
 
@@ -1588,7 +1603,8 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable lof_target
       if target_dt < 0 then target_dt = 0;
       if target_dr > 90 then target_dr = 90;
       if target_dr < 0 then target_dr = 0;
-
+      if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+         weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
       dmg = round((((weapon_dmg) - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
 
       if GaussDamageReductionPerTarget > 0 then begin
@@ -1718,6 +1734,9 @@ procedure calc_dmg_plasma(variable attacker, variable target, variable distance,
    if target_dr > 90 then target_dr = 90;
    if target_dt < 0 then target_dt = 0;
    if target_dr < 0 then target_dr = 0;
+
+   if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
+      weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
    dmg = ceil(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * dmg_mult * crit_mult);
 
@@ -3281,6 +3300,7 @@ procedure exec_destroy_script(variable target, variable target_sid, variable att
       exec_obj_script_proc(target_sid, destroy_proc);
    end
    call combat_xp_kill_count_inc(target, attacker);
+   critter_heal(target, -1);
 end
 
 procedure display_dmg_exec_all_script_procs2 begin
@@ -3293,7 +3313,6 @@ procedure display_dmg_exec_all_script_procs2 begin
    variable dmg_value;
    variable target_sid;
    variable target_team;
-   variable deal_dmg;
    variable combat_main_target = get_object_data(combat_data, C_ATTACK_MAIN_TARGET);
    variable combat_main_target_msg;
    if alt_atk_wait_for_report <= 0 then
@@ -3334,17 +3353,19 @@ procedure display_dmg_exec_all_script_procs2 begin
             end
          end
          else begin
-            if deal_dmg >= 0 andAlso target != real_dude_obj then begin
+            if target != real_dude_obj then begin
                //call_offset_v1(0x426DDC, target);//remove from combat
                if target_sid > 0 then begin
                   call exec_destroy_script(target, target_sid, attacker, dmg_value, real_orig_target_team, atk_weapon);
                end
+               else begin
+                  critter_heal(target, -1);
+               end
                //set_object_data(target, OBJ_DATA_DAMAGE_FLAGS, (get_object_data(target, OBJ_DATA_DAMAGE_FLAGS) bwand NOT_DAM_DEAD));
-               critter_heal(target, -target_cur_hp);
             end
-            if deal_dmg > 0 then begin
+            //if deal_dmg > 0 then begin
                set_outline(target, OUTLINE_NONE);
-            end
+            //end
          end
       end
    end
@@ -4525,6 +4546,7 @@ procedure callback_electrical_chain_dmg_next_tile begin
    variable max_count;
    variable CombatHighlight = read_int(0x56D38C);
    variable obj_orig_outline_low;
+   variable cur_dmg;
    if attacker <= 0 orElse target <= 0 then
       return;
 
@@ -4570,14 +4592,31 @@ procedure callback_electrical_chain_dmg_next_tile begin
             flags = dmg / DMG_FLAG_MULT;
             dmg = dmg % DMG_FLAG_MULT;
             if obj == target andAlso gPulseTileAttackedCount > 0 then begin
-               write_int(combat_data + C_ATTACK_DAMAGE_TARGET, read_int(combat_data + C_ATTACK_DAMAGE_TARGET) + dmg);
-               write_int(combat_data + C_ATTACK_FLAGS_TARGET, read_int(combat_data + C_ATTACK_FLAGS_TARGET) bwor flags);
+               flags = read_int(combat_data + C_ATTACK_FLAGS_TARGET) bwor flags;
+               if (flags bwand DAM_DEAD) == 0 then begin
+                  write_int(combat_data + C_ATTACK_FLAGS_TARGET, flags);
+                  cur_dmg = read_int(combat_data + C_ATTACK_DAMAGE_TARGET) + dmg;
+                  write_int(combat_data + C_ATTACK_DAMAGE_TARGET, cur_dmg);
+                  if cur_dmg >= get_critter_stat(target, STAT_current_hp) then begin
+                     flags = flags bwor DAM_DEAD;
+                     write_int(combat_data + C_ATTACK_FLAGS_TARGET, flags);
+                  end
+               end
             end
             else if obj == attacker then begin
-               write_int(combat_data + C_ATTACK_DAMAGE_SOURCE, read_int(combat_data + C_ATTACK_DAMAGE_SOURCE) + dmg);
-               write_int(combat_data + C_ATTACK_FLAGS_SOURCE, read_int(combat_data + C_ATTACK_FLAGS_SOURCE) bwor flags);
+               flags = read_int(combat_data + C_ATTACK_FLAGS_SOURCE) bwor flags;
+               if (flags bwand DAM_DEAD) == 0 then begin
+                  write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+                  cur_dmg = read_int(combat_data + C_ATTACK_DAMAGE_SOURCE) + dmg;
+                  write_int(combat_data + C_ATTACK_DAMAGE_SOURCE, cur_dmg);
+                  if cur_dmg >= get_critter_stat(attacker, STAT_current_hp) then begin
+                     flags = flags bwor DAM_DEAD;
+                     write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+                  end
+               end
             end
-         end else
+         end
+         else
             flags = 0;
 
          call critter_inflict_dmg(obj, attacker, dmg, DMG_electrical, flags, check_tile);
@@ -5880,6 +5919,7 @@ procedure double_tap_damage begin
    variable target = gCurrentMainTarget;
    variable dmg;
    variable flags;
+   variable cur_dmg;
    if obj_type(target) != OBJ_TYPE_CRITTER then
       return;
    dmg = calc_dmg(attacker, target, random(gWeaponMinDmg, gWeaponMaxDmg), gWeaponDamageType, allow_critical);
@@ -5888,12 +5928,28 @@ procedure double_tap_damage begin
       flags = dmg / DMG_FLAG_MULT;
       dmg = dmg % DMG_FLAG_MULT;
       if target == gCurrentTarget then begin
-         write_int(combat_data + C_ATTACK_DAMAGE_TARGET, read_int(combat_data + C_ATTACK_DAMAGE_TARGET) + dmg);
-         write_int(combat_data + C_ATTACK_FLAGS_TARGET, read_int(combat_data + C_ATTACK_FLAGS_TARGET) bwor flags);
+         flags = read_int(combat_data + C_ATTACK_FLAGS_TARGET) bwor flags;
+         if (flags bwand DAM_DEAD) == 0 then begin
+            write_int(combat_data + C_ATTACK_FLAGS_TARGET, flags);
+            cur_dmg = read_int(combat_data + C_ATTACK_DAMAGE_TARGET) + dmg;
+            write_int(combat_data + C_ATTACK_DAMAGE_TARGET, cur_dmg);
+            if cur_dmg >= get_critter_stat(target, STAT_current_hp) then begin
+               flags = flags bwor DAM_DEAD;
+               write_int(combat_data + C_ATTACK_FLAGS_TARGET, flags);
+            end
+         end
       end
       else if target == attacker then begin
-         write_int(combat_data + C_ATTACK_DAMAGE_SOURCE, read_int(combat_data + C_ATTACK_DAMAGE_SOURCE) + dmg);
-         write_int(combat_data + C_ATTACK_FLAGS_SOURCE, read_int(combat_data + C_ATTACK_FLAGS_SOURCE) bwor flags);
+         flags = read_int(combat_data + C_ATTACK_FLAGS_SOURCE) bwor flags;
+         if (flags bwand DAM_DEAD) == 0 then begin
+            write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+            cur_dmg = read_int(combat_data + C_ATTACK_DAMAGE_SOURCE) + dmg;
+            write_int(combat_data + C_ATTACK_DAMAGE_SOURCE, cur_dmg);
+            if cur_dmg >= get_critter_stat(attacker, STAT_current_hp) then begin
+               flags = flags bwor DAM_DEAD;
+               write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+            end
+         end
       end
    end
    else
@@ -6935,8 +6991,9 @@ procedure AFTERHITROLL begin
       if attacker == dude_obj then begin
          finesse = has_trait(TRAIT_TRAIT, attacker, TRAIT_finesse);
          gPyromaniac_perk = has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk);
+         gDemolitionExpert = has_trait(TRAIT_PERK, attacker, PERK_demolition_expert_perk);
          if allow_critical <= 1 then begin
-            if attacker == dude_obj andAlso ((gWeaponDamageType == DMG_fire andALso gPyromaniac_perk) orElse (traits_plus > 0 andAlso (finesse > 0 orElse finesse_plus > 1))) then begin
+            if attacker == dude_obj andAlso ((gWeaponDamageType == DMG_fire andALso gPyromaniac_perk) orElse (gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert) orElse (traits_plus > 0 andAlso gWeaponHandlingPerk > 1)) then begin
                allow_critical = 1;
             end
             else begin
@@ -6945,7 +7002,7 @@ procedure AFTERHITROLL begin
          end
          bloody_mess = has_trait(TRAIT_TRAIT, attacker, TRAIT_bloody_mess);
          one_hander = has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander);
-         weapon_handling = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
+         gWeaponHandlingPerk = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
          sharpshooter = has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
          bonus_crit_power_roll = get_critter_stat(attacker, STAT_better_crit);
          bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
@@ -7647,6 +7704,12 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    if attacker == dude_obj then begin
       attacker_pe +=  2 * has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
       attacker_st +=  3 * has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
+      if has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander) then begin
+         if wpn_animation <= WPN_ANIM_SMG then
+            attacker_st += 3;
+         else if wpn_animation >= WPN_ANIM_RIFLE andAlso wpn_animation <= WPN_ANIM_ROCKET_LAUNCHER then
+            attacker_st -= 6;
+      end
    end
 
    if attacker_skill > 174 then
@@ -8115,6 +8178,18 @@ procedure ITEMDAMAGE begin
    end
 end
 
+procedure bonus_check begin
+   gLivingAnatomyBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|LivingAnatomyBonus");
+   if gLivingAnatomyBonus < 0 then
+      gLivingAnatomyBonus = 5;
+   gPyromaniac_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
+   if gPyromaniac_bonus < 0 then
+      gPyromaniac_bonus = 5;
+   gDemolitionExpertBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|DemolitionExpertBonus");
+   if gDemolitionExpertBonus < 0 then
+      gDemolitionExpertBonus = 10;
+end
+
 procedure start begin
    variable test;
    variable SecondaryAttackMod;
@@ -8159,13 +8234,7 @@ procedure start begin
          //if sfall_510 <= 0 then
             //anim_priority_byte = read_byte(0x413C20);
 
-
-         gLivingAnatomyBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|LivingAnatomyBonus");
-         if gLivingAnatomyBonus < 0 then
-            gLivingAnatomyBonus = 5;
-         gPyromaniac_bonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
-         if gPyromaniac_bonus < 0 then
-            gPyromaniac_bonus = 5;
+         call bonus_check in 0;
 
          allow_critical = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AllowCriticalHits");
          if allow_critical > 0 then begin
@@ -8188,12 +8257,12 @@ procedure start begin
             //else if kamikaze_plus > 1 then begin
                //kamikaze_plus = 10;
             //end
-            if allow_critical <= 0 then begin
-               finesse_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Finesse");
-               if finesse_plus <= 0 then begin
-                  finesse_plus = -1;
-               end
-            end
+            //if allow_critical <= 0 then begin
+               //finesse_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Finesse");
+               //if finesse_plus <= 0 then begin
+                  //finesse_plus = -1;
+               //end
+            //end
          end
          Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
          show_float_dmg = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|SecondaryAttackShowFloatMSG");

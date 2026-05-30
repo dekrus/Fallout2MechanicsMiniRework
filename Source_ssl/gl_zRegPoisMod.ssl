@@ -9,6 +9,7 @@
 #define is_prone(critter_obj) (critter_state(critter_obj) == CRITTER_IS_PRONE)
 #define signal_close_game                                       sfall_func0("signal_close_game")
 
+#define all_injuries (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT bwor DAM_CRIP_LEG_LEFT bwor DAM_CRIP_LEG_RIGHT bwor DAM_BLIND)
 #define is_in_death_anim(critter_anim)  ((critter_anim >= ANIM_bad_landing andAlso critter_anim <= ANIM_fall_front_blood) orElse (critter_anim >= ANIM_bad_landing_sf andAlso critter_anim <= ANIM_fall_front_blood_sf))
 #define is_in_prone_anim(critter_anim)  ((critter_anim >= ANIM_fall_back andAlso critter_anim <= ANIM_fall_front_blood) orElse (critter_anim >= ANIM_fall_back_sf andAlso critter_anim <= ANIM_fall_front_blood_sf))
 #define military_fid(critter_obj)   (critter_art_fid(critter_obj) == 16777217 or critter_art_fid(critter_obj) == 16777226 or critter_art_fid(critter_obj) == 16777219 or critter_art_fid(critter_obj) == 16777309 or critter_art_fid(critter_obj) == 16777287)
@@ -111,7 +112,8 @@
 #define new_max_hr 40
 #define new_max_hr_npc_stop 35
 #define new_min_hr -999
-#define min_hr_to_regen 6
+#define min_hr_to_regen_base 6
+#define min_hr_to_regen(critter) (min_hr_to_regen_base - 5 * gDudeRegenBonus * (critter == real_dude_obj))
 #define poison_overdose_damage(critter) (get_critter_stat(critter, STAT_max_hp) * 3)
 #define burn_min_dmg 8
 #define aoe_main_target_num 15
@@ -292,6 +294,9 @@
 procedure critter_inflict_poison_dmg(variable target, variable dmg_value, variable animate);
 procedure check_poison_healing_item(variable critter, variable critter_max_hp, variable critter_cur_hp, variable critter_poison, variable set_false_hr);
 
+variable gIsDudeFastMetaPlus;
+variable gFasterHealingPerk;
+variable gDudeRegenBonus;
 variable gLastTagHr;
 variable new_regpois_msg;
 variable RegenMod;
@@ -575,14 +580,17 @@ procedure calc_regen_tick(variable critter, variable new_heal_rate, variable Poi
    variable critter_cur_hp;
    variable critter_healing_rate = new_heal_rate;
    variable local_RegenTickHP;
-   variable kill_type = critter_kill_type(critter);
+   variable kill_type;
+   variable penalty_percent;
+   variable amount;
+
    if critter_healing_rate > new_max_hr then begin
       critter_healing_rate = new_max_hr;
    end
    else if critter_healing_rate <= 0 then begin
       critter_healing_rate = get_critter_stat(critter,STAT_heal_rate);
    end
-   if critter_healing_rate < min_hr_to_regen then
+   if critter_healing_rate < min_hr_to_regen(critter) then
       return 0;
 
       critter_max_hp = get_critter_stat(critter,STAT_max_hp);
@@ -597,15 +605,33 @@ procedure calc_regen_tick(variable critter, variable new_heal_rate, variable Poi
    if critter_cur_hp >= critter_max_hp then
       return 0;
 
-   if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
-      critter_healing_rate += critter_healing_rate / 3;
-      if get_poison(critter) > 0 then begin
-         critter_healing_rate *= 0.5 + (get_critter_stat(critter, STAT_poison_resist) / 200.0);
+
+   kill_type = critter_kill_type(critter);
+   if (fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism))) then begin
+      critter_healing_rate += critter_healing_rate / 3.0;
+      amount = get_poison(critter);
+      if amount > 0 then begin
+         penalty_percent += 5.0 + (amount) * 0.25;
+         if penalty_percent > 25.0 then
+            penalty_percent = 25.0;
+      end
+
+      amount = get_critter_stat(critter, STAT_current_rad);
+      if amount > 0 then begin
+         penalty_percent += 5.0 + (amount) * 0.06;
+      end
+
+      if penalty_percent > 0.0 then begin
+         if penalty_percent > 40.0 then
+            penalty_percent = 40.0;
+         critter_healing_rate *= (100.0 - penalty_percent) / 100.0;
       end
    end
    else if (kill_type == KILL_TYPE_alien_kills orElse kill_type == KILL_TYPE_centaur_kills) then begin
-      if get_poison(critter) > 0 then begin
-         critter_healing_rate *= 0.5 + (get_critter_stat(critter, STAT_poison_resist) / 200.0);
+      amount = get_poison(critter);
+      if amount > 0 then begin
+         penalty_percent = 35.0 + amount * 0.5;
+         critter_healing_rate *= (100.0 - penalty_percent) / 100.0;
       end
    end
    local_RegenTickHP = RegenBaseHP + (critter_healing_rate * HealingRateMult)  + (critter_max_hp / 100.0) * RegenMaxHPpercentMult * critter_healing_rate;
@@ -622,93 +648,66 @@ procedure calc_regen_tick(variable critter, variable new_heal_rate, variable Poi
    return local_RegenTickHP;
 end
 
-procedure cripheal(variable critter, variable count = 1, variable chance = 100) begin
-   variable rnd = random(0, 4);
-   variable injury;
-   variable injures = [DAM_CRIP_ARM_RIGHT, DAM_CRIP_LEG_LEFT, DAM_CRIP_ARM_LEFT, DAM_CRIP_LEG_RIGHT, DAM_BLIND];
-   variable messages;
-   variable i;
-   variable key;
+
+procedure heal_random_injury(variable critter, variable count = 1, variable chance = 100) begin
+   variable state;
    variable uninjure;
-   if critter == dude_obj then
+   variable guaranteed;
+   variable remaining_chance;
+   variable messages;
+   variable injures;
+   variable rnd;
+   variable roll_chance;
+   variable i, key, injury;
+   if (chance < 1 orElse count <= 0) then
+      return 0;
+
+   state = critter_state(critter);
+   if ((state bwand all_injuries) == 0) then
+      return 0;
+
+   guaranteed = chance / 100;
+   remaining_chance = chance % 100;
+
+   if (critter == dude_obj) then
       messages = [right_hand_healed_msg, left_leg_healed_msg, left_hand_healed_msg, right_leg_healed_msg, eyes_healed_msg];
 
-   for (i = 0; i < 5; i++) begin
-      key = ((rnd + i) % 5);
-      injury = injures[key];
-      if critter_state(critter) BWAND injury then begin
-         if chance >= random(1,100) then begin
-            uninjure = uninjure bwor injury;
-            if critter == dude_obj then
-               display_msg(messages[key]);
-         end
-         count--;
-         if count <= 0 then
-            break;
-      end
-   end
-   if uninjure != 0 then
-      critter_uninjure(critter, uninjure);
+   injures = [DAM_CRIP_ARM_RIGHT, DAM_CRIP_LEG_LEFT, DAM_CRIP_ARM_LEFT, DAM_CRIP_LEG_RIGHT, DAM_BLIND];
+   rnd = random(0, 4);
 
-   return uninjure;
-end
-
-procedure critter_regen_heal(variable critter, variable skip_msg, variable new_healing_rate) begin
-   variable critter_healing_rate;
-   variable local_RegenTickHP;
-   variable tar_name;
-   variable losblock;
-   variable regen;
-   if critter <= 0 then
-      return 0;
-
-   if is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) orElse get_array(death_array,critter) > 0 then
-      return 0;
-   // Определяем скорость исцеления
-   if new_healing_rate > 0 then begin
-      critter_healing_rate = new_healing_rate;
-   end else begin
-      critter_healing_rate = get_critter_stat(critter, STAT_heal_rate);
-   end
-
-   if critter_healing_rate >= min_hr_to_regen then begin
-      regen = 1;
-      local_RegenTickHP = calc_regen_tick(critter, critter_healing_rate);
-
-      if local_RegenTickHP > 0 then begin
-         critter_heal(critter, local_RegenTickHP);
-
-         if ShowModMSG > 0 andAlso skip_msg <= 0 then begin
-            tar_name = obj_name(critter);
-
-            if critter == real_dude_obj then begin
-               if local_RegenTickHP == 1 then begin
-                  display_msg(parse_str_2(modmsg(msg_player_1_hp_healed), tar_name, local_RegenTickHP));
-               end else begin
-                  display_msg(parse_str_2(modmsg(msg_player_many_hp_healed), tar_name, local_RegenTickHP));
-               end
-            end else begin
-               if HR_fog_of_war > 0 then
-                  losblock = obj_blocking_line(dude_obj, tile_num(critter), BLOCKING_TYPE_SIGHT);
-
-               if local_RegenTickHP > 0 andAlso losblock <= 0 then begin
-                  if local_RegenTickHP == 1 then begin
-                     display_msg(parse_str_2(modmsg(msg_npc_1_hp_healed), tar_name, local_RegenTickHP));
-                  end else begin
-                     display_msg(parse_str_2(modmsg(msg_npc_many_hp_healed), tar_name, local_RegenTickHP));
-                  end
-               end
+   while (count > 0) do begin
+      for (i = 0; i < 5; i++) begin
+         key = ((rnd + i) % 5);
+         injury = injures[key];
+         if (state bwand injury) then begin
+            if (guaranteed > 0) then begin
+               roll_chance = 100;
+               guaranteed--;
+            end
+            else begin
+               roll_chance = remaining_chance;
+            end
+            if (roll_chance >= random(1, 100)) then begin
+               uninjure = uninjure bwor injury;
+               state = state bwand (bwnot(injury));
+               if (critter == dude_obj) then
+                  display_msg(messages[key]);
+               count--;
+               if (count <= 0) then
+                  break;
             end
          end
       end
-
-      if critter == real_dude_obj then begin
-         if has_fake_perk(regen_perk_name) > 0 andAlso critter_is_crippled(real_dude_obj) then begin
-            call cripheal(real_dude_obj);
-         end
-      end
+      count--;
+      rnd = random(0, 4);
+      if ((state bwand all_injuries) == 0) then
+         break;
    end
-   return regen;
+
+   if (uninjure != 0) then
+      critter_uninjure(critter, uninjure);
+
+   return uninjure;
 end
 
 procedure calc_poison_overdose(variable critter) begin
@@ -723,7 +722,6 @@ procedure calc_poison_overdose(variable critter) begin
    end
    return poison_overdose_value;
 end
-
 
 procedure decrease_poison(variable critter, variable cur_poison = 0, variable poison_level_change = 1, variable count = 1) begin
    variable critter_id;
@@ -1571,7 +1569,7 @@ end
 
 procedure newperks begin
    variable poison_mastery;
-   if RegenMod > 0 andAlso has_fake_perk(regen_perk_name) <= 0 andAlso get_dude_base_heal_rate >= min_hr_to_regen then begin
+   if RegenMod > 0 andAlso gIsDudeFastMetaPlus <= 0 andAlso (TraitsPlus <= 0 orElse (TraitsPlus > 0 andAlso has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) <= 1)) andAlso has_fake_perk(regen_perk_name) <= 0 andAlso get_dude_base_heal_rate >= min_hr_to_regen_base then begin
       display_msg(regen_perk_acquired_msg);
       set_fake_perk(regen_perk_name, 1, 79, regen_perk_description);
    end
@@ -1876,7 +1874,7 @@ procedure check_regen_tag begin
    if RegenMod <= 0 orElse on_global_map > 0 then
       return;
    hr = get_critter_stat(dude_obj, STAT_heal_rate);
-   if hr >= min_hr_to_regen andAlso (combat_is_initialized orElse (dude_cur_hits < dude_max_hits orElse has_fake_perk_npc(dude_obj, regen_perk_name) <= 0) orElse (PoisonMod > 0 andAlso get_poison(dude_obj) > 0)) then begin
+   if hr >= min_hr_to_regen(dude_obj) andAlso (combat_is_initialized orElse (dude_cur_hits < dude_max_hits orElse ((TraitsPlus > 0 andAlso has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) < 2) andAlso gIsDudeFastMetaPlus <= 0 andAlso has_fake_perk_npc(dude_obj, regen_perk_name) <= 0)) orElse (PoisonMod > 0 andAlso get_poison(dude_obj) > 0)) then begin
       if hr == gLastTagHr then
          return;
 
@@ -1911,6 +1909,7 @@ procedure dude_apply_and_display_stat(variable stat, variable stat_value, variab
    variable displayed_stat_value;
    variable new_stat_value;
    variable cur_map_enter;
+   variable dude_min_hr_to_regen;
    if stat < STAT_st orElse stat > STAT_current_rad then
       return;
 
@@ -1950,8 +1949,11 @@ procedure dude_apply_and_display_stat(variable stat, variable stat_value, variab
       display_msg(string_format(message_str_game(GAME_MSG_ITEM, 2), -displayed_stat_value, message_str_game(GAME_MSG_STAT, 100 + stat))); // You lost %d %s.
    end
 
-   if stat == STAT_heal_rate andAlso cur_stat < min_hr_to_regen andAlso new_stat_value >= min_hr_to_regen then
-      call check_regen_tag;
+   if stat == STAT_heal_rate then begin
+      dude_min_hr_to_regen = min_hr_to_regen(dude_obj);
+      if cur_stat < dude_min_hr_to_regen andAlso new_stat_value >= dude_min_hr_to_regen then
+         call check_regen_tag;
+   end
 end
 
 procedure isPotentialPartyMember(variable critter) begin
@@ -2343,7 +2345,7 @@ procedure remove_all_burns(variable critter, variable cur_game_time) begin
 
 
                if RegenMod > 0 andAlso was_add_regen <= 0 then begin
-                  if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
+                  if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
                      next_regen_time = get_array(id_to_regen_time, critter_id);
                      if next_regen_time <= 0 then begin
                         call queue_add_regen_event(critter_id, cur_game_time + regen_repeat_ticks);
@@ -2371,7 +2373,7 @@ procedure remove_all_burns(variable critter, variable cur_game_time) begin
          end
       end
       if RegenMod > 0 andAlso was_add_regen <= 0 then begin
-         if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
+         if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
             next_regen_time = get_array(id_to_regen_time, critter_id);
             if next_regen_time <= 0 then begin
                call queue_add_regen_event(critter_id, cur_game_time + regen_repeat_ticks);
@@ -2455,7 +2457,7 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
       else if tag_is_active <= 0 then begin
          //set_iface_tag_text(iface_tag_burn, new_burn_count+"% BURNED", 1);
          //set_fake_trait_npc(dude_obj,modmsg(msg_burn_tag_trait), 1, 168,modmsg(msg_burn_tag_desc));
-         //set_iface_tag_text(iface_tag_burn,"ОЖОГ", 1);
+         //set_iface_tag_text(iface_tag_burn,"BURNED", 1);
          show_iface_tag(iface_tag_burn);
       end
    end
@@ -2579,7 +2581,7 @@ procedure add_drug_regen_event(variable critter, variable drug_heal_rate) begin
    end
 
    next_heal_time = get_array(id_to_regen_time, critter_id);
-   if next_heal_time <= cur_game_time andAlso get_critter_stat(critter, STAT_heal_rate) + drug_heal_rate >= min_hr_to_regen then begin
+   if next_heal_time <= cur_game_time andAlso get_critter_stat(critter, STAT_heal_rate) + drug_heal_rate >= min_hr_to_regen(critter) then begin
       next_heal_time = cur_game_time + regen_repeat_ticks;
       call queue_add_regen_event(critter_id, next_heal_time);
    end
@@ -2682,7 +2684,6 @@ procedure add_stimpak_effect_to_saved_arrays(variable user, variable critter, va
 
    cur_game_time = game_time;
 
-   // Определяем параметры в зависимости от быстрого метаболизма
    if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
       fast_meta = 1;
    end
@@ -2702,12 +2703,10 @@ procedure add_stimpak_effect_to_saved_arrays(variable user, variable critter, va
       duration2 = 3 * duration1 + 9000;
    end
 
-   // Корректировка времени в бою
    if combat_is_initialized andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then begin
       cur_game_time += 50;
    end
 
-   // Настройка таймера регенерации
    next_heal_time = get_array(id_to_regen_time, critter_id);
    if next_heal_time >= cur_game_time then begin
       timer_mod += (next_heal_time - cur_game_time) - regen_repeat_ticks;
@@ -2716,160 +2715,23 @@ procedure add_stimpak_effect_to_saved_arrays(variable user, variable critter, va
          duration2 += timer_mod;
       end
    end
-   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen then begin
+   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen(critter) then begin
       next_heal_time = cur_game_time + regen_repeat_ticks;
    end
 
-   // Сохраняем состояние до изменений
    extra_stat_before = get_critter_extra_stat(critter, drug_stat);
    extra_stat_expected = drug_stat_value1;
 
-   // Патчим прототип препарата
    drug_stat_value1 = patch_drug_proto(drug_pid, critter, drug_stat, drug_stat_value1);
 
-   // Вычисляем финальные времена
    duration1 = cur_game_time + duration1;
    duration2 = cur_game_time + duration2;
 
-   // Сохраняем все данные в массив
    call save_drug_data_to_array(user, critter, critter_id, drug_ptr,
       drug_pid, drug_stat, drug_stat_value1,drug_stat_value2, drug_stat_value3,
       duration1, duration2, next_heal_time, extra_stat_before, extra_stat_expected);
 
 
-   apply_drug_script = 1;
-end
-
-procedure add_stimpak_effect_to_saved_arrays_old(variable user, variable critter, variable drug_ptr, variable drug_pid) begin
-   variable critter_id = check_id(critter);
-   variable i;
-   variable drug_stat = STAT_heal_rate;
-   variable drug_stat_value1;
-   variable drug_stat_value2;
-   variable drug_stat_value3;
-   variable duration1;
-   variable duration2;
-   variable fast_meta;
-   variable cur_game_time;
-   variable next_heal_time;
-   variable timer_mod;
-   variable cur_offset;
-   variable cur_stat;
-   variable extra_stat_before;
-   variable extra_stat_expected;
-   cur_game_time = game_time;
-
-   set_array(g_drug_stats_to_apply, g_drug_user, user);
-   set_array(g_drug_stats_to_apply, g_drug_ptr, drug_ptr);
-   set_array(g_drug_stats_to_apply, g_drug_pid, drug_pid);
-   set_array(g_drug_stats_to_apply, g_drug_target, critter);
-   set_array(g_drug_stats_to_apply, g_drug_critter_id, critter_id);
-
-   if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
-      fast_meta = 1;
-   end
-
-   if fast_meta > 0 then begin
-      drug_stat_value1 = stim_hr_increase_fast_meta;
-      drug_stat_value2 = -stim_hr_decrease_fast_meta;
-      drug_stat_value3 = stim_hr_decrease_fast_meta - stim_hr_increase_fast_meta;
-      duration1 = regen_repeat_ticks * regen_stimpak_ticks;
-      duration2 = 2 * duration1 + 6000;
-   end
-   else begin
-      drug_stat_value1 = stim_hr_increase;
-      drug_stat_value2 = -stim_hr_decrease;
-      drug_stat_value3 = stim_hr_decrease - stim_hr_increase;
-      duration1 = regen_repeat_ticks * regen_stimpak_ticks;
-      duration2 = 3 * duration1 + 9000;
-   end
-
-
-   if combat_is_initialized andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then begin
-      cur_game_time += 50;
-   end
-   //adjust and set timer
-   next_heal_time = get_array(id_to_regen_time, critter_id);
-   if next_heal_time >= cur_game_time then begin
-      timer_mod += (next_heal_time - cur_game_time) - regen_repeat_ticks;
-      if timer_mod != 0 then begin
-         duration1 += timer_mod;
-         duration2 += timer_mod;
-      end
-   end
-   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen then begin
-      //if next_heal_time < cur_game_time + regen_repeat_ticks then begin
-         next_heal_time = cur_game_time + regen_repeat_ticks;
-         set_array(g_drug_stats_to_apply, g_next_heal_time, next_heal_time);
-         //call queue_add_regen_event(critter_id, next_heal_time);
-      //end
-   end
-
-   extra_stat_before = get_critter_extra_stat(critter, drug_stat);
-   extra_stat_expected = drug_stat_value1;
-   for (i := 0; i <= 2; i++) begin
-      cur_offset = (4 * i);
-      cur_stat = get_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset);
-      if (cur_stat == STAT_current_hp) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_current_hp)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            drug_stat_value1 = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if (cur_stat == STAT_heal_rate) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_heal_rate)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            drug_stat_value1 = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if cur_stat == -1 then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-            drug_stat_value1 = 0;
-         end
-      end
-   end
-
-   //heal rate;
-   //instant effect
-   //if drug_stat_value1 != 0 then
-      //call add_and_save_stats(critter, critter_id, drug_stat, drug_stat_value1, true, false);
-
-   set_array(g_drug_stats_to_apply, g_drug_stat, drug_stat);
-   if drug_stat_value1 != 0 then
-      set_array(g_drug_stats_to_apply, g_drug_stat_value1, drug_stat_value1);
-
-   set_array(g_drug_stats_to_apply, g_drug_stat_value2, drug_stat_value2);
-   set_array(g_drug_stats_to_apply, g_drug_stat_value3, drug_stat_value3);
-   set_array(g_drug_stats_to_apply, g_drug_duration1, (cur_game_time + duration1));
-   set_array(g_drug_stats_to_apply, g_drug_duration2, (cur_game_time + duration2));
-
-   set_array(g_drug_stats_to_apply, g_critter_extra_stat_before, extra_stat_before);
-   set_array(g_drug_stats_to_apply, g_extra_stat_expected_bonus, extra_stat_expected);
-
-//old
-   //timed effect 1
-   //call queue_add_drug_event(critter_id, drug_pid, drug_stat, drug_stat_value2, (cur_game_time + duration1));
-   //timed effect 2
-   //call queue_add_drug_event(critter_id, drug_pid, drug_stat, drug_stat_value3, (cur_game_time + duration2));
-   //
    apply_drug_script = 1;
 end
 
@@ -2929,7 +2791,7 @@ procedure add_healing_powder_effect_to_saved_arrays(variable user, variable crit
          duration2 += timer_mod;
       end
    end
-   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen then begin
+   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen(critter) then begin
       next_heal_time = cur_game_time + regen_repeat_ticks;
    end
 
@@ -2986,120 +2848,6 @@ procedure add_healing_powder_effect_to_saved_arrays(variable user, variable crit
    apply_drug_script = 1;
 end
 
-procedure add_healing_powder_effect_to_saved_arrays_old(variable critter, variable drug_pid) begin
-   variable critter_id = check_id(critter);
-   //variable critter_pid = obj_pid(critter);
-   variable i;
-   variable drug_stat = STAT_heal_rate;
-   variable drug_stat_value1;
-   variable drug_stat_value2;
-   variable drug_stat_value3;
-   variable duration1;
-   variable duration2;
-   variable fast_meta;
-   variable cur_game_time;
-   variable next_heal_time;
-   variable timer_mod;
-   variable cur_offset;
-   variable cur_stat;
-   variable healing_powder_ticks;
-
-   cur_game_time = game_time;
-
-   if combat_is_initialized andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then
-      cur_game_time += 50;
-
-   if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
-      fast_meta = 1;
-   end
-
-   healing_powder_ticks = round(regen_stimpak_ticks / 2.0);
-   if healing_powder_ticks < 3 then
-      healing_powder_ticks = 3;
-
-   if fast_meta > 0 then begin
-      drug_stat_value1 = powder_hr_increase_fast_meta;
-      drug_stat_value2 = -powder_hr_decrease_fast_meta;
-      drug_stat_value3 = powder_hr_decrease_fast_meta - powder_hr_increase_fast_meta;
-      duration1 = regen_repeat_ticks * healing_powder_ticks;
-      duration2 = 2 * duration1 + 12000;
-   end
-   else begin
-      drug_stat_value1 = powder_hr_increase;
-      drug_stat_value2 = -powder_hr_decrease;
-      drug_stat_value3 = powder_hr_decrease - powder_hr_increase;
-      duration1 = regen_repeat_ticks * healing_powder_ticks;
-      duration2 = 3 * duration1 + 18000;
-   end
-
-   //adjust and set timer
-   next_heal_time = get_array(id_to_regen_time, critter_id);
-
-   if next_heal_time >= cur_game_time then begin
-      timer_mod += (next_heal_time - cur_game_time) - regen_repeat_ticks;
-      if timer_mod != 0 then begin
-         duration1 += timer_mod;
-         duration2 += timer_mod;
-      end
-   end
-   else if get_critter_stat(critter, STAT_heal_rate) + drug_stat_value1 >= min_hr_to_regen then begin
-      //if next_heal_time < cur_game_time + regen_repeat_ticks then begin
-         next_heal_time = cur_game_time + regen_repeat_ticks;
-         call queue_add_regen_event(critter_id, next_heal_time);
-      //end
-   end
-
-   for (i := 0; i <= 2; i++) begin
-      cur_offset = (4 * i);
-      cur_stat = get_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset);
-      if (cur_stat == STAT_current_hp) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_current_hp)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            drug_stat_value1 = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if (cur_stat == STAT_heal_rate) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_heal_rate)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            drug_stat_value1 = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if cur_stat == -1 then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-            drug_stat_value1 = 0;
-         end
-      end
-   end
-
-   //heal rate;
-   //instant effect
-   if drug_stat_value1 != 0 then
-      call add_and_save_stats(critter, critter_id, drug_stat, drug_stat_value1, true, false);
-   //timed effect 1
-   call queue_add_drug_event(critter_id, drug_pid, drug_stat, drug_stat_value2, (cur_game_time + duration1));
-   //timed effect 2
-   call queue_add_drug_event(critter_id, drug_pid, drug_stat, drug_stat_value3, (cur_game_time + duration2));
-end
-
-
 procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critter, variable drug_ptr, variable drug_pid) begin
    variable critter_id = check_id(critter);
    variable i;
@@ -3137,7 +2885,7 @@ procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critt
       fast_meta = 1;
    end
 
-   if StimUninjure > 1 then begin
+   if StimUninjure > 1 orElse fast_meta then begin
       critter_cur_state = critter_state(critter);
       injures = (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND);
       critter_cur_state = critter_cur_state bwand injures;
@@ -3148,7 +2896,7 @@ procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critt
             critter_cur_state /= 2;
          end
          injuryhealed += 5 * i;
-         critter_uninjure(critter, injures);
+         //critter_uninjure(critter, injures);
       end
    end
    extra_stat_before_a = get_critter_stat(critter, STAT_current_hp);
@@ -3305,224 +3053,13 @@ procedure add_super_stimpak_effect_to_saved_arrays(variable user, variable critt
    apply_drug_script = 1;
 end
 
-procedure add_super_stimpak_effect_to_saved_arrays_old(variable critter, variable drug_pid) begin
-   variable critter_id = check_id(critter);
-   //variable critter_pid = obj_pid(critter);
-   variable i;
-   variable drug_stat_a = STAT_current_hp;
-   variable drug_stat_b = STAT_heal_rate;
-   variable drug_stat_value1;
-   variable drug_stat_value2;
-   variable drug_stat_value3;
-   variable drug_stat_value1b;
-   variable drug_stat_value2b;
-   variable drug_stat_value3b;
-   variable duration1;
-   variable duration2;
-   variable fast_meta;
-   variable cur_game_time;
-   variable next_heal_time;
-   variable timer_mod;
-   variable injuryhealed;
-   variable injures;
-   variable injury;
-   variable critter_cur_state;
-   variable tarHR;
-   variable RegenTickHP;
-   variable SShphealed;
-   variable HRhealcost;
-   variable hp_lost;
-   variable SShpdmg;
-   variable cur_offset;
-   variable cur_stat;
-   variable burn_dec;
-   variable in_combat = combat_is_initialized;
-   if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
-      fast_meta = 1;
-   end
-   if StimUninjure > 1 then begin
-      critter_cur_state = critter_state(critter);
-      injures = (DAM_CRIP_LEG_LEFT BWOR DAM_CRIP_LEG_RIGHT BWOR DAM_CRIP_ARM_LEFT BWOR DAM_CRIP_ARM_RIGHT BWOR DAM_BLIND);
-      critter_cur_state = critter_cur_state bwand injures;
-      if critter_cur_state > 0 then begin
-         i = 0;
-         while critter_cur_state > 0 do begin
-            i += critter_cur_state bwand 1;
-            critter_cur_state /= 2;
-         end
-         injuryhealed += 5 * i;
-         critter_uninjure(critter, injures);
-      end
-   end
-
-   hp_lost = get_critter_stat(critter, STAT_max_hit_points) - get_critter_stat(critter, STAT_current_hp);
-   tarHR = get_critter_stat(critter, STAT_heal_rate);
-   if fast_meta <= 0 then begin
-      SShphealed = super_stim_base_max_heal;
-      if tarHR <= 20 then begin
-         if tarHR < 0 then begin
-            RegenTickHP = calc_regen_tick(critter, 20);
-         end
-         else begin
-            RegenTickHP = calc_regen_tick(critter, (tarHR + 20));
-         end
-      end
-      else begin
-         RegenTickHP = calc_regen_tick(critter, 40);
-      end
-      // if regen > 60
-      if RegenTickHP > super_stim_base_max_heal then begin
-         SShphealed = RegenTickHP;
-      end
-      HRhealcost = 20 + injuryhealed;
-      if SShphealed >= hp_lost then begin
-         HRhealcost = HRhealcost * hp_lost / SShphealed;
-         SShphealed = hp_lost;
-         if SShphealed > 0 andAlso HRhealcost <= 0 then begin
-            HRhealcost = 1;
-         end
-      end
-      if SShphealed > 0 andAlso tarHR < HRhealcost then begin
-         SShpdmg = floor2((SShphealed / 7.0 * (tarHR - HRhealcost)) / 20);
-         if SShpdmg >= 0 then begin
-            SShpdmg = -1;
-         end
-      end
-      if SShphealed < SShpdmg then begin
-        SShpdmg = SShphealed;
-      end
-      drug_stat_value1 = SShphealed - injuryhealed;
-      drug_stat_value1b = -HRhealcost;
-      duration1 = 600;
-      drug_stat_value2 = SShpdmg;
-      drug_stat_value2b = ceil((HRhealcost) / 2.0);
-      duration2 = 21000;
-      drug_stat_value3b = HRhealcost - drug_stat_value2b;
-   end
-      // modified stimpak if dude hase fast_metabolism
-   //if fast_meta > 0 andAlso critter == real_dude_obj then begin
-   else begin
-      SShphealed = super_stim_base_max_heal_fast_meta;
-      if tarHR <= 20 then begin
-         if tarHR < 0 then begin
-            RegenTickHP = calc_regen_tick(critter, 20);
-         end
-         else begin
-            RegenTickHP = calc_regen_tick(critter, (tarHR + 20));
-         end
-      end
-      else begin
-         RegenTickHP = calc_regen_tick(critter, 40);
-      end
-      // if regen > 80
-      if RegenTickHP > super_stim_base_max_heal_fast_meta then begin
-         SShphealed = RegenTickHP;
-      end
-      HRhealcost = 20 + injuryhealed;
-      if SShphealed >= hp_lost then begin
-         HRhealcost = HRhealcost * hp_lost / SShphealed;
-         SShphealed = hp_lost;
-         if SShphealed > 0 andAlso HRhealcost <= 0 then begin
-            HRhealcost = 1;
-         end
-      end
-      if SShphealed > 0 andAlso tarHR < HRhealcost then begin
-         SShpdmg = ((SShphealed / 7 * (tarHR - HRhealcost)) / 20);
-         if SShpdmg >= 0 then begin
-            SShpdmg = -1;
-         end
-      end
-      if SShphealed < SShpdmg then begin
-        SShpdmg = SShphealed;
-      end
-      drug_stat_value1 = SShphealed - (injuryhealed / 2);
-      drug_stat_value1b = -HRhealcost;
-      duration1 = 300;
-      drug_stat_value2 = SShpdmg;
-      drug_stat_value2b = ceil((HRhealcost) / 2.0);
-      duration2 = 10500;
-      drug_stat_value3b = HRhealcost - drug_stat_value2b;
-   end
-
-   cur_game_time = game_time;
-
-   if in_combat andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then
-      cur_game_time += 50;
-
-
-   for (i := 0; i <= 2; i++) begin
-      cur_offset = (4 * i);
-      cur_stat = get_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset);
-      if (cur_stat == STAT_current_hp) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_current_hp)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat_b);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1b);
-            drug_stat_value1b = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if (cur_stat == STAT_heal_rate) orElse (i == 0 andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_A) == -2) andAlso (get_proto_data(drug_pid,PROTO_DR_STAT_B) == STAT_heal_rate)) then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat_b);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1b);
-            drug_stat_value1b = 0;
-         end
-         else begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, -1);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, 0);
-         end
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-         set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-      end
-      else if cur_stat == -1 then begin
-         if drug_stat_value1 != 0 andAlso critter == dude_obj then begin
-            set_proto_data(drug_pid, PROTO_DR_STAT_A + cur_offset, drug_stat_b);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_1_A + cur_offset, drug_stat_value1b);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_2_A + cur_offset, 0);
-            set_proto_data(drug_pid, PROTO_DR_AMOUNT_3_A + cur_offset, 0);
-            drug_stat_value1b = 0;
-         end
-      end
-   end
-
-
-   //instant effect stat_a
-   if drug_stat_value1 != 0 then
-      call add_and_save_stats(critter, critter_id, drug_stat_a, drug_stat_value1, true, false);
-
-   burn_dec = drug_stat_value1 / 10;
-   if burn_dec < 1 then
-      burn_dec = 1;
-
-   call add_burn_effect_to_saved_arrays(critter, -burn_dec);
-
-   //timed effect 1 // dmg
-   if drug_stat_value2 < 0 then
-      call queue_add_drug_event(critter_id, drug_pid, drug_stat_a, drug_stat_value2, (cur_game_time + duration1));
-   //instant effect
-   if drug_stat_value1b != 0 then
-      call add_and_save_stats(critter, critter_id, drug_stat_b, drug_stat_value1b, true, false);
-   //timed effect 1
-   call queue_add_drug_event(critter_id, drug_pid, drug_stat_b, drug_stat_value2b, (cur_game_time + duration1));
-   //timed effect 2
-   call queue_add_drug_event(critter_id, drug_pid, drug_stat_b, drug_stat_value3b, (cur_game_time + duration2));
-
-   if hp_lost > 19 andAlso critter != dude_obj andAlso in_combat andAlso critter_is_fleeing(critter) then
-      critter_set_flee_state(critter, 0);
-end
-
 procedure get_regen_by_id(variable critter, variable unique_id, variable PoisonTickDmg, variable critter_cur_hp) begin
    variable RegenTickHP = -1;
    variable critter_cur_heal_rate;
    variable regen_heal_time;
    if RegenMod > 0 andAlso critter > 0 andAlso get_array(death_array, critter) <= 0 then begin
       critter_cur_heal_rate = get_critter_stat(critter, STAT_heal_rate);
-      if critter_cur_heal_rate < min_hr_to_regen then begin
+      if critter_cur_heal_rate < min_hr_to_regen(critter) then begin
          if get_array(id_to_regen_time, unique_id) > 0 then
             set_array(id_to_regen_time, unique_id, 0);
          return -1;
@@ -3530,8 +3067,8 @@ procedure get_regen_by_id(variable critter, variable unique_id, variable PoisonT
 
       RegenTickHP = calc_regen_tick(critter, critter_cur_heal_rate, PoisonTickDmg, critter_cur_hp);
 
-      if critter == real_dude_obj andAlso has_fake_perk(regen_perk_name) andAlso critter_is_crippled(critter) then begin
-         if cripheal(real_dude_obj) <= 0 andAlso RegenTickHP <= 0 then
+      if critter == real_dude_obj andAlso (gIsDudeFastMetaPlus orElse has_fake_perk(regen_perk_name) orElse (TraitsPlus > 0 andAlso has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) > 1)) andAlso critter_is_crippled(critter) then begin
+         if heal_random_injury(real_dude_obj,1, 20 + critter_cur_heal_rate * 2 + (100 * (gIsDudeFastMetaPlus > 0 orElse has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) > 1))) <= 0 andAlso RegenTickHP <= 0 then
             RegenTickHP = -1;
       end
       else if RegenTickHP <= 0 then
@@ -3631,6 +3168,7 @@ procedure apply_super_stimpak_extra_effects(variable drug_pid) begin
    variable hp_lost;
    variable burn_dec;
    variable drug_stat_value1_a;
+   variable fast_meta;
 
    if get_array(g_drug_stats_to_apply, g_drug_stat_b) == 0 then
       return;
@@ -3659,6 +3197,14 @@ procedure apply_super_stimpak_extra_effects(variable drug_pid) begin
       call queue_add_drug_event(critter_id, drug_pid, drug_stat_b, drug_stat_value2_b, duration1_b);
    if drug_stat_value3_b != 0 then
       call queue_add_drug_event(critter_id, drug_pid, drug_stat_b, drug_stat_value3_b, duration2_b);
+
+   if fast_metabolism_plus > 0 andAlso critter == real_dude_obj andAlso (fast_metabolism_plus >= 2 orElse has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then begin
+      fast_meta = 1;
+   end
+
+   if StimUninjure > 1 orElse fast_meta then
+      critter_uninjure(critter, all_injuries);
+
 
    if hp_lost > 19 andAlso critter != dude_obj andAlso combat_is_initialized andAlso critter_is_fleeing(critter) then
       critter_set_flee_state(critter, 0);
@@ -3824,6 +3370,12 @@ procedure drug_effect_after_use(variable drug_pid) begin
    clear_array(g_drug_stats_to_apply);
 end
 
+procedure hypo_uninjure(variable target, variable drug_pid) begin
+   if drug_pid == PID_HYPO_HEALING andAlso Nevada <= 0 then begin
+      critter_uninjure(target, all_injuries);
+   end
+end
+
 procedure REMOVEINVENOBJ begin
    variable removed_obj = get_sfall_arg_at(1);
    variable drug_ptr;
@@ -3851,6 +3403,7 @@ procedure REMOVEINVENOBJ begin
                   drug_target = target;
                end
             end
+            call hypo_uninjure(target, drug_pid);
             apply_drug_script = 0;
             clear_array(g_drug_stats_to_apply);
          end
@@ -4920,6 +4473,14 @@ procedure restore_saved_stats_party_lvl_up(variable party_array) begin
    end
 end
 
+procedure update_fast_meta_flag begin
+   if (gIsDudeFastMetaPlus == 0 orElse gIsDudeFastMetaPlus == 1) then begin
+      gIsDudeFastMetaPlus = has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism);
+   end
+   gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+   gDudeRegenBonus = (gIsDudeFastMetaPlus > 0) bwor ((TraitsPlus > 0) bwand (gFasterHealingPerk >= 2));
+end
+
 procedure GAMEMODECHANGE begin
    variable game_exit = get_sfall_arg;
    variable lastgamemode = get_sfall_arg;
@@ -4930,6 +4491,7 @@ procedure GAMEMODECHANGE begin
       game_ui_enable;
       return;
    end
+   call update_fast_meta_flag;
 
    if resting > 0 andAlso not(game_mode bwand PIPBOY) then begin
       resting = 0;
@@ -5031,7 +4593,7 @@ procedure check_poison_healing_item(variable critter,variable critter_max_hp,var
          if new_critter_hr + set_false_hr > new_max_hr then begin
             new_critter_hr = new_max_hr;
          end
-         if critter_hr >= min_hr_to_regen then begin
+         if critter_hr >= min_hr_to_regen(critter) then begin
             next_regen_tick = calc_regen_tick(critter, (new_critter_hr));
          end
       end
@@ -5338,6 +4900,7 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
    variable next_regen_time;
    variable event_procces;
    variable cur_burn;
+   variable min_hr_to_regen_cur_critter = min_hr_to_regen(critter);
    event_procces = 0;
    critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
    if not(is_really_dead(critter, critter_state(critter), critter_cur_hp)) andAlso get_array(death_array, critter) == 0 then begin
@@ -5403,7 +4966,7 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
                if RegenMod > 0 then begin
                   critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
                   critter_max_hp = get_critter_stat(critter, STAT_max_hp);
-                  if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso critter_cur_hp < critter_max_hp then begin
+                  if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen_cur_critter andAlso critter_cur_hp < critter_max_hp then begin
                      next_regen_time = get_array(id_to_regen_time, critter_id);
                      if next_regen_time <= 0 then begin
                         call queue_add_regen_event(critter_id, event_time + regen_repeat_ticks);
@@ -5440,7 +5003,7 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
       if RegenMod > 0 then begin
          critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
          critter_max_hp = get_critter_stat(critter, STAT_max_hp);
-         if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso critter_cur_hp < critter_max_hp then begin
+         if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen_cur_critter andAlso critter_cur_hp < critter_max_hp then begin
             next_regen_time = get_array(id_to_regen_time, critter_id);
             if next_regen_time <= 0 then begin
                call queue_add_regen_event(critter_id, cur_game_time + regen_repeat_ticks);
@@ -5569,7 +5132,7 @@ procedure queue_original_check_events_all_with_custom_queue(variable cur_game_ti
 
                if RegenMod > 0 andAlso eventOwner > 0 andAlso obj_type(eventOwner) == OBJ_TYPE_CRITTER then begin
                   critter_id = get_unique_id(eventOwner);
-                  if get_critter_stat(eventOwner, STAT_heal_rate) >= min_hr_to_regen andAlso get_critter_stat(eventOwner, STAT_current_hp) < get_critter_stat(eventOwner, STAT_max_hp) then begin
+                  if get_critter_stat(eventOwner, STAT_heal_rate) >= min_hr_to_regen(eventOwner) andAlso get_critter_stat(eventOwner, STAT_current_hp) < get_critter_stat(eventOwner, STAT_max_hp) then begin
                      next_regen_time = get_array(id_to_regen_time, critter_id);
                      if next_regen_time <= 0 then begin
                         call queue_add_regen_event(critter_id, eventTime + regen_repeat_ticks);
@@ -5745,7 +5308,7 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
       critter_cur_poison -= get_array(id_to_poison_fraction, critter_id);
 
    if RegenMod > 0 then begin
-      if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
+      if get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso get_critter_stat(critter, STAT_current_hp) < get_critter_stat(critter, STAT_max_hp) then begin
          next_regen_time = get_array(id_to_regen_time, critter_id);
          if next_regen_time <= 0 then begin
             call queue_add_regen_event(critter_id, last_timed_event_time + regen_repeat_ticks);
@@ -5820,7 +5383,7 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
                   call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
 
                if stat == STAT_heal_rate then begin
-                  if RegenMod > 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso (get_array(id_to_regen_time, critter_id) + regen_repeat_ticks) < event_time then begin
+                  if RegenMod > 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso (get_array(id_to_regen_time, critter_id) + regen_repeat_ticks) < event_time then begin
                      call queue_add_regen_event(critter_id, event_time + regen_repeat_ticks);
                      was_add_regen = 1;
                   end
@@ -5853,7 +5416,7 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
             if RegenMod > 0 then begin
                //critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
                critter_max_hp = get_critter_stat(critter, STAT_max_hp);
-               if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso critter_cur_hp < critter_max_hp then begin
+               if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso critter_cur_hp < critter_max_hp then begin
                   next_regen_time = get_array(id_to_regen_time, critter_id);
                   if next_regen_time <= 0 then begin
                      call queue_add_regen_event(critter_id, event_time + regen_repeat_ticks);
@@ -5904,7 +5467,7 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
       if RegenMod > 0 then begin
          critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
          critter_max_hp = get_critter_stat(critter, STAT_max_hp);
-         if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen andAlso critter_cur_hp < critter_max_hp then begin
+         if was_add_regen <= 0 andAlso get_critter_stat(critter, STAT_heal_rate) >= min_hr_to_regen(critter) andAlso critter_cur_hp < critter_max_hp then begin
             next_regen_time = get_array(id_to_regen_time, critter_id);
             if next_regen_time <= 0 then begin
                call queue_add_regen_event(critter_id, cur_game_time + regen_repeat_ticks);
@@ -6799,7 +6362,7 @@ procedure COMBATTURN begin
       call modify_antidote_healing_flag(false);
       call modify_super_antidote_healing_flag(false);
    end
-   if dude_hp > 0 andAlso critter_turn_status <= COMBAT_END_ABRUPT andAlso (get_poison(real_dude_obj) > 0 orElse get_critter_stat(real_dude_obj, STAT_heal_rate) >= min_hr_to_regen) then begin
+   if dude_hp > 0 andAlso critter_turn_status <= COMBAT_END_ABRUPT andAlso (get_poison(real_dude_obj) > 0 orElse get_critter_stat(real_dude_obj, STAT_heal_rate) >= min_hr_to_regen(critter)) then begin
       float_msg(real_dude_obj, "", FLOAT_MSG_NORMAL);
    end
    if dude_must_die == real_dude_obj then begin
@@ -7572,6 +7135,7 @@ procedure start begin
          end
          sfall_unsafescripting = get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting");
          if RegenMod > 0 then begin
+            call update_fast_meta_flag;
             ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_OPTION);
             if ECCO_heal_tweak > 0 then begin
                if ecco_heal_mod_handler <= 0 then begin
@@ -7734,6 +7298,13 @@ procedure start begin
             TraitsPlus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
             if TraitsPlus > 0 then begin
                fast_metabolism_plus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Fast_Metabolism");
+               if fast_metabolism_plus > 0 then begin
+                  gIsDudeFastMetaPlus = fast_metabolism_plus;
+                  if gIsDudeFastMetaPlus == 1 andAlso not(has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism)) then
+                     gIsDudeFastMetaPlus = 0;
+               end
+               else
+                  gIsDudeFastMetaPlus = -1;
             end
             WAHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|WAHR");
             TWAHR = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CRITTER|TWAHR");
