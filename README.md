@@ -216,21 +216,21 @@ Some perks have been reworked (more to come later).
 **Faster Healing** (2 ranks without Fast Metabolism, 1 rank with Fast Metabolism; a refund occurs if the player had 2 ranks and gained the trait):
 - Rank 1 (without Fast Metabolism): +2 to healing rate. Fully recovers health and all injuries in less than a day of rest (via Pip-Boy rest, not on the world map).
 - Rank 2 (without Fast Metabolism): +6 to healing rate (total). HP regen at half effectiveness and 1 guaranteed injury healed every 5 seconds.
-- Rank 1 (with Fast Metabolism): ×2 passive health regeneration from Fast Metabolism. *(Scripted)*
+- Rank 1 (with Fast Metabolism): ×2 passive health regeneration from Fast Metabolism.
 
 **Pyromaniac** (1 rank):
-- [+] +5 damage to fire attacks.
+- [+] +5 flat damage to fire attacks.
 - [+] Fire area attacks can deal critical damage to all targets in the area of attack (not just the primary target).
 - [+] Own fire still deals damage but leaves no burns. *(Regen mod only)*
 
 **Weapon Handling** (1 rank):
 - [+] Strength requirements for weapon use reduced by 3.
-- [+] Area attacks can deal critical damage to targets in the area of effect.
+- [+] Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just the primary target).
 - [+] (With Burst mod) Strength requirements for burst fire recoil control also reduced by 3.
 
 **Demolition Expert** (1 rank):
-- [+] Explosions deal +10 damage.
-- [+] Explosive weapons can deal critical damage to targets in the blast radius.
+- [+] Explosions deal +10 min and max damage (added to weapon's base min/max during damage calculation = affected by armor and crits).
+- [+] Explosive weapons can deal critical damage to targets in the blast radius (not just the primary target).
 - [+] Planted explosives always detonate on time.
 
 **Dodger** (1 rank):
