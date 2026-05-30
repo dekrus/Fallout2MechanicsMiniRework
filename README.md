@@ -69,7 +69,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 ![Secondary-Attack](images/PULSE_CHAIN.gif) ![Secondary-Attack](images/PULSE_BOUNCE.gif)  
 - Attack animation can be either instant chain lightning or traveling arc between targets (configurable in `F2MechanicsMiniRework.ini`).
 - Pulse and EMP weapons deal damage in a "chain" to up to X additional targets closest to each other.
-- Maximum distance and number of additional targets configurable in `F2MechanicsMiniRework.ini`.
+- Maximum distance and number of additional targets are configurable in `F2MechanicsMiniRework.ini`.
 - Lightning cannot miss secondary targets once triggered and can hit the attacker if too close.
 - Lightning deals highly randomized damage to secondary targets, decreasing with each target.
 - Critical chance calculated separately per target.
@@ -77,7 +77,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 
 **Gauss Weapons:**  
 ![Secondary-Attack](images/GAUSS.gif)  
-- An armor-penetrating attack that ignores 80% of a target's armor.
+- An armor-penetrating attack that bypasses 80% of target's armor.
 - Can hit multiple targets in a straight line; maximum penetration depends on:
   - Weapon damage (including perk modifiers).
   - Per-target damage reduction (percentage based on target's armor).
@@ -95,12 +95,12 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 **Pistols & SMGs:**  
 ![Secondary-Attack](images/PISTOLS_SMGS.gif)  
 - Non-energy Pistols and SMGs allow you to fire two single shots to the body of the same target for the cost of one aimed shot.
-- Second shot hit chance reduced by (15 + Wpn STR req * 3), but cannot be lower than 1/2 of the initial hit chance.
+- Second shot hit chance reduced by (15 + Wpn STR req * 3), but never drops below half the initial hit chance.
 
 **Shotguns:**  
 ![Secondary-Attack](images/SHOTGUN.gif)
 - Aimed shots to the body knock back enemies and can knock them down.
-- Affects targets closer than 10 hexes / half the weapon's maximum range.
+- Affects targets closer than 10 hexes / half of the weapon's maximum range.
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
 
 **Assault Rifles:**  
