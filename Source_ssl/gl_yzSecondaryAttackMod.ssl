@@ -146,7 +146,7 @@
 #define reg_anim_set_scr_source(obj_sid, source, delay) call_offset_v4(0x414E98, obj_sid, source, 0x4A3B0C, delay)
 #define reg_anim_exe_scr_proc(obj_sid, script_proc_type, delay) call_offset_v4(0x414E98, obj_sid, script_proc_type, 0x4A4810, delay)
 
-#define reg_anim_heal_critter(critter_obj, amount, delay) call_offset_v4(0x414E98, critter_obj, amount, 0x42D1A4, delay)
+//#define reg_anim_heal_critter(critter_obj, amount, delay) call_offset_v4(0x414E98, critter_obj, amount, 0x42D1A4, delay)
 
 #define reg_anim_toggle_outline(critter_obj, outline_bool, delay) \
    if sfall_515 <= 0 then \
@@ -499,6 +499,7 @@ variable gPulseExplToDestroyArray;
 //variable gPulseBackward;
 variable gPulseBackwardKey;
 variable gSoundEffectsWasDisabled;
+variable dmg_to_player;
 
 variable pre_last_item_action;
 
@@ -3221,7 +3222,9 @@ procedure show_dmg_combat_msg(variable target, variable attacker, variable dmg_v
 end
 
 procedure callback_render_hp begin
-   call_offset_v1(0x45EBD8, true);
+   critter_heal(dude_obj, - dmg_to_player);
+   //call_offset_v1(0x45EBD8, true);
+   dmg_to_player = 0;
 end
 
 procedure exec_dmg_script(variable target, variable target_sid, variable attacker, variable dmg_value, variable real_orig_target_team, variable atk_weapon) begin
@@ -3844,7 +3847,8 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
          reg_anim_play_sfx(target,sfx_build_char_name(target,death_anim,snd_knock_down), 0);
       end
       if target == dude_obj then begin
-         reg_anim_heal_critter(target, -cur_dmg, -1);
+         dmg_to_player += cur_dmg;
+         //reg_anim_heal_critter(target, -cur_dmg, -1);
          reg_anim_callback(callback_render_hp);
       end
       reg_anim_toggle_outline(target, false, -1);
