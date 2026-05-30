@@ -1807,6 +1807,7 @@ procedure ITEMDAMAGE begin
       demolition_expert_perk = has_trait(TRAIT_PERK, real_dude_obj, PERK_demolition_expert_perk);
       if demolition_expert_perk then begin
          weapon = get_sfall_arg_at(2);
+         wpn_pid = obj_pid(weapon);
          if weapon > 0 andAlso get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE) == DMG_explosion then begin
             default_min_wpn_dmg = get_sfall_arg_at(0);
             default_max_wpn_dmg = get_sfall_arg_at(1);
