@@ -7688,7 +7688,7 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    variable attacker_pe = get_critter_stat(attacker, STAT_pe);
    variable attacker_st = get_critter_stat(attacker, STAT_st);
    variable attacker_skill = get_ranged_weapon_skill_lvl(attacker, weapon);
-   variable attacker_skill_mult = 5;
+   variable attacker_skill_mult = 7;
    variable wpn_pid = obj_pid(weapon);
    variable wpn_animation = get_proto_data(wpn_pid, PROTO_WP_ANIM);
    variable wpn_dmg_type = get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE);
@@ -7703,7 +7703,7 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    variable body_part_penalty = 1;
    variable distance = tile_distance_objs(attacker, target);
    variable distance_penalty = (10 + distance);
-   variable distance_penalty_mult = 20;
+   variable distance_penalty_mult = 18;
    variable max_hit_chance = 100;
    variable max_hit_chance_devider;
    if distance <= 1 then
