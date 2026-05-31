@@ -926,6 +926,7 @@ procedure lvar_full_reset begin
    call restore_weapon_perk;
    call restore_weapon_min_max_dmg;
    Enable_SoundEffects
+   gCurrentTarget = 0;
    gWeapon = 0;
    one_time_AFTERHITROLL = 0;
    one_time_COMBATDAMAGE = 0;
@@ -3667,7 +3668,7 @@ procedure get_combat_dmg_and_flags(variable target) begin
    end
 end
 
-procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_value, variable dmg_type, variable flags, variable dmg_source_tile) begin
+procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_value, variable dmg_type, variable flags, variable dmg_source_tile, variable no_dodge_anim = 0) begin
    variable target_cur_hp;
    variable target_cur_anim;
    variable death_anim;
@@ -3762,7 +3763,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
       set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
    // dodge anim
    if cur_dmg < 0 orElse (target_cr_flags bwand CFLG_INVULN) then begin
-      if not(is_in_prone_anim(target_cur_anim)) then begin
+      if no_dodge_anim <= 0 andAlso not(is_in_prone_anim(target_cur_anim)) then begin
          reg_anim_play_sfx(target,sfx_build_char_name(target,ANIM_dodge_anim,snd_contact),0);
          reg_anim_animate(target, ANIM_dodge_anim, 0);
       end
@@ -5970,7 +5971,7 @@ procedure double_tap_combat_damage begin
    else
       target = gCurrentMainTarget;
 
-   call critter_inflict_dmg(target, attacker, DMG_DODGE, gWeaponDamageType, 0, tile_num(attacker));
+   call critter_inflict_dmg(target, attacker, DMG_DODGE, gWeaponDamageType, 0, tile_num(attacker), gWeaponProjPid);
 end
 
 procedure double_tap_get_coord_combat_damage_anim begin
@@ -5996,8 +5997,7 @@ procedure double_tap_get_coord_combat_damage_anim begin
       if target <= 0 then
          return;
 
-
-      if attack_results >= HIT then begin
+      if target != 0 andAlso attack_results >= HIT then begin
          end_tile = target_tile;
          hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, target);
       end
@@ -6011,7 +6011,7 @@ procedure double_tap_get_coord_combat_damage_anim begin
       end
 
       atkr_rot = rotation_to_tile(attacker_tile, target_tile);
-      projectile = create_hidden_projectile(gWeaponProjPid, atkr_rot);
+      projectile = create_hidden_projectile(gWeaponProjPid, atkr_rot, 2);
       bullet_tile = tile_num_in_direction(attacker_tile, atkr_rot, 1);
       move_to(projectile, bullet_tile, elevation(attacker));
       reg_anim_combat_check(0);
@@ -6073,6 +6073,7 @@ procedure set_attacker_coord_and_anim_projectile begin
       if obstacle > 0 andAlso obstacle != target then begin
          target = obstacle;
          gCurrentMainTarget = obstacle;
+         target_tile = tile_num(target);
          is_hit = 1;
       end
    end
@@ -6099,7 +6100,7 @@ procedure set_attacker_coord_and_anim_projectile begin
       end
 
       atkr_rot = rotation_to_tile(attacker_tile, target_tile);
-      projectile = create_hidden_projectile(gWeaponProjPid, atkr_rot);
+      projectile = create_hidden_projectile(PID_PROJ_LASER, atkr_rot, 2);
       bullet_tile = tile_num_in_direction(attacker_tile, atkr_rot, 1);
       move_to(projectile, bullet_tile, elevation(attacker));
       reg_anim_combat_check(0);
@@ -6144,7 +6145,7 @@ procedure callback_tile_refresh_display_enable begin
 end
 
 procedure pistol_double_tap(variable attacker, variable main_target, variable cur_attack_target) begin
-   variable target = main_target;
+   variable target = cur_attack_target;
    variable atkr_tile;
    variable attacker_elev;
    variable real_orig_target_tile;
@@ -6203,7 +6204,7 @@ procedure pistol_double_tap(variable attacker, variable main_target, variable cu
 
 
    gCurrentAttacker = attacker;
-   gCurrentMainTarget = target;
+   gCurrentMainTarget = main_target;
    gCurrentTarget = cur_attack_target;
    //gAllowProjHitSound = 1;
 
