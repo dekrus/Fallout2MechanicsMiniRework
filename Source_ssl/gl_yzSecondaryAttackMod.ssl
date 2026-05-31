@@ -6642,10 +6642,10 @@ procedure CALCAPCOST begin
    gFastShotAimedAllowed = 0;
    gCurAtkType = atk_type;
 
-   if gAimedFastShotTweakEnabled > 0 then
+   //if gAimedFastShotTweakEnabled > 0 then
       fast_shot = has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot);
    //fastshot aimed
-   if fast_shot > 0 andAlso user == dude_obj andAlso item > 0 andAlso obj_item_subtype(item) == item_type_weapon andAlso get_attack_anim(item, atk_type) == ANIM_fire_single then begin
+   if gAimedFastShotTweakEnabled > 0 andAlso fast_shot > 0 andAlso user == dude_obj andAlso item > 0 andAlso obj_item_subtype(item) == item_type_weapon andAlso get_attack_anim(item, atk_type) == ANIM_fire_single then begin
 
       if is_aimed <= 0 andAlso wpn_allow_any_alt_attack(item, atk_type) > 0 then begin
          gFastShotAimedAllowed = 1;
