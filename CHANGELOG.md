@@ -1,8 +1,9 @@
-## WIP
+## Latest Version v2.0.2
 - Added compatibility options with different Inventory AP Cost mods.
 ### Secondary Attack Mod
-- Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
-## Traits Plus
+- Fixed a bug where the main target killed by the electrical alt attack or Double Tap wouldn't trigger its death script properly.
+### Traits Plus
+- Fixed melee weapon damage display when Bruiser and Heavy Handed traits are taken (sfall version 4).
 Some tweaks to underperforming traits:
 - **Fast Metabolism**: Heals HP based on Healing Rate (or Endurance + Healing Rate) and cures 1 random injury every 5 seconds. Healing penalty is now dynamic: depends on the amount of poison and radiation (up to 20% penalty each, stacking to 40%). All food and chems remove 33% more poison and radiation, heal/remove 33% more HP, and take effect/wear off twice as fast. If Healing mod is enabled, HP regeneration is increased by 33%. Super Stimpak and Hypo also heal injuries on use.
 - **Small Frame**: +1 Agility. +10% Sneak effectiveness. Reduces maximum hit chance against the player by 8% (stacks with other sources). Carry weight reduced to 25 + (15 * Strength).
@@ -26,8 +27,7 @@ Some perks have been reworked (more to come later):
 - **Weapon Handling** (1 rank): Strength requirements for weapon use reduced by 3. Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just primary target). With Burst mod: strength requirements for burst fire recoil control also reduced by 3.
 - **Demolition Expert** (1 rank): Explosions (and all grenade types) deal +10 min and max damage (added to weapon's base, affected by armor and crits). Explosive weapons (and all grenade types) can deal critical damage to all targets in the blast radius (not just primary target). Planted explosives always detonate on time.
 - **Dodger** (1 rank): +5 Armor Class. Reduces maximum hit chance against the player by 5% (stacks with other sources).
-
-## Regen & Poison Mod
+### Regen & Poison Mod
 - Scripted effects from healing items (stimpaks, super stimpaks, healing powder) no longer trigger if use is blocked by other mods.
 - Reduced healing effect and added other effects to food in Sonora and Nevada.
 - The **Fast Metabolism** trait's healing penalty is now dynamic: it depends on the amount of poison and radiation instead of a flat check for their presence.
@@ -37,10 +37,11 @@ Some perks have been reworked (more to come later):
 - Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
 - Improved Double Tap attack and hit animations for projectile weapons.
 - Fixed Aimed Burst for Bozar and XL70E3 in EcCo. They can now use aimed bursts without setting AimedBurstAnyWeapon=1.
-## Skill Books Mod
+### Skill Books Mod
 - Fixed erroneous addition of Russian text in book descriptions.
 
-### Latest Version v2.0.1
+
+### Version v2.0.1
 - Added compatibility with EcCo v1.0 and v0.9.9 lite.
 ### Secondary Attack Mod
 - **Fixed crashes with sfall 5.1.5+:**
