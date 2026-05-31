@@ -1775,7 +1775,7 @@ procedure ITEMDAMAGE begin
          melee_dmg = get_critter_stat(attacker, STAT_melee_dmg);
          if melee_dmg < 1 then melee_dmg = 1;
 
-         if default_max_wpn_dmg < (wpn_max_dmg + melee_dmg) then begin
+         if weapon > 0 andAlso default_max_wpn_dmg < (wpn_max_dmg + melee_dmg) then begin
             default_max_wpn_dmg = (wpn_max_dmg + melee_dmg);
          end
          new_min_wpn_dmg = default_min_wpn_dmg;
@@ -1795,6 +1795,7 @@ procedure ITEMDAMAGE begin
          if new_min_wpn_dmg > new_max_wpn_dmg then begin
             new_min_wpn_dmg = new_max_wpn_dmg;
          end
+
          default_min_wpn_dmg = new_min_wpn_dmg;
          default_max_wpn_dmg = new_max_wpn_dmg;
          if sfall_508 <= 0 then begin
@@ -1803,7 +1804,7 @@ procedure ITEMDAMAGE begin
             else
                is_unarmed = 0;
             bruiser_heavy_handed_min_dmg = new_min_wpn_dmg;
-            bruiser_heavy_handed_max_dmg = new_max_wpn_dmg;
+            bruiser_heavy_handed_max_dmg = new_max_wpn_dmg - (melee_dmg * (weapon > 0));
          end
          set_sfall_return(new_min_wpn_dmg);
          set_sfall_arg(0, new_min_wpn_dmg);
