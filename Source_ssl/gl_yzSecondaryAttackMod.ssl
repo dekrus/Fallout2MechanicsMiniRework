@@ -3753,14 +3753,18 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    end
    target_cr_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
 
+   if target != real_dude_obj andAlso obj_team(target) != obj_team(attacker) andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 orElse random(0,3) == 0) then
+      set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
+
+   if no_dodge_anim > 0 andAlso (cur_dmg < 0 orElse (target_cr_flags bwand CFLG_INVULN)) then
+      return;
 
    reg_anim_combat_check(0);
    if not(is_in_prone_anim(target_cur_anim)) orElse (flags bwand DAM_DEAD) != 0 then
       reg_anim_clear_forced(target);
    reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
 
-   if target != real_dude_obj andAlso obj_team(target) != obj_team(attacker) andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 orElse random(0,3) == 0) then
-      set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
+
    // dodge anim
    if cur_dmg < 0 orElse (target_cr_flags bwand CFLG_INVULN) then begin
       if no_dodge_anim <= 0 andAlso not(is_in_prone_anim(target_cur_anim)) then begin
