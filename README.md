@@ -431,6 +431,7 @@ Adds unique properties to different attack types:
 - Compatible with most Fallout 2-based games. For compatibility with Nevada, Sonora, or Fallout et tu, enable it in `mods/F2MechanicsMiniRework.ini`.
 - Fully compatible with [__FO2Tweaks__](https://github.com/BGforgeNet/FO2tweaks) and [__Fallout 2: Weapons Redone 2.3d__](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
 - All components except for the [Steal](#steal), [Healing](#healing) and [MedToolsMod](#medical-tools) are compatible with [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) for Fallout 2.  
+- Compatible with Inventory AP Cost checks. If the options in `F2MechanicsMiniRework.ini` are left empty, the mod auto-configures itself on first launch based on EcCo's settings.
 ## How to Set Up Compatibility with EcCo
 **Automatic conflict detection:**
 - When launching the game and starting a **new game** or **loading any save**, this mod will automatically detect conflicts with EcCo and show prompts allowing you to choose which features to keep active.
