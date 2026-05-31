@@ -6023,7 +6023,7 @@ procedure double_tap_get_coord_combat_damage_anim begin
       reg_anim_unset_flag(projectile, OBJECT_HIDDEN, 0);
       reg_anim_animate_and_move(projectile, end_tile, ANIM_walk, 0);
       reg_anim_callback(double_tap_combat_damage);
-      if hit_sfx != 0 then begin
+      if hit_sfx != 0 andAlso hit_sfx != "" then begin
          reg_anim_play_sfx(projectile, hit_sfx, -1);
       end
       reg_anim_destroy(projectile);
@@ -6042,7 +6042,8 @@ procedure double_tap_get_coord_combat_damage_anim begin
          end
       end
       call double_tap_combat_damage;
-      play_sfx(hit_sfx);
+      if hit_sfx != 0 andAlso hit_sfx != "" then
+         play_sfx(hit_sfx);
    end
 end
 
@@ -6114,7 +6115,7 @@ procedure set_attacker_coord_and_anim_projectile begin
       if is_hit then begin
          reg_anim_callback(double_tap_damage);
       end
-      if hit_sfx != 0 then begin
+      if hit_sfx != 0 andAlso hit_sfx != "" then begin
          reg_anim_play_sfx(projectile, hit_sfx, -1);
       end
       reg_anim_destroy(projectile);
@@ -6123,7 +6124,8 @@ procedure set_attacker_coord_and_anim_projectile begin
    else if is_hit then begin
       hit_sfx = sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, target);
       call double_tap_damage;
-      play_sfx(hit_sfx);
+      if hit_sfx != 0 andAlso hit_sfx != "" then
+         play_sfx(hit_sfx);
    end
 end
 
