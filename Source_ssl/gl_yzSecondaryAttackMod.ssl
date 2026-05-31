@@ -6618,7 +6618,7 @@ procedure wpn_allow_alt_asault_rifles(variable weapon_ptr, variable atk_type) be
    if attack_anim == ANIM_fire_burst orElse (attack_anim == ANIM_fire_continuous andAlso AimedBurstModAnyWeapon > 1) then
       is_burst = 1;
 
-   allowed_array = [PID_HK_G11, PID_HK_G11E];
+   allowed_array = [PID_HK_G11, PID_HK_G11E, PID_INDEPENDENT, PID_BOZAR];
    if is_burst > 0 andAlso (AimedBurstModAnyWeapon > 0 orElse wpn_cur_anim == WPN_ANIM_RIFLE orElse wpn_cur_anim == WPN_ANIM_BIG_GUN orElse is_in_array(pid, allowed_array)) then begin
       //alt_fire_selected = alt_fire_aimed_burst;
       return 1;

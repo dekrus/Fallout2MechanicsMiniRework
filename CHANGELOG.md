@@ -22,6 +22,7 @@ Some tweaks to underperforming traits:
 ### Secondary Attack Mod
 - Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
 - Improved Double Tap attack and hit animations for projectile weapons.
+- Fixed Aimed Burst for Bozar and XL70E3 in EcCo. They can now use aimed bursts without setting AimedBurstAnyWeapon=1.
 ## Skill Books Mod
 - Fixed erroneous addition of Russian text in book descriptions.
 
