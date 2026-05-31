@@ -3145,7 +3145,6 @@ procedure da_set_xp_mod() begin
 
    cur_xp_mod = get_xp_mod();
    last_xp_mod = cur_xp_mod + da_cur_bonus;
-   display_msg("last_xp_mod=" + last_xp_mod);
    set_xp_mod(last_xp_mod);
 end
 
