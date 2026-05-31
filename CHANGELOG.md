@@ -21,6 +21,7 @@ Some tweaks to underperforming traits:
 - Golden gecko bites now poison the target, as mentioned by Slim and other trappers in Klamath.
 ### Secondary Attack Mod
 - Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
+- Improved Double Tap attack and hit animations for projectile weapons.
 ## Skill Books Mod
 - Fixed erroneous addition of Russian text in book descriptions.
 
