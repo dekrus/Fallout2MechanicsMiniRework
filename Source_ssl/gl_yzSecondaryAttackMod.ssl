@@ -6659,7 +6659,7 @@ procedure CALCAPCOST begin
          new_ap_cost = default_ap_cost + 1;
    end
    //AimedBurst no fastshot
-   else if AimedBurstMod > 0 then begin
+   else if fast_shot <= 0 andAlso AimedBurstMod > 0 then begin
       aimed_burst_allowed = 0;
       if is_aimed <= 0 andAlso user == dude_obj andAlso item > 0 then begin
          if obj_item_subtype(item) == item_type_weapon then begin
