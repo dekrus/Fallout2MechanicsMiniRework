@@ -103,12 +103,12 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Affects targets closer than 10 hexes / half of the weapon's maximum range.
 - Heavier creatures like super mutants/robots/deathclaws/giant scorpions are knocked back less and are less likely to be knocked down.
 
-**Assault Rifles:**  
+**Assault Rifles & LMGs:**  
 ![Secondary-Attack](images/AIMED_BURST.gif)  
-- Added aimed burst fire mode for assault rifles.
+- Added aimed burst fire mode for assault rifles and light machine guns.
 - Bullet spread calculated based on distance, skill, SPECIAL, and perks.
-- Hit chance shown is for the first bullet; subsequent bullets have progressively lower hit chance but can still hit the target's torso if the first misses the aimed body part.
-- Optional: Can be enabled for other burst-fire weapons like SMGs, Shotguns, Miniguns and Flamers.
+- The hit chance shown is for the first bullet; subsequent bullets have progressively lower hit chance but can still hit the target's torso if the first bullet misses the aimed body part.
+- Optional: Can be enabled for other burst-fire weapons like SMGs, Shotguns, Miniguns, and Flamers.
 
 
 ### Traits Plus
