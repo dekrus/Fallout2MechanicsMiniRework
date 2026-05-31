@@ -229,8 +229,8 @@ Some perks have been reworked (more to come later).
 - [+] (With Burst mod) Strength requirements for burst fire recoil control also reduced by 3.
 
 **Demolition Expert** (1 rank):
-- [+] Explosions deal +10 min and max damage (added to weapon's base min/max during damage calculation = affected by armor and crits).
-- [+] Explosive weapons can deal critical damage to targets in the blast radius (not just the primary target).
+- [+] Explosions and all grenade types deal +10 min and max damage (added to weapon's base min/max during damage calculation = affected by armor and crits).
+- [+] Explosive weapons and all grenade types can deal critical damage to targets in the blast radius (not just the primary target).
 - [+] Planted explosives always detonate on time.
 
 **Dodger** (1 rank):

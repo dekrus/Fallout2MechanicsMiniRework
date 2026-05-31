@@ -4,15 +4,29 @@
 - Fixed a bug where the main target killed by the electrical alt attack wouldn't trigger its death script properly.
 ## Traits Plus
 Some tweaks to underperforming traits:
-- **Fast Metabolism**: Heals HP based on Healing Rate (or Endurance + Healing Rate) and cures 1 random injury every 5 seconds. All food and chems remove 33% more poison and radiation, heal/remove 33% more HP, and take effect/wear off twice as fast. If Healing mod is enabled, HP regeneration is increased by 33%.
+- **Fast Metabolism**: Heals HP based on Healing Rate (or Endurance + Healing Rate) and cures 1 random injury every 5 seconds. Healing penalty is now dynamic: depends on the amount of poison and radiation (up to 20% penalty each, stacking to 40%). All food and chems remove 33% more poison and radiation, heal/remove 33% more HP, and take effect/wear off twice as fast. If Healing mod is enabled, HP regeneration is increased by 33%. Super Stimpak and Hypo also heal injuries on use.
+- **Small Frame**: +1 Agility. +10% Sneak effectiveness. Reduces maximum hit chance against the player by 8% (stacks with other sources). Carry weight reduced to 25 + (15 * Strength).
 - **Bruiser**: Increases both minimum and maximum unarmed, melee, and throwing weapon damage (excluding grenades) by 100%. +2 Strength, +10 HP, -2 AP. Melee Damage attribute now affects throwing weapons.
-- **Heavy Handed**: Penetrates a portion of the target's armor (10% + 4% per Strength). Melee Damage attribute is added to minimum damage for unarmed, melee, and thrown weapon attacks (excluding grenades). Non-critical melee/throwing attacks have a chance to knock down targets. Critical hits are weaker (-30 to crit roll). Melee Damage attribute now affects throwing weapons.
+- **Heavy Handed**: Penetrates a portion of the target's armor (10% + 4% per Strength, up to 50%). Melee Damage is added to minimum damage for unarmed, melee, and thrown weapon attacks (excluding grenades). Non-critical melee/throwing attacks have a chance to knock down targets. Critical hits are weaker (-30 to crit roll). Melee Damage attribute now affects throwing weapons. +4 to Melee Damage.
 - **Finesse**: +10% hit and critical chance and +10 critical hit strength. Excess hit chance above 95% is converted into additional critical chance and critical strength (+1% per 10% excess). All critical hits bypass armor. Enemies gain +30% damage resistance against all player's attacks. AoE critical hits moved to a separate perk.
-- **One-Hander**: One-handed unarmed attacks receive +20% hit chance bonus. Can attack with one-handed weapons even when both arms are injured. +5 to critical hit strength with one-handed weapons. +3 Strength bonus for one-handed weapon requirement checks.
+- **One-Hander**: One-handed attacks (unarmed too) receive +20% hit chance bonus. Can attack with one-handed weapons even when both arms are injured. +5 to critical hit strength with one-handed weapons. +3 Strength bonus for one-handed weapon requirement checks.
+- **Kamikaze**: Player can attack on the move, reducing attack cost by 1 AP per 2 steps. Sequence increased by 10. Each step reduces hit chance by 3%. Compatible with AutoMoveToAttack in sfall 5.0+.
 - **Bloody Mess**: Restores AP for both kills and injuries inflicted on enemies. First kill or injury per turn grants +2 AP, subsequent ones grant +1 AP. Critical miss severity increased by 30% for everyone (including player).
+- **Jinxed**: Reduces maximum hit chance by 5% for both players and NPCs. Time limit removed — critical misses can occur from the start of the game. 50% chance to convert a miss into a critical miss for everyone. Player's critical miss severity reduced by 30%.
 - **Chem Resistant**: +1 Endurance. Food and chems no longer cause addiction. Stats return to normal immediately after effects wear off. Can take 50% more doses. Positive and negative effects of chems reduced by 50%.
-- **Chem Reliant**: Chem/food effects on stats amplified by 50%. After consuming enough doses (12-20), grants permanent SPECIAL bonuses: Mentats (+1 INT, +15% XP), Buffout (+1 STR, +1 EN, +25 carry weight), Psycho (+1 AG, +5% crit, +DR), Jet (+1 PE, +1 AP, +3 Sequence), Nuka-Cola (+5 AC, +5 Sequence), Alcohol (+1 CH).
-- **Skilled**: Increases maximum hit chance by 4%. 50% chance for critical miss to become regular miss. Reduces perk level requirement by 4. Player's critical miss severity reduced by 30%.
+- **Chem Reliant**: Chem/food effects on stats amplified by 50%. After consuming enough effective doses (12-20; *2 for Alcohol and Nuka-Cola), grants permanent SPECIAL bonuses awarded gradually. Gifted characters need +50% more doses. Bonuses: Mentats (+1 INT, +15% XP), Buffout (+1 STR, +1 EN, +25 carry weight), Psycho (+1 AG, +5% crit, +DR), Jet (+1 PE, +1 AP, +3 Sequence), Nuka-Cola (+5 AC, +5 Sequence), Alcohol (+1 CH).
+- **Skilled**: Increases maximum hit chance by 4%. 50% chance for critical miss to become regular miss. Player's critical miss severity reduced by 30%. Reduces perk level requirement by 4. +5 skill points per level. Perks are gained every 4 levels.
+#### Perks
+Some perks have been reworked (more to come later):
+- **Faster Healing** (2 ranks without Fast Metabolism, 1 rank with Fast Metabolism; refund occurs if player had 2 ranks and gained the trait):
+  - Rank 1 (without Fast Metabolism): +2 healing rate. Fully recovers health and all injuries in less than a day of rest (via Pip-Boy rest).
+  - Rank 2 (without Fast Metabolism): +6 healing rate (total). HP regen at half effectiveness and 1 guaranteed injury healed every 5 seconds.
+  - Rank 1 (with Fast Metabolism): x2 passive health regeneration from Fast Metabolism.
+- **Pyromaniac** (1 rank): +5 flat fire damage (ignores armor, not multiplied by crits). Fire area attacks can deal critical damage to all targets in the area (not just primary target). Own fire still deals damage but leaves no burns (Regen mod only).
+- **Weapon Handling** (1 rank): Strength requirements for weapon use reduced by 3. Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just primary target). With Burst mod: strength requirements for burst fire recoil control also reduced by 3.
+- **Demolition Expert** (1 rank): Explosions (and all grenade types) deal +10 min and max damage (added to weapon's base, affected by armor and crits). Explosive weapons (and all grenade types) can deal critical damage to all targets in the blast radius (not just primary target). Planted explosives always detonate on time.
+- **Dodger** (1 rank): +5 Armor Class. Reduces maximum hit chance against the player by 5% (stacks with other sources).
+
 ## Regen & Poison Mod
 - Scripted effects from healing items (stimpaks, super stimpaks, healing powder) no longer trigger if use is blocked by other mods.
 - Reduced healing effect and added other effects to food in Sonora and Nevada.
