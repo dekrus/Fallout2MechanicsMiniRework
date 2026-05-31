@@ -6100,7 +6100,7 @@ procedure set_attacker_coord_and_anim_projectile begin
       end
 
       atkr_rot = rotation_to_tile(attacker_tile, target_tile);
-      projectile = create_hidden_projectile(PID_PROJ_LASER, atkr_rot, 2);
+      projectile = create_hidden_projectile(gWeaponProjPid, atkr_rot, 2);
       bullet_tile = tile_num_in_direction(attacker_tile, atkr_rot, 1);
       move_to(projectile, bullet_tile, elevation(attacker));
       reg_anim_combat_check(0);
