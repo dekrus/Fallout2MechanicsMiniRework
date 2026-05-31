@@ -21,9 +21,10 @@
 5. При необходимости можно настроить параметры в F2MechanicsMiniRework.ini, чтобы включить/отключить/изменить определённые функции.
 
 ## Совместимость
-- Совместим с большинством игр на основе Fallout 2. Совместимость с Nevada, Sonora или Fallout et tu нужно включить в `mods/F2MechanicsMiniRework.ini`.
-- Полностью совместим с [__FO2Tweaks__](https://github.com/BGforgeNet/FO2tweaks) и [__Fallout 2: Weapons Redone 2.3d__](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
-- Все компоненты, кроме [Кражи], [Лечения] и [Мед. инструментов], совместимы с [__EcCo__](https://github.com/phobos2077/fo2_ecco/tree/master) для Fallout 2.
+- Совместим с большинством игр на основе Fallout 2. Для совместимости с Nevada, Sonora или Fallout et tu её нужно включить в `mods/F2MechanicsMiniRework.ini`.
+- Полностью совместим с [FO2Tweaks](https://github.com/BGforgeNet/FO2tweaks) и [Fallout 2: Weapons Redone 2.3d](https://www.nma-fallout.com/resources/fallout-2-weapons-redone.72/).
+- Все компоненты, кроме Кражи, Лечения и Мед. инструментов, совместимы с [EcCo](https://github.com/phobos2077/fo2_ecco/tree/master) для Fallout 2.
+- Совместим с модами на потребление ОД при использовании предметов в инвентаре во время боя. Если параметры в `F2MechanicsMiniRework.ini` оставить пустыми, мод сам настроится при первом запуске на основе настроек EcCo.
 
 ## Настройка совместимости с EcCo
 **Автоматическое обнаружение конфликтов:**
