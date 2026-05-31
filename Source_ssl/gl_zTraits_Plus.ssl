@@ -1647,14 +1647,22 @@ procedure COMBATDAMAGE begin
    variable is_aoe_crit;
    variable actual_dude_attack;
    variable was_returned;
+   variable wpn_is_grenade;
+   variable wpn_dmg_type;
+   variable wpn_pid;
    if attacker == real_dude_obj then begin
       actual_dude_attack = 1;
    end
    if actual_dude_attack > 0 then begin
-      if weapon > 0 then
-         wpn_anim = get_proto_data(obj_pid(weapon), PROTO_WP_ANIM);
+      if weapon > 0 then begin
+         wpn_pid = obj_pid(weapon);
+         wpn_anim = get_proto_data(wpn_pid, PROTO_WP_ANIM);
+         wpn_dmg_type = get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE);
+         if dmg_to_tar > 0 then
+            wpn_is_grenade = weapon_is_grenade(weapon, atk_type);
+      end
       //TRAIT_heavy_handed knock down
-      if dmg_to_tar > 0 andAlso weapon_is_grenade(weapon,atk_type) == 0 then begin
+      if dmg_to_tar > 0 andAlso wpn_is_grenade == 0 then begin
          if weapon <= 0 orElse wpn_anim <= WPN_ANIM_SPEAR orElse wpn_anim == 14 orElse wpn_anim == 11 orElse wpn_anim == 12 then begin
             if not(tar_flags bwand DAM_KNOCKED_DOWN) andAlso not(tar_flags bwand DAM_KNOCKED_OUT) then begin
                if heavy_handed > 0 then begin
@@ -1684,8 +1692,8 @@ procedure COMBATDAMAGE begin
             end
          end
       end
-         //PERK_weapon_handling_perk aoe attack crit
-      if has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) > 0 then begin
+         //aoe attack crit
+      if has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) > 0 orElse (has_trait(TRAIT_PERK, attacker, PERK_demolition_expert_perk) > 0 andAlso (wpn_is_grenade > 0 orElse wpn_dmg_type == DMG_explosion)) orElse (has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) > 0 andAlso (wpn_dmg_type == DMG_fire orElse wpn_pid == PID_MOLOTOV_COCKTAIL)) then begin
          //roll for aoe crit
          if target != get_object_data(combat_data,C_ATTACK_TARGET) then begin
             rnd = random(0, 100);
