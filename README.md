@@ -259,7 +259,7 @@ Additional settings that can be enabled:
 <details> 
   <summary>Example: Modifying the "GUNS AND BULLETS" skill book to increase both "Small Guns" and "Big Guns" skills.</summary>
 
-If the `books.ini` file is not present in your game folder, you can download it from the [SFALL 4 repository](https://github.com/sfall-team/sfall/blob/e703a82c8b5203919b83d99c54a5c76827818cef/artifacts/config_files/books.ini).
+If the `books.ini` file is not present in your game folder, you can download [books.ini file from here](https://github.com/dekrus/Fallout2MechanicsMiniRework/tree/main/books.ini%20files).
 
 **Important notes:**  
 - `overrideVanilla=` in `books.ini` can be any value when this mod is installed.  
