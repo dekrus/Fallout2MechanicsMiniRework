@@ -59,7 +59,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 **Laser Weapons:** ![Secondary-Attack](images/LASER_SLOW.gif)  
 - Damages all creatures along the projectile's path.
 - Hit/critical chance calculated separately per target.
-- Alternate fire has increased armor penetration (target laser defense *0.2 — 80% ignored).
+- Alternate fire has increased armor penetration (target laser defense *0.2 - 80% ignored).
 - Energy cell consumption is calculated based on potential targets between shooter and main target (2 * base attack cost + number of additional targets * base attack cost).
   - On a miss, the beam travels in a different direction but can still hit up to the originally calculated number of targets.
   - Beam continues until it dissipates (max weapon range), hits an obstacle, or strikes the predetermined number of targets.
