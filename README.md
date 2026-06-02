@@ -439,7 +439,9 @@ Adds unique properties to different attack types:
 ## How to Set Up Compatibility with EcCo
 **Automatic conflict detection:**
 - When launching the game and starting a **new game** or **loading any save**, this mod will automatically detect conflicts with EcCo and show prompts allowing you to choose which features to keep active.  
-###**Or you can configure manually:**
+
+###Or you can configure manually:
+
 #### Healing Mod
 **Tweaks are NOT compatible - you must choose which to use:**
 **Option 1:** Use EcCo's healing drugs tweaks
