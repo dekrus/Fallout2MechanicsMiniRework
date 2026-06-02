@@ -242,8 +242,8 @@ Some perks have been reworked (more to come later).
 This mod allows you to use skill books on companions to increase their skills, and also allows you to change the amount of bonus skill points and the number of skills that increase when reading books.  
 You can download a preset [books.ini file from here](https://github.com/dekrus/Fallout2MechanicsMiniRework/tree/main/books.ini%20files) for some Fallout games.  
 Feel free to fine-tune it for yourself if needed.
-Don't forget to uncomment in ddraw.ini and put the file in the right place!
-;BooksFile=sfall\Books.ini 
+Don't forget to uncomment 'BooksFile=sfall\Books.ini' in ddraw.ini and put the file in the right place!
+
 
 - Skill books can now be applied to sentient NPCs to improve their skills. The bonus from reading books is retained as the companion levels up.
 - The original amount of skill gain (and its maximum value) from reading books can either be increased or changed to a fixed value in the `.ini` file.
