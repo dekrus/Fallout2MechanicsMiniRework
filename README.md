@@ -503,12 +503,12 @@ Adds unique properties to different attack types:
   - After an unsuccessful pickpocket attempt, there will be NO scenes from my mod — only vanilla behavior (which almost always means an immediate start of combat).
 
 ## Uninstallation
-**Simple method**:
+**Simple method** (if you haven't started a new game with the mod or ):
 - Delete both files from the `mods/` folder:
   - `F2MechanicsMiniRework.dat`
   - `F2MechanicsMiniRework.ini`
   
-**Safe method**:
+**Safe method** (recommended if you've played with the mod):
 1. First, delete only `mods/F2MechanicsMiniRework.ini`
 2. Launch the game and load your save
 3. **Save the game** in a new slot
