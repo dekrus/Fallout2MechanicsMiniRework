@@ -480,27 +480,27 @@ Adds unique properties to different attack types:
 **Option 1: Full compatibility** (use only one mod)
 - In `mods/F2MechanicsMiniRework.ini`:
     ```   
-[MAIN]
-StealRebalance=0
+	[MAIN]
+	StealRebalance=0
     ```   
 *or*
 - In `mods/ecco/misc.ini`:
     ```   
-[STEAL]
-enable_tweaks=0
+	[STEAL]
+	enable_tweaks=0
     ```   
 **Option 2: Partial compatibility** (mix features)
 - In `mods/F2MechanicsMiniRework.ini`:
     ```   
-[MAIN]
-StealRebalance=1
-FO2_ECCO=1
+	[MAIN]
+	StealRebalance=1
+	FO2_ECCO=1
     ```   
-- This keeps specific F2MechanicsMiniRework features:
-	- Stealing items from NPCs' hands (when skill > 155 + Perception*5)
-	- Pocket peeking with skill requirements
-	- *(Other steal mechanics will use EcCo's tweaks)*
-	- After an unsuccessful pickpocket attempt, there will be NO scenes from my mod - only vanilla behavior (which almost always means an immediate start of combat).
+- This keeps some F2MechanicsMiniRework pickpocket features:
+  - Stealing items from NPCs' hands (when skill > 155 + Perception × 5)
+  - Pocket peeking with skill requirements
+  - *(Other steal mechanics will use EcCo's tweaks)*
+  - After an unsuccessful pickpocket attempt, there will be NO scenes from my mod — only vanilla behavior (which almost always means an immediate start of combat).
 
 ## Uninstallation
 **Simple method** (if you haven't started a new game with the mod):
