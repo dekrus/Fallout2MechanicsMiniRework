@@ -438,8 +438,8 @@ Adds unique properties to different attack types:
 - Compatible with Inventory AP Cost checks. If the options in `F2MechanicsMiniRework.ini` are left empty, the mod auto-configures itself on first launch based on EcCo's settings.
 ## How to Set Up Compatibility with EcCo
 **Automatic conflict detection:**
-- When launching the game and starting a **new game** or **loading any save**, this mod will automatically detect conflicts with EcCo and show prompts allowing you to choose which features to keep active.
-**Or configure manually:**
+- When launching the game and starting a **new game** or **loading any save**, this mod will automatically detect conflicts with EcCo and show prompts allowing you to choose which features to keep active.  
+**Or you can configure manually:**
 #### Healing Mod
 **Tweaks are NOT compatible - you must choose which to use:**
 **Option 1:** Use EcCo's healing drugs tweaks
