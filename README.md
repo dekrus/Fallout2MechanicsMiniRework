@@ -168,9 +168,9 @@ Each new property for a specific trait can be enabled, disabled, or forcibly act
 - [−] Each step reduces hit chance by 3%. Hit penalty and AP reduction bonus reset to zero after attacking, performing other actions (looting, using items, etc.), or at the end of the turn.
 
 **Bloody Mess:**
-- [+] First kill or inflicted limb/eye injury each turn restores 2 AP; subsequent kills or injuries in the same turn restore 1 AP.
-- [±] Critical miss severity increased by 30% for everyone (including player).
-- [~] Player and NPCs now always die in the most gruesome way possible. *(Vanilla)*
+	- [+] First kill or inflicted limb/eye injury each turn restores 2 AP; subsequent kills or injuries in the same turn restore 1 AP.
+	- [±] Critical miss severity increased by 30% for everyone (including player).
+	- [~] Player and NPCs now always die in the most gruesome way possible. *(Vanilla)*
 
 **Jinxed:**
 - [±] Reduces maximum hit chance by 5% for both players and NPCs
@@ -199,7 +199,7 @@ Each new property for a specific trait can be enabled, disabled, or forcibly act
 - [+] Can take 50% more doses, rounded up. *(Vanilla)*
 - [±] Positive and negative effects of chems and food reduced by 50%, rounded toward zero:
   - Negative values become less negative (-3 → -1, -1 → 0)
-  - Positive values round up (+1 → +1, +2 → +3)
+  - Positive values round up (+1 → +1, +3 → +2)
 - [−] Chem/food duration reduced by 50%. *(Vanilla)*
 
 **Skilled:**
