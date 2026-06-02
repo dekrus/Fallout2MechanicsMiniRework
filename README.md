@@ -500,7 +500,7 @@ FO2_ECCO=1
 	- Stealing items from NPCs' hands (when skill > 155 + Perception*5)
 	- Pocket peeking with skill requirements
 	- *(Other steal mechanics will use EcCo's tweaks)*
-
+	- After an unsuccessful pickpocket attempt, there will be NO scenes from my mod - only vanilla behavior (which almost always means an immediate start of combat).
 
 ## Uninstallation
 **Simple method** (if you haven't started a new game with the mod):
