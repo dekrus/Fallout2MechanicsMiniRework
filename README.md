@@ -174,7 +174,7 @@ Each new property for a specific trait can be enabled, disabled, or forcibly act
 
 **Jinxed:**
 - [±] Reduces maximum hit chance by 5% for both players and NPCs
-- [±] Time limit removed — critical misses can occur from the start of the game.
+- [±] Time limit removed - critical misses can occur from the start of the game.
 - [±] 50% chance to convert a miss into a critical miss for everyone (including player). *(Vanilla)*
 
 **Chem Reliant:**
@@ -385,7 +385,7 @@ Overhauls vanilla's pickpocketing where target perception was ignored, high stea
 - Shows steal chance when hovering over items
   - For stacks: displays optimal quantity (right-click for other amounts)
   - Right-click 0% items to see skill requirements
-- Failure chance depends on player's skill, environment, and target's perception — not target's steal skill like in vanilla
+- Failure chance depends on player's skill, environment, and target's perception - not target's steal skill like in vanilla
 - Failed attempts trigger scripted scenes instead of city-wide battles
 - Temporary reputation/speech/barter penalties that fade over time  
   *(Avoided if steal target and all witnesses are eliminated quickly)*
@@ -500,7 +500,7 @@ Adds unique properties to different attack types:
   - Stealing items from NPCs' hands (when skill > 155 + Perception × 5)
   - Pocket peeking with skill requirements
   - *(Other steal mechanics will use EcCo's tweaks)*
-  - After an unsuccessful pickpocket attempt, there will be NO scenes from my mod — only vanilla behavior (which almost always means an immediate start of combat).
+  - After an unsuccessful pickpocket attempt, there will be NO scenes from my mod - only vanilla behavior (which almost always means an immediate start of combat).
 
 ## Uninstallation
 **Simple method** (if you haven't started a new game with the mod or ):
