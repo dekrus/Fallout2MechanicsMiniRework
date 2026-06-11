@@ -1,3 +1,8 @@
+## Work in progress
+### Medical Tools
+- Fixed compatibility with INVENTORY AP COST mods. Items applied from inventory with AP below 3 now properly execute their effects.
+
+
 ## Latest Version v2.0.2
 - Added compatibility options with different Inventory AP Cost mods.
 ### Secondary Attack Mod

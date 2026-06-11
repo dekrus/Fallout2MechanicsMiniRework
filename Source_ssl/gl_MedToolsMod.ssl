@@ -91,6 +91,7 @@ variable fo2tweaks_ini_healing;
 variable inven_use_ap_cost;
 variable inven_use_ap_cost_min;
 variable inven_use_ap_cost_quick_pockets_discount;
+variable gInvenCurAP;
 
 
 
@@ -208,59 +209,78 @@ procedure uninjure(variable user,variable target, variable item_pid) begin
    if not(get_game_mode bwand INVENTORY) then intface_redraw;
 end
 
-//restores the number of uses of first aid kit
 procedure med_item_charges_restore begin
-   variable leftHand  = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
-   variable rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
+   variable leftHand;
+   variable rightHand;
    variable leftHand_pid;
    variable rightHand_pid;
    if MedToolsMod > 0 then begin
-      if critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND) then begin
+      leftHand = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
+      rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
+      if leftHand then begin
          leftHand_pid = obj_pid(leftHand);
          if leftHand_pid == PID_FIRST_AID_KIT then begin
             if get_object_data(leftHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(min_charges,max_charges));
             end
          end
-         if leftHand_pid == PID_FIELD_MEDIC_KIT then begin
+         else if leftHand_pid == PID_FIELD_MEDIC_KIT then begin
             if get_object_data(leftHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
             end
          end
-         if leftHand_pid == doc_bag_pid then begin
+         else if leftHand_pid == doc_bag_pid then begin
             if get_object_data(leftHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
             end
          end
-         if leftHand_pid == PID_PARAMEDICS_BAG then begin
+         else if leftHand_pid == PID_PARAMEDICS_BAG then begin
             if get_object_data(leftHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(leftHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges_t2,doc_max_charges_t2));
             end
          end
       end
-      if critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND) then begin
+      if rightHand then begin
          rightHand_pid = obj_pid(rightHand);
          if rightHand_pid == PID_FIRST_AID_KIT then begin
             if get_object_data(rightHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(min_charges,max_charges));
             end
          end
-         if rightHand_pid == PID_FIELD_MEDIC_KIT then begin
+         else if rightHand_pid == PID_FIELD_MEDIC_KIT then begin
             if get_object_data(rightHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
             end
          end
-         if rightHand_pid == doc_bag_pid then begin
+         else if rightHand_pid == doc_bag_pid then begin
             if get_object_data(rightHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
             end
          end
-         if rightHand_pid == PID_PARAMEDICS_BAG then begin
+         else if rightHand_pid == PID_PARAMEDICS_BAG then begin
             if get_object_data(rightHand, OBJ_DATA_CUR_CHARGES) <= 0 then begin
                set_object_data(rightHand, OBJ_DATA_CUR_CHARGES, random(doc_min_charges_t2,doc_max_charges_t2));
             end
          end
       end
+   end
+end
+
+//restores the number of uses of first aid kit
+procedure GAMEMODECHANGE begin
+   variable leftHand;
+   variable rightHand;
+   variable leftHand_pid;
+   variable rightHand_pid;
+   variable lastgamemode;
+   variable game_mode;
+   if MedToolsMod > 0 then begin
+      game_mode = get_game_mode;
+      lastgamemode = get_sfall_arg;
+      if (game_mode bwand INVENTORY) andAlso not(lastgamemode bwand INVENTORY) then
+         gInvenCurAP = get_critter_current_ap(dude_obj);
+
+      call med_item_charges_restore;
    end
 end
 
@@ -389,7 +409,7 @@ procedure map_enter_p_proc begin
    end
 end
 
-procedure inv_move begin
+procedure REMOVEINVENOBJ begin
    variable owner = get_sfall_arg;
    variable removed_item = get_sfall_arg;
    variable num_item = get_sfall_arg;
@@ -589,6 +609,20 @@ procedure med_tool_split_and_set_charge(variable user, variable med_tool_obj, va
    add_obj_to_inven(user, med_tool_obj);
 end
 
+procedure set_inven_cur_ap begin
+   gInvenCurAP = get_critter_current_ap(dude_obj);
+end
+
+procedure USEOBJ begin
+   if combat_is_initialized then
+      gInvenCurAP = get_critter_current_ap(dude_obj);
+end
+
+procedure INVENTORYMOVE begin
+   if combat_is_initialized then
+      gInvenCurAP = get_critter_current_ap(dude_obj);
+end
+
 procedure USEOBJON begin
    variable target = get_sfall_arg;
    variable user = get_sfall_arg;
@@ -629,7 +663,7 @@ procedure USEOBJON begin
    cost = inven_use_ap_cost;
    if cost > 0 andAlso user == dude_obj andAlso combat_is_initialized then begin
       if (get_game_mode bwand INVENTORY) then begin
-         ap = get_critter_current_ap(user);
+         ap = gInvenCurAP;
          min_cost = inven_use_ap_cost_min;
          qp_discount = has_trait(TRAIT_PERK, user, PERK_quick_pockets) * inven_use_ap_cost_quick_pockets_discount;
          cost -= qp_discount;
@@ -639,6 +673,8 @@ procedure USEOBJON begin
             set_sfall_return(0);
             return;
          end
+         else
+            call set_inven_cur_ap in 0;
       end
    end
 
@@ -818,11 +854,11 @@ procedure USEOBJON begin
    end
 end
 
-procedure use_skill_on_dead_handler begin
+procedure USESKILL begin
    variable user = get_sfall_arg;
    variable tar = get_sfall_arg;
    variable skill = get_sfall_arg;
-   if skill == SKILL_FIRST_AID or skill == SKILL_DOCTOR then begin
+   if skill == SKILL_FIRST_AID orElse skill == SKILL_DOCTOR then begin
       if obj_type(tar) != OBJ_TYPE_CRITTER then begin
          display_msg(modmsg(msg_useless_act));
          set_sfall_return(0);
@@ -837,7 +873,7 @@ procedure use_skill_on_dead_handler begin
 end
 
 //copied from Phobos2077 ecco mod https://github.com/phobos2077/fo2_ecco/blob/master/scripts_src/_pbs_main/gl_pbs_healing_skills.ssl
-procedure descriptionobj_hook begin
+procedure DESCRIPTIONOBJ begin
    variable
       obj := get_sfall_arg,
       objPid := obj_pid(obj),
@@ -968,11 +1004,15 @@ procedure start begin
          combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
          register_hook_proc(HOOK_CALCAPCOST, apcost_handler);
          register_hook_proc(HOOK_USEOBJON, USEOBJON);
-         register_hook_proc(HOOK_USESKILL, use_skill_on_dead_handler);
+         if inven_use_ap_cost > 0 then begin
+            register_hook_proc(HOOK_USEOBJ, USEOBJ);
+            register_hook_proc(HOOK_INVENTORYMOVE, INVENTORYMOVE);
+         end
+         register_hook_proc(HOOK_USESKILL, USESKILL);
          register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
-         register_hook_proc(HOOK_REMOVEINVENOBJ, inv_move);
-         register_hook_proc(HOOK_GAMEMODECHANGE, med_item_charges_restore);
-         register_hook_proc(HOOK_DESCRIPTIONOBJ, descriptionobj_hook);
+         register_hook_proc(HOOK_REMOVEINVENOBJ, REMOVEINVENOBJ);
+         register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
+         register_hook_proc(HOOK_DESCRIPTIONOBJ, DESCRIPTIONOBJ);
 
          call map_enter_p_proc();
          call med_item_charges_restore;
