@@ -207,7 +207,8 @@
 #define reg_anim_unset_flag(object, flag, delay)      if sfall_510 <= 0 then call_offset_v3(0x4150A8, object, flag, delay); else metarule3(REG_ANIM_FLAG_UNSET, object, flag, delay)
 #define art_max_frames(artFID)                        sfall_func2("art_frame_data", artFID, -1)
 
-#define hitLocationGetName_str_ptr(critter, hitLocation) call_offset_r2(0x42612C, critter, hitLocation)
+//#define hitLocationGetName_str_ptr(critter, hitLocation) call_offset_r2(0x42612C, critter, hitLocation)
+#define hitLocationGetName(critter, hitLocation)   (message_str_game(GAME_MSG_COMBAT, 1000 + 10 * read_int(read_int(0x56CAEC) + (read_int(critter + 0x20) bwand 0x0FFF) * 4) + hitLocation))
 
 //#define INTERFACE_ITEM_ACTION_DEFAULT -1
 //#define INTERFACE_ITEM_ACTION_USE 0
@@ -3064,7 +3065,7 @@ procedure show_dmg_combat_msg(variable target, variable attacker, variable dmg_v
    if hit_location == BODY_UNCALLED orElse hit_location == BODY_HIT_TORSO orElse hit_location < 0 then
       hit_location = -1;
    else
-      hit_location_name = read_string(hitLocationGetName_str_ptr(target, hit_location));
+      hit_location_name = read_string(hitLocationGetName(target, hit_location));
 
    // Determine target name and base message ID
    if (target == real_dude_obj) then begin
@@ -6872,7 +6873,7 @@ inline procedure restore_torso_name begin
    variable ptr;
    if gLastCritterCalledTargetTorsoName != 0 then begin
       target = gLastCritterCalledTarget;
-      ptr = hitLocationGetName_str_ptr(target, BODY_HIT_TORSO);
+      ptr = hitLocationGetName(target, BODY_HIT_TORSO);
 
       call write_string_to_addr(ptr, gLastCritterCalledTargetTorsoName);
 
@@ -7859,7 +7860,7 @@ procedure set_torso_name(variable target, variable newName) begin
       return 0;
 
    gLastCritterCalledTarget = target;
-   ptr = hitLocationGetName_str_ptr(target, BODY_HIT_TORSO);
+   ptr = hitLocationGetName(target, BODY_HIT_TORSO);
 
    if gLastCritterCalledTargetTorsoName == 0 then begin
       gLastCritterCalledTargetTorsoName = read_string(ptr);
