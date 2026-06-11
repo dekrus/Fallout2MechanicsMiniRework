@@ -1,6 +1,8 @@
 ## Work in progress
 ### Medical Tools
-- Fixed compatibility with INVENTORY AP COST mods. Items applied from inventory with AP below 3 now properly execute their effects.
+- Fixed compatibility with INVENTORY AP COST mods. Healing items applied from inventory with AP below 3 now properly execute their effects.
+### Regen Mod
+- Fixed compatibility with INVENTORY AP COST mods. Healing drugs applied from inventory with AP below 3 now properly execute their effects.
 
 
 ## Latest Version v2.0.2

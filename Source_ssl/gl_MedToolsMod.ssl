@@ -275,10 +275,12 @@ procedure GAMEMODECHANGE begin
    variable lastgamemode;
    variable game_mode;
    if MedToolsMod > 0 then begin
-      game_mode = get_game_mode;
-      lastgamemode = get_sfall_arg;
-      if (game_mode bwand INVENTORY) andAlso not(lastgamemode bwand INVENTORY) then
-         gInvenCurAP = get_critter_current_ap(dude_obj);
+      if inven_use_ap_cost > 0 then begin
+         game_mode = get_game_mode;
+         lastgamemode = get_sfall_arg;
+         if (game_mode bwand INVENTORY) andAlso not(lastgamemode bwand INVENTORY) then
+            gInvenCurAP = get_critter_current_ap(dude_obj);
+      end
 
       call med_item_charges_restore;
    end
@@ -652,17 +654,17 @@ procedure USEOBJON begin
    variable cost;
    variable min_cost;
    variable qp_discount;
-
-   if objpid != PID_FIRST_AID_KIT andAlso
-      objpid != PID_FIELD_MEDIC_KIT andAlso
-      objpid != doc_bag_pid andAlso
-      objpid != PID_PARAMEDICS_BAG then
-      return;
-
-   //check ap inven cost in combat
    cost = inven_use_ap_cost;
+   //check ap inven cost in combat
    if cost > 0 andAlso user == dude_obj andAlso combat_is_initialized then begin
       if (get_game_mode bwand INVENTORY) then begin
+         call set_inven_cur_ap in 0;
+         if objpid != PID_FIRST_AID_KIT andAlso
+            objpid != PID_FIELD_MEDIC_KIT andAlso
+            objpid != doc_bag_pid andAlso
+            objpid != PID_PARAMEDICS_BAG then
+               return;
+
          ap = gInvenCurAP;
          min_cost = inven_use_ap_cost_min;
          qp_discount = has_trait(TRAIT_PERK, user, PERK_quick_pockets) * inven_use_ap_cost_quick_pockets_discount;
@@ -673,9 +675,14 @@ procedure USEOBJON begin
             set_sfall_return(0);
             return;
          end
-         else
-            call set_inven_cur_ap in 0;
       end
+   end
+   else begin
+      if objpid != PID_FIRST_AID_KIT andAlso
+         objpid != PID_FIELD_MEDIC_KIT andAlso
+         objpid != doc_bag_pid andAlso
+         objpid != PID_PARAMEDICS_BAG then
+            return;
    end
 
    objname = obj_name(obj);
