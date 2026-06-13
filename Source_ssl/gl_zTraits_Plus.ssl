@@ -35,6 +35,9 @@
 #define timed_hp_regen 1
 #define timed_ap_give 5
 #define timed_ap_debt 10
+#define timed_collect_c_data 25
+#define timed_report_aoe 50
+#define timed_faster_healing_state 75
 #define timed_rad_rm 100
 #define timed_rad_rm_get_time            get_array(drug_addict_array, ARRAY_CHEM_RAD_RM_TIME)
 #define timed_rad_rm_get_time_next       (game_time() - timed_rad_rm_get_time)
@@ -211,6 +214,18 @@
 #define msg_player_1_hp_healed   (trait_msg(11))
 #define msg_player_many_hp_healed   (trait_msg(12))
 #define finesse_to_hit_bonus     10
+#define one_hander_stat_bonus  ("TPOHTBST")
+#define TOUGHNESS_MAP_ARRAY_NAME   ("f2mmr_toughness")
+#define TOUGHNESS_BONUS_PER_RANK 10
+
+
+#define msg_and 13
+#define msg_hit_no_dmg_dude 14
+#define msg_hit_no_dmg 15
+#define msg_hit_self_dmg_dude 16
+
+//#define hitLocationGetName_str_ptr(critter, hitLocation) call_offset_r2(0x42612C, critter, hitLocation)
+#define hitLocationGetName(critter, hitLocation)   (message_str_game(GAME_MSG_COMBAT, 1000 + 10 * read_int(read_int(0x56CAEC) + (read_int(critter + 0x20) bwand 0x0FFF) * 4) + hitLocation))
 
 
 #include "define.h"
@@ -251,6 +266,7 @@ variable array_drugs_ini;
 variable main_attacker;
 variable gPyromaniacBonus;
 variable gDemolitionExpertBonus;
+variable gSwiftLearnerBonus;
 
 // TRAIT_fast_metabolism
 variable fast_metabolism;
@@ -267,6 +283,7 @@ variable timed_hp_regen_global;
 variable gFasterHealingPerk;
 variable characterEditorSelectedItem;
 variable timer_is_up;
+variable desc_timer_is_up;
 
 // TRAIT_drug_addict
 variable drug_addict;
@@ -302,7 +319,6 @@ variable small_frame;
 
 // TRAIT_one_hander
 variable one_hander;
-variable one_hander_stat_bonus = "TPOHTBST";
 variable one_hander_weapon_pid;
 variable one_hander_min_st;
 
@@ -368,6 +384,11 @@ variable AutoMoveToAttack_last_target;
 variable wpn_is_melee;
 variable wpn_range;
 variable EXPLOSION_TARGET_COUNT = 6;
+variable gCombatDataArray;
+variable gCombatReportWasSet;
+variable gToughnessCount;
+variable gToughnessArr;
+
 
 procedure weapon_is_two_handed(variable weapon) begin
    variable weapon_flags_ext;
@@ -834,12 +855,12 @@ end
 
 procedure get_crit_mult(variable crit_power_roll, variable target) begin
    variable crit_mult = 2;
-   variable crit_flags = (DAM_BYPASS bwor DAM_HIT);
+   variable crit_flags = (DAM_BYPASS bwor DAM_HIT bwor DAM_CRITICAL);
    variable target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
 
    if crit_power_roll <= 20 then begin
       crit_mult = 3;
-      if random(0,2) then crit_flags = DAM_HIT;
+      if random(0,2) then crit_flags = DAM_HIT bwor DAM_CRITICAL;
    end
    else if crit_power_roll <= 45 then begin
       crit_mult = 3;
@@ -1394,18 +1415,633 @@ procedure Drop_Weapons(variable target,variable hand) begin
    end
 end
 
+procedure combatAddDamageFlagsDescription(variable attacker, variable critter, variable flags) begin
+   variable msg_id;
+   variable msg_text;
+   variable base_flags_id;
+   variable flags_list;
+   variable flags_count;
+   variable i;
+   variable flag_bit;
+   variable damage_description;
+
+   if (flags <= 0) then
+      return ".";
+
+   // Determine base ID for flag messages
+   if (critter == real_dude_obj) then begin
+      if (get_critter_stat(critter, STAT_gender) == GENDER_MALE) then
+         base_flags_id = 200;
+      else
+         base_flags_id = 250;
+   end else begin
+      if (get_critter_stat(critter, STAT_gender) == GENDER_MALE) then
+         base_flags_id = 300;
+      else
+         base_flags_id = 400;
+   end
+
+   damage_description = "";
+
+   // Check for death
+   if (flags bwand DAM_DEAD != 0) then begin
+      // " and "
+      //msg_text = message_str_game(GAME_MSG_COMBAT, 108);
+      msg_text = trait_msg(msg_and);
+
+      damage_description += msg_text;
+
+      // were killed / was killed
+      msg_id = base_flags_id + 7;
+      msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+      damage_description += msg_text;
+      set_outline(critter, OUTLINE_NONE);
+      return damage_description + ".";
+   end
+
+   // Collect flag list
+   flags_list = create_array_map;
+   flags_count = 0;
+
+   // Check each flag except DAM_CRITICAL andAlso DAM_HIT
+   flag_bit = 1;
+   for (i = 0; i < 32; i++) begin
+      if (flag_bit != DAM_CRITICAL andAlso flag_bit != DAM_HIT andAlso (flag_bit bwand flags) != 0) then begin
+         set_array(flags_list, flags_count, i);
+         flags_count++;
+      end
+      flag_bit = flag_bit * 2;
+   end
+
+   // Add flag descriptions
+   if (flags_count > 0) then begin
+      for (i = 0; i < flags_count - 1; i++) begin
+         damage_description += ", ";
+         msg_id = base_flags_id + get_array(flags_list, i);
+         if critter == attacker andAlso critter == dude_obj andAlso (msg_id == 222 orElse msg_id == 272) then
+            msg_text = trait_msg(msg_hit_self_dmg_dude);
+         else
+            msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+         damage_description += msg_text;
+      end
+
+      msg_id = base_flags_id + get_array(flags_list, flags_count - 1);
+      if critter == attacker andAlso critter == dude_obj andAlso (msg_id == 222 orElse msg_id == 272) then
+         msg_text = " " +trait_msg(msg_hit_self_dmg_dude);
+      else begin
+         // " and " before last flag
+         msg_text = trait_msg(msg_and);
+         damage_description += msg_text;
+         msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+      end
+      damage_description += msg_text;
+
+   end
+   free_array(flags_list);
+   return damage_description + ".";
+end
+
+procedure show_combat_msg_st_req(variable attacker, variable weapon_pid) begin
+   variable attacker_st;
+   variable weapon_st_req;
+   variable WeaponHandlingPerk;
+   variable WeaponHandlingBonus = 3;
+   variable msg;
+
+   if attacker == dude_obj andAlso weapon_pid > 0 then begin
+      weapon_st_req = get_proto_data(weapon_pid, PROTO_WP_MIN_ST);
+      attacker_st = get_critter_stat(attacker, STAT_st);
+      WeaponHandlingPerk = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
+      if WeaponHandlingPerk > 0 then begin
+         attacker_st += WeaponHandlingPerk * WeaponHandlingBonus;
+      end
+
+      // You are not strong enough to use this weapon properly.
+      if weapon_st_req > attacker_st then
+         display_msg(message_str_game(GAME_MSG_COMBAT, 107));
+
+   end
+end
+
+procedure show_dmg_combat_msg(variable target, variable attacker, variable dmg_value, variable flags) begin
+   variable target_name;
+   variable base_msg_id;
+   variable msg_id;
+   variable msg_text;
+   variable you_str;
+   variable str_end;
+   variable flags_list;
+   variable flags_count;
+   variable i;
+   variable flag_bit;
+   variable base_flags_id;
+   variable hit_location = -1;
+   variable hit_location_name;
+   variable main_target;
+   variable main_target_name;
+
+
+   // return if no target
+   if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER then
+      return;
+
+//
+   //if show_float_dmg > 0 andAlso show_float_dmg != 2 andAlso float_display > 0 then
+      //call show_float_msg_dmg(target, dmg_value);
+//
+
+
+   if target == get_object_data(combat_data, C_ATTACK_TARGET) then
+      hit_location = get_object_data(combat_data, C_ATTACK_BODY_PART);
+   if hit_location == BODY_UNCALLED orElse hit_location == BODY_HIT_TORSO orElse hit_location < 0 then
+      hit_location = -1;
+   else
+      hit_location_name = hitLocationGetName(target, hit_location);
+
+   // Determine target name and base message ID
+   if (target == real_dude_obj) then begin
+      // Get "You" string based on player gender
+      if (get_critter_stat(dude_obj, STAT_gender) == GENDER_MALE) then
+         you_str = message_str_game(GAME_MSG_COMBAT, 506);  // You (male)
+      else
+         you_str = message_str_game(GAME_MSG_COMBAT, 556);  // You (female)
+
+      target_name = you_str;
+      if (get_critter_stat(dude_obj, STAT_gender) == GENDER_MALE) then
+         base_msg_id = 500;
+      else
+         base_msg_id = 550;
+   end else begin
+      target_name = obj_name(target);
+      if (get_critter_stat(target, STAT_gender) == GENDER_MALE) then
+         base_msg_id = 600;
+      else
+         base_msg_id = 700;
+   end
+
+
+   if dmg_value < 0 then begin
+      if target == real_dude_obj then
+         display_msg(target_name+trait_msg(msg_hit_no_dmg_dude));
+      else
+         display_msg(target_name+trait_msg(msg_hit_no_dmg));
+      return;
+   end
+
+      // Oops!
+   //if alt_fire_selected == alt_fire_double_tap then begin
+      //main_target = get_object_data(combat_data, C_ATTACK_MAIN_TARGET);
+      //if target != main_target then begin
+         //if main_target == real_dude_obj then begin
+            //msg_id = base_msg_id + 8;
+            //msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+            //msg_text = (sprintf(msg_text, target_name));
+         //end
+         //else begin
+            //main_target_name = obj_name(main_target);
+            //msg_id = base_msg_id + 9;
+            //msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+            //msg_text = (sprintf2(msg_text, target_name, main_target_name));
+         //end
+         //display_msg(msg_text);
+      //end
+   //end
+         //if dmg_value >= get_critter_stat(target, STAT_current_hp) then begin
+            //flags = flags bwor DAM_DEAD;
+         //end
+      // Process hit on target
+   if (target != 0) then begin
+         // Normal hit
+         if (flags bwand DAM_CRITICAL == 0) orElse dmg_value == 0 then begin
+            if (dmg_value == 0) then begin
+               // 526/626/726 - %s were hit for no damage
+               msg_id = base_msg_id + 27;
+               if hit_location >= 0 then begin
+                  msg_id -= 1;
+                  // 527/627/727 - %s were hit in %s for no damage
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, hit_location_name));
+               end
+               // 526/626/726 - %s were hit for no damage
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf(msg_text, target_name));
+               end
+               flags = 0;
+            end else if (dmg_value == 1) then begin
+               // 522/622/722 - %s were hit for 1 damage
+               msg_id = base_msg_id + 23;
+               if hit_location >= 0 then begin
+                  msg_id -= 1;
+                  // 521/621/721 - %s were hit in %s for 1 damage
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, hit_location_name));
+               end
+               // 522/622/722 - %s were hit for 1 damage
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf(msg_text, target_name));
+               end
+            end else begin
+               // 512/612/712 - %s were hit for %d hit points
+               msg_id = base_msg_id + 13;
+               if hit_location >= 0 then begin
+                  msg_id -= 1;
+                  // 511/611/711 - %s were hit in %s for %d hit points
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf3(msg_text, target_name, hit_location_name, dmg_value));
+               end
+               // 512/612/712 - %s were hit for %d hit points
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, dmg_value));
+               end
+            end
+         end else begin
+            // Critical hit
+            if (dmg_value == 0) then begin
+               // 528/628/728 - %s were critically hit for no damage
+               msg_id = base_msg_id + 28;
+               if hit_location >= 0 then begin
+                  msg_id -= 3;
+                  // 525/625/725 - %s were critically hit in %s for no damage
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, hit_location_name));
+               end
+               // 528/628/728 - %s were critically hit for no damage
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf(msg_text, target_name));
+               end
+               flags = 0;
+            end else if (dmg_value == 1) then begin
+               // 524/624/724 - %s were critically hit for 1 damage
+               msg_id = base_msg_id + 24;
+               if hit_location >= 0 then begin
+                  msg_id -= 3;
+                  // 521/621/721 - %s were critically hit in %s for 1 damage
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, hit_location_name));
+               end
+               // 524/624/724 - %s were critically hit for 1 damage
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf(msg_text, target_name));
+               end
+            end else begin
+               // 520/620/720 - %s were critically hit for %d hit points
+               msg_id = base_msg_id + 20;
+               if hit_location >= 0 then begin
+                  msg_id -= 9;
+                  // 511/611/711 - %s were critically hit in %s for %d hit points
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf3(msg_text, target_name, hit_location_name, dmg_value));
+               end
+               // 520/620/720 - %s were critically hit for %d hit points
+               else begin
+                  msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+                  msg_text = (sprintf2(msg_text, target_name, dmg_value));
+               end
+            end
+         end
+
+
+      flags = flags bwand bwnot(DAM_CRITICAL bwor DAM_HIT);
+      if (flags > 0) then // Add damage flag descriptions
+          msg_text += combatAddDamageFlagsDescription(attacker, target, flags);
+      else
+         msg_text += ".";
+      display_msg(msg_text);
+   end
+end
+
+procedure add_timed_report_aoe begin
+   add_global_timer_event(0, timed_report_aoe);
+end
+
+procedure add_timed_collect_c_data begin
+   add_global_timer_event(0, timed_collect_c_data);
+end
+
+procedure collect_combat_data begin
+   variable i, extras_count;
+
+   if combat_data <= 0 then
+      return;
+
+   //main target
+   gCombatDataArray[C_ATTACK_WEAPON] = get_object_data(combat_data, C_ATTACK_WEAPON);
+   gCombatDataArray[C_ATTACK_SOURCE] = get_object_data(combat_data, C_ATTACK_SOURCE);
+   gCombatDataArray[C_ATTACK_DAMAGE_SOURCE] = get_object_data(combat_data, C_ATTACK_DAMAGE_SOURCE);
+   gCombatDataArray[C_ATTACK_FLAGS_SOURCE] = get_object_data(combat_data, C_ATTACK_FLAGS_SOURCE);
+   //self dmg
+   gCombatDataArray[C_ATTACK_TARGET] = get_object_data(combat_data, C_ATTACK_TARGET);
+   gCombatDataArray[C_ATTACK_DAMAGE_TARGET] = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
+   gCombatDataArray[C_ATTACK_FLAGS_TARGET] = get_object_data(combat_data, C_ATTACK_FLAGS_TARGET);
+
+   //extras
+   gCombatDataArray[C_ATTACK_AROUND_NUMBER] = get_object_data(combat_data, C_ATTACK_AROUND_NUMBER);
+   extras_count = gCombatDataArray[C_ATTACK_AROUND_NUMBER];
+   for (i = 0; i < extras_count andAlso i < 6; i++) begin
+      gCombatDataArray[C_ATTACK_TARGET1 + (i * 4)] = get_object_data(combat_data, C_ATTACK_TARGET1 + (i * 4));
+      gCombatDataArray[C_ATTACK_DAMAGE_TARGET1 + (i * 4)] = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET1 + (i * 4));
+      gCombatDataArray[C_ATTACK_FLAGS_TARGET1 + (i * 4)] = get_object_data(combat_data, C_ATTACK_FLAGS_TARGET1 + (i * 4));
+   end
+
+   call add_timed_report_aoe when _combat_turn_running <= 0;
+end
+
+procedure show_all_combat_messages begin
+   variable attacker, target, weapon, dmg, flags, i, extras_count;
+   variable LocalCombatDataArray = gCombatDataArray;
+
+   if not(array_exists(gCombatDataArray)) then
+      return;
+
+   attacker = LocalCombatDataArray[C_ATTACK_SOURCE];
+   weapon = gCombatDataArray[C_ATTACK_WEAPON];
+   if attacker == dude_obj andAlso weapon > 0 then
+      call show_combat_msg_st_req(attacker, obj_pid(weapon));
+
+   //main target
+   target = LocalCombatDataArray[C_ATTACK_TARGET];
+   dmg = LocalCombatDataArray[C_ATTACK_DAMAGE_TARGET];
+   flags = LocalCombatDataArray[C_ATTACK_FLAGS_TARGET];
+   if target andAlso obj_type(target) == OBJ_TYPE_CRITTER then
+      call show_dmg_combat_msg(target, dude_obj, dmg, flags);
+
+   //self dmg
+
+   dmg = LocalCombatDataArray[C_ATTACK_DAMAGE_SOURCE];
+   flags = LocalCombatDataArray[C_ATTACK_FLAGS_SOURCE];
+   if attacker andAlso dmg > 0 andAlso obj_type(attacker) == OBJ_TYPE_CRITTER then
+      call show_dmg_combat_msg(attacker, dude_obj, dmg, flags);
+
+   //extra targets
+   extras_count = LocalCombatDataArray[C_ATTACK_AROUND_NUMBER];
+   for (i = 0; i < extras_count andAlso i < 6; i++) begin
+      target = LocalCombatDataArray[C_ATTACK_TARGET1 + (i * 4)];
+      if target andAlso obj_type(target) == OBJ_TYPE_CRITTER then begin
+         flags = LocalCombatDataArray[C_ATTACK_FLAGS_TARGET1 + (i * 4)];
+         dmg = LocalCombatDataArray[C_ATTACK_DAMAGE_TARGET1 + (i * 4)];
+         call show_dmg_combat_msg(target, dude_obj, dmg, flags);
+      end
+   end
+   clear_array(gCombatDataArray);
+end
+
+
+procedure is_perk_window_open begin
+   variable pid;
+   variable idx;
+
+   if not(get_game_mode bwand CHARSCREEN) then
+      return 0;
+
+   pid = read_int(0x5705E0);
+
+   if (pid <= 0 orElse pid > 50) then begin
+      return 0;
+   end
+
+   idx = read_int(0x6ADD90 + pid * 4);
+   return (idx != -1 andAlso idx < read_int(0x6ADF24));
+end
+
+
+procedure set_repeat_perk_desc begin
+   if (repeat_in_char_screen == 1) then
+       return;
+
+   set_global_script_type(1);
+   set_global_script_repeat(1);
+   repeat_in_char_screen = 1;
+end
+
+//procedure restore_characterEditorSelectedItem begin
+   //write_int(0x5707D0, characterEditorSelectedItem);
+   //if (get_game_mode bwand CHARSCREEN) then
+      //call_offset_v1(0x4D6F5C, read_int(0x57060C));
+//end
+
+procedure restore_faster_healing_ranks begin
+   set_perk_ranks(PERK_faster_healing, 2);
+end
+
+procedure apply_perk_state(variable state) begin
+   if (state == 1) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(31101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 1);
+      if in_char_screen > 0 then begin
+         if gFasterHealingPerk > 0 then
+            write_int(0x5707D0, 11 + (read_int(0x66BE44) == TRAIT_fast_metabolism andAlso read_int(0x66BE40) >= 0));
+
+         tap_key(0xC8);
+         call restore_faster_healing_ranks when is_perk_window_open == 0;
+      end
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 8);
+   end
+   else if (state == 2) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(21101 + PERK_faster_healing));
+         set_perk_ranks(PERK_faster_healing, 1);
+      if in_char_screen > 0 then begin
+         if gFasterHealingPerk > 0 then
+            write_int(0x5707D0, 11 + (read_int(0x66BE44) == TRAIT_fast_metabolism andAlso read_int(0x66BE40) >= 0));
+
+         tap_key(0xC8);
+         call restore_faster_healing_ranks when is_perk_window_open == 0;
+      end
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 0);
+   end
+   else if (state == 3) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_chr(PERK_faster_healing, 0);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+      if in_char_screen > 0 then begin
+         if gFasterHealingPerk > 0 then
+            write_int(0x5707D0, 13);
+      end
+   end
+   else if (state == 4) then begin
+      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_chr(PERK_faster_healing, 0);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+      if in_char_screen > 0 then begin
+         if gFasterHealingPerk > 0 then
+            write_int(0x5707D0, 13);
+      end
+   end
+   else begin
+      set_perk_desc(PERK_faster_healing, trait_msg(1101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 2);
+      set_perk_chr(PERK_faster_healing, 0);
+      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+      set_perk_stat_mag(PERK_faster_healing, 2);
+      if in_char_screen > 0 then begin
+         if gFasterHealingPerk > 0 then
+            write_int(0x5707D0, 13);
+      end
+   end
+end
+
+procedure set_faster_healing_desc(variable game_load = 0) begin
+   variable current_state;
+   variable prev_state;
+   variable cur_gvar;
+   variable add;
+   if in_char_screen then begin
+      //cancel (restore_characterEditorSelectedItem);
+      cancel (set_repeat_perk_desc);
+      gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+      if fast_metabolism == 0 orElse fast_metabolism == 1 then begin
+         if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then begin
+            fast_metabolism = 1;
+         end else begin
+            fast_metabolism = 0;
+         end
+
+         call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
+      end
+      else
+         call set_repeat_perk_desc when (gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
+   end
+
+   if (fast_metabolism > 0) then begin
+      current_state = 1 + (fast_metabolism_MMR_regen <= 0);
+   end
+   else begin
+      if in_char_screen then begin
+         //characterEditorSelectedItem = read_int(0x5707D0);
+         //write_int(0x5707D0, -1);
+      end
+      if gFasterHealingPerk > 1 orElse ((gFasterHealingPerk > 0) andAlso is_perk_window_open) then begin
+         current_state = 3 + (fast_metabolism_MMR_regen <= 0);
+         if in_char_screen then
+            call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse (gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
+      end
+      else begin
+         current_state = 5;
+      end
+      //if in_char_screen then
+         //call restore_characterEditorSelectedItem when (is_perk_window_open == 0);
+   end
+
+   cur_gvar = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
+
+   if (cur_gvar == current_state) then begin
+      if game_load then begin
+         call apply_perk_state(current_state);
+      end
+      return;
+   end
+
+   prev_state = cur_gvar;
+   if (gFasterHealingPerk > 0) then begin
+      if (prev_state != 0) then begin
+         if ((prev_state <= 2) != (current_state <= 2)) then begin
+            if (gFasterHealingPerk > 0) then begin
+               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
+                  set_perk_stat_mag(PERK_faster_healing, 3);
+               else
+                  set_perk_stat_mag(PERK_faster_healing, 2);
+            end
+            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+            add = 1;
+         end
+         else if ((prev_state == 1) != (current_state == 1)) andAlso ((prev_state == 3) != (current_state == 3)) then begin
+            if (gFasterHealingPerk > 0) then begin
+               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
+               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
+                  set_perk_stat_mag(PERK_faster_healing, 3);
+               else
+                  set_perk_stat_mag(PERK_faster_healing, 2);
+
+            end
+            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+            add = 1;
+         end
+      end
+      else if v1_2_new_install > 0 then begin
+         set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
+         critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
+      end
+   end
+   call apply_perk_state(current_state);
+
+   if (add) then
+      critter_add_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, add);
+
+   set_sfall_global(fast_metabolism_fast_healing_perk_stat, current_state);
+   v1_2_new_install = 0;
+end
+
+
+procedure sync_faster_healing_global begin
+   variable stored_state, real_state;
+
+   stored_state = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
+
+   if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then
+      fast_metabolism = 1;
+   else
+      fast_metabolism = 0;
+
+   if fast_metabolism > 0 then begin
+      real_state = 1 + (fast_metabolism_MMR_regen <= 0);
+   end
+   else begin
+      gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+      if gFasterHealingPerk > 1 orElse ((gFasterHealingPerk > 0) andAlso is_perk_window_open) then
+         real_state = 3 + (fast_metabolism_MMR_regen <= 0);
+      else
+         real_state = 5;
+   end
+
+   if stored_state != real_state then begin
+      set_sfall_global(fast_metabolism_fast_healing_perk_stat, real_state);
+      call apply_perk_state(real_state);
+      //call set_faster_healing_desc;
+   end
+   if fast_metabolism then
+      set_perk_ranks(PERK_faster_healing, 1);
+end
+
 procedure timed_event_p_proc begin
-   if fixed_param == timed_hp_regen then begin
+   variable param = fixed_param;
+   if param == timed_hp_regen then begin
       call dude_timed_hp_regen;
    end
-   else if fixed_param == timed_ap_give then begin
+   else if param == timed_ap_give then begin
       call give_ap_for_injures;
    end
-   else if fixed_param == timed_ap_debt then begin
+   else if param == timed_ap_debt then begin
       call ap_hide;
    end
-   else if fixed_param == timed_rad_rm then begin
+   else if param == timed_rad_rm then begin
       call da_radaway_timer;
+   end
+   else if param == timed_faster_healing_state then begin
+      call sync_faster_healing_global;
+      desc_timer_is_up = 0;
+   end
+   else if param == timed_collect_c_data then begin
+      if combat_display == 1 then begin
+         combat_disable_display;
+         gCombatReportWasSet = 0;
+         call collect_combat_data;
+      end
+   end
+   else if param == timed_report_aoe then begin
+      call show_all_combat_messages;
    end
 end
 
@@ -1650,6 +2286,8 @@ procedure COMBATDAMAGE begin
    variable wpn_is_grenade;
    variable wpn_dmg_type;
    variable wpn_pid;
+   variable attack_anim;
+   variable is_aoe;
    if attacker == real_dude_obj then begin
       actual_dude_attack = 1;
    end
@@ -1660,6 +2298,10 @@ procedure COMBATDAMAGE begin
          wpn_dmg_type = get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE);
          if dmg_to_tar > 0 then
             wpn_is_grenade = weapon_is_grenade(weapon, atk_type);
+
+         attack_anim = get_attack_anim(weapon, atk_type);
+         if wpn_is_grenade orElse attack_anim == ANIM_fire_burst orElse attack_anim == ANIM_fire_continuous then
+            is_aoe = 1;
       end
       //TRAIT_heavy_handed knock down
       if dmg_to_tar > 0 andAlso wpn_is_grenade == 0 then begin
@@ -1693,7 +2335,11 @@ procedure COMBATDAMAGE begin
          end
       end
          //aoe attack crit
-      if has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) > 0 orElse (has_trait(TRAIT_PERK, attacker, PERK_demolition_expert_perk) > 0 andAlso (wpn_is_grenade > 0 orElse wpn_dmg_type == DMG_explosion)) orElse (has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) > 0 andAlso (wpn_dmg_type == DMG_fire orElse wpn_pid == PID_MOLOTOV_COCKTAIL)) then begin
+      if is_aoe > 0 andAlso has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk) > 0 orElse (has_trait(TRAIT_PERK, attacker, PERK_demolition_expert_perk) > 0 andAlso (wpn_is_grenade > 0 orElse wpn_dmg_type == DMG_explosion)) orElse (has_trait(TRAIT_PERK, attacker, PERK_pyromaniac_perk) > 0 andAlso (wpn_dmg_type == DMG_fire orElse wpn_pid == PID_MOLOTOV_COCKTAIL)) then begin
+         if gCombatReportWasSet <= 0 then begin
+            gCombatReportWasSet = 1;
+            call add_timed_collect_c_data in 0;
+         end
          //roll for aoe crit
          if target != get_object_data(combat_data,C_ATTACK_TARGET) then begin
             rnd = random(0, 100);
@@ -3150,6 +3796,9 @@ end
 procedure da_set_xp_mod() begin
    variable cur_xp_mod;
    variable da_cur_bonus = get_da_mentats_bonus();
+   //PERK_swift_learner
+   gSwiftLearnerBonus = 20; // round(500.0 / desiredBonus)  500/25 = 20
+   set_swiftlearner_mod(gSwiftLearnerBonus);
    if (da_cur_bonus == 0) then
       return;
 
@@ -3934,12 +4583,50 @@ procedure check_ini_path begin
    end
 end
 
+procedure check_toughness_bonus(variable critter_ptr, variable uniq_id, variable mod_disabled = 0) begin
+   variable real_ranks, stored_ranks, diff, i;
+   stored_ranks = gToughnessArr[uniq_id];
+   if mod_disabled then begin
+      if stored_ranks <= 0 then
+         return;
+
+      for (i = 1; i <= 6; i++) begin
+         set_critter_extra_stat(critter_ptr, STAT_dmg_resist + i, get_critter_extra_stat(critter_ptr, STAT_dmg_resist + i) - stored_ranks * TOUGHNESS_BONUS_PER_RANK);
+      end
+
+      gToughnessArr[uniq_id] = 0;
+      return;
+   end
+
+   real_ranks = has_trait(TRAIT_PERK, critter_ptr, PERK_toughness);
+   if real_ranks == stored_ranks then
+      return;
+
+   if real_ranks > 2 then begin
+      if (critter_ptr == dude_obj) then
+         set_perk_owed(get_perk_owed + (real_ranks - 2));
+      critter_rm_trait(critter_ptr, TRAIT_PERK, PERK_toughness, real_ranks - 2);
+      real_ranks = 2;
+   end
+
+   diff = real_ranks - stored_ranks;
+
+   for (i = 1; i <= 6; i++) begin
+      set_critter_extra_stat(critter_ptr, STAT_dmg_resist + i, get_critter_extra_stat(critter_ptr, STAT_dmg_resist + i) + diff * TOUGHNESS_BONUS_PER_RANK);
+   end
+
+   gToughnessArr[uniq_id] = real_ranks;
+end
+
+
 procedure COMBATTURN begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
    variable remaining;
 
    if turn_status >= 1 andAlso critter == dude_obj then begin
+      if dude_obj != real_dude_obj then
+         call check_toughness_bonus(dude_obj, get_unique_id(dude_obj));
       main_attacker = dude_obj;
       dude_turn = 1;
    end
@@ -4287,160 +4974,9 @@ procedure DESCRIPTIONOBJ begin
    end
 end
 
-procedure is_perk_window_open begin
-   variable pid;
-   variable idx;
 
-   if not(get_game_mode bwand CHARSCREEN) then
-      return 0;
-
-   pid = read_int(0x5705E0);
-
-   if (pid <= 0 orElse pid > 50) then begin
-      return 0;
-   end
-
-   idx = read_int(0x6ADD90 + pid * 4);
-   return (idx != -1 andAlso idx < read_int(0x6ADF24));
-end
-
-procedure set_repeat_perk_desc begin
-   if (repeat_in_char_screen == 1) then
-       return;
-
-   set_global_script_type(1);
-   set_global_script_repeat(1);
-   repeat_in_char_screen = 1;
-end
-
-procedure restore_characterEditorSelectedItem begin
-   write_int(0x5707D0, characterEditorSelectedItem);
-   if (get_game_mode bwand CHARSCREEN) then
-      call_offset_v1(0x4D6F5C, read_int(0x57060C));
-end
-
-procedure set_faster_healing_desc begin
-   variable current_state;
-   variable prev_state;
-   variable cur_gvar;
-   variable add;
-   if in_char_screen then begin
-      cancel (restore_characterEditorSelectedItem);
-      cancel (set_repeat_perk_desc);
-      gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
-      if fast_metabolism == 0 orElse fast_metabolism == 1 then begin
-         if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then begin
-            fast_metabolism = 1;
-         end else begin
-            fast_metabolism = 0;
-         end
-
-         call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
-      end
-      else
-         call set_repeat_perk_desc when (gFasterHealingPerk != (has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing)));
-   end
-
-   if (fast_metabolism > 0) then begin
-      current_state = 1 + (fast_metabolism_MMR_regen <= 0);
-   end
-   else begin
-      if in_char_screen then begin
-         characterEditorSelectedItem = read_int(0x5707D0);
-         write_int(0x5707D0, -1);
-      end
-      if gFasterHealingPerk > 1 orElse ((gFasterHealingPerk > 0) andAlso is_perk_window_open) then begin
-         current_state = 3 + (fast_metabolism_MMR_regen <= 0);
-         if in_char_screen then
-            call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse (gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
-      end
-      else begin
-         current_state = 5;
-      end
-      if in_char_screen then
-         call restore_characterEditorSelectedItem when (is_perk_window_open == 0);
-   end
-
-   cur_gvar = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
-   if (cur_gvar == current_state) then
-      return;
-
-   prev_state = cur_gvar;
-   if (gFasterHealingPerk > 0) then begin
-      if (prev_state != 0) then begin
-         if ((prev_state <= 2) != (current_state <= 2)) then begin
-            if (gFasterHealingPerk > 0) then begin
-               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
-               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
-                  set_perk_stat_mag(PERK_faster_healing, 3);
-               else
-                  set_perk_stat_mag(PERK_faster_healing, 2);
-            end
-            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
-            add = 1;
-         end
-         else if ((prev_state == 1) != (current_state == 1)) andAlso ((prev_state == 3) != (current_state == 3)) then begin
-            if (gFasterHealingPerk > 0) then begin
-               set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
-               set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-               if gFasterHealingPerk == 2 andAlso v1_2_new_install <= 0 then
-                  set_perk_stat_mag(PERK_faster_healing, 3);
-               else
-                  set_perk_stat_mag(PERK_faster_healing, 2);
-
-            end
-            critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
-            add = 1;
-         end
-      end
-      else if v1_2_new_install > 0 then begin
-         set_perk_owed(get_perk_owed + (gFasterHealingPerk - 1));
-         critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, gFasterHealingPerk);
-      end
-   end
-
-   if (current_state == 1) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(31101 + PERK_faster_healing));
-      set_perk_ranks(PERK_faster_healing, 1);
-      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 8);
-   end
-   else if (current_state == 2) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(21101 + PERK_faster_healing));
-      set_perk_ranks(PERK_faster_healing, 1);
-      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 0);
-   end
-   else if (current_state == 3) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
-      set_perk_ranks(PERK_faster_healing, 2);
-      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
-   end
-   else if (current_state == 4) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
-      set_perk_ranks(PERK_faster_healing, 2);
-      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
-   end
-   else begin
-      set_perk_desc(PERK_faster_healing, trait_msg(1101 + PERK_faster_healing));
-      set_perk_ranks(PERK_faster_healing, 2);
-      set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 2);
-      if (get_game_mode bwand CHARSCREEN) then begin
-         //set_and_refresh;
-         //call_offset_v0(0x4365AC); //characterEditorDrawCard()
-          //write_int(0x5707D0, -1);
-      end
-   end
-
-   if (add) then
-      critter_add_trait(real_dude_obj, TRAIT_PERK, PERK_faster_healing, add);
-
-   set_sfall_global(fast_metabolism_fast_healing_perk_stat, current_state);
-   v1_2_new_install = 0;
+procedure sync_faster_healing_global_timer begin
+   add_global_timer_event(0, timed_faster_healing_state);
 end
 
 procedure GAMEMODECHANGE begin
@@ -4448,7 +4984,7 @@ procedure GAMEMODECHANGE begin
    variable last_game_mode = get_sfall_arg;
    variable game_mode = get_game_mode;
    if in_char_screen > 0 then begin
-      cancel (restore_characterEditorSelectedItem);
+      //cancel (restore_characterEditorSelectedItem);
       cancel (set_repeat_perk_desc);
       in_char_screen = 0;
    end
@@ -4458,10 +4994,15 @@ procedure GAMEMODECHANGE begin
       repeat_in_char_screen = 0;
    end
 
-   if game_mode == 0 orElse (game_mode bwand COMBAT) then begin
+   if game_mode == 0 orElse (game_mode bwand (COMBAT bwor INVENTORY)) then begin
       call get_real_dude_traits;
+      call check_toughness_bonus(dude_obj, get_unique_id(dude_obj));
+      if desc_timer_is_up <= 0 then begin
+         desc_timer_is_up = 1;
+         call sync_faster_healing_global_timer in 0;
+      end
    end
-   else if (game_mode bwand CHARSCREEN) then begin
+   if (game_mode bwand CHARSCREEN) then begin
       if skilled > 0 then
          call get_and_set_perk_level_mod;
 
@@ -4669,11 +5210,6 @@ procedure CANUSEWEAPON begin
    end
 end
 
-
-procedure set_last_xp_mod begin
-   last_xp_mod = get_xp_mod;
-end
-
 procedure RESTTIMER begin
    variable game_time_current;
    variable rest_event_type;
@@ -4773,6 +5309,7 @@ procedure RESTTIMER begin
 end
 
 procedure set_new_perk_stats begin
+   variable refund;
 
    gPyromaniacBonus = get_ini_setting("sfall\\Perks.ini|PerksTweak|PyromaniacBonus");
    if gPyromaniacBonus < 0 then
@@ -4797,8 +5334,26 @@ procedure set_new_perk_stats begin
    set_perk_desc(PERK_demolition_expert_perk, sprintf(trait_msg(1101 + PERK_demolition_expert_perk), gDemolitionExpertBonus));
    set_perk_ranks(PERK_demolition_expert_perk, 1);
 
+
+   //PERK_toughness
+   call check_toughness_bonus(dude_obj, get_unique_id(dude_obj));
+   set_perk_desc(PERK_toughness, sprintf(trait_msg(1101 + PERK_toughness), TOUGHNESS_BONUS_PER_RANK));
+   set_perk_ranks(PERK_toughness, 2);
+
+   //PERK_swift_learner
+   refund = has_trait(TRAIT_PERK, real_dude_obj, PERK_swift_learner);
+   if refund > 1 then begin
+      refund -= 1;
+      set_perk_owed(get_perk_owed + refund);
+      critter_rm_trait(real_dude_obj, TRAIT_PERK, PERK_swift_learner, refund);
+   end
+   gSwiftLearnerBonus = 20; // round(500.0 / desiredBonus)  500/25 = 20
+   set_swiftlearner_mod(gSwiftLearnerBonus);
+   set_perk_desc(PERK_swift_learner, sprintf(trait_msg(1101 + PERK_swift_learner), gSwiftLearnerBonus));
+   set_perk_ranks(PERK_swift_learner, 1);
+
    //PERK_faster_healing
-   call set_faster_healing_desc;
+   call set_faster_healing_desc(true);
 end
 
 procedure start begin
@@ -4823,7 +5378,7 @@ procedure start begin
       end
       if TraitsPlus <= 0 then begin
          call one_hander_bonus_remove;
-
+         //call check_toughness_bonus(true);
          //if ver_major <= 4 then
             //call sfall_4_unset_unarmed_dmg_bytes;
 
@@ -4832,6 +5387,7 @@ procedure start begin
          else
             exit;
       end
+
       Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
       et_tu = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
@@ -4874,6 +5430,12 @@ procedure start begin
       //end
       if skilled >= 0 andAlso sfall_508 > 0 then begin
          register_hook_proc(56, ATTACKHITROLL); //HOOK_ATTACKHITROLL
+      end
+      gCombatDataArray = create_array_map;
+      gToughnessArr = load_array(TOUGHNESS_MAP_ARRAY_NAME);
+      if not(array_exists(gToughnessArr)) then begin
+         gToughnessArr = create_array_map;
+         save_array(TOUGHNESS_MAP_ARRAY_NAME, gToughnessArr);
       end
 
       register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);

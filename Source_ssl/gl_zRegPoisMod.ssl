@@ -1127,6 +1127,11 @@ procedure show_poison_dmg_msg(variable target, variable target_cur_hp, variable 
    end
 end
 
+procedure scripts_disable begin
+   call_offset_v0(0x4A53D0);
+   call_offset_v0(0x4A53F0);//critt
+end
+
 procedure kill_dude begin
    variable target_frm;
    if dude_must_die <= 0 then
@@ -1136,6 +1141,7 @@ procedure kill_dude begin
    if (target_frm >= ANIM_bad_landing_sf andAlso target_frm <= ANIM_fall_front_blood_sf) then begin
       critter_heal(dude_must_die, -((get_critter_stat(dude_must_die,STAT_max_hp)+get_critter_stat(dude_must_die,STAT_max_hp))*3));
       if dude_must_die == real_dude_obj then begin
+         call scripts_disable;
          call perception_disable;
          terminate_combat;
          game_ui_enable;
@@ -7358,7 +7364,7 @@ procedure start begin
             poison_repeat_ticks = round(poison_repeat_ticks * 10);
             if poison_repeat_ticks < 1 then
                poison_repeat_ticks = 1;
-            register_hook_proc(HOOK_WITHINPERCEPTION, WITHINPERCEPTION);
+            register_hook_proc_spec(HOOK_WITHINPERCEPTION, WITHINPERCEPTION);
 
             id_to_poison_fraction = load_array(id_to_poison_fraction_array_name);
             if not id_to_poison_fraction then begin

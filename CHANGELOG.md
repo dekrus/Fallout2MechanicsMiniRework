@@ -3,6 +3,11 @@
 - Fixed compatibility with INVENTORY AP COST mods. Healing items applied from inventory with AP below 3 now properly execute their effects.
 ### Regen Mod
 - Fixed compatibility with INVENTORY AP COST mods. Healing drugs applied from inventory with AP below 3 now properly execute their effects.
+### Traits Plus
+- Critical hits from AoE attacks now explicitly display "critical hit" in the damage description.
+- Faster Healing perk ranks now correctly update when gaining or removing the Fast Metabolism trait.
+- Toughness now grants +10% resistance to all damage types and is limited to 2 ranks (previously only normal damage, and 3 ranks).
+- Swift Learner now grants a flat +25% experience bonus in 1 rank (previously +5% per rank over 3 ranks).
 
 
 ## Latest Version v2.0.2

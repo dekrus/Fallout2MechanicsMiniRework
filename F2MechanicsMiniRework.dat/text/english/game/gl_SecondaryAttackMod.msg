@@ -22,6 +22,7 @@
 {22}{}{%1% was critically hit for 1 hit point}
 {23}{}{ and were killed.}
 {24}{}{ take no damage from the attack.}
+{25}{}{by your own attack}
 
 {101}{}{Piercing Beam}     // Replaces "Torso" for laser weapon targeted attack
 {102}{}{Plasma Blast}      // Replaces "Torso" for plasma weapon targeted attack

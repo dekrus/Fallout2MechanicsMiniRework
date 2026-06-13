@@ -11,6 +11,10 @@
 {11}{}{You recover %2% hit points.}
 {12}{}{You recover %2% hit points.}
 
+{13}{}{ and }
+{14}{}{ takes no damage from the attack.}
+{15}{}{ take no damage from the attack.}
+{16}{}{by your own attack}
 #
 #   Messages from trait.c
 #
@@ -109,16 +113,18 @@
 #
 #   PERK DESCRIPTIONS
 #
-{1130}{}{Enemies find you frustratingly hard to hit. You gain +5 to Armor Class, and the maximum chance to hit you is reduced by 5%.}
-{1202}{}{You always heard a voice in the crackling of fire, and now you've learned to understand it. Fire attacks gain +%d damage, and can deal critical damage to targets in the area of effect, dooming enemies to a horrible death in searing flames.}
-{11202}{}{You always heard a voice in the crackling of fire, and now you've learned to understand it. Fire attacks gain +%d damage and can deal critical damage to targets in the area of effect. Your own fire still hurts, but leaves no burns.}
 {1108}{}{Your wounds close and bones mend with astonishing speed. You gain +2 to healing rate and fully recover health and all injuries in less than a day of rest.}
 {11108}{}{You gain +6 to healing rate. Wounds and injuries heal right before your eyes!}
 {21108}{}{Your metabolism has reached a new level. The health regeneration effect from Fast Metabolism is doubled.}
 {31108}{}{Your metabolism has reached a new level. You gain +8 to healing rate.}
+{1113}{}{When you are tough, you take less damage. Each level of this ability increases your resistance to all damage types by +%d%%.}
+{1130}{}{Enemies find you frustratingly hard to hit. You gain +5 to Armor Class, and the maximum chance to hit you is reduced by 5%.}
+{1151}{}{You are indeed a Swift Learner with this Perk, as it gives you an additional +%d%% bonus whenever you earn experience points. This is best taken early.}
+{1183}{}{When it comes to explosives, no one can match your expertise. Explosive attacks deal +%d damage and can score critical hits on all targets in the blast radius. Any explosives you set always detonate right on time.}
+{1202}{}{You always heard a voice in the crackling of fire, and now you've learned to understand it. Fire attacks gain +%d damage, and can deal critical damage to targets in the area of effect, dooming enemies to a horrible death in searing flames.}
+{11202}{}{You always heard a voice in the crackling of fire, and now you've learned to understand it. Fire attacks gain +%d damage and can deal critical damage to targets in the area of effect. Your own fire still hurts, but leaves no burns.}
 {1207}{}{You have become more efficient with any weapon. Strength requirements for all weapons are reduced by 3, and your area attacks can now deal critical damage to every target in the area of effect.}
 {11207}{}{You have become more efficient with any weapon. Strength requirements for all weapons and burst fire recoil are reduced by 3. Your area attacks can now deal critical damage to every target in the area of effect.}
-{1183}{}{When it comes to explosives, no one can match your expertise. Explosive attacks deal +%d damage and can score critical hits on all targets in the blast radius. Any explosives you set always detonate right on time.}
 
 #
 #   SONORA

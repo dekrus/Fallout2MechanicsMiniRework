@@ -68,6 +68,7 @@
 #define msg_critical_hit_1_hp 21
 #define msg_critical_hit_add_1_hp 22
 #define msg_and 108 // " and "
+#define msg_hit_self_dmg_dude 25
 #define get_active_item(critter)  critter_inven_obj(critter, (2 - active_hand) if critter == dude_obj else INVEN_TYPE_RIGHT_HAND)
 #define obj_team(obj)   (has_trait(TRAIT_OBJECT, obj, OBJECT_TEAM_NUM))
 #define combat_msg_you 506
@@ -207,7 +208,7 @@
 #define reg_anim_unset_flag(object, flag, delay)      if sfall_510 <= 0 then call_offset_v3(0x4150A8, object, flag, delay); else metarule3(REG_ANIM_FLAG_UNSET, object, flag, delay)
 #define art_max_frames(artFID)                        sfall_func2("art_frame_data", artFID, -1)
 
-//#define hitLocationGetName_str_ptr(critter, hitLocation) call_offset_r2(0x42612C, critter, hitLocation)
+#define hitLocationGetName_str_ptr(critter, hitLocation) call_offset_r2(0x42612C, critter, hitLocation)
 #define hitLocationGetName(critter, hitLocation)   (message_str_game(GAME_MSG_COMBAT, 1000 + 10 * read_int(read_int(0x56CAEC) + (read_int(critter + 0x20) bwand 0x0FFF) * 4) + hitLocation))
 
 //#define INTERFACE_ITEM_ACTION_DEFAULT -1
@@ -2911,7 +2912,7 @@ procedure get_targets_on_wide_line_laser(variable attacker, variable target, var
    return end_tile;
 end
 
-procedure combatAddDamageFlagsDescription(variable critter, variable flags) begin
+procedure combatAddDamageFlagsDescription(variable attacker, variable critter, variable flags) begin
    variable msg_id;
    variable msg_text;
    variable base_flags_id;
@@ -2959,10 +2960,10 @@ procedure combatAddDamageFlagsDescription(variable critter, variable flags) begi
    flags_list = create_array_map;
    flags_count = 0;
 
-   // Check each flag except DAM_CRITICAL and DAM_HIT
+   // Check each flag except DAM_CRITICAL andAlso DAM_HIT
    flag_bit = 1;
    for (i = 0; i < 32; i++) begin
-      if (flag_bit != DAM_CRITICAL and flag_bit != DAM_HIT and (flag_bit bwand flags) != 0) then begin
+      if (flag_bit != DAM_CRITICAL andAlso flag_bit != DAM_HIT andAlso (flag_bit bwand flags) != 0) then begin
          set_array(flags_list, flags_count, i);
          flags_count++;
       end
@@ -2974,19 +2975,26 @@ procedure combatAddDamageFlagsDescription(variable critter, variable flags) begi
       for (i = 0; i < flags_count - 1; i++) begin
          damage_description += ", ";
          msg_id = base_flags_id + get_array(flags_list, i);
-         msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+         if critter == attacker andAlso critter == dude_obj andAlso (msg_id == 222 orElse msg_id == 272) then
+            msg_text = modmsg(msg_hit_self_dmg_dude);
+         else
+            msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
          damage_description += msg_text;
       end
 
-      // " and " before last flag
-      msg_text = message_str_game(GAME_MSG_COMBAT, 108);
-      damage_description += msg_text;
-
       msg_id = base_flags_id + get_array(flags_list, flags_count - 1);
-      msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+      if critter == attacker andAlso critter == dude_obj andAlso (msg_id == 222 orElse msg_id == 272) then
+         msg_text = " " +modmsg(msg_hit_self_dmg_dude);
+      else begin
+         // " and " before last flag
+         msg_text = modmsg(msg_and);
+         damage_description += msg_text;
+         msg_text = message_str_game(GAME_MSG_COMBAT, msg_id);
+      end
       damage_description += msg_text;
 
    end
+   free_array(flags_list);
    return damage_description + ".";
 end
 
@@ -3065,7 +3073,7 @@ procedure show_dmg_combat_msg(variable target, variable attacker, variable dmg_v
    if hit_location == BODY_UNCALLED orElse hit_location == BODY_HIT_TORSO orElse hit_location < 0 then
       hit_location = -1;
    else
-      hit_location_name = read_string(hitLocationGetName(target, hit_location));
+      hit_location_name = hitLocationGetName(target, hit_location);
 
    // Determine target name and base message ID
    if (target == real_dude_obj) then begin
@@ -3213,10 +3221,12 @@ procedure show_dmg_combat_msg(variable target, variable attacker, variable dmg_v
             end
          end
 
+      if target == attacker andAlso target == dude_obj then
+         flags = flags bwor DAM_BACKWASH;
 
       flags = flags bwand bwnot(DAM_CRITICAL bwor DAM_HIT);
       if (flags > 0) then // Add damage flag descriptions
-          msg_text += combatAddDamageFlagsDescription(target, flags);
+          msg_text += combatAddDamageFlagsDescription(attacker, target, flags);
       else
          msg_text += ".";
       display_msg(msg_text);
@@ -3339,7 +3349,7 @@ procedure display_dmg_exec_all_script_procs2 begin
       if get_object_data(target, OBJ_DATA_DAMAGE_FLAGS) bwand DAM_DEAD != 0 then
          continue;
 
-      call show_dmg_combat_msg(target, -1, dmg_value, true);
+      call show_dmg_combat_msg(target, attacker, dmg_value, true);
       if combat_main_target > 0 andAlso target == combat_main_target then
          combat_main_target_msg = 1;
 
@@ -3375,7 +3385,7 @@ procedure display_dmg_exec_all_script_procs2 begin
       end
    end
    if alt_fire_selected != alt_fire_double_tap andAlso combat_main_target > 0 andAlso combat_main_target_msg <= 0 andAlso (get_object_data(combat_main_target, OBJ_DATA_DAMAGE_FLAGS) bwand DAM_DEAD == 0) then
-      call show_dmg_combat_msg(combat_main_target, -1, DMG_DODGE, false);
+      call show_dmg_combat_msg(combat_main_target, attacker, DMG_DODGE, false);
    //Attacker KO from ELEC or PLASMA alt attack
    //if is_in_prone_anim(critter_art_anim(orig_attacker)) then begin
       //if get_critter_current_ap(orig_attacker) >= 1 then begin
@@ -6873,7 +6883,7 @@ inline procedure restore_torso_name begin
    variable ptr;
    if gLastCritterCalledTargetTorsoName != 0 then begin
       target = gLastCritterCalledTarget;
-      ptr = hitLocationGetName(target, BODY_HIT_TORSO);
+      ptr = hitLocationGetName_str_ptr(target, BODY_HIT_TORSO);
 
       call write_string_to_addr(ptr, gLastCritterCalledTargetTorsoName);
 
@@ -7860,7 +7870,7 @@ procedure set_torso_name(variable target, variable newName) begin
       return 0;
 
    gLastCritterCalledTarget = target;
-   ptr = hitLocationGetName(target, BODY_HIT_TORSO);
+   ptr = hitLocationGetName_str_ptr(target, BODY_HIT_TORSO);
 
    if gLastCritterCalledTargetTorsoName == 0 then begin
       gLastCritterCalledTargetTorsoName = read_string(ptr);
