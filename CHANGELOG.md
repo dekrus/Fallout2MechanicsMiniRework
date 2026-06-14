@@ -1,4 +1,4 @@
-## Work in progress
+## Latest Version v2.0.3
 ### Medical Tools
 - Fixed compatibility with INVENTORY AP COST mods. Healing items applied from inventory with AP below 3 now properly execute their effects.
 ### Regen Mod
@@ -7,11 +7,11 @@
 - Critical hits from AoE attacks now explicitly display "critical hit" in the damage description.
 - Faster Healing perk ranks now correctly update when gaining or removing the Fast Metabolism trait.
 #### Perks
-- Toughness now grants +10% resistance to all damage types and is limited to 2 ranks (previously only normal damage, and 3 ranks).
-- Swift Learner now grants a flat +25% experience bonus in 1 rank (previously +5% per rank over 3 ranks).
+- Toughness now has 2 ranks and grants +10% resistance to all damage types (previously only normal damage, and 3 ranks).
+- Swift Learner now has 1 rank and grants a +25% bonus whenever experience points are earned (previously 3 ranks of +5% each).
 
 
-## Latest Version v2.0.2
+## Version v2.0.2
 - Added compatibility options with different Inventory AP Cost mods.
 ### Secondary Attack Mod
 - Fixed a bug where the main target killed by the electrical alt attack or Double Tap wouldn't trigger its death script properly.
@@ -52,7 +52,6 @@ Some perks have been reworked (more to come later):
 - Fixed Aimed Burst for Bozar and XL70E3 in EcCo. They can now use aimed bursts without setting AimedBurstAnyWeapon=1.
 ### Skill Books Mod
 - Fixed erroneous addition of Russian text in book descriptions.
-
 
 ### Version v2.0.1
 - Added compatibility with EcCo v1.0 and v0.9.9 lite.
