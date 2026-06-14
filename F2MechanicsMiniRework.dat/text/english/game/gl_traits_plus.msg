@@ -117,7 +117,7 @@
 {11108}{}{You gain +6 to healing rate. Wounds and injuries heal right before your eyes!}
 {21108}{}{Your metabolism has reached a new level. The health regeneration effect from Fast Metabolism is doubled.}
 {31108}{}{Your metabolism has reached a new level. You gain +8 to healing rate.}
-{1113}{}{When you are tough, you take less damage. Each level of this ability increases your resistance to all damage types by +%d%%.}
+{1113}{}{When you are tough, you take less damage. Each level of this Perk adds +%d%% to your resistance to all damage types.}
 {1130}{}{Enemies find you frustratingly hard to hit. You gain +5 to Armor Class, and the maximum chance to hit you is reduced by 5%.}
 {1151}{}{You are indeed a Swift Learner with this Perk, as it gives you an additional +%d%% bonus whenever you earn experience points. This is best taken early.}
 {1183}{}{When it comes to explosives, no one can match your expertise. Explosive attacks deal +%d damage and can score critical hits on all targets in the blast radius. Any explosives you set always detonate right on time.}
