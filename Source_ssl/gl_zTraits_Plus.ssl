@@ -5349,7 +5349,7 @@ procedure set_new_perk_stats begin
    end
    gSwiftLearnerBonus = 20; // round(500.0 / desiredBonus)  500/25 = 20
    set_swiftlearner_mod(gSwiftLearnerBonus);
-   set_perk_desc(PERK_swift_learner, sprintf(trait_msg(1101 + PERK_swift_learner), gSwiftLearnerBonus));
+   set_perk_desc(PERK_swift_learner, sprintf(trait_msg(1101 + PERK_swift_learner), round(500.0 / gSwiftLearnerBonus)));
    set_perk_ranks(PERK_swift_learner, 1);
 
    //PERK_faster_healing
