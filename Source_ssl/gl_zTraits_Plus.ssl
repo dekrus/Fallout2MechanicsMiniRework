@@ -1759,7 +1759,7 @@ procedure show_all_combat_messages begin
       return;
 
    attacker = LocalCombatDataArray[C_ATTACK_SOURCE];
-   weapon = gCombatDataArray[C_ATTACK_WEAPON];
+   weapon = LocalCombatDataArray[C_ATTACK_WEAPON];
    if attacker == dude_obj andAlso weapon > 0 then
       call show_combat_msg_st_req(attacker, obj_pid(weapon));
 
