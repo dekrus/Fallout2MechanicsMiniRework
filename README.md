@@ -2,7 +2,7 @@
 [__Download__](https://github.com/dekrus/Fallout2MechanicsMiniRework/releases)
 
  This is a rework of some gameplay mechanics of Fallout 2 and games based on it.  
- [__Описание на русском__](https://github.com/dekrus/Fallout2MechanicsMiniRework/blob/main/configs/README_RUS.txt)
+ [__Описание на русском__](https://github.com/dekrus/Fallout2MechanicsMiniRework/blob/main/README_RU.md)
  
 
 ## Installation
