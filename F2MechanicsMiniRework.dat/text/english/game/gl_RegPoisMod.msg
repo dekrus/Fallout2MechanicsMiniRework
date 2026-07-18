@@ -54,8 +54,11 @@
 {84}{}{HEALING}
 
 {100}{}{Your }
-{101}{}{ has reached its maximum value.}
-{102}{}{ has reached its maximum value.}
+{101}{}{ has reached maximum value.}
+{102}{}{ is at its maximum.}
+
+{103}{}{ has reached maximum value.}
+{104}{}{ is at its maximum.}
 
 {1000}{}{MechanicsMiniRework: Requires sfall 4.4.4 or later.}
 {1001}{}{MechanicsMiniRework: Requires sfall 5.0.8.5 or later.}

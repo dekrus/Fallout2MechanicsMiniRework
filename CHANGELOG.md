@@ -4,6 +4,8 @@
 - Fixed arrays for shotgun knockback and aimed burst weapon PIDs (custom & disabled lists).
 - Fixed a crash when `PistolForcedActivation` was set to a value greater than 1.
 - Alt-fire AP cost for **pistols (Double Tap)** and **shotguns (Knockback)** now always costs **+1 AP** (like a regular aimed shot) for characters with the **Fast Shot** trait.
+### Regen Mod
+- "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
 
 
 ## Latest Version v2.0.3
