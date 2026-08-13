@@ -457,10 +457,10 @@ Adds unique properties to different attack types:
     RegenMod=0
     ```
 **Option 2:** Use F2MechanicsMiniRework's regen system
-- In `mods/ecco/misc.ini` set:
+- In `Fallout/ecco_config/misc.ini` set:
     ```
     [HEALING_DRUGS]
-    healing_skill_max=0
+    skill_max=0
     ```
 #### Medical Tools Mod
 **Tweaks are NOT compatible - you must choose which to use:**
@@ -471,7 +471,7 @@ Adds unique properties to different attack types:
     MedToolsMod=0
     ```
 **Option 2:** Use F2MechanicsMiniRework's medical tools mod
-- In `mods/ecco/misc.ini` set:
+- In `Fallout/ecco_config/misc.ini` set:
     ```    
     [HEALING_SKILLS]
     skill_use_mod=0
@@ -490,7 +490,7 @@ Adds unique properties to different attack types:
 	StealRebalance=0
     ```   
 *or*
-- In `mods/ecco/misc.ini`:
+- In `Fallout/ecco_config/misc.ini`:
     ```   
 	[STEAL]
 	enable_tweaks=0
