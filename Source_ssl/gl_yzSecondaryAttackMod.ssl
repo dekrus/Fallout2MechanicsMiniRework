@@ -7404,7 +7404,7 @@ procedure AFTERHITROLL begin
 
       // pistols double tap
       if PistolSecondaryAttackMod > 0 andAlso wpn_allow_alt_pistol(gWeapon, Atktype, attacker, hit_chance, target_bodypart) > 0 then begin
-         gDoubleTapHitChance = hit_chance - PistolDoubleTapToHitPenalty - weapon_min_st * PistolDoubleTapToHitPenaltyStMult;
+         gDoubleTapHitChance = Round(hit_chance - PistolDoubleTapToHitPenalty - weapon_min_st * PistolDoubleTapToHitPenaltyStMult);
          if gDoubleTapHitChance < hit_chance / 2 then
             gDoubleTapHitChance = hit_chance / 2;
          timer = create_object_sid(pid_trans_block, 0, 0, -1);
@@ -8454,8 +8454,10 @@ procedure start begin
 
          PistolSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolSecondaryAttackMod");
          if PistolSecondaryAttackMod > 0 then begin
-            PistolDoubleTapToHitPenalty = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenalty");
-            PistolDoubleTapToHitPenaltyStMult = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenaltyStMult");
+            PistolDoubleTapToHitPenalty = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenalty");
+            PistolDoubleTapToHitPenalty = atof(PistolDoubleTapToHitPenalty);
+            PistolDoubleTapToHitPenaltyStMult = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolDoubleTapToHitPenaltyStMult");
+            PistolDoubleTapToHitPenaltyStMult = atof(PistolDoubleTapToHitPenaltyStMult);
             PistolDoubleTapForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PistolForcedActivation");
 
             DoubleTapCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|DoubleTapCustomPids"), ",");
