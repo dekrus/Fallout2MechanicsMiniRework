@@ -40,10 +40,10 @@
     RegenMod=0
     ```
 **Вариант 2:** Используйте систему регенерации от F2MechanicsMiniRework.
-- В `mods/ecco/misc.ini` установите:
+- В `Fallout/ecco_config/misc.ini` установите:
     ```
     [HEALING_DRUGS]
-    healing_skill_max=0
+    skill_max=0
     ```
 #### Мод Медицинских инструментов
 **Твики НЕ совместимы - вы должны выбрать что использовать:**
@@ -54,7 +54,7 @@
     MedToolsMod=0
     ```
 **Вариант 2:** Используйте мод медицинских инструментов от F2MechanicsMiniRework.
-- В `mods/ecco/misc.ini` установите:
+- В `Fallout/ecco_config/misc.ini` установите:
     ```
     [HEALING_SKILLS]
     skill_use_mod=0
@@ -73,7 +73,7 @@
     StealRebalance=0
     ```
 *или*
-- В `mods/ecco/misc.ini`:
+- В `Fallout/ecco_config/misc.ini`:
     ```
     [STEAL]
     enable_tweaks=0
