@@ -1988,6 +1988,9 @@ end
 procedure sync_faster_healing_global begin
    variable stored_state, real_state;
 
+   if fast_metabolism < 0 then
+      return;
+
    stored_state = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
 
    if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then
@@ -4639,7 +4642,7 @@ procedure COMBATTURN begin
       intface_redraw;
    end
 
-   if (fast_metabolism orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 andAlso critter == real_dude_obj andAlso turn_status == COMBAT_TURN_END then begin
+   if (fast_metabolism > 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 andAlso critter == real_dude_obj andAlso turn_status == COMBAT_TURN_END then begin
       remaining = 50 - ((game_time - gLastRegenTime) % 50);
       if (remaining <= 0) then
          remaining = 50;

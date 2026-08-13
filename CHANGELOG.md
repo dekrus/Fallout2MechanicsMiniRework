@@ -6,6 +6,8 @@
 - Alt-fire AP cost for **pistols (Double Tap)** and **shotguns (Knockback)** now always costs **+1 AP** (like a regular aimed shot) for characters with the **Fast Shot** trait.
 ### Regen Mod
 - "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
+### Traits Plus
+- Fixed a bug where Fast_Metabolism = 0 did not disable the new Trait effect, but merely reverted its description to the original one.
 
 
 ## Latest Version v2.0.3
