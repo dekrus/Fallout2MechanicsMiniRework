@@ -1847,10 +1847,14 @@ procedure restore_faster_healing_ranks begin
    set_perk_ranks(PERK_faster_healing, 2);
 end
 
+procedure restore_faster_healing_lvl_req begin
+   set_perk_level(PERK_faster_healing, 3);
+end
+
 procedure apply_perk_state(variable state) begin
    if (state == 1) then begin
       if fast_metabolism_no_passive_regen > 0 then begin
-         set_perk_level(PERK_faster_healing, 9);
+         set_perk_level(PERK_faster_healing, 6);
          set_perk_desc(PERK_faster_healing, trait_msg(51101 + PERK_faster_healing));
       end
       else
@@ -1868,7 +1872,7 @@ procedure apply_perk_state(variable state) begin
    end
    else if (state == 2) then begin
       if fast_metabolism_no_passive_regen > 0 then begin
-         set_perk_level(PERK_faster_healing, 9);
+         set_perk_level(PERK_faster_healing, 6);
          set_perk_desc(PERK_faster_healing, trait_msg(41101 + PERK_faster_healing));
       end
       else
@@ -1889,39 +1893,54 @@ procedure apply_perk_state(variable state) begin
       set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
-      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+      if gFasterHealingPerk > 0 then
          set_perk_level(PERK_faster_healing, 12);
+      else
+         set_perk_level(PERK_faster_healing, 3);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
       set_perk_stat_mag(PERK_faster_healing, 6 - v1_2_new_install);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
+
+         tap_key(0xC8);
+         call restore_faster_healing_lvl_req when is_perk_window_open == 0;
       end
    end
    else if (state == 4) then begin
       set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
-      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+      if gFasterHealingPerk > 0 then
          set_perk_level(PERK_faster_healing, 12);
+      else
+         set_perk_level(PERK_faster_healing, 3);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
       set_perk_stat_mag(PERK_faster_healing, 6 - v1_2_new_install);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
+
+         tap_key(0xC8);
+         call restore_faster_healing_lvl_req when is_perk_window_open == 0;
       end
    end
    else begin
       set_perk_desc(PERK_faster_healing, trait_msg(1101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
-      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+      if gFasterHealingPerk > 0 then
          set_perk_level(PERK_faster_healing, 12);
+      else
+         set_perk_level(PERK_faster_healing, 3);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
       set_perk_stat_mag(PERK_faster_healing, 0);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
+
+         tap_key(0xC8);
+         call restore_faster_healing_lvl_req when is_perk_window_open == 0;
       end
    end
 end

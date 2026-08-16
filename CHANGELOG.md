@@ -9,8 +9,10 @@
 - "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
 ### Traits Plus
 - Fixed a bug where Fast_Metabolism = 0 did not disable the new Trait effect, but merely reverted its description to the original one.
-- Added a new .ini option to disable the passive regeneration effect of the Fast Metabolism Plus trait.
+- Added a new .ini option to disable the passive regeneration effect of Fast Metabolism Plus.
 - Slightly reworded trait descriptions in English to fully fit the description window for sfall 5+.
+- Increased level requirement for Faster Healing rank 2 from lvl 3 to 9.
+- Increased level requirement for Faster Healing rank 1 from lvl 3 to 6 for characters with the Fast Metabolism trait when `fast_metabolism_no_passive_regen` is enabled.
 
 ## Latest Version v2.0.3
 ### Medical Tools
