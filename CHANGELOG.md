@@ -9,7 +9,8 @@
 - "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
 ### Traits Plus
 - Fixed a bug where Fast_Metabolism = 0 did not disable the new Trait effect, but merely reverted its description to the original one.
-
+- Added a new .ini option to disable the passive regeneration effect of the Fast Metabolism Plus trait.
+- Slightly reworded trait descriptions in English to fully fit the description window for sfall 5+.
 
 ## Latest Version v2.0.3
 ### Medical Tools
