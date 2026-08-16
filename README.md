@@ -219,10 +219,10 @@ Some perks have been reworked (more to come later).
 **Swift Learner** (1 rank):
 - Grants a +25% bonus whenever experience points are earned.
 
-**Faster Healing** (2 ranks without Fast Metabolism, 1 rank with Fast Metabolism; a perks point refund occurs if the player had more than 1 rank and gained the trait):
-- Rank 1 (without Fast Metabolism): +2 to healing rate. Fully recovers health and all injuries in less than a day of rest (via Pip-Boy rest, not on the world map).
-- Rank 2 (without Fast Metabolism): +6 to healing rate (total). HP regen at half effectiveness and 1 guaranteed injury healed every 5 seconds.
-- Rank 1 (with Fast Metabolism): x2 passive health regeneration from Fast Metabolism.
+**Faster Healing** (2 ranks without Fast Metabolism, 1 rank with Fast Metabolism; a perk points refund occurs if the player had more than 1 rank and gained the trait):
+- Rank 1 (without Fast Metabolism): Fully recovers health and heals all injuries in less than a day of rest (via Pip-Boy rest, not on the world map). Requires level 3.
+- Rank 2 (without Fast Metabolism): +6 to healing rate. HP regen (at half the effectiveness of the Fast Metabolism Plus trait) and 1 guaranteed injury healed every 5 seconds. Requires level 9.
+- Rank 1 (with Fast Metabolism): Increases passive health regeneration from Fast Metabolism by x2. Requires level 6.
 
 **Pyromaniac** (1 rank):
 - +5 flat damage to fire attacks.
