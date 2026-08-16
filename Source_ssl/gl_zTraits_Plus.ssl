@@ -3,6 +3,7 @@
 #define JINXED_MISS 5
 #define ONE_HANDER_HIT_BONUS 20
 #define ONE_HANDER_CRIT_ROLL_BONUS 5
+//#define FAST_META_HR_PENALTY 5
 #define SKILLED_HIT_BONUS 4
 #define DRUG_MAX_STATS 18
 #define NumEffects 0
@@ -215,6 +216,7 @@
 #define msg_player_many_hp_healed   (trait_msg(12))
 #define finesse_to_hit_bonus     10
 #define one_hander_stat_bonus  ("TPOHTBST")
+//#define fast_metabolism_no_passive_regen_penalty  ("FMNPRHRP")
 #define TOUGHNESS_MAP_ARRAY_NAME   ("f2mmr_toughness")
 #define TOUGHNESS_BONUS_PER_RANK 10
 
@@ -270,6 +272,7 @@ variable gSwiftLearnerBonus;
 
 // TRAIT_fast_metabolism
 variable fast_metabolism;
+variable fast_metabolism_no_passive_regen;
 variable fast_metabolism_MMR_regen;
 variable fast_metabolism_fast_healing_perk_stat = "FMMRTPFH";
 variable gLastRegenTime;
@@ -401,6 +404,22 @@ procedure weapon_is_two_handed(variable weapon) begin
    end
    return is_two_handed;
 end
+
+
+//procedure fast_metabolism_no_passive_regen_penalty_remove begin
+   //variable current_penalty = get_sfall_global_int(fast_metabolism_no_passive_regen_penalty);
+   //if current_penalty == 0 then
+      //return;
+   //set_critter_extra_stat(real_dude_obj, STAT_heal_rate, (get_critter_extra_stat(real_dude_obj, STAT_heal_rate) + current_penalty));
+   //set_sfall_global(fast_metabolism_no_passive_regen_penalty, 0);
+//end
+//
+//procedure fast_metabolism_no_passive_regen_penalty_add begin
+   //if get_sfall_global_int(fast_metabolism_no_passive_regen_penalty) != 0 then
+      //return;
+   //set_critter_extra_stat(real_dude_obj, STAT_heal_rate, (get_critter_extra_stat(real_dude_obj, STAT_heal_rate) - FAST_META_HR_PENALTY));
+   //set_sfall_global(fast_metabolism_no_passive_regen_penalty, FAST_META_HR_PENALTY);
+//end
 
 procedure one_hander_bonus_remove begin
    if get_sfall_global_int(one_hander_stat_bonus) <= 0 then
@@ -1264,7 +1283,7 @@ procedure dude_timed_hp_regen begin
    variable on_global_map;
    variable game_time_now;
 
-   if (fast_metabolism <= 0 andAlso gFasterHealingPerk < 2) orElse fast_metabolism_MMR_regen > 0 then begin
+   if (fast_metabolism <= 0 andAlso gFasterHealingPerk < 2) orElse fast_metabolism_MMR_regen > 0 orElse (fast_metabolism_no_passive_regen > 0 andAlso gFasterHealingPerk <= 0) then begin
       gLastRegenTime = 0;
       timer_is_up = 0;
       return;
@@ -1830,7 +1849,12 @@ end
 
 procedure apply_perk_state(variable state) begin
    if (state == 1) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(31101 + PERK_faster_healing));
+      if fast_metabolism_no_passive_regen > 0 then begin
+         set_perk_level(PERK_faster_healing, 9);
+         set_perk_desc(PERK_faster_healing, trait_msg(51101 + PERK_faster_healing));
+      end
+      else
+         set_perk_desc(PERK_faster_healing, trait_msg(31101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 1);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
@@ -1843,8 +1867,14 @@ procedure apply_perk_state(variable state) begin
       set_perk_stat_mag(PERK_faster_healing, 8);
    end
    else if (state == 2) then begin
-      set_perk_desc(PERK_faster_healing, trait_msg(21101 + PERK_faster_healing));
-         set_perk_ranks(PERK_faster_healing, 1);
+      if fast_metabolism_no_passive_regen > 0 then begin
+         set_perk_level(PERK_faster_healing, 9);
+         set_perk_desc(PERK_faster_healing, trait_msg(41101 + PERK_faster_healing));
+      end
+      else
+         set_perk_desc(PERK_faster_healing, trait_msg(21101 + PERK_faster_healing));
+      set_perk_ranks(PERK_faster_healing, 1);
+
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 11 + (read_int(0x66BE44) == TRAIT_fast_metabolism andAlso read_int(0x66BE40) >= 0));
@@ -1859,8 +1889,10 @@ procedure apply_perk_state(variable state) begin
       set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
+      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+         set_perk_level(PERK_faster_healing, 12);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+      set_perk_stat_mag(PERK_faster_healing, 6 - v1_2_new_install);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
@@ -1870,8 +1902,10 @@ procedure apply_perk_state(variable state) begin
       set_perk_desc(PERK_faster_healing, trait_msg(11101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
+      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+         set_perk_level(PERK_faster_healing, 12);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 4 - v1_2_new_install);
+      set_perk_stat_mag(PERK_faster_healing, 6 - v1_2_new_install);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
@@ -1881,8 +1915,10 @@ procedure apply_perk_state(variable state) begin
       set_perk_desc(PERK_faster_healing, trait_msg(1101 + PERK_faster_healing));
       set_perk_ranks(PERK_faster_healing, 2);
       set_perk_chr(PERK_faster_healing, 0);
+      if gFasterHealingPerk > 0 andAlso fast_metabolism_no_passive_regen > 0 then
+         set_perk_level(PERK_faster_healing, 12);
       set_perk_stat(PERK_faster_healing, STAT_heal_rate);
-      set_perk_stat_mag(PERK_faster_healing, 2);
+      set_perk_stat_mag(PERK_faster_healing, 0);
       if in_char_screen > 0 then begin
          if gFasterHealingPerk > 0 then
             write_int(0x5707D0, 13);
@@ -3594,12 +3630,16 @@ procedure get_real_dude_traits begin
       if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
          if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) then begin
             fast_metabolism = 1;
-            if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 then begin
+            //if fast_metabolism_no_passive_regen > 0 then
+               //call fast_metabolism_no_passive_regen_penalty_add;
+
+            if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 andAlso fast_metabolism_no_passive_regen <= 0 then begin
                add_global_timer_event(50, timed_hp_regen);
                timer_is_up = 1;
             end
          end else begin
             fast_metabolism = 0;
+            //call fast_metabolism_no_passive_regen_penalty_remove;
          end
       end
 
@@ -3716,7 +3756,7 @@ procedure get_real_dude_traits begin
    end
 
    gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
-   if timer_is_up <= 0 andAlso fast_metabolism_MMR_regen <= 0 andAlso gFasterHealingPerk >= 2 then begin
+   if timer_is_up <= 0 andAlso fast_metabolism_MMR_regen <= 0 andAlso (gFasterHealingPerk >= 2 orElse (fast_metabolism_no_passive_regen > 0 andAlso gFasterHealingPerk > 0)) then begin
       add_global_timer_event(50, timed_hp_regen);
       timer_is_up = 1;
    end
@@ -4272,13 +4312,19 @@ procedure set_traits_desc begin
          continue;
       end
       trait_ini_path_desc = perks_ini_path+"|t" + trait_num + "|Desc";
-      new_trait_desc = trait_msg(trait_desc_offset + trait_num);
+
       if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
          new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
       end
       else if et_tu > 0 andAlso trait_num == TRAIT_skilled then begin
          new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
       end
+      else if fast_metabolism_no_passive_regen == 1 andAlso trait_num == TRAIT_fast_metabolism then begin
+         new_trait_desc = trait_msg(5000+(trait_desc_offset) + trait_num);
+      end
+      else
+         new_trait_desc = trait_msg(trait_desc_offset + trait_num);
+
       trait_desc = get_ini_string(trait_ini_path_desc);
       //if new_version <= 0 then begin
          trait_ini_path_desc_plus = perks_ini_path + "|t" + trait_num + "|Traits_plus_desc_is_set";
@@ -4296,8 +4342,23 @@ procedure set_traits_desc begin
             // TRAIT_fast_metabolism + 4 heal_rate
             trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
             if trait_stat_mod == "" orElse trait_stat_mod <= 0 then begin
+               if fast_metabolism_no_passive_regen > 0 then
+                  set_ini_setting(perks_ini_path+"|t0|StatMod","14|-2");
+               else
+                  set_ini_setting(perks_ini_path+"|t0|StatMod","14|4");
+               ini_was_set = 1;
+            end
+            else if fast_metabolism_no_passive_regen > 0 andAlso (trait_stat_mod != "14|-2" orElse trait_desc != new_trait_desc) then begin
+               set_ini_setting(perks_ini_path+"|t0|StatMod","14|-2");
+               ini_was_set = 1;
+            end
+            else if fast_metabolism_no_passive_regen <= 0 andAlso trait_stat_mod != "14|4" then begin
                set_ini_setting(perks_ini_path+"|t0|StatMod","14|4");
                ini_was_set = 1;
+            end
+            if ini_was_set then begin
+               set_ini_setting(trait_ini_path_desc, new_trait_desc);
+               set_ini_setting(trait_ini_path_desc_plus, 1);
             end
          end
          else if trait_num == TRAIT_bruiser then begin
@@ -4374,7 +4435,7 @@ procedure set_traits_desc begin
          else if trait_num == TRAIT_fast_metabolism then begin
             // TRAIT_fast_metabolism - 4 heal_rate
             trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
-            if trait_stat_mod == "14|4" then begin
+            if trait_stat_mod == "14|4" orElse trait_stat_mod == "14|-2"  then begin
                set_ini_setting(perks_ini_path+"|t0|StatMod","");
                ini_was_set = 1;
             end
@@ -4642,7 +4703,7 @@ procedure COMBATTURN begin
       intface_redraw;
    end
 
-   if (fast_metabolism > 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 andAlso critter == real_dude_obj andAlso turn_status == COMBAT_TURN_END then begin
+   if (fast_metabolism > 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 andAlso critter == real_dude_obj andAlso turn_status == COMBAT_TURN_END andAlso not(fast_metabolism_no_passive_regen > 0 andAlso gFasterHealingPerk <= 0) then begin
       remaining = 50 - ((game_time - gLastRegenTime) % 50);
       if (remaining <= 0) then
          remaining = 50;
@@ -4662,9 +4723,14 @@ procedure set_dude_traits_from_ini begin
    if fast_metabolism <= 0 then begin
       set_array(disabled_traits_arr, TRAIT_fast_metabolism, (TRAIT_fast_metabolism + 1));
       fast_metabolism = -1;
+      //call fast_metabolism_no_passive_regen_penalty_remove;
    end
-   else if get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod") > 0 then
-      fast_metabolism_MMR_regen = 1;
+   else begin
+      if get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|RegenMod") > 0 then
+         fast_metabolism_MMR_regen = 1;
+
+      fast_metabolism_no_passive_regen = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|fast_metabolism_no_passive_regen");
+   end
 
    bruiser = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Bruiser");
    if bruiser <= 0 then begin
@@ -4771,9 +4837,19 @@ procedure rm_traits_desc begin
          end
          trait_ini_path_desc = perks_ini_path+"|t" + trait_num + "|Desc";
          new_trait_desc = trait_msg(trait_desc_offset + trait_num);
-      if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
-         new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
-      end
+
+         if Sonora > 0 andAlso trait_num == TRAIT_bloody_mess then begin
+            new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
+         end
+         else if et_tu > 0 andAlso trait_num == TRAIT_skilled then begin
+            new_trait_desc = trait_msg((trait_desc_offset*10) + trait_num);
+         end
+         else if fast_metabolism_no_passive_regen == 1 andAlso trait_num == TRAIT_fast_metabolism then begin
+            new_trait_desc = trait_msg(5000+(trait_desc_offset) + trait_num);
+         end
+         else
+            new_trait_desc = trait_msg(trait_desc_offset + trait_num);
+
          trait_desc = get_ini_string(trait_ini_path_desc);
          if trait_desc == new_trait_desc then begin
             set_ini_setting(trait_ini_path_desc, "");
@@ -4783,7 +4859,7 @@ procedure rm_traits_desc begin
       end
 
       trait_stat_mod = get_ini_string(perks_ini_path+"|t0|StatMod");
-      if trait_stat_mod == "14|4" then begin
+      if trait_stat_mod == "14|4" orElse trait_stat_mod == "14|-2"  then begin
          set_ini_setting(perks_ini_path+"|t0|StatMod","");
          ini_was_set = 1;
       end
@@ -5226,7 +5302,7 @@ procedure RESTTIMER begin
    variable min_heal;
    variable crip_chance;
    variable crip_count;
-   if gFasterHealingPerk != 1 then
+   if gFasterHealingPerk != 1 andAlso not(fast_metabolism > 0 andAlso fast_metabolism_no_passive_regen == 2) then
       return;
 
    if get_critter_stat(real_dude_obj, STAT_heal_rate) <= 0 then
@@ -5381,6 +5457,7 @@ procedure start begin
       end
       if TraitsPlus <= 0 then begin
          call one_hander_bonus_remove;
+         //call fast_metabolism_no_passive_regen_penalty_remove;
          //call check_toughness_bonus(true);
          //if ver_major <= 4 then
             //call sfall_4_unset_unarmed_dmg_bytes;
@@ -5487,9 +5564,11 @@ procedure start begin
       call set_new_perk_stats;
 
       if (fast_metabolism >= 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 then begin
-         gLastRegenTime = game_time - random(10,30);
-         add_global_timer_event(gLastRegenTime + 50, timed_hp_regen);
-         timer_is_up = 1;
+         if fast_metabolism_no_passive_regen <= 0 orElse (fast_metabolism > 0 andAlso gFasterHealingPerk > 0) then begin
+            gLastRegenTime = game_time - random(10,30);
+            add_global_timer_event(gLastRegenTime + 50, timed_hp_regen);
+            timer_is_up = 1;
+         end
          gGlobalMapSpeedMult = get_ini_setting("ddraw.ini|Misc|WorldMapTimeMod");
          if gGlobalMapSpeedMult > 0 then begin
             if gGlobalMapSpeedMult > 100 then

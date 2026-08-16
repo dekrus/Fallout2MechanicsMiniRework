@@ -302,6 +302,7 @@ variable gDudeRegenBonus;
 variable gLastTagHr;
 variable new_regpois_msg;
 variable RegenMod;
+variable fast_metabolism_no_passive_regen;
 variable regen_repeat_ticks;
 variable regen_stimpak_ticks;
 variable last_timed_event_time;
@@ -4537,7 +4538,8 @@ procedure update_fast_meta_flag begin
       gIsDudeFastMetaPlus = has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism);
    end
    gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
-   gDudeRegenBonus = (gIsDudeFastMetaPlus > 0) bwor ((TraitsPlus > 0) bwand (gFasterHealingPerk >= 2));
+   //gDudeRegenBonus = (gIsDudeFastMetaPlus > 0) bwor ((TraitsPlus > 0) bwand (gFasterHealingPerk >= 2));
+   gDudeRegenBonus = ((gIsDudeFastMetaPlus > 0) bwand (fast_metabolism_no_passive_regen < 1)) bwor ((TraitsPlus > 0) bwand (gFasterHealingPerk >= 2));
 end
 
 procedure GAMEMODECHANGE begin
@@ -7197,6 +7199,7 @@ procedure start begin
          end
          sfall_unsafescripting = get_ini_setting("ddraw.ini|Debugging|AllowUnsafeScripting");
          if RegenMod > 0 then begin
+            fast_metabolism_no_passive_regen = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|fast_metabolism_no_passive_regen");
             call update_fast_meta_flag;
             ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_OPTION);
             if ECCO_heal_tweak > 0 then begin

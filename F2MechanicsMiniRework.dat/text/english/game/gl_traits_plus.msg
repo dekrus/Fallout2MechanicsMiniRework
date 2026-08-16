@@ -1,4 +1,4 @@
-{1}{}{Traits updated.}
+{1}{}{Traits updated. }
 {2}{}{Game will exit. Restart the game.}
 {3}{}{1.2en}
 
@@ -40,15 +40,15 @@
 #
 #   TRAIT DESCRIPTIONS
 #
-{200}{}{Your metabolic rate is lightning fast. Wounds and injuries heal before your eyes, but rapid cell division leaves you weak to radiation and poison. Chems last half as long, yet heal and cleanse you a third more effectively.}
-{201}{}{A little slower, but a little bigger. You may not hit as often, but they'll feel it when you do! Your Action Points are lowered, but your Strength and Health are increased, and each melee, unarmed, or thrown attack (except grenades) deals double damage.}
+{200}{}{Your metabolic rate is lightning fast. Wounds and injuries heal before your very eyes, but rapid cell division leaves you weak to radiation and poison. Chems last half as long, yet heal and cleanse you a third more effectively.}
+{201}{}{A little slower, but a little bigger. You may not hit as often, but they'll feel it when you do! Your Action Points are lowered, but Strength and Health are increased, and each melee, unarmed, or thrown attack (except grenades) deals double damage.}
 {202}{}{You are not quite as big as other people, but that never slowed you down. You can't carry as much, but you are more agile, stealthy, and harder to hit.}
 {203}{}{One of your hands is very dominant. You excel with single-handed weapons, and can still use them if both arms are crippled. One-handed critical hits are slightly more devastating, but two-handed weapons cause a problem.}
 {204}{}{Your attacks show a lot of finesse. You don't do as much damage, but you are more accurate and cause more frequent and powerful critical hits. The more accurate you are, the deadlier your crits.}
-{205}{}{By not paying attention to threats, you act a lot faster. Your Armor Class is reduced to just what you're wearing, but your Sequence is increased. Moving reduces your next attack's accuracy, but lowers its AP cost.}
+{205}{}{By not paying attention to any threats, you can act a lot faster. Your base Armor Class is reduced to zero, but your Sequence increases. Moving reduces your next attack's accuracy but lowers its AP cost.}
 {206}{}{You swing harder, not better. Your attacks are very brutal, but lack finesse. Your melee, unarmed, and thrown attacks (except grenades) hit harder, ignore some armor, and can knock targets down, but your critical hits are much weaker.}
 {207}{}{You don't have time to aim for a targeted attack, because you attack faster than normal people. It costs you one less action point for guns and thrown weapons.}
-{208}{}{By some strange twist of fate, people around you die violently. You always see the worst way a person can die. Each kill or injury you inflict restores some Action Points, but critical failures are far more brutal for everyone.}
+{208}{}{By some strange twist of fate, people around you die violently. You always see the worst way a person can die. Each kill or injury you inflict restores some AP, but critical failures are more brutal for everyone.}
 {209}{}{The good thing is that everyone around you suffers more misses and critical failures in combat. The bad thing is, so do you!}
 {210}{}{You studied less-combative skills as you were growing up. Your combat skills start at a lower level, but First Aid, Doctor, Speech and Barter are substantially improved.}
 {211}{}{You are more easily addicted to chems. Your chance to become addicted is twice normal, but their effects are 50% stronger and can permanently enhance your body. You also recover from addictions faster.}
@@ -113,10 +113,12 @@
 #
 #   PERK DESCRIPTIONS
 #
-{1108}{}{Your wounds close and bones mend with astonishing speed. You gain +2 to healing rate and fully recover health and all injuries in less than a day of rest.}
-{11108}{}{You gain +6 to healing rate. Wounds and injuries heal right before your eyes!}
+{1108}{}{Your wounds close and bones mend with astonishing speed. In less than a day of rest, you fully heal every injury and restore all your health.}
+{11108}{}{Your healing rate surges by 6, sparking a furious regeneration - all wounds and injuries heal right before your very eyes!}
 {21108}{}{Your metabolism has reached a new level. The health regeneration effect from Fast Metabolism is doubled.}
 {31108}{}{Your metabolism has reached a new level. You gain +8 to healing rate.}
+{41108}{}{Your metabolism reaches its biological peak, triggering health regeneration.}
+{51108}{}{Your metabolism reaches its biological peak, granting you +8 to healing rate and triggering regeneration.}
 {1113}{}{When you are tough, you take less damage. Each level of this Perk adds +%d%% to your resistance to all damage types.}
 {1130}{}{Enemies find you frustratingly hard to hit. You gain +5 to Armor Class, and the maximum chance to hit you is reduced by 5%.}
 {1151}{}{You are indeed a Swift Learner with this Perk, as it gives you an additional +%d%% bonus whenever you earn experience points. This is best taken early.}
@@ -127,9 +129,14 @@
 {11207}{}{You have become more efficient with any weapon. Strength requirements for all weapons and burst fire recoil are reduced by 3. Your area attacks can now deal critical damage to every target in the area of effect.}
 
 #
-#   SONORA
+#   SONORA \ ET TU
 #
 {1008}{}{Hot Blood}
 {2008}{}{By some strange twist of fate, critical failures become more dangerous, and everyone dies in the worst way possible. But at least you know Spanish, and each kill restores some of your Action Points.}
 {1014}{}{Skilled}
 {2014}{}{Since you spent more time improving your skills, you are more accurate, your failures are rarer and less severe, and you start with better skill levels. Stronger perks become available earlier, but you gain a perk every four levels.}
+
+#
+#   Other
+#
+{5200}{}{Your metabolic rate is twice normal. Chems heal and cleanse you a third more effectively, but they last only half as long, and you are much less resistant to radiation and poison.}
