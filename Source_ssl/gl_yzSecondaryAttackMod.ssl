@@ -8045,8 +8045,15 @@ inline procedure set_getting_up_anim(variable critter) begin
 end
 
 procedure COMBATTURN begin
-   if get_sfall_arg_at(0) <= 0 then begin
+   variable turn_status = get_sfall_arg;
+   variable critter = get_sfall_arg;
+   if turn_status <= 0 then begin
       call lvar_full_reset();
+   end
+   //force CALCAPCOST at start of turn for gAimedFastShotTweakEnabled
+   else if turn_status == 1 andAlso critter == dude_obj then begin
+      if gAimedFastShotTweakEnabled > 0 andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) then
+         intface_redraw;
    end
 end
 
