@@ -4033,14 +4033,8 @@ procedure plasma_alt_explosion begin
    if blast_radius <= 2 then begin
       pid = PID_EXPLOSION_EMP_2;
       exlposion_2 = create_object_sid(pid, tar_tile, target_elevation, -1);
-      if sfall_510 > 0 then begin
-         set_flags(exlposion_2, FLAGS_OBJECT_PROJECTILE);
-         set_object_data(exlposion_2, OBJ_DATA_LIGHT_DISTANCE, 8);
-         set_object_data(exlposion_2, OBJ_DATA_LIGHT_INTENSITY, 0x10000);
-      end
-      else begin
-         set_flags(exlposion_2, FLAGS_OBJECT_PROJECTILE_visible);
-      end
+      set_flags(exlposion_2, FLAGS_OBJECT_PROJECTILE_visible);
+      obj_set_light_level(exlposion_2, 60, 8);
    end
    else begin
       if gWeaponDamageType == DMG_emp orElse gWeaponDamageType == DMG_electrical then
@@ -4048,15 +4042,9 @@ procedure plasma_alt_explosion begin
       sfx = "WHP1XXX1";
    end
    exlposion = create_object_sid(pid, tar_tile, target_elevation, -1);
+   set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
+   obj_set_light_level(exlposion, 60, 8);
 
-   if sfall_510 > 0 then begin
-      set_flags(exlposion, FLAGS_OBJECT_PROJECTILE);
-      set_object_data(exlposion, OBJ_DATA_LIGHT_DISTANCE, 8);
-      set_object_data(exlposion, OBJ_DATA_LIGHT_INTENSITY, 0x10000);
-   end
-   else begin
-      set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
-   end
 
 
    reg_anim_combat_check(0);
@@ -4098,14 +4086,8 @@ procedure plasma_alt_explosion begin
       for (rot = 0; rot < 6; rot++) begin
          expl_tile = tile_num_in_direction(tar_tile, rot, 1);
          exlposion = create_object_sid(pid, expl_tile, target_elevation, -1);
-         if sfall_510 > 0 then begin
-            set_flags(exlposion, FLAGS_OBJECT_PROJECTILE);
-            set_object_data(exlposion, OBJ_DATA_LIGHT_DISTANCE, 8);
-            set_object_data(exlposion, OBJ_DATA_LIGHT_INTENSITY, 0x10000);
-         end
-         else begin
-            set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
-         end
+         set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
+         obj_set_light_level(exlposion, 60, 8);
          set_object_data(exlposion, OBJ_DATA_CUR_X, get_object_data(exlposion, OBJ_DATA_CUR_X) - 4);
          set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 20);
          reg_anim_begin();
@@ -4681,13 +4663,9 @@ procedure callback_electrical_chain_dmg_next_tile begin
 
    emp_expl = create_object_sid(PID_EXPLOSION_EMP_1, check_tile, target_elevation, -1);
    set_object_data(emp_expl, OBJ_DATA_FID, TRNBLK_FID);
-   if sfall_510 > 0 then begin
-      set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE);
-      set_object_data(emp_expl, OBJ_DATA_LIGHT_DISTANCE, 5);
-      set_object_data(emp_expl, OBJ_DATA_LIGHT_INTENSITY, 0x4000);
-   end
-   else
-      set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE_visible);
+   set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE_visible);
+   obj_set_light_level(emp_expl, 25, 5);
+
 
    set_object_data(emp_expl, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
    reg_anim_combat_check(0);
@@ -4726,13 +4704,8 @@ procedure callback_electrical_chain_dmg_next_tile begin
          cur_tile = tile_num_in_direction(cur_tile, cur_rot, 1);
          expl_on_path = create_object_sid(PID_EXPLOSION_EMP_1, cur_tile, target_elevation, -1);
          set_object_data(expl_on_path, OBJ_DATA_FID, TRNBLK_FID);
-         if sfall_510 > 0 then begin
-            set_flags(expl_on_path, FLAGS_OBJECT_PROJECTILE);
-            set_object_data(expl_on_path, OBJ_DATA_LIGHT_DISTANCE, 5);
-            set_object_data(expl_on_path, OBJ_DATA_LIGHT_INTENSITY, 0x4000);
-         end
-         else
-            set_flags(expl_on_path, FLAGS_OBJECT_PROJECTILE_visible);
+         set_flags(expl_on_path, FLAGS_OBJECT_PROJECTILE_visible);
+         obj_set_light_level(expl_on_path, 25, 5);
 
          set_object_data(expl_on_path, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
          set_array(gPulseExplToDestroyArray, expl_on_path, 1);
@@ -4760,13 +4733,8 @@ procedure callback_electrical_chain_dmg_next_tile begin
 
          proj = create_object_sid(PID_EXPLOSION_EMP_1, check_tile, target_elevation, -1);
          set_object_data(proj, OBJ_DATA_FID, TRNBLK_FID);
-         if sfall_510 > 0 then begin
-            set_flags(proj, FLAGS_OBJECT_PROJECTILE);
-            set_object_data(proj, OBJ_DATA_LIGHT_DISTANCE, 5);
-            set_object_data(proj, OBJ_DATA_LIGHT_INTENSITY, 0x4000);
-         end
-         else
-            set_flags(proj, FLAGS_OBJECT_PROJECTILE_visible);
+         set_flags(proj, FLAGS_OBJECT_PROJECTILE_visible);
+         obj_set_light_level(proj, 25, 5);
 
          set_object_data(proj, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
          reg_anim_combat_check(0);
@@ -5881,8 +5849,7 @@ procedure electrical_chain_dmg_fail(variable attacker) begin
    set_object_data(emp_expl, OBJ_DATA_FID, TRNBLK_FID);
    set_object_data(emp_expl, OBJ_DATA_OUTLINE, OUTLINE_BLINKING_CYAN);
    set_flags(emp_expl, FLAGS_OBJECT_PROJECTILE);
-   set_object_data(emp_expl, OBJ_DATA_LIGHT_DISTANCE, 6);
-   set_object_data(emp_expl, OBJ_DATA_LIGHT_INTENSITY, 0x8000);
+   obj_set_light_level(emp_expl, 50, 6);
 
 
    reg_anim_combat_check(0);
@@ -6500,15 +6467,15 @@ procedure get_weapon_custom_alt_attack_type(variable weapon_pid) begin
       return 0;
 
    //TODO make it so that some/all alternate firing modes can be combined
-   if is_in_array(weapon_pid, PlasmaCustomPids) then
+   if array_exists(PlasmaCustomPids) andAlso is_in_array(weapon_pid, PlasmaCustomPids) then
       allowed_types = allowed_types bwor alt_fire_plasma;
-   else if is_in_array(weapon_pid, DoubleTapCustomPids) then
+   else if array_exists(DoubleTapCustomPids) andAlso is_in_array(weapon_pid, DoubleTapCustomPids) then
       allowed_types = allowed_types bwor alt_fire_double_tap;
-   else if is_in_array(weapon_pid, ElecCustomPids) then
+   else if array_exists(ElecCustomPids) andAlso is_in_array(weapon_pid, ElecCustomPids) then
       allowed_types = allowed_types bwor alt_fire_pulse;
-   else if is_in_array(weapon_pid, LaserCustomPids) then
+   else if array_exists(LaserCustomPids) andAlso is_in_array(weapon_pid, LaserCustomPids) then
       allowed_types = allowed_types bwor alt_fire_laser;
-   else if is_in_array(weapon_pid, GaussCustomPids) then
+   else if array_exists(GaussCustomPids) andAlso is_in_array(weapon_pid, GaussCustomPids) then
       allowed_types = allowed_types bwor alt_fire_gauss;
    else if get_proto_data(weapon_pid, PROTO_WP_CALIBER) == gShotgunCaliber then
       allowed_types = allowed_types bwor alt_fire_shotgun_knockback;
@@ -6519,20 +6486,20 @@ end
 procedure is_wpn_alt_fire_prohibited(variable weapon_pid, variable alt_fire_type) begin
    variable custom_alt_attack_type = get_weapon_custom_alt_attack_type(weapon_pid);
 
-   if custom_alt_attack_type > 0 andALso (custom_alt_attack_type bwand alt_fire_type) != alt_fire_type then
+   if custom_alt_attack_type > 0 andAlso (custom_alt_attack_type bwand alt_fire_type) != alt_fire_type then
       return 1;
 
-   if alt_fire_type == alt_fire_plasma andAlso is_in_array(weapon_pid, PlasmaDisabledPids) then
+   if alt_fire_type == alt_fire_plasma andAlso array_exists(PlasmaDisabledPids) andAlso is_in_array(weapon_pid, PlasmaDisabledPids) then
       return 1;
-   else if alt_fire_type == alt_fire_pulse andAlso is_in_array(weapon_pid, PulseDisabledPids) then
+   else if alt_fire_type == alt_fire_pulse andAlso array_exists(PulseDisabledPids) andAlso is_in_array(weapon_pid, PulseDisabledPids) then
       return 1;
-   else if alt_fire_type == alt_fire_laser andAlso is_in_array(weapon_pid, LaserDisabledPids) then
+   else if alt_fire_type == alt_fire_laser andAlso array_exists(LaserDisabledPids) andAlso is_in_array(weapon_pid, LaserDisabledPids) then
       return 1;
-   else if alt_fire_type == alt_fire_double_tap andAlso is_in_array(weapon_pid, DoubleTapDisabledPids) then
+   else if alt_fire_type == alt_fire_double_tap andAlso array_exists(DoubleTapDisabledPids) andAlso is_in_array(weapon_pid, DoubleTapDisabledPids) then
       return 1;
-   else if alt_fire_type == alt_fire_shotgun_knockback andAlso is_in_array(weapon_pid, ShotgunKnockbackDisabledPids) then
+   else if alt_fire_type == alt_fire_shotgun_knockback andAlso array_exists(ShotgunKnockbackDisabledPids) andAlso is_in_array(weapon_pid, ShotgunKnockbackDisabledPids) then
       return 1;
-   else if alt_fire_type == alt_fire_gauss andAlso is_in_array(weapon_pid, GaussDisabledPids) then
+   else if alt_fire_type == alt_fire_gauss andAlso array_exists(GaussDisabledPids) andAlso is_in_array(weapon_pid, GaussDisabledPids) then
       return 1;
 
    return 0;
@@ -6542,7 +6509,6 @@ end
 procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attack_type, variable bodypart = BODY_HIT_TORSO, variable attacker = -1) begin
    variable pid;
    variable cur_atk_anim;
-   variable apply_ammo;
    variable temp_alt_fire;
    variable ammo_pid;
    variable damage_type;
@@ -6555,7 +6521,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    pid = obj_pid(weapon_ptr);
 
    if ShotgunSecondaryAttackMod > 0 andAlso ShotgunForced < 1 then
-      if (get_proto_data(pid, PROTO_WP_CALIBER) == gShotgunCaliber orElse is_in_array(pid, ShotgunKnockbackCustomPids)) andAlso not(is_in_array(pid, ShotgunKnockbackDisabledPids)) andAlso get_weapon_ammo_count(weapon_ptr) > 0 then
+      if (get_proto_data(pid, PROTO_WP_CALIBER) == gShotgunCaliber orElse (array_exists(ShotgunKnockbackCustomPids) andAlso is_in_array(pid, ShotgunKnockbackCustomPids))) andAlso not(is_in_array(pid, ShotgunKnockbackDisabledPids)) andAlso get_weapon_ammo_count(weapon_ptr) > 0 then
          return 2;
 
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
@@ -6566,7 +6532,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    alt_fire_selected = 0;
 
    if LaserSecondaryAttackMod > 0 andAlso LaserForced < 1 andAlso (attacker == dude_obj orElse LaserSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_laser) < 1 then begin
-      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_laser) orElse (is_in_array(pid, LaserCustomPids)) then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_laser) orElse (array_exists(LaserCustomPids) andAlso is_in_array(pid, LaserCustomPids)) then begin
          if LaserForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_laser, 1, 0) >= 0) then begin
             alt_fire_selected = temp_alt_fire;
             return 1;
@@ -6574,8 +6540,8 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
       end
    end
 
-   if PlasmaSecondaryAttackMod > 0 andAlso PlasmaForced < 1 andAlso (attacker == dude_obj orElse PlasmaSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_plasma) < 1then begin
-      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_plasma) orElse (is_in_array(pid, PlasmaCustomPids)) then begin
+   if PlasmaSecondaryAttackMod > 0 andAlso PlasmaForced < 1 andAlso (attacker == dude_obj orElse PlasmaSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_plasma) < 1 then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_plasma) orElse (array_exists(PlasmaCustomPids) andAlso is_in_array(pid, PlasmaCustomPids)) then begin
          if PlasmaForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_plasma, 1, 0) >= 0) then begin
             alt_fire_selected = temp_alt_fire;
             return 1;
@@ -6584,7 +6550,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    end
 
    if ElecSecondaryAttackMod > 0 andAlso ElecForced < 1 andAlso (attacker == dude_obj orElse ElecSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_pulse) < 1 then begin
-      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_electrical) orElse (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_emp) orElse (is_in_array(pid, ElecCustomPids)) then begin
+      if (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_electrical) orElse (get_proto_data(pid, PROTO_WP_DMG_TYPE) == DMG_emp) orElse (array_exists(ElecCustomPids) andAlso is_in_array(pid, ElecCustomPids)) then begin
          if ElecForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_pulse, 1, 0) >= 0) then begin
             alt_fire_selected = temp_alt_fire;
             return 1;
@@ -6594,7 +6560,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
 
    if GaussSecondaryAttackMod > 0 andAlso GaussForced < 1 andAlso (attacker == dude_obj orElse GaussSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_gauss) < 1 then begin
       ammo_pid = get_proto_data(pid, PROTO_WP_AMMO_PID);
-      if (is_in_array(pid, GaussCustomPids) orElse (ammo_pid == PID_2MM_EC_AMMO) orElse (Sonora > 0 andAlso pid == pid_sonora_railgun)) then begin
+      if (array_exists(GaussCustomPids) andAlso is_in_array(pid, GaussCustomPids)) orElse (ammo_pid == PID_2MM_EC_AMMO) orElse (Sonora > 0 andAlso pid == pid_sonora_railgun) then begin
          if GaussForced > 0 orElse is_alt_fire_aimed(attacker, bodypart) then begin
             alt_fire_selected = temp_alt_fire;
             return 1;
@@ -6608,7 +6574,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
       cur_wpn_anim = get_proto_data(pid, PROTO_WP_ANIM);
 
       if ((cur_wpn_anim == WPN_ANIM_PISTOL orElse cur_wpn_anim == WPN_ANIM_SMG)
-      andAlso damage_type == DMG_normal_dam) orElse is_in_array(pid,DoubleTapCustomPids) then begin
+      andAlso damage_type == DMG_normal_dam) orElse (array_exists(DoubleTapCustomPids) andAlso is_in_array(pid,DoubleTapCustomPids)) then begin
          if PistolDoubleTapForced == 1 orElse (PistolDoubleTapForced > 1 andAlso get_ranged_weapon_skill_lvl(dude_obj, weapon_ptr) >= PistolDoubleTapForced) then begin
             forced = 1;
          end
@@ -6740,7 +6706,7 @@ procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variabl
    ammo_pid = get_proto_data(pid, PROTO_WP_AMMO_PID);
 
    if (GaussForced > 0 orElse is_alt_fire_aimed(attacker, bodypart)) then begin
-      if is_in_array(pid, GaussCustomPids) orElse ammo_pid == PID_2MM_EC_AMMO orElse (Sonora > 0 andAlso pid == pid_sonora_railgun) then begin
+      if (array_exists(GaussCustomPids) andAlso is_in_array(pid, GaussCustomPids)) orElse (ammo_pid == PID_2MM_EC_AMMO) orElse (Sonora > 0 andAlso pid == pid_sonora_railgun) then begin
          alt_fire_selected = alt_fire_gauss;
          return 1;
       end
