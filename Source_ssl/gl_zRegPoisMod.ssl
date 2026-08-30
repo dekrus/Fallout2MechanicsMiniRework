@@ -6338,7 +6338,6 @@ procedure COMBATTURN begin
          if PoisonMod > 0 andAlso critter != dude_obj andAlso critter_turn_status == COMBAT_TURN_START andAlso critter_cur_hp > 0 andAlso get_object_data(critter, OBJ_DATA_WHO_HIT_ME) != 0 andAlso not(is_really_dead(critter, critter_state(critter), critter_cur_hp)) andAlso not(critter_is_crippled(critter)) andAlso not(critter_is_fleeing(critter)) andAlso dude_hp > 0 then begin
             if tail_used <= 0 andAlso combat_med_tool_used <= 0 andAlso combat_direct_controll != 1 then begin
                call critter_try_use_antidote_heal(critter, critter_in_party, 0, PoisonTickDmg, 1);
-               tail_used = 1;
             end
             if NPCsUsePoisonTails != 0  andAlso tail_used <= 0 andAlso combat_med_tool_used <= 0 andAlso combat_direct_controll != 1 then begin
                wpn = critter_inven_obj(critter, INVEN_TYPE_RIGHT_HAND);
