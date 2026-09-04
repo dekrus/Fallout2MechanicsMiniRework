@@ -117,6 +117,7 @@
 #define min_hr_to_regen_base 6
 #define min_hr_to_regen(critter) (min_hr_to_regen_base - 5 * gDudeRegenBonus * (critter == real_dude_obj))
 #define poison_overdose_damage(critter) (get_critter_stat(critter, STAT_max_hp) * 3)
+#define burn_min_dmg_molotov 4
 #define burn_min_dmg_molotov_non_party 1
 #define burn_min_dmg 8
 #define burn_min_dmg_fire_non_party 6
@@ -918,26 +919,27 @@ procedure calc_burn_count(variable critter, variable dmg, variable dmg_type) beg
    critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
 
    if critter_cur_hp > dmg then begin
-         critter_in_party = is_in_array(critter, party_member_list(0));
-         if wpn_pid == PID_MOLOTOV_COCKTAIL then begin
-            if critter_in_party then
-               min_dmg_to_burn = burn_min_dmg;
-            else
-               min_dmg_to_burn = burn_min_dmg_molotov_non_party;
-         end
-         else if dmg_type == DMG_fire then begin
-            if critter_in_party then
-               min_dmg_to_burn = burn_min_dmg;
-            else
-               min_dmg_to_burn = burn_min_dmg_fire_non_party;
-         end
-         else if dmg_type == DMG_electrical orElse wpn_pid == DMG_laser then
-            min_dmg_to_burn = burn_min_dmg * 2;
-         else
-            min_dmg_to_burn = dmg_type + burn_min_dmg;
+      critter_in_party = is_in_array(critter, party_member_list(0));
 
-         if dmg >= min_dmg_to_burn then begin
-            burn_count = dmg / min_dmg_to_burn;
+      if wpn_pid == PID_MOLOTOV_COCKTAIL then begin
+         if critter_in_party then
+            min_dmg_to_burn = burn_min_dmg_molotov;
+         else
+            min_dmg_to_burn = burn_min_dmg_molotov_non_party;
+      end
+      else if dmg_type == DMG_fire then begin
+         if critter_in_party then
+            min_dmg_to_burn = burn_min_dmg;
+         else
+            min_dmg_to_burn = burn_min_dmg_fire_non_party;
+      end
+      else if dmg_type == DMG_electrical orElse wpn_pid == DMG_laser then
+         min_dmg_to_burn = burn_min_dmg * 2;
+      else
+         min_dmg_to_burn = dmg_type + burn_min_dmg;
+
+      if dmg >= min_dmg_to_burn then begin
+         burn_count = dmg / min_dmg_to_burn;
 
          if burn_count > 0 then begin
             if critter_in_party then begin
@@ -3618,6 +3620,16 @@ procedure USEOBJON begin
    tar_state = critter_state(target);
 
 
+   // radscorp tails
+   if (objpid == gPID_SMALL_SCORPION_TAIL orElse objpid == PID_SCORPION_TAIL) andAlso (user_in_party orElse user == dude_obj) andAlso (target_in_party orElse target == dude_obj) then begin
+      call weapon_apply_poison_USEOBJON(target, user, objpid);
+   end
+
+   if critter_kill_type(target) == KILL_TYPE_robot_kills then begin
+      set_sfall_return(0);
+      return;
+   end
+
    if RegenMod > 0 then begin
       g_drug_was_removed = 0;
          //prevent stimpak overusage
@@ -3723,11 +3735,6 @@ procedure USEOBJON begin
             gPoisHypoTryTarget = target;
             gPoisHypoTryCount += 1;
          end
-      end
-
-      // radscorp tails
-      if (objpid == gPID_SMALL_SCORPION_TAIL orElse objpid == PID_SCORPION_TAIL) andAlso (user_in_party orElse user == dude_obj) andAlso (target_in_party orElse target == dude_obj) then begin
-         call weapon_apply_poison_USEOBJON(target, user, objpid);
       end
    end
 end
@@ -5829,7 +5836,7 @@ procedure delayed_add_burn begin
             continue;
          end
 
-         if is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
+         if critter_kill_type(critter) == KILL_TYPE_robot_kills orElse is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
             continue;
          end
 
@@ -5841,7 +5848,7 @@ procedure delayed_add_burn begin
    end
    if len_array(array_add_burn) > 0 then begin
       if combat_data > 0 then begin
-         foreach critter:target_num in array_add_burn begin
+         foreach target_num:critter in array_add_burn begin
             if critter <= 0 then begin
                continue;
             end
@@ -5850,7 +5857,7 @@ procedure delayed_add_burn begin
                continue;
             end
 
-            if is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
+            if critter_kill_type(critter) == KILL_TYPE_robot_kills orElse is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
                continue;
             end
 
@@ -5864,6 +5871,8 @@ procedure delayed_add_burn begin
             else if target_num == aoe_main_attacker_num then begin
                dmg = get_object_data(combat_data, C_ATTACK_DAMAGE_SOURCE);
             end
+            else
+               dmg = 0;
 
             if dmg <= 0 then
                continue;
@@ -5997,29 +6006,29 @@ procedure REAL_COMBATDAMAGE_RSULTS_check(variable target) begin
             if bullet_count > 1 then
                poison_to_add = random(poison_to_add, poison_to_add * bullet_count);
          end
-         if dmgtoatkr > 0 andAlso (wpnanim <= WPN_ANIM_SPEAR or wpnanim == 0x0E or wpnanim == 0x0B or wpnanim == 0x0C) then
+         if dmgtoatkr > 0 andAlso atk_kill_type != KILL_TYPE_robot_kills andAlso (wpnanim <= WPN_ANIM_SPEAR or wpnanim == 0x0E or wpnanim == 0x0B or wpnanim == 0x0C) then
             poison_to_add_attacker += wpn_poison + get_array(array_add_poison, target);
       end
 
       // add burn effect from fire/plasma dmg (reduce healing rate) with delay
-      if RegenMod > 0 andAlso (wpndmgtype >= DMG_normal_dam orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp then begin
+      if RegenMod > 0 andAlso (wpndmgtype >= DMG_laser orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp then begin
          aoe_dmg_type = wpndmgtype;
-
-        //burn effect for target
+         //burn effect for target
          if target != get_object_data(combat_data, C_ATTACK_TARGET) then begin
-            if target == get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * aoe_target_num))) then begin
+            if target == get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * aoe_target_num))) andAlso tar_kill_type != KILL_TYPE_robot_kills then begin
                aoe_target_num += 1;
                if aoe_target_num > 6 then begin
                   aoe_target_num = 6;
                end
-               set_array(array_add_burn, target, aoe_target_num);
+               set_array(array_add_burn, aoe_target_num, target);
             end
          end
-         else if target != attacker then begin
-            set_array(array_add_burn, target, aoe_main_target_num);
+         else if target != attacker andAlso tar_kill_type != KILL_TYPE_robot_kills then begin
+            set_array(array_add_burn, aoe_main_target_num, target);
          end
-         if pyromaniac <= 0 andAlso dmgtoatkr > 0 then begin
-            set_array(array_add_burn, attacker, aoe_main_attacker_num);
+         //burn effect for attacker
+         if pyromaniac <= 0 andAlso dmgtoatkr > 0 andAlso atk_kill_type != KILL_TYPE_robot_kills then begin
+            set_array(array_add_burn, aoe_main_attacker_num, attacker);
          end
       end
 
@@ -7037,28 +7046,29 @@ procedure COMBATDAMAGE begin
             if bullet_count > 1 then
                poison_to_add = random(poison_to_add, poison_to_add * bullet_count);
          end
-         if dmgtoatkr > 0 andAlso (wpnanim <= WPN_ANIM_SPEAR or wpnanim == 0x0E or wpnanim == 0x0B or wpnanim == 0x0C) then
+         if dmgtoatkr > 0 andAlso atk_kill_type != KILL_TYPE_robot_kills andAlso (wpnanim <= WPN_ANIM_SPEAR or wpnanim == 0x0E or wpnanim == 0x0B or wpnanim == 0x0C) then
             poison_to_add_attacker += wpn_poison + get_array(array_add_poison, target);
       end
 
       // add burn effect from fire/plasma dmg (reduce healing rate) with delay
-      if RegenMod > 0 andAlso (wpndmgtype >= DMG_normal_dam orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp  then begin
+      if RegenMod > 0 andAlso (wpndmgtype >= DMG_laser orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp then begin
          aoe_dmg_type = wpndmgtype;
-        //burn effect for target
+         //burn effect for target
          if target != get_object_data(combat_data, C_ATTACK_TARGET) then begin
-            if target == get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * aoe_target_num))) then begin
+            if target == get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * aoe_target_num))) andAlso tar_kill_type != KILL_TYPE_robot_kills then begin
                aoe_target_num += 1;
                if aoe_target_num > 6 then begin
                   aoe_target_num = 6;
                end
-               set_array(array_add_burn, target, aoe_target_num);
+               set_array(array_add_burn, aoe_target_num, target);
             end
          end
-         else if target != attacker then begin
-            set_array(array_add_burn, target, aoe_main_target_num);
+         else if target != attacker andAlso tar_kill_type != KILL_TYPE_robot_kills then begin
+            set_array(array_add_burn, aoe_main_target_num, target);
          end
-         else if pyromaniac <= 0 then begin
-            set_array(array_add_burn, attacker, aoe_main_attacker_num);
+         //burn effect for attacker
+         if pyromaniac <= 0 andAlso dmgtoatkr > 0 andAlso atk_kill_type != KILL_TYPE_robot_kills then begin
+            set_array(array_add_burn, aoe_main_attacker_num, attacker);
          end
       end
 
