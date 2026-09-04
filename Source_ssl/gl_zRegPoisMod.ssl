@@ -117,7 +117,9 @@
 #define min_hr_to_regen_base 6
 #define min_hr_to_regen(critter) (min_hr_to_regen_base - 5 * gDudeRegenBonus * (critter == real_dude_obj))
 #define poison_overdose_damage(critter) (get_critter_stat(critter, STAT_max_hp) * 3)
+#define burn_min_dmg_molotov_non_party 1
 #define burn_min_dmg 8
+#define burn_min_dmg_fire_non_party 6
 #define aoe_main_target_num 15
 #define aoe_main_attacker_num 99
 #define get_poison_float(critter, critter_id)  (get_poison(critter) - get_array(id_to_poison_fraction,critter_id))
@@ -896,15 +898,14 @@ procedure delayed_add_poison begin
    end
 end
 
-procedure calc_burn_count(variable critter, variable dmg) begin
+procedure calc_burn_count(variable critter, variable dmg, variable dmg_type) begin
    variable wpn;
    variable wpn_pid;
-   variable dmg_type = aoe_dmg_type;
    variable burn_count;
    variable critter_in_party;
    variable min_dmg_to_burn;
    variable critter_cur_hp;
-   if critter <= 0 orElse dmg <= 0 orElse dmg_type <= DMG_normal_dam then
+   if critter <= 0 orElse dmg <= 0 orElse dmg_type == DMG_normal_dam orElse dmg_type == DMG_emp then
       return 0;
 
    if combat_data > 0 then
@@ -914,27 +915,36 @@ procedure calc_burn_count(variable critter, variable dmg) begin
       wpn_pid = obj_pid(wpn);
    end
 
-   if dmg_type == DMG_fire orElse dmg_type == DMG_explosion orElse dmg_type == DMG_plasma orElse dmg_type == DMG_laser orElse wpn_pid == PID_MOLOTOV_COCKTAIL then begin
-      critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
+   critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
 
-      if critter_cur_hp > dmg then begin
-         if dmg_type == DMG_fire orElse wpn_pid == PID_MOLOTOV_COCKTAIL then
-            min_dmg_to_burn = burn_min_dmg;
+   if critter_cur_hp > dmg then begin
+         critter_in_party = is_in_array(critter, party_member_list(0));
+         if wpn_pid == PID_MOLOTOV_COCKTAIL then begin
+            if critter_in_party then
+               min_dmg_to_burn = burn_min_dmg;
+            else
+               min_dmg_to_burn = burn_min_dmg_molotov_non_party;
+         end
+         else if dmg_type == DMG_fire then begin
+            if critter_in_party then
+               min_dmg_to_burn = burn_min_dmg;
+            else
+               min_dmg_to_burn = burn_min_dmg_fire_non_party;
+         end
+         else if dmg_type == DMG_electrical orElse wpn_pid == DMG_laser then
+            min_dmg_to_burn = burn_min_dmg * 2;
          else
             min_dmg_to_burn = dmg_type + burn_min_dmg;
 
          if dmg >= min_dmg_to_burn then begin
             burn_count = dmg / min_dmg_to_burn;
 
-            critter_in_party = is_in_array(critter, party_member_list(0));
+         if burn_count > 0 then begin
             if critter_in_party then begin
-               burn_count = round(burn_count / 4.0 * (combat_diff + 1));
+               burn_count = ceil(burn_count / 5.0 * (combat_diff + 1));
             end
             else begin
-               if wpn_pid == PID_MOLOTOV_COCKTAIL then begin
-                  burn_count += 4;
-               end
-               burn_count += 1;
+               burn_count += random(1 + min_dmg_to_burn/2, min_dmg_to_burn);
             end
          end
       end
@@ -2412,7 +2422,7 @@ inline procedure queue_shift_all_events_time(variable critter_id, variable time_
    end
 end
 
-procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count, variable cur_game_time = 0) begin
+procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count, variable is_taking_damage = 0) begin
    variable critter_id = check_id(critter);
    //variable critter_pid;
    variable drug_stat;
@@ -2437,15 +2447,15 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
    variable new_burn_20;
    variable critter_cur_stat;
    variable tag_is_active;
+   variable cur_game_time;
 
-   if get_critter_stat(critter, STAT_current_hp) >= get_critter_stat(critter, STAT_max_hp) then begin
+   if is_taking_damage <= 0 andAlso get_critter_stat(critter, STAT_current_hp) >= get_critter_stat(critter, STAT_max_hp) then begin
       new_burn_count = 0;
    end
    else begin
       new_burn_count = cur_burn_count + burn_count;
    end
-   if cur_game_time == 0 then
-      cur_game_time = game_time;
+   cur_game_time = game_time;
    //if new_burn_count > max_burn_count then
 
       //new_burn_count = max_burn_count;
@@ -3997,7 +4007,7 @@ procedure set_poison_apply_items begin
 end
 
 
-procedure set_drugs_proto begin
+procedure set_proto begin
    if PoisonMod > 0 then begin
       // poison injection moddification
       if Sonora <= 0 then begin
@@ -4047,12 +4057,21 @@ procedure set_drugs_proto begin
    if RegenMod > 0 then begin
 
       if Sonora <= 0 then begin
-         if WAHR != "" then
+         if WAHR != "" then begin
             set_proto_data(PID_ALIEN, PROTO_CR_BONUS_HEALING_RATE, WAHR);
-         if TWAHR != "" then
+            set_proto_data(PID_ALIEN, PROTO_CR_BONUS_FIRE_DT, 0);
+            set_proto_data(PID_ALIEN, PROTO_CR_BONUS_FIRE_DT, 0);
+         end
+         if TWAHR != "" then begin
             set_proto_data(PID_TOUGH_ALIEN, PROTO_CR_BONUS_HEALING_RATE, TWAHR);
-         if ET_TU <= 0 andAlso WAQHR != "" then
+            set_proto_data(PID_TOUGH_ALIEN, PROTO_CR_BONUS_FIRE_DT, 0);
+            set_proto_data(PID_TOUGH_ALIEN, PROTO_CR_BONUS_FIRE_DT, 5);
+         end
+         if ET_TU <= 0 andAlso WAQHR != "" then begin
             set_proto_data(PID_QUEEN_ALIEN, PROTO_CR_BONUS_HEALING_RATE, WAQHR);
+            set_proto_data(PID_QUEEN_ALIEN, PROTO_CR_BONUS_FIRE_DT, 1);
+            set_proto_data(PID_QUEEN_ALIEN, PROTO_CR_BONUS_FIRE_DT, 10);
+         end
          if CENHR!= "" then
             set_proto_data(PID_CENTAUR, PROTO_CR_BONUS_HEALING_RATE, CENHR);
          if MCENHR != "" then
@@ -4607,7 +4626,7 @@ procedure GAMEMODECHANGE begin
       if (game_mode bwand WORLDMAP) then begin
          set_stat_min(STAT_heal_rate, 0);
          on_global_map = 1;
-         call set_drugs_proto;
+         call set_proto;
          cur_map_event_array_name = event_queue_array_name + ("WM");
          event_queue_array = load_array(cur_map_event_array_name);
          if not event_queue_array then begin
@@ -5797,12 +5816,12 @@ procedure delayed_add_burn begin
    variable burn_amount;
    variable target_num;
    variable dmg;
-   if aoe_dmg_type != DMG_fire andAlso aoe_dmg_type != DMG_plasma andAlso aoe_dmg_type != DMG_explosion then
-      return;
 
+   if aoe_dmg_type == DMG_emp orElse aoe_dmg_type == DMG_normal_dam then
+      return;
    if len_array(import_alt_attack_aoe_targets_arr) > 0 then begin
       foreach critter:dmg in import_alt_attack_aoe_targets_arr begin
-         if critter <= 0 then begin
+         if critter <= 0 orElse dmg <= 0 then begin
             continue;
          end
 
@@ -5810,13 +5829,13 @@ procedure delayed_add_burn begin
             continue;
          end
 
-         if dmg <= 0 orElse is_critter_dead(critter) orElse get_critter_stat(critter, STAT_current_hp) <= 0 then begin
+         if is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
             continue;
          end
 
-         burn_count = calc_burn_count(critter, dmg);
+         burn_count = calc_burn_count(critter, dmg, aoe_dmg_type);
          if burn_count > 0 then begin
-            call add_burn_effect_to_saved_arrays(critter, burn_count);
+            call add_burn_effect_to_saved_arrays(critter, burn_count, true);
          end
       end
    end
@@ -5831,7 +5850,7 @@ procedure delayed_add_burn begin
                continue;
             end
 
-            if is_critter_dead(critter) orElse get_critter_stat(critter, STAT_current_hp) <= 0 then begin
+            if is_really_dead(critter, critter_state(critter), get_critter_stat(critter, STAT_current_hp)) then begin
                continue;
             end
 
@@ -5845,9 +5864,13 @@ procedure delayed_add_burn begin
             else if target_num == aoe_main_attacker_num then begin
                dmg = get_object_data(combat_data, C_ATTACK_DAMAGE_SOURCE);
             end
-            burn_count = calc_burn_count(critter, dmg);
+
+            if dmg <= 0 then
+               continue;
+
+            burn_count = calc_burn_count(critter, dmg, aoe_dmg_type);
             if burn_count > 0 then begin
-               call add_burn_effect_to_saved_arrays(critter, burn_count);
+               call add_burn_effect_to_saved_arrays(critter, burn_count, true);
             end
          end
       end
@@ -5856,9 +5879,7 @@ procedure delayed_add_burn begin
    end
 end
 
-
-procedure REAL_COMBATDAMAGE_RSULTS begin
-   variable target;
+procedure REAL_COMBATDAMAGE_RSULTS_check(variable target) begin
    variable attacker;
    variable dmgtotar;
    variable dmgtoatkr;
@@ -5888,10 +5909,9 @@ procedure REAL_COMBATDAMAGE_RSULTS begin
    variable poison_to_add;
    variable poison_to_add_attacker;
    if combat_data > 0 then begin
-
-      target = get_object_data(combat_data, C_ATTACK_TARGET);
       if target <= 0 then
          return;
+
       attacker = get_object_data(combat_data, C_ATTACK_SOURCE);
       dmgtotar = get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET);
       dmgtoatkr = get_object_data(combat_data, C_ATTACK_DAMAGE_SOURCE);
@@ -5982,8 +6002,9 @@ procedure REAL_COMBATDAMAGE_RSULTS begin
       end
 
       // add burn effect from fire/plasma dmg (reduce healing rate) with delay
-      if RegenMod > 0 andAlso (wpndmgtype == DMG_fire orElse wpndmgtype == DMG_plasma orElse wpnpid == PID_MOLOTOV_COCKTAIL) then begin
+      if RegenMod > 0 andAlso (wpndmgtype >= DMG_normal_dam orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp then begin
          aoe_dmg_type = wpndmgtype;
+
         //burn effect for target
          if target != get_object_data(combat_data, C_ATTACK_TARGET) then begin
             if target == get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * aoe_target_num))) then begin
@@ -5997,7 +6018,7 @@ procedure REAL_COMBATDAMAGE_RSULTS begin
          else if target != attacker then begin
             set_array(array_add_burn, target, aoe_main_target_num);
          end
-         else if pyromaniac <= 0 then begin
+         if pyromaniac <= 0 andAlso dmgtoatkr > 0 then begin
             set_array(array_add_burn, attacker, aoe_main_attacker_num);
          end
       end
@@ -6020,6 +6041,27 @@ procedure REAL_COMBATDAMAGE_RSULTS begin
          end
       end
    end
+end
+
+
+procedure REAL_COMBATDAMAGE_RSULTS begin
+   variable target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable num_targets;
+   variable i;
+   if target <= 0 then
+      return;
+   call REAL_COMBATDAMAGE_RSULTS_check(target);
+
+   num_targets = get_object_data(combat_data, C_ATTACK_AROUND_NUMBER);
+   if num_targets > 6 then
+      num_targets = 6;
+
+   for (i := 0; i < num_targets; i++) begin
+      target = get_object_data(combat_data, (C_ATTACK_TARGET1 + (4 * i)));
+      if target > 0 then
+         call REAL_COMBATDAMAGE_RSULTS_check(target);
+   end
+
    if gOneTimeCall <= 0 andAlso (len_array(array_add_poison) > 0 orElse len_array(array_add_burn) > 0 orElse len_array(import_alt_attack_aoe_targets_arr) > 0) then begin
       gOneTimeCall = 1;
       call delayed_add_poison;
@@ -6720,7 +6762,7 @@ procedure map_enter_p_proc begin
          end
       end
 
-      call set_drugs_proto;
+      call set_proto;
       //clear_array(id_to_ptr_array);
       foreach critter in critters_array begin
          critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
@@ -7000,7 +7042,7 @@ procedure COMBATDAMAGE begin
       end
 
       // add burn effect from fire/plasma dmg (reduce healing rate) with delay
-      if RegenMod > 0 andAlso (wpndmgtype == DMG_fire orElse wpndmgtype == DMG_plasma orElse wpnpid == PID_MOLOTOV_COCKTAIL) then begin
+      if RegenMod > 0 andAlso (wpndmgtype >= DMG_normal_dam orElse wpnpid == PID_MOLOTOV_COCKTAIL) andAlso wpndmgtype != DMG_emp  then begin
          aoe_dmg_type = wpndmgtype;
         //burn effect for target
          if target != get_object_data(combat_data, C_ATTACK_TARGET) then begin
