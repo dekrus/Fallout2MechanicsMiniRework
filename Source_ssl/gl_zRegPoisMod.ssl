@@ -2450,6 +2450,7 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
    variable critter_cur_stat;
    variable tag_is_active;
    variable cur_game_time;
+   variable critter_type;
 
    if is_taking_damage <= 0 andAlso get_critter_stat(critter, STAT_current_hp) >= get_critter_stat(critter, STAT_max_hp) then begin
       new_burn_count = 0;
@@ -2487,6 +2488,9 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
    end
    if burn_count > 0 then begin
 
+      critter_type = critter_kill_type(critter);
+      if (critter == dude_obj andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_metabolism)) orElse critter_type == KILL_TYPE_alien_kills orElse critter_type == KILL_TYPE_centaur_kills then
+         fast_meta = 1;
 
       if combat_is_initialized andAlso critter != combat_turn_critter andAlso get_array(combatants_array, critter_id) > 0 then
          cur_game_time += 50;
@@ -2518,7 +2522,8 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
          end
          drug_stat2_value2 = -drug_stat2_value1;
          duration1 = random(100000, 300000) * burn_diff_20;
-
+         if fast_meta then
+            duration1 /= 6;
          //heal rate;
          //instant effect
          call add_and_save_stats(critter, critter_id, drug_stat, drug_stat_value1, true, true);
@@ -2532,8 +2537,9 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
       drug_stat = STAT_heal_rate;
       drug_stat_value1 = -1 * burn_count;
       drug_stat_value2 = -drug_stat_value1;
-      duration1 = 600 * cur_burn_count + random(15000, 50000) * burn_count;
-
+      duration1 = 600 * cur_burn_count + random(10000, 20000) * burn_count;
+      if fast_meta then
+         duration1 /= 6;
       //heal rate;
       //instant effect
       if drug_stat_value1 != 0 then begin
