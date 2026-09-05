@@ -89,6 +89,8 @@ procedure Drop_Weapons(variable target,variable hand) begin
             end
          end
          move_to(weapon, dropped_hex, elevation(target));
+         if target == dude_obj then
+            intface_redraw;
       end
    end
    //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
@@ -117,6 +119,8 @@ procedure Drop_Weapons(variable target,variable hand) begin
             end
          end
          move_to(weapon, dropped_hex, elevation(target));
+         if target == dude_obj then
+            intface_redraw;
       end
    end
 end
