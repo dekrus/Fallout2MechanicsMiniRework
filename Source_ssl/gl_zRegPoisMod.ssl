@@ -946,7 +946,7 @@ procedure calc_burn_count(variable critter, variable dmg, variable dmg_type) beg
                burn_count = ceil(burn_count / 5.0 * (combat_diff + 1));
             end
             else begin
-               burn_count += random(1 + min_dmg_to_burn/2, min_dmg_to_burn);
+               burn_count += random(1, 1 + min_dmg_to_burn/2);
             end
          end
       end
