@@ -19,8 +19,9 @@
 
 #define jinxed_roll_max_value_adress 0x4238BC
 
-#define kamikaze_tohit_penalty 3
-#define kamikaze_walk_div 2
+#define KAMIKAZE_DISCOUNT_ATTACK_ONLY       0
+#define KAMIKAZE_DISCOUNT_ATTACK_RELOAD     1
+#define KAMIKAZE_DISCOUNT_ATTACK_RELOAD_USE 2
 
 #define skilled_perk_level_bonus (4)
 
@@ -337,6 +338,10 @@ variable kamikaze;
 variable kamikaze_ap_used;
 variable kamikaze_hex_walked_num;
 variable kamikaze_last_tile;
+variable kamikaze_tohit_penalty;
+variable kamikaze_walk_div;
+variable kamikaze_ap_discount_type;
+
 
 //TRAIT_finesse
 variable finesse;
@@ -801,8 +806,12 @@ procedure CALCAPCOST begin
    // kamikaze AP cost reduction
    if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
       atk_type = get_sfall_arg_at(1);
-      if atk_type != ATKTYPE_LWEP_RELOAD orElse atk_type != ATKTYPE_RWEP_RELOAD then begin
-         active_item = get_active_weapon(critter);
+      if kamikaze_ap_discount_type >= KAMIKAZE_DISCOUNT_ATTACK_RELOAD orElse (atk_type != ATKTYPE_LWEP_RELOAD andAlso atk_type != ATKTYPE_RWEP_RELOAD andAlso kamikaze_ap_discount_type <= KAMIKAZE_DISCOUNT_ATTACK_ONLY) then begin
+         if active_item == 0 orElse kamikaze_ap_discount_type < KAMIKAZE_DISCOUNT_ATTACK_RELOAD_USE then
+            active_item = get_active_weapon(critter);
+         else
+            active_item = 0;
+
          if active_item == 0 orElse obj_item_subtype(active_item) == item_type_weapon then begin
             is_aimed = get_sfall_arg_at(2);
             orig_ap_cost = get_sfall_arg_at(3);
@@ -834,7 +843,8 @@ procedure CALCAPCOST begin
       end
       //one hander
       if one_hander > 0 then begin
-         active_item = get_active_weapon(critter);
+         if active_item == 0 then
+            active_item = get_active_weapon(critter);
          if active_item > 0 then begin
             if weapon_is_two_handed(active_item) == 0 then begin
                call one_hander_weapon_bonus_add(active_item);
@@ -2200,6 +2210,12 @@ procedure get_all_injures begin
    end
 end
 
+procedure kamikaze_ap_used2 begin
+   kamikaze_hex_walked_num = 0;
+   AutoMoveToAttack_last_ap = 0;
+   intface_redraw;
+end
+
 procedure AFTERHITROLL begin
    variable attack_result = get_sfall_arg;
    variable attacker = get_sfall_arg;
@@ -2216,8 +2232,11 @@ procedure AFTERHITROLL begin
    variable atk_type;
    main_attacker = attacker;
    //kamikaze
-   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
-      kamikaze_ap_used = 1;
+   if kamikaze_hex_walked_num > 0 then begin
+      if kamikaze_hex_walked_num >= kamikaze_walk_div then
+         kamikaze_ap_used = 1;
+
+      call kamikaze_ap_used2 in 0;
    end
 
    if jinxed > 0 then begin
@@ -4299,6 +4318,7 @@ procedure drug_modify(variable drug_obj, variable target) begin
    end
 end
 
+
 procedure USEOBJON begin
    variable target;
    variable obj;
@@ -4306,6 +4326,11 @@ procedure USEOBJON begin
       target = get_sfall_arg_at(0);
       obj = get_sfall_arg_at(2);
       call drug_modify(obj,target);
+   end
+   //kamikaze
+   if kamikaze_hex_walked_num > 0 then begin
+      kamikaze_hex_walked_num = 0;
+      intface_redraw;
    end
 end
 
@@ -4788,6 +4813,17 @@ procedure set_dude_traits_from_ini begin
    if kamikaze <= 0 then begin
       set_array(disabled_traits_arr, TRAIT_kamikaze, (TRAIT_kamikaze + 1));
       kamikaze = -1;
+   end
+   else begin
+      kamikaze_tohit_penalty = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|kamikaze_tohit_penalty_per_step");
+
+      kamikaze_walk_div = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|kamikaze_ap_discount_steps");
+      if kamikaze_walk_div <= 0 then
+         kamikaze_walk_div = 2;
+
+      kamikaze_ap_discount_type = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|kamikaze_ap_discount_type");
+      if kamikaze_ap_discount_type < 0 then
+         kamikaze_ap_discount_type = 0;
    end
 
    heavy_handed = get_ini_setting("mods\\F2MechanicsMiniRework.ini|TraitsPlus|Heavy_Handed");
@@ -5538,7 +5574,7 @@ procedure start begin
       end
 
       register_hook_proc_spec(HOOK_COMBATTURN, COMBATTURN);
-      register_hook_proc(HOOK_CALCAPCOST, CALCAPCOST);
+      register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
       register_hook_proc_spec(HOOK_ONDEATH, ONDEATH);
       register_hook_proc(HOOK_AFTERHITROLL, AFTERHITROLL);
       register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);

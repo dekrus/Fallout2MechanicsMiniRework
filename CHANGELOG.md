@@ -14,6 +14,7 @@
 - Slightly reworded trait descriptions in English to fully fit the description window for sfall 5+.
 - Increased level requirement for Faster Healing rank 2 from lvl 3 to 9.
 - Increased level requirement for Faster Healing rank 1 from lvl 3 to 6 for characters with the Fast Metabolism trait when `fast_metabolism_no_passive_regen` is enabled.
+- Kamikaze AP discount settings (steps per -1 AP, accuracy penalty, affected actions) now adjustable via .ini file.
 
 ## Latest Version v2.0.3
 ### Medical Tools
