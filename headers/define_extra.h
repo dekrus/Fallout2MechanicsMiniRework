@@ -42,6 +42,7 @@
 
 #define ITEM_ACTION_USE       0x00000800  // Use (can be used)
 #define ITEM_ACTION_USEON     0x00001000  // Use On Smth (can be used on anything)
+#define ITEM_ACTION_LOOK      0x00002000  // Look
 #define ITEM_ACTION_PICKUP    0x00008000  // PickUp
 
 #define WEAPON_BIGGUN         0x00000100  // Big Gun
@@ -108,7 +109,7 @@
 #define CFLG_INVULN          1024  // 0x00000400 - Invulnerable (cannot be hurt)
 #define CFLG_FLATTN          2048  // 0x00000800 - Flatten (leaves no dead body)
 #define CFLG_SPECIAL         4096  // 0x00001000 - Special (has a special type of death)
-#define CFLG_RANGED          8192  // 0x00002000 - Range (has extra hand-to-hand range)
+#define CFLG_RANGED          0x2000  // 0x00002000 - Range (has extra hand-to-hand range)
 #define CFLG_NOKNOCKBACK    16384  // 0x00004000 - Knock (cannot be knocked back)
 #define CFLG_NOKNOCKDOWN    CFLG_NOKNOCKBACK  // obsolete
 
@@ -284,7 +285,9 @@
 #define PROTO_CR_BONUS_CRITICAL_CHANCE  (236)
 #define PROTO_CR_BONUS_BETTER_CRITICALS (240)
 #define PROTO_CR_BONUS_NORMAL_DT (244)
+#define PROTO_CR_BONUS_FIRE_DT (252)
 #define PROTO_CR_BONUS_NORMAL_DR (272)
+#define PROTO_CR_BONUS_FIRE_DR (280)
 #define PROTO_CR_BONUS_POISON_DR (304)
 #define PROTO_CR_EXP_VAL (392)
 

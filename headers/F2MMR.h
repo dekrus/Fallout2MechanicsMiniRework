@@ -7,18 +7,25 @@
                                  tap_key(DIK_ESCAPE);
 
 
-
+#define all_injuries (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT bwor DAM_CRIP_LEG_LEFT bwor DAM_CRIP_LEG_RIGHT bwor DAM_BLIND)
 
 
 
 
 //Unsafe
+#define gGameMouseCursor read_int(0x518C0C)
+#define MOUSE_CURSOR_CROSSHAIR 20
 #define get_real_dude_real_base_stat(stat)  (call_offset_r2(0x4AF3E0, real_dude_obj, stat))
 #define set_dude_level(new_level)  write_int(0x6681B0, new_level)
 
 #define tile_refresh_display_disable call_offset_v0(0x4B12A8)
 #define tile_refresh_display_enable  call_offset_v0(0x4B12B4)
 
+#define _combat_turn_running read_int(0x51093C)
+
+#define combat_display read_int(0x510950)
+#define combat_disable_display write_int(0x510950, 0)
+#define combat_enable_display  write_int(0x510950, 1)
 
 #define get_obj_sid(obj_ptr) (get_object_data(obj_ptr, OBJ_DATA_SID))
 
@@ -106,6 +113,7 @@ end
 
 #define get_unique_id(obj) (get_object_data(obj, OBJ_DATA_ID))
 #define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define critter_art_fid2(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFF0000FF)
 #define critter_anim_fid(objFid, animType, rot)       ((rot * 0x10000000) bwor ((animType * 0x10000) bwand 0xFF0000) bwor (objFid bwand 0xF00FFFF))
 #define get_critter_xp(critter_obj)    (get_proto_data(obj_pid(critter_obj), PROTO_CR_EXP_VAL))
 #define can_use_items(critter_type)   (critter_type <= KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_big_boss)

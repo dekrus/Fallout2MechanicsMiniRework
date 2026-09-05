@@ -767,13 +767,22 @@
 #define fade_out                   gfade_out(1)
 #define fade_in                    gfade_in(1)
 
-/* Time Information  (in Ticks) */
+
+///* Time Information  (in Ticks) */
+//#define ONE_GAME_SECOND             (10)
+//#define ONE_GAME_MINUTE             (60 * ONE_GAME_SECOND)
+//#define ONE_GAME_HOUR               (60 * ONE_GAME_MINUTE)
+//#define ONE_GAME_DAY                (24 * ONE_GAME_HOUR)
+//#define ONE_GAME_WEEK               (7 * ONE_GAME_DAY)
+//#define ONE_GAME_MONTH              (30 * ONE_GAME_DAY)
+
+/* Time Information (in Ticks) */
 #define ONE_GAME_SECOND             (10)
-#define ONE_GAME_MINUTE             (60 * ONE_GAME_SECOND)
-#define ONE_GAME_HOUR               (60 * ONE_GAME_MINUTE)
-#define ONE_GAME_DAY                (24 * ONE_GAME_HOUR)
-#define ONE_GAME_WEEK               (7 * ONE_GAME_DAY)
-#define ONE_GAME_MONTH              (30 * ONE_GAME_DAY)
+#define ONE_GAME_MINUTE             (600)
+#define ONE_GAME_HOUR               (36000)
+#define ONE_GAME_DAY                (864000)
+#define ONE_GAME_WEEK               (6048000)
+#define ONE_GAME_MONTH              (25920000)
 
 /* bits */
 #define bit_1                       (1)

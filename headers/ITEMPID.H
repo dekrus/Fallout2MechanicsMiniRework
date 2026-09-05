@@ -239,7 +239,7 @@
 #define PID_PARAMEDICS_BAG                  (409)
 #define PID_MONUMENT_CHUNCK                 (424)
 #define PID_MEDICAL_SUPPLIES                (428)
-
+#define PID_HYPO_HEALING                    (525)
 
 /******************************************************************
 ***************       Container                     ***************

@@ -1,4 +1,5 @@
 /*
+#include "E:\Fallout Tools Pack\sFall_Script_Editor\headers\define_lite.h"
 	Copyright 1998-2003 Interplay Entertainment Corp.  All rights reserved.
 */
 
@@ -18,6 +19,8 @@
 
 // include files that are needed after other declarations are made.
 #include "reppoint.h"
+#include "define_lite.h"
+
 
 
 /*********************************************************
