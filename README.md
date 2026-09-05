@@ -343,7 +343,7 @@ Changes the way the First Aid Kits, Doctor's Bag, and others medical tools are u
 
 **Doctor's Bag:**
 - Can be used during combat if equipped in hands and with at least 50 Doctor skill. NPCs and companions can also use it.
-- Costs 6 AP initially. AP cost decreases with higher skill: 5 AP at 100% skill, 4 AP at 150%, down to 2 AP at 250%.
+- Costs 5 AP initially. AP cost decreases with higher skill: 4 AP at 100% skill, 3 AP at 150%, down to 2 AP at 200%.
 - Healing per AP/skill is higher than with First Aid Kits. Healing amount also depends on your maximum HP and injury severity.
 - Chance to heal a crippled limb is calculated per limb separately, capped at 100% (80% Doctor skill + 20% Doctor's Bag bonus, or 60% skill + 40% Paramedic's Bag bonus).
 
