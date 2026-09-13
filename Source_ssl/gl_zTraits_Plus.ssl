@@ -335,6 +335,8 @@ variable skilled_last_perk_level_bonus = -50;
 variable skilled_prevent_crit_fail;
 
 variable kamikaze;
+variable kamikaze_last_weapon;
+variable kamikaze_last_ammo_count;
 variable kamikaze_ap_used;
 variable kamikaze_hex_walked_num;
 variable kamikaze_last_tile;
@@ -803,7 +805,25 @@ procedure CALCAPCOST begin
    if jinxed_removed > 0 then begin
       call jinxed_restore;
    end
+
    // kamikaze AP cost reduction
+   if kamikaze > 0 andAlso critter == real_dude_obj then begin
+      if active_item == 0 then
+         active_item = get_active_weapon(critter);
+
+      if obj_item_subtype(active_item) == item_type_weapon then begin
+         if kamikaze_ap_used <= 0 andAlso kamikaze_last_weapon == active_item andAlso get_weapon_ammo_count(active_item) > kamikaze_last_ammo_count then begin
+            kamikaze_last_weapon = active_item;
+            kamikaze_last_ammo_count = get_weapon_ammo_count(active_item);
+            kamikaze_hex_walked_num = 0;
+            intface_redraw;
+         end
+         else begin
+            kamikaze_last_weapon = active_item;
+            kamikaze_last_ammo_count = get_weapon_ammo_count(active_item);
+         end
+      end
+   end
    if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
       atk_type = get_sfall_arg_at(1);
       if kamikaze_ap_discount_type >= KAMIKAZE_DISCOUNT_ATTACK_RELOAD orElse (atk_type != ATKTYPE_LWEP_RELOAD andAlso atk_type != ATKTYPE_RWEP_RELOAD andAlso kamikaze_ap_discount_type <= KAMIKAZE_DISCOUNT_ATTACK_ONLY) then begin
