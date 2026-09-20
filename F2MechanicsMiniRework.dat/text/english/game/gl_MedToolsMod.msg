@@ -1,4 +1,4 @@
-{1}{}{To use this item during combat, you must equip it.}
+{1}{}{This item can only be used from the interface panel during combat.}
 {2}{}{You heal the }
 {3}{}{crippled right arm.}
 {4}{}{crippled left arm.}
@@ -31,5 +31,30 @@
 {83}{}{  NO: Use EcCo (disable F2MMR).}
 {84}{}{Game will exit. Restart the game.}
 
-
 {310}{}{ It has supplies for %d/%d uses.}
+
+{1001}{}{This tool can only be used from the interface panel during combat.}
+{1002}{}{You repair the }
+{1003}{}{damaged right manipulator.}
+{1004}{}{damaged left manipulator.}
+{1005}{}{damaged right locomotion system.}
+{1006}{}{damaged left locomotion system.}
+{1007}{}{damaged sensors.}
+{1008}{}{You look fully operational.}
+{1009}{}{%1% looks fully operational.}
+{1010}{}{%1% uses the %2%.}
+{1011}{}{You fail to repair the damage.}
+{1012}{}{You restored %1% integrity.}
+{1013}{}{You aren't skilled enough to use the %1%.}
+{1014}{}{You fail to do any repairs.}
+{1015}{}{%1%: supplies run out.}
+{1018}{}{That does nothing.}
+{1019}{}{It's beyond repair, get over it.}
+{1020}{}{You can't repair what is destroyed.}
+{1021}{}{You aren't skilled enough to repair damaged systems.}
+{1022}{}{You aren't skilled enough to repair damaged systems during combat.}
+{1023}{}{%1% is not suitable for repairing damaged systems.}
+{1024}{}{You receive %1% experience for the successful use of your skills.}
+{1025}{}{Due to your inept handling, you take %2% damage.}
+{1026}{}{Due to your inept handling, %1% takes %2% damage.}
+{1310}{}{It has supplies for %d/%d uses.}
