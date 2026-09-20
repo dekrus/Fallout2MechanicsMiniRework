@@ -22,7 +22,7 @@
 {22}{}{You aren't skilled enough to heal crippling injuries during combat.}
 {23}{}{%1% is not suitable for healing crippling injuries.}
 {24}{}{You receive %1% experience for the successful use of the Doctor skill.}
-{25}{}{Due to your inept handling, you take %2% damage.}
+{25}{}{Your inept handling only made things worse.}
 {26}{}{Due to your inept handling, %1% takes %2% damage.}
 
 {80}{}{Incompatible Medical Tools Mods detected:}
