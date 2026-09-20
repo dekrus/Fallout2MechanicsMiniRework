@@ -57,4 +57,6 @@
 {1024}{}{You receive %1% experience for the successful use of your skills.}
 {1025}{}{Due to your inept handling, you take %2% damage.}
 {1026}{}{Due to your inept handling, %1% takes %2% damage.}
+{1027}{}{%1% repairs itself.}
+{1028}{}{%1% repairs %2%.}
 {1310}{}{It has supplies for %d/%d uses.}
