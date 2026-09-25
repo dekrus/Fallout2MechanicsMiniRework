@@ -1,5 +1,5 @@
 #define Sonora_doc_bag_pid 50
-
+#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
 #define msg_file "gl_MedToolsMod.msg"
 #define crit_fid(critter_obj)    (get_proto_data(obj_pid(critter_obj),PROTO_FID))
 #define modmsg(x) message_str_game(new_mod_msg, x)
@@ -26,16 +26,25 @@
 #define msg_exp 24
 #define msg_critical_miss_dude 25
 #define msg_critical_miss_tar 26
+#define msg_npc_repairs_self 1027
+#define msg_npc_repairs_target 1028
+#define repair_msg 1000
 #define msg_uses_left 310
 #define all_disabilities (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT bwor DAM_CRIP_LEG_LEFT bwor DAM_CRIP_LEG_RIGHT bwor DAM_BLIND)
 #define is_disabled(x) (critter_state(x) bwand all_disabilities)
+#define tool_bonus 20
+#define super_tool_bonus 40
 #define first_aid_kit_bonus 20
 #define field_medic_kit_bonus 40
 #define doctors_bag_bonus 20
 #define paramedics_bag_bonus 40
-#define fa_item_ap_cost   2
-#define doc_item_ap_cost   6
+#define fa_item_ap_cost  2
+#define doc_item_ap_cost  6
+#define repair_item_ap_cost  5
+#define min_doc_ap_cost 2
+#define min_fa_ap_cost 2
 #define min_doc_cmbt 50
+#define min_repair_cmbt 50
 #define min_charges 5
 #define max_charges 5
 #define min_charges_t2 10
@@ -50,9 +59,22 @@
 #define military_fid(critter_obj)   (crit_fid(critter_obj) == 16777217 or crit_fid(critter_obj) == 16777226 or crit_fid(critter_obj) == 16777219 or crit_fid(critter_obj) == 16777309 or crit_fid(critter_obj) == 16777287)
 #define high_tec_fid(critter_obj)   (crit_fid(critter_obj) == 16777287 or crit_fid(critter_obj) == 16777301 or crit_fid(critter_obj) == 16777217)
 #define non_medic_fid(critter_obj)   (crit_fid(critter_obj) == 16777280 or crit_fid(critter_obj) == 16777279 or crit_fid(critter_obj) == 16777253 or crit_fid(critter_obj) == 16777249 or crit_fid(critter_obj) == 16777256 or crit_fid(critter_obj) == 16777261 or crit_fid(critter_obj) == 16777222 or crit_fid(critter_obj) == 16777243 or crit_fid(critter_obj) == 16777336 or crit_fid(critter_obj) == 16777259 or crit_fid(critter_obj) == 16777289 or crit_fid(critter_obj) == 16777288 or crit_fid(critter_obj) == 16777260 or crit_fid(critter_obj) == 16777245 or crit_fid(critter_obj) == 16777255 or crit_fid(critter_obj) == 16777293 or crit_fid(critter_obj) == 16777312 or crit_fid(critter_obj) == 16777258 or crit_fid(critter_obj) == 16777314 or crit_fid(critter_obj) == 16777257)
-#define can_use_items(critter_type) (critter_type == KILL_TYPE_men_kills orElse critter_type == KILL_TYPE_women_kills orElse critter_type == KILL_TYPE_super_mutant_kills orElse critter_type == KILL_TYPE_ghoul_kills orElse critter_type == KILL_TYPE_children_kills orElse critter_type == KILL_TYPE_big_boss)
 #define is_medic(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 4  andAlso ((has_skill(obj, SKILL_DOCTOR) > 35 ) or (has_skill(obj, SKILL_FIRST_AID) > 45 )))
 #define is_brainy(obj) ((can_use_items(critter_kill_type(obj))) andAlso get_critter_base_stat(obj,STAT_iq) > 6 andAlso get_critter_base_stat(obj,STAT_pe) > 6 )
+#define OUTLINE_NOT_DISABLED 0x7FFFFFFF
+#define is_in_prone_anim(critter_anim)  ((critter_anim >= ANIM_fall_back andAlso critter_anim <= ANIM_fall_front_blood) orElse (critter_anim >= ANIM_fall_back_sf andAlso critter_anim <= ANIM_fall_front_blood_sf))
+
+
+#define set_obj_script_fixed_value(obj_sid, value) call_offset_v2(0x4A3B34, obj_sid, value)
+#define set_obj_script_objects(obj_sid, source, target) call_offset_v3(0x4A3B0C, obj_sid, source, target)
+#define exec_obj_script_proc(obj_sid, script_proc_type) call_offset_v2(0x4A4810, obj_sid, script_proc_type)
+
+#define DISPOSITION_NONE        -1
+#define DISPOSITION_CUSTOM      0
+#define DISPOSITION_COWARD      1
+#define DISPOSITION_DEFENSIVE   2
+#define DISPOSITION_AGGRESSIVE  3
+#define DISPOSITION_BERKSERK    4
 
 #define msg_ecco_healing_1 80
 #define msg_ecco_healing_2 81
@@ -66,25 +88,27 @@
 #define Inventory_AP_Cost_ini_AP "mods\\inven_ap_cost.ini|ap_cost|UseItem"
 #define Inventory_AP_Cost_ini_QP "mods\\inven_ap_cost.ini|quick_pocket|ReduceCostBy"
 
+#define timed_event_heal_out_of_combat 1
+
 #include "sfall.h"
 #include "DEFINE.H"
 #include "define_extra.h"
 #include "lib.strings.h"
 #include "F2MMR.h"
 
+
 variable MedToolsMod;
 variable NPCsUseMedTools;
+variable DisableRepairTools;
 variable new_mod_msg;
-variable min_doc_ap_cost = 2;
-variable min_fa_ap_cost = 2;
-variable final_doc_ap_cost;
 variable final_fa_ap_cost;
-variable doc_used;
 variable doc_self_dmg;
 variable ET_TU;
+variable Olympus2207;
 variable Sonora;
-variable healed_limbs;
 variable doc_bag_pid = PID_DOCTORS_BAG;
+variable tool_pid = PID_MULTI_TOOL;
+variable super_tool_pid = PID_SUPER_TOOL_KIT;
 variable sfall_mods_config;
 variable combat_direct_controll;
 variable fo2tweaks_ini_healing;
@@ -92,7 +116,18 @@ variable inven_use_ap_cost;
 variable inven_use_ap_cost_min;
 variable inven_use_ap_cost_quick_pockets_discount;
 variable gInvenCurAP;
-
+variable gCritter;
+variable gTarget;
+variable gItemPid;
+variable gObj;
+variable gApCost;
+variable set_ui_disable;
+variable global_nearest_tile;
+variable global_path_len;
+variable RegenMod;
+variable StimUninjure;
+variable heal_map;
+variable heal_timer_needs_reset;
 
 
 export variable combat_med_tool_used;
@@ -112,101 +147,1725 @@ procedure validate_critter_anim(variable critter, variable animType) begin
    return art_exists(critter_anim_fid(objFid, animType, 0));
 end
 
-procedure reg_anim_magic_hands_middle_combat(variable critter) begin
-   if validate_critter_anim(critter, ANIM_magic_hands_middle) then begin
-      reg_anim_combat_check(0);
-      reg_anim_begin();
-      reg_anim_animate(critter, ANIM_magic_hands_middle, -1);
-      reg_anim_end();
+procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid, variable skip_hand_items = 0) begin
+   variable inv_count = inven_count(inven_obj);
+   variable inv_index;
+   variable item;
+   variable item_charge;
+   variable last_min_charge;
+   variable min_charge_obj = -1;
+   variable left_hand_obj;
+   variable right_hand_obj;
+
+   if skip_hand_items > 0 then begin
+      left_hand_obj = critter_inven_obj2(inven_obj, INVEN_TYPE_LEFT_HAND);
+      right_hand_obj = critter_inven_obj2(inven_obj, INVEN_TYPE_RIGHT_HAND);
+   end
+
+   for (inv_index = 0; inv_index < inv_count; inv_index++) begin
+      item = inven_ptr(inven_obj, inv_index);
+      if skip_hand_items > 0 andAlso (item == right_hand_obj orElse item == left_hand_obj) then
+         continue;
+
+      // Check if item exists and matches charged object PID
+      if item > 0 andAlso obj_pid(item) == charged_obj_pid then begin
+         // Get current charges of the item
+         item_charge = get_object_data(item, OBJ_DATA_CUR_CHARGES);
+         // Update min_charge_obj if uninitialized or current item has fewer charges
+         if min_charge_obj == -1 orElse item_charge < last_min_charge then begin
+            last_min_charge = item_charge;
+            min_charge_obj = item;
+         end
+      end
+   end
+   // Return min_charge_obj if found, otherwise return result of (obj_carrying_pid_obj(inven_obj, charged_obj_pid))
+   if min_charge_obj > 0 then begin
+      return min_charge_obj;
+   end
+   else begin
+      min_charge_obj = obj_carrying_pid_obj(inven_obj, charged_obj_pid);
+      if skip_hand_items > 0 andAlso min_charge_obj > 0 andAlso (min_charge_obj == right_hand_obj orElse min_charge_obj == left_hand_obj) then
+         return 0;
+      return min_charge_obj;
    end
 end
+
+procedure ui_disable begin
+if set_ui_disable > 1 then
+   return;
+
+   game_ui_disable2;
+   set_cursor_animated_watch;
+   set_ui_disable = 2;
+end
+
+procedure ai_allow_continue_turn(variable critter) begin
+   call_offset_v0(0x4227DC);//combat turn
+   set_object_data(critter, OBJ_DATA_OUTLINE, get_object_data(critter, OBJ_DATA_OUTLINE) bwand OUTLINE_NOT_DISABLED);
+   if set_ui_disable <= 0 then begin
+      set_ui_disable = 1;
+      call ui_disable when not(game_ui_is_disabled);
+   end
+end
+procedure get_cheapest_attack_ap_cost(variable critter, variable target_distance) begin
+   variable weapon;
+   variable weapon_pid;
+   variable ap_cost;
+   variable ap_cost_2;
+   variable weapon_range_1;
+   variable weapon_range_2;
+   variable attack1_available;
+   variable attack2_available;
+
+   weapon = critter_inven_obj2(critter, INVEN_TYPE_RIGHT_HAND);
+   if weapon <= 0 then
+      return 3 + target_distance;
+
+   weapon_pid = obj_pid(weapon);
+   ap_cost = get_proto_data(weapon_pid, PROTO_WP_APCOST_1);
+   ap_cost_2 = get_proto_data(weapon_pid, PROTO_WP_APCOST_2);
+   weapon_range_1 = get_proto_data(weapon_pid, PROTO_WP_RANGE_1);
+   weapon_range_2 = get_proto_data(weapon_pid, PROTO_WP_RANGE_2);
+
+   attack1_available = (target_distance <= weapon_range_1);
+   attack2_available = (target_distance <= weapon_range_2);
+
+   if attack1_available andAlso attack2_available then begin
+      if ap_cost_2 < ap_cost then
+         return ap_cost_2;
+      return ap_cost;
+   end
+
+   if attack1_available then
+      return ap_cost;
+
+   if attack2_available then
+      return ap_cost_2;
+
+   if weapon_range_1 >= weapon_range_2 then begin
+      return ap_cost + (target_distance - weapon_range_1);
+   end
+   else begin
+      return ap_cost_2 + (target_distance - weapon_range_2);
+   end
+end
+
+procedure g_use_item_self begin
+   variable item;
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable enemy_target;
+   variable enemy_distance;
+   if gCritter == 0 orElse gItemPid == 0 then
+      return;
+   item = find_min_charge_obj(gCritter, gItemPid);
+   cur_ap = get_critter_current_ap(gCritter);
+
+   //item = 0;
+   if item andAlso cur_ap >= gApCost then begin
+      set_self(gCritter);
+      set_self(gCritter);
+      use_obj_on_obj(item, gCritter);
+      set_self(0);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
+      if gCritter != dude_obj then
+         critter_set_flee_state(gCritter, 0);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   if (gItemPid == PID_PARAMEDICS_BAG orElse gItemPid == doc_bag_pid) andAlso not(is_disabled(gCritter)) then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   else begin
+      cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+      max_hp = get_critter_stat(gCritter, STAT_max_hp);
+      cur_ap = get_critter_current_ap(gCritter);
+      enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if enemy_target then
+         distance_objs(enemy_distance, gCritter, enemy_target);
+
+      if cur_hp >= max_hp orElse (cur_hp > max_hp / random(2,3) andAlso cur_ap >= get_cheapest_attack_ap_cost(gCritter,enemy_distance) andAlso random(0,2)) then begin
+         reg_anim_combat_check(0);
+         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+         reg_anim_end();
+         call ai_allow_continue_turn(gCritter);
+      end
+   end
+end
+
+procedure get_doc_repair_item_ap_cost(variable critter, variable skill, variable bonus) begin
+   variable skill_value = (has_skill(critter, skill) + bonus);
+   variable ap_cost = doc_item_ap_cost;
+   if critter != dude_obj then
+      skill_value += get_pc_stat(PCSTAT_level);
+
+   if skill == SKILL_REPAIR then begin
+      if critter_kill_type(critter) == KILL_TYPE_robot_kills then
+         ap_cost = -3;
+      else
+         ap_cost -= 1;
+   end
+
+   if skill_value >= 50 then begin
+      ap_cost = (ap_cost - (skill_value) / 50);
+   end
+   if ap_cost < min_doc_ap_cost then
+      ap_cost = min_doc_ap_cost;
+
+   return ap_cost;
+end
+
+procedure g_use_item_self_fa(variable critter, variable item) begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable enemy_target;
+   variable enemy_distance;
+
+   if critter == 0 orElse item == 0 then
+      return;
+
+   cur_ap = get_critter_current_ap(critter);
+   cur_hp = get_critter_stat(critter, STAT_current_hp);
+   max_hp = get_critter_stat(critter, STAT_max_hp);
+
+   enemy_target = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
+   if enemy_target then
+      distance_objs(enemy_distance, critter, enemy_target);
+
+   if (cur_ap >= get_cheapest_attack_ap_cost(critter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
+      return;
+
+   if cur_ap >= fa_item_ap_cost then begin
+      set_self(critter);
+      set_self(critter);
+      use_obj_on_obj(item, critter);
+      set_self(0);
+      set_critter_current_ap(critter, (cur_ap - fa_item_ap_cost));
+      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(critter), proto_data(obj_pid(item), 1)));
+      if critter != dude_obj then
+         critter_set_flee_state(critter, 0);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(critter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(critter, ANIM_stand, 0);
+      reg_anim_animate_reverse(critter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(critter);
+   end
+
+   cur_hp = get_critter_stat(critter, STAT_current_hp);
+   max_hp = get_critter_stat(critter, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(critter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(critter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(critter);
+   end
+end
+
+procedure g_use_item_self_doc(variable critter, variable item) begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable ap_cost;
+
+   if critter == 0 orElse item == 0 then
+      return;
+
+   if obj_pid(item) == PID_PARAMEDICS_BAG then
+      ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, paramedics_bag_bonus);
+   else if obj_pid(item) == doc_bag_pid then
+      ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, doctors_bag_bonus);
+   else
+      ap_cost = min_doc_ap_cost;
+
+   cur_ap = get_critter_current_ap(critter);
+   cur_hp = get_critter_stat(critter, STAT_current_hp);
+   max_hp = get_critter_stat(critter, STAT_max_hp);
+
+   if cur_hp >= max_hp orElse cur_ap < ap_cost then
+      return;
+
+   // Используем предмет
+   if cur_ap >= ap_cost then begin
+      set_self(critter);
+      set_self(critter);
+      use_obj_on_obj(item, critter);
+      set_self(0);
+      set_critter_current_ap(critter, (cur_ap - ap_cost));
+      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(critter), proto_data(obj_pid(item), 1)));
+      if critter != dude_obj then
+         critter_set_flee_state(critter, 0);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(critter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(critter, ANIM_stand, 0);
+      reg_anim_animate_reverse(critter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(critter);
+   end
+
+   // Прерывание, если HP полное
+   cur_hp = get_critter_stat(critter, STAT_current_hp);
+   max_hp = get_critter_stat(critter, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(critter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(critter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(critter);
+   end
+end
+
+procedure g_use_check_item_and_self_heal begin
+   variable cur_hp;
+   variable max_hp;
+   variable doc_item;
+   variable fa_item;
+
+   if gCritter == 0 then
+      return;
+
+
+   //doc
+   if is_disabled(gCritter) then begin
+
+      doc_item = find_min_charge_obj(gCritter, PID_PARAMEDICS_BAG);
+      if not(doc_item) then begin
+         doc_item = find_min_charge_obj(gCritter, doc_bag_pid);
+         if not(doc_item) andAlso StimUninjure > 0 then begin
+            doc_item = obj_carrying_pid_obj(gCritter, PID_SUPER_STIMPAK);
+         end
+      end
+
+      if doc_item then begin
+         call g_use_item_self_doc(gCritter, doc_item);
+         return;
+      end
+
+      cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+      max_hp = get_critter_stat(gCritter, STAT_max_hp);
+      if cur_hp < max_hp - 10 then begin
+         fa_item = find_min_charge_obj(gCritter, PID_FIELD_MEDIC_KIT);
+         if not(fa_item) then begin
+            fa_item = find_min_charge_obj(gCritter, PID_FIRST_AID_KIT);
+            if not(fa_item) andAlso RegenMod <= 0 then
+               fa_item = obj_carrying_pid_obj(gCritter, PID_STIMPAK);
+         end
+
+         if fa_item then begin
+            call g_use_item_self_fa(gCritter, fa_item);
+            return;
+         end
+      end
+   end
+   //fa
+   else begin
+      fa_item = find_min_charge_obj(gCritter, PID_FIELD_MEDIC_KIT);
+      if fa_item <= 0 then begin
+         fa_item = find_min_charge_obj(gCritter, PID_FIRST_AID_KIT);
+         if not(fa_item) andAlso RegenMod <= 0 then
+            fa_item = obj_carrying_pid_obj(gCritter, PID_STIMPAK);
+      end
+
+      if fa_item > 0 then begin
+         call g_use_item_self_fa(gCritter, fa_item);
+         return;
+      end
+
+      cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+      max_hp = get_critter_stat(gCritter, STAT_max_hp);
+
+      if cur_hp < max_hp / 5 then begin
+         doc_item = find_min_charge_obj(gCritter, doc_bag_pid);
+         if not(doc_item) then begin
+            doc_item = find_min_charge_obj(gCritter, PID_PARAMEDICS_BAG);
+            if not(doc_item) then begin
+               doc_item = obj_carrying_pid_obj(gCritter, PID_SUPER_STIMPAK);
+            end
+         end
+
+         if doc_item then begin
+            call g_use_item_self_doc(gCritter, doc_item);
+            return;
+         end
+      end
+   end
+
+   return;
+end
+
+procedure g_use_item_self_fa_old begin
+   variable item;
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable enemy_target;
+   variable enemy_distance;
+   if gCritter == 0 orElse gItemPid == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+   max_hp = get_critter_stat(gCritter, STAT_max_hp);
+   enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+   if enemy_target then
+      distance_objs(enemy_distance, gCritter, enemy_target);
+
+   if (cur_ap >= get_cheapest_attack_ap_cost(gCritter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
+      return;
+
+   item = find_min_charge_obj(gCritter, PID_FIELD_MEDIC_KIT);
+   if item == 0 then
+      item = find_min_charge_obj(gCritter, PID_FIRST_AID_KIT);
+
+   if item andAlso cur_ap >= fa_item_ap_cost then begin
+      set_self(gCritter);
+      set_self(gCritter);
+      use_obj_on_obj(item, gCritter);
+      set_self(0);
+      set_critter_current_ap(gCritter, (cur_ap - fa_item_ap_cost));
+      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
+      if gCritter != dude_obj then
+         critter_set_flee_state(gCritter, 0);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+   max_hp = get_critter_stat(gCritter, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+end
+
+procedure g_use_item_on_target begin
+   variable item;
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable cur_enemy;
+   if gCritter == 0 orElse gItemPid == 0 orElse gTarget == 0 then
+      return;
+   item = find_min_charge_obj(gCritter, gItemPid);
+   cur_ap = get_critter_current_ap(gCritter);
+
+   //item = 0;
+   if item andAlso cur_ap >= gApCost then begin
+      call_offset_v3(0x49C5FC, gCritter, gTarget, item);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
+      if gTarget != dude_obj then
+         critter_set_flee_state(gTarget, 0);
+      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
+         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   if (gItemPid == PID_PARAMEDICS_BAG orElse gItemPid == doc_bag_pid) andAlso not(is_disabled(gTarget)) then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   else begin
+      cur_hp = get_critter_stat(gTarget, STAT_current_hp);
+      max_hp = get_critter_stat(gTarget, STAT_max_hp);
+      if cur_hp >= max_hp then begin
+         reg_anim_combat_check(0);
+         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+         reg_anim_end();
+         call ai_allow_continue_turn(gCritter);
+      end
+   end
+end
+
 //uninjure
-procedure uninjure(variable user,variable target, variable item_pid) begin
-   variable user_DOC = has_skill(user, SKILL_DOCTOR);
-   variable tar_max_hp = get_critter_stat(target, STAT_max_hp);
-   variable tar_cur_hp = get_critter_stat(target, STAT_current_hp);
+procedure uninjure(variable user,variable target, variable item_pid, variable skill_bonus, variable is_repair = 0) begin
+   variable user_DOC;
+   variable tar_max_hp;
    variable user_luck = get_critter_stat(user,STAT_lu);
    variable jinxed = has_trait(TRAIT_TRAIT, user, TRAIT_jinxed);
    variable rnd;
-   variable skill_bonus = 0;
-   variable player_level = get_pc_stat(PCSTAT_level);
    variable dmg;
-   healed_limbs = 0;
+   variable target_state = critter_state(target);
+   variable healed_limbs;
+   if is_repair then begin
+      user_DOC = has_skill(user, SKILL_REPAIR) - 25;
+   end
+   else
+      user_DOC = has_skill(user, SKILL_DOCTOR);
+
+
    if user_DOC <= 0 then user_DOC = 1;
-   if item_pid == PID_PARAMEDICS_BAG then skill_bonus = paramedics_bag_bonus;
-   if item_pid == doc_bag_pid then skill_bonus = doctors_bag_bonus;
+
+
    user_DOC = user_DOC + skill_bonus + user_luck / 2;
-   if user == dude_obj then begin
-      if critter_state(target) BWAND DAM_CRIP_ARM_RIGHT then begin
-      rnd = random(0, 100);
-         if rnd <= user_DOC then begin
-         critter_uninjure(target, DAM_CRIP_ARM_RIGHT);
-         display_msg(modmsg(msg_heal_dude) + modmsg(msg_rhand));
-         healed_limbs += 1;
-         end
-      end
-      if critter_state(target) BWAND DAM_CRIP_LEG_LEFT then begin
-      rnd = random(0, 100);
-         if rnd <= user_DOC then begin
-         critter_uninjure(target, DAM_CRIP_LEG_LEFT);
-         display_msg(modmsg(msg_heal_dude) + modmsg(msg_lleg));
-         healed_limbs += 1;
-         end
-      end
-      if critter_state(target) BWAND DAM_CRIP_ARM_LEFT then begin
-      rnd = random(0, 100);
-         if rnd <= user_DOC then begin
-         critter_uninjure(target, DAM_CRIP_ARM_LEFT);
-         display_msg(modmsg(msg_heal_dude) + modmsg(msg_lhand));
-         healed_limbs += 1;
-         end
-      end
-      if critter_state(target) BWAND DAM_CRIP_LEG_RIGHT then begin
-      rnd = random(0, 100);
-         if rnd <= user_DOC then begin
-         critter_uninjure(target, DAM_CRIP_LEG_RIGHT);
-         display_msg(modmsg(msg_heal_dude) + modmsg(msg_rleg));
-         healed_limbs += 1;
-         end
-      end
-      if critter_state(target) BWAND DAM_BLIND then begin
-      rnd = random(0, 100);
-         if rnd <= user_DOC then begin
-         critter_uninjure(target, DAM_BLIND);
-         display_msg(modmsg(msg_heal_dude) + modmsg(msg_eyes));
-         healed_limbs += 1;
-         end
-      end
-   end
+
    if user != dude_obj then begin
-      rnd = random(0, 100);
-      user_DOC = user_DOC + player_level * 2;
-      if user_DOC < min_doc_cmbt then user_DOC = min_doc_cmbt;
-      if rnd <= user_DOC then begin
-         critter_uninjure(target, all_disabilities);
-         healed_limbs += 1;
+      user_DOC += get_pc_stat(PCSTAT_level);
+      if combat_is_initialized andAlso user_DOC < min_doc_cmbt then begin
+         if is_repair then
+            user_DOC = min_repair_cmbt;
+         else
+            user_DOC = min_doc_cmbt;
       end
    end
+
+   if user_DOC > 95 + user_luck/2 then
+      user_DOC = 95 + user_luck/2;
+   else if user_DOC < 1 then
+      user_DOC = 1;
+
+   if target_state BWAND DAM_CRIP_ARM_RIGHT then begin
+      if user_DOC < 100 then
+         rnd = random(0, 100);
+      if rnd <= user_DOC then begin
+      critter_uninjure(target, DAM_CRIP_ARM_RIGHT);
+      if user == dude_obj then
+         display_msg(modmsg(msg_heal_dude + is_repair * repair_msg) + modmsg(msg_rhand + is_repair * repair_msg));
+      healed_limbs += 1;
+      end
+   end
+   if target_state BWAND DAM_CRIP_LEG_LEFT then begin
+      if user_DOC < 100 then
+         rnd = random(0, 100);
+      if rnd <= user_DOC then begin
+      critter_uninjure(target, DAM_CRIP_LEG_LEFT);
+      if user == dude_obj then
+         display_msg(modmsg(msg_heal_dude + is_repair * repair_msg) + modmsg(msg_lleg + is_repair * repair_msg));
+      healed_limbs += 1;
+      end
+   end
+   if target_state BWAND DAM_CRIP_ARM_LEFT then begin
+      if user_DOC < 100 then
+         rnd = random(0, 100);
+      if rnd <= user_DOC then begin
+      critter_uninjure(target, DAM_CRIP_ARM_LEFT);
+      if user == dude_obj then
+         display_msg(modmsg(msg_heal_dude + is_repair * repair_msg) + modmsg(msg_lhand + is_repair * repair_msg));
+      healed_limbs += 1;
+      end
+   end
+   if target_state BWAND DAM_CRIP_LEG_RIGHT then begin
+      if user_DOC < 100 then
+         rnd = random(0, 100);
+      if rnd <= user_DOC then begin
+      critter_uninjure(target, DAM_CRIP_LEG_RIGHT);
+      if user == dude_obj then
+         display_msg(modmsg(msg_heal_dude + is_repair * repair_msg) + modmsg(msg_rleg + is_repair * repair_msg));
+      healed_limbs += 1;
+      end
+   end
+   if target_state BWAND DAM_BLIND then begin
+      if user_DOC < 100 then
+         rnd = random(0, 100);
+      if rnd <= user_DOC then begin
+      critter_uninjure(target, DAM_BLIND);
+      if user == dude_obj then
+         display_msg(modmsg(msg_heal_dude + is_repair * repair_msg) + modmsg(msg_eyes + is_repair * repair_msg));
+      healed_limbs += 1;
+      end
+   end
+
    if healed_limbs > 0 then begin
-      if user == dude_obj then begin
+      if is_repair <= 0 andAlso user == dude_obj then begin
          give_exp_points(healed_limbs * 50);
          display_msg(parse_str_2(modmsg(msg_exp),healed_limbs * 50,0));
       end
-      if target != dude_obj then critter_set_flee_state(target, 0);
+      if critter_is_fleeing(target) andAlso not(Is_Injured(target)) then
+         if target != dude_obj then critter_set_flee_state(target, 0);
    end
-   if user == dude_obj andAlso healed_limbs < 1 then begin
-      rnd = random(0, user_luck);
-      if jinxed > 0 then rnd = random(0, 1);
-      if user_DOC < 50 andAlso rnd < 1 then begin
-         dmg = random(1, ceil(tar_cur_hp / 20.0));
-         if target == dude_obj then display_msg(parse_str_2(modmsg(msg_critical_miss_dude), obj_name(target), dmg ));
-         else display_msg(parse_str_2(modmsg(msg_critical_miss_tar), obj_name(target), dmg ));
-         critter_heal(user, -dmg);
+   else if user == dude_obj andAlso healed_limbs < 1 andAlso user_DOC < 100 then begin
+      rnd = random(0, 100);
+      if jinxed <= 0 then
+         user_DOC += random(1, user_luck * 3);
+
+      if rnd > user_DOC then begin
+         tar_max_hp = get_critter_stat(target, STAT_max_hp);
+         dmg = random(1, ceil(tar_max_hp / 20.0) + 6 * is_repair);
+
+         //if target == dude_obj then
+            //display_msg(parse_str_2(modmsg(msg_critical_miss_dude), obj_name(target), dmg));
+         //else
+            //display_msg(parse_str_2(modmsg(msg_critical_miss_tar), obj_name(target), dmg));
+         display_msg(modmsg(msg_critical_miss_dude));
+         critter_dmg(target, dmg, DMG_normal_dam bwor DMG_BYPASS_ARMOR);
          doc_self_dmg = 1;
       end
-      else display_msg(modmsg(msg_fail));
+      else
+         display_msg(modmsg(msg_fail + is_repair * repair_msg));
    end
-   if not(get_game_mode bwand INVENTORY) then intface_redraw;
+
+   return healed_limbs;
+end
+
+procedure do_repair(variable user, variable target, variable skill_bonus) begin
+   variable tar_cur_hp = get_critter_stat(target, STAT_current_hp);
+   variable tar_max_hp = get_critter_stat(target, STAT_max_hp);
+   variable tar_lost_hp = tar_max_hp - tar_cur_hp;
+   variable user_repair = has_skill(user, SKILL_REPAIR);
+   variable hp_healed;
+   variable healed_limbs;
+
+   if tar_cur_hp >= tar_max_hp andAlso not(is_disabled(target)) then
+      return;
+
+   if is_disabled(target) then begin
+      doc_self_dmg = 0;
+      healed_limbs = uninjure(user, target, 0, skill_bonus, true);
+   end
+   else
+      healed_limbs = -1;
+
+   if healed_limbs == -1 orElse healed_limbs > 0 then begin
+      if doc_self_dmg <= 0 andAlso tar_cur_hp > 0 andAlso tar_cur_hp < tar_max_hp then begin
+         if user_repair <= 0 then user_repair = 1;
+
+         hp_healed = 5 + random(((skill_bonus / 10) + (user_repair / 10)), ((skill_bonus / 5) + (user_repair / 6))) + ceil(tar_max_hp / 1000.0 * user_repair);
+         if has_trait(TRAIT_PERK, user, PERK_mr_fixit) > 0 then hp_healed = hp_healed + random(5, 15);
+         if hp_healed > tar_lost_hp then hp_healed = tar_lost_hp;
+
+         if hp_healed > 0 then begin
+            critter_heal(target, hp_healed);
+            if user == dude_obj then
+               display_msg(parse_str_2(modmsg(repair_msg + msg_dude_heal), hp_healed, 0));
+         end
+      end
+   end
+   else if healed_limbs < 0 andAlso user == dude_obj then
+      display_msg(modmsg(repair_msg + msg_heal_failed));
+end
+
+
+procedure g_repair_self begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable enemy_target;
+   variable enemy_distance;
+   if gCritter == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+   max_hp = get_critter_stat(gCritter, STAT_max_hp);
+   enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+   if enemy_target then
+      distance_objs(enemy_distance, gCritter, enemy_target);
+
+   if (cur_ap >= get_cheapest_attack_ap_cost(gCritter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
+      return;
+
+   if cur_ap >= fa_item_ap_cost then begin
+      call do_repair(gCritter, gCritter, 30);
+      set_critter_current_ap(gCritter, (cur_ap - fa_item_ap_cost));
+      display_msg(parse_str_2(modmsg(msg_npc_repairs_self), obj_name(gCritter), 0));
+      if gCritter != dude_obj then
+         critter_set_flee_state(gCritter, 0);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
+   max_hp = get_critter_stat(gCritter, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+end
+
+procedure find_nearest_free_tile(variable critter, variable dest_tile, variable multihex = 0) begin
+   variable critter_tile = tile_num(critter);
+   variable i;
+   variable rotation_to_dest = rotation_to_tile(critter_tile, dest_tile);
+   variable rot_to_check = ((rotation_to_dest + 2) % 6);
+   variable tile_to_check;
+   variable nearest_free_tile = -1;
+   variable distance = tile_distance(critter_tile, dest_tile);
+   variable last_path_len = 999;
+   variable cur_path_len;
+   variable cur_rotation = rot_to_check;
+   variable check_dist = 1;
+   if multihex > 0 then
+      check_dist = 2;
+
+   if (distance <= 1) then begin
+      global_nearest_tile = critter_tile;
+      global_path_len = 0;
+      return critter_tile;
+   end
+
+   for (i := 0; i < 6; i++) begin
+      cur_rotation = (cur_rotation + i) % 6;
+      tile_to_check = tile_num_in_direction(dest_tile, cur_rotation, check_dist);
+
+      if (tile_to_check == -1) then
+         continue;
+
+      cur_path_len = len_array(path_find_to(critter, tile_to_check, BLOCKING_TYPE_BLOCK));
+
+      if (cur_path_len < 0) then
+         continue;
+
+      if (cur_path_len <= distance) then begin
+         global_nearest_tile = tile_to_check;
+         global_path_len = cur_path_len;
+         return tile_to_check;
+      end
+      else if (cur_path_len < last_path_len) then begin
+         nearest_free_tile = tile_to_check;
+         last_path_len = cur_path_len;
+      end
+   end
+
+   global_nearest_tile = nearest_free_tile;
+   global_path_len = last_path_len;
+   return nearest_free_tile;
+end
+
+procedure ai_search_wounded_friend(variable critter, variable ap_cost, variable heal_injury, variable is_repair = 0, variable skip_target = 0) begin
+   variable cur_tile = tile_num(critter);
+   variable critter_cur_ap = get_critter_current_ap(critter);
+   variable critter_int;
+   variable critter_pe;
+   variable max_radius;
+   variable radius;
+   variable cur_elevation = elevation(critter);
+   variable objects;
+   variable count;
+   variable state;
+   variable target;
+   variable target_tile;
+   variable target_cur_hp;
+   variable target_max_hp;
+   variable target_state;
+   variable critter_team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+   variable target_hp_ratio;
+   variable target_injuries;
+   variable best_injuries = -1;
+   variable best_choice = 0;
+   variable target_effective_hp;
+   variable dude_is_low;
+   variable move_cost;
+   variable best_move_cost = 9999;
+   variable path_array;
+   variable path_len;
+   variable rnd;
+   variable random_deviation;
+   variable target_score;
+   variable best_score = 999999;
+   variable int_bonus;
+   variable move_ap_budget;
+   variable target_value;
+   variable best_value = -9999;
+   variable target_cur_anim;
+
+
+   if critter_cur_ap <= ap_cost then
+      return 0;
+
+   move_ap_budget = critter_cur_ap - ap_cost;
+
+   critter_int = get_critter_stat(critter, STAT_iq);
+   if critter_int < 1 then critter_int = 1;
+   if critter_int > 10 then critter_int = 10;
+
+   random_deviation = 41 - critter_int * 4;
+   if random_deviation < 5 then random_deviation = 5;
+   if random_deviation > 40 then random_deviation = 40;
+
+   int_bonus = (critter_int - 5) * 10;
+
+   state = critter_state(critter);
+
+   if (state bwand DAM_CRIP_LEG_LEFT) andAlso (state bwand DAM_CRIP_LEG_RIGHT) then begin
+      radius = 1;
+   end
+   else if (state bwand DAM_CRIP_LEG_LEFT) orElse (state bwand DAM_CRIP_LEG_RIGHT) then begin
+      radius = 2;
+   end
+   else begin
+      radius = move_ap_budget;
+   end
+
+   critter_pe = get_critter_stat(critter, STAT_pe);
+   max_radius = critter_pe * 5;
+
+   if radius < 1 then
+      radius = 1;
+   else if radius > max_radius then
+      radius = max_radius;
+
+   objects = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_CRITTER);
+   count = len_array(objects);
+
+   if count <= 0 then
+      return 0;
+
+   foreach target in objects begin
+      if target == critter orElse target == skip_target orElse not(obj_is_visible_flag(target)) then
+         continue;
+
+      if (critter_kill_type(target) == KILL_TYPE_robot_kills) != (is_repair > 0) then begin
+         continue;
+      end
+
+      target_cur_hp = get_critter_stat(target, STAT_current_hp);
+      target_max_hp = get_critter_stat(target, STAT_max_hit_points);
+      target_state = critter_state(target);
+
+      if (critter_team != has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM)) orElse (target_cur_hp >= target_max_hp andAlso (heal_injury <= 0 orElse not(is_disabled(target)))) orElse (is_really_dead(target, target_state, target_cur_hp)) then begin
+         continue;
+      end
+      target_tile = tile_num(target);
+
+      path_array = path_find_to(critter, find_nearest_free_tile(critter, target_tile, (get_flags(target) bwand FLAG_MULTIHEX)), BLOCKING_TYPE_BLOCK);
+      path_len = len_array(path_array);
+
+      if path_len <= 0 then begin
+         continue;
+      end
+
+      move_cost = path_len - 1;
+      if move_cost < 0 then move_cost = 0;
+
+      if move_cost + ap_cost > critter_cur_ap then
+         continue;
+
+      target_hp_ratio = (target_cur_hp * 100) / target_max_hp;
+
+      if target == dude_obj then begin
+         if target_hp_ratio <= 7 then begin
+            dude_is_low = 1;
+            target_effective_hp = -9999;
+         end
+         else begin
+            target_cur_anim = art_anim(obj_art_fid(target));
+            if is_in_prone_anim(target_cur_anim) then
+               target_effective_hp = target_hp_ratio - 15;
+            else
+               target_effective_hp = target_hp_ratio + 15;
+         end
+      end
+      else begin
+         target_effective_hp = target_hp_ratio;
+      end
+
+      target_injuries = 0;
+      if heal_injury > 0 then begin
+         if (target_state bwand DAM_CRIP_ARM_LEFT) then target_injuries += 1;
+         if (target_state bwand DAM_CRIP_ARM_RIGHT) then target_injuries += 1;
+         if (target_state bwand DAM_CRIP_LEG_LEFT) then target_injuries += 1;
+         if (target_state bwand DAM_CRIP_LEG_RIGHT) then target_injuries += 1;
+         if (target_state bwand DAM_BLIND) then target_injuries += 1;
+
+         if target_injuries <= 0 andAlso (is_repair <= 0 andAlso target_hp_ratio > 25) then
+            continue;
+      end
+      else if target_hp_ratio > 85 then
+         continue;
+
+      target_score = target_effective_hp + move_cost - int_bonus / 3;
+
+      rnd = random(0, 100);
+      if rnd < random_deviation then begin
+         target_score += random(0, random_deviation);
+      end
+
+      if best_choice == 0 then begin
+         best_choice = target;
+         best_score = target_score;
+         best_injuries = target_injuries;
+         best_move_cost = move_cost;
+         if heal_injury > 0 then
+            best_value = best_injuries * 3 - best_move_cost;
+      end
+      else if target == dude_obj andAlso target_hp_ratio < 7 then begin
+         best_choice = target;
+         best_score = target_score;
+         best_injuries = target_injuries;
+         best_move_cost = move_cost;
+         if heal_injury > 0 then
+            best_value = best_injuries * 3 - best_move_cost;
+      end
+      //else if best_choice == dude_obj andAlso dude_is_low > 0 then begin
+
+      //end
+      else if heal_injury > 0 then begin
+         target_value = target_injuries * 3 - move_cost;
+
+         if target_value > best_value then begin
+            if move_cost <= move_ap_budget then begin
+               best_choice = target;
+               best_score = target_score;
+               best_injuries = target_injuries;
+               best_move_cost = move_cost;
+               best_value = target_value;
+            end
+         end
+         else if target_value == best_value then begin
+            if target_score < best_score then begin
+               best_choice = target;
+               best_score = target_score;
+               best_injuries = target_injuries;
+               best_move_cost = move_cost;
+               best_value = target_value;
+            end
+         end
+         else begin
+            rnd = random(0, 100);
+            if rnd < random_deviation / 2 then begin
+               if move_cost <= move_ap_budget then begin
+                  best_choice = target;
+                  best_score = target_score;
+                  best_injuries = target_injuries;
+                  best_move_cost = move_cost;
+                  best_value = target_value;
+               end
+            end
+         end
+      end
+      else begin
+         if target_score < best_score then begin
+            best_choice = target;
+            best_score = target_score;
+            best_injuries = target_injuries;
+            best_move_cost = move_cost;
+         end
+         else begin
+            rnd = random(0, 100);
+            if rnd < random_deviation / 2 then begin
+               best_choice = target;
+               best_score = target_score;
+               best_injuries = target_injuries;
+               best_move_cost = move_cost;
+            end
+         end
+      end
+   end
+
+   return best_choice;
+end
+
+procedure g_use_repair_on_target_punch_last_target begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable cur_enemy;
+   variable another_target;
+   if gCritter == 0 orElse gTarget == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+
+   if cur_ap >= gApCost then begin
+      call do_repair(gCritter, gTarget, 30);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      if gTarget != dude_obj then
+         critter_set_flee_state(gTarget, 0);
+      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
+         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+
+   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
+   max_hp = get_critter_stat(gTarget, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+      reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+end
+
+procedure g_use_repair_on_target_revers_last_target begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable cur_enemy;
+   if gCritter == 0 orElse gTarget == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+
+   if cur_ap >= gApCost then begin
+      call do_repair(gCritter, gTarget, 30);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      if gTarget != dude_obj then
+         critter_set_flee_state(gTarget, 0);
+      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
+         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+
+   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
+   max_hp = get_critter_stat(gTarget, STAT_max_hp);
+   if cur_hp >= max_hp then begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+      reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+end
+
+procedure reg_anim_combat_robot_repair_another_target(variable critter, variable target, variable ap_cost, variable count, variable self_heal) begin
+   variable i;
+   variable animate2 = 1;
+   variable enemy_target;
+   if count > 10 then
+      count = 10;
+   gCritter = critter;
+   gTarget = target;
+   gApCost = ap_cost;
+   gItemPid = -1;
+
+   reg_anim_combat_check(0);
+   reg_anim_clear_forced(gCritter, 1);
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   reg_anim_animate(gCritter, ANIM_throw_punch, 0);
+   reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+   reg_anim_obj_run_to_obj(gCritter, target, -1);
+   reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
+   for (i := 0; i < count; i++) begin
+      if animate2 then begin
+         if animate2 == 1 then begin
+            reg_anim_callback(g_use_repair_on_target_punch_last_target);
+            reg_anim_animate(gCritter, ANIM_throw_punch, -1);
+            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+            animate2 = 2;
+         end
+         else if count > 1 then begin
+            reg_anim_callback(g_use_repair_on_target_revers_last_target);
+            reg_anim_animate_reverse(gCritter, ANIM_throw_punch, -1);
+            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+            animate2 = 1;
+         end
+      end
+   end
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
+end
+
+procedure g_use_repair_on_target_revers begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable cur_enemy;
+   variable another_target;
+   if gCritter == 0 orElse gTarget == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+
+   if cur_ap >= gApCost then begin
+      call do_repair(gCritter, gTarget, 30);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      if gTarget != dude_obj then
+         critter_set_flee_state(gTarget, 0);
+      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
+         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+
+   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
+   max_hp = get_critter_stat(gTarget, STAT_max_hp);
+   if cur_hp >= max_hp orElse (cur_ap >= gApCost) then begin
+      if cur_ap >= gApCost then
+         another_target = ai_search_wounded_friend(gCritter, gApCost, true, true, gTarget);
+      if another_target then begin
+         call reg_anim_combat_robot_repair_another_target(gCritter, another_target, gApCost, random(1, 2), false);
+      end
+      else begin
+         reg_anim_combat_check(0);
+         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+         reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+         reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+         reg_anim_end();
+         call ai_allow_continue_turn(gCritter);
+      end
+   end
+end
+
+procedure g_use_repair_on_target_punch begin
+   variable cur_ap;
+   variable cur_hp;
+   variable max_hp;
+   variable cur_enemy;
+   variable another_target;
+   if gCritter == 0 orElse gTarget == 0 then
+      return;
+   cur_ap = get_critter_current_ap(gCritter);
+
+   if cur_ap >= gApCost then begin
+      call do_repair(gCritter, gTarget, 30);
+      set_critter_current_ap(gCritter, (cur_ap - gApCost));
+      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      if gTarget != dude_obj then
+         critter_set_flee_state(gTarget, 0);
+      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
+         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
+   end
+   else begin
+      reg_anim_combat_check(0);
+      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+      reg_anim_animate(gCritter, ANIM_stand, 0);
+      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_end();
+      call ai_allow_continue_turn(gCritter);
+   end
+
+   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
+   max_hp = get_critter_stat(gTarget, STAT_max_hp);
+   if cur_hp >= max_hp orElse (cur_ap >= gApCost andAlso random(0,1)) then begin
+      if cur_ap >= gApCost then
+         another_target = ai_search_wounded_friend(gCritter, gApCost, true, true, gTarget);
+      if another_target then begin
+         call reg_anim_combat_robot_repair_another_target(gCritter, another_target, gApCost, random(1, 2), false);
+      end
+      else begin
+         reg_anim_combat_check(0);
+         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+         reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+         reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+         reg_anim_end();
+         call ai_allow_continue_turn(gCritter);
+      end
+   end
+end
+
+procedure ai_search_for_fa_item(variable critter, variable ap_cost) begin
+   variable cur_tile = tile_num(critter);
+   variable critter_cur_ap = get_critter_current_ap(critter);
+   variable critter_pe;
+   variable max_radius;
+   variable radius = critter_cur_ap;
+   variable cur_elevation = elevation(critter);
+   variable objects;
+   variable obj;
+   variable object_type;
+   variable count;
+   variable item;
+   variable best_choice;
+   variable best_path_len = 9999;
+   variable best_tile = -1;
+   variable item_tile;
+   variable nearest_tile;
+   variable state;
+   variable critter_obj;
+   variable critter_obj_tile;
+
+   objects = tile_get_objs(cur_tile, cur_elevation);
+   foreach obj in objects begin
+      object_type = obj_type(obj);
+      //if object_type == OBJ_TYPE_ITEM then begin
+         //if obj_pid(obj) == PID_FIELD_MEDIC_KIT then
+            //return obj;
+         //else if obj_pid(obj) == PID_FIRST_AID_KIT then
+            //best_choice = obj;
+      //end
+      //else
+         if obj != critter andAlso object_type == OBJ_TYPE_CRITTER then begin
+         item = obj_carrying_pid_obj(obj, PID_FIELD_MEDIC_KIT);
+         if item then begin
+            gItemPid = PID_FIELD_MEDIC_KIT;
+            return obj;
+         end
+         else begin
+            item = obj_carrying_pid_obj(obj, PID_FIRST_AID_KIT);
+            if item then begin
+               gItemPid = PID_FIRST_AID_KIT;
+               if obj_type(best_choice) != OBJ_TYPE_ITEM then
+                  best_choice = obj;
+            end
+         end
+      end
+   end
+
+   if best_choice != 0 then
+      return best_choice;
+
+
+   state = critter_state(critter);
+   if (state bwand DAM_CRIP_LEG_LEFT) andAlso (state bwand DAM_CRIP_LEG_RIGHT) then
+      radius /= 8;
+   else if (state bwand DAM_CRIP_LEG_LEFT) orElse (state bwand DAM_CRIP_LEG_RIGHT) then
+      radius /= 4;
+
+   radius -= (3 + ap_cost);
+
+
+   critter_pe = get_critter_stat(critter, STAT_pe);
+   max_radius = critter_pe * 3;
+
+   if radius < 1 then
+      radius = 1;
+   else if radius > max_radius then
+      radius = max_radius;
+
+   //objects = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_ITEM);
+   //count = len_array(objects);
+   //global_path_len = -1;
+   //global_nearest_tile = -1;
+//
+   //if (count > 0) then begin
+      //foreach item in objects begin
+         //if (obj_pid(item) == PID_FIRST_AID_KIT orElse obj_pid(item) == PID_FIELD_MEDIC_KIT) then begin
+            //item_tile = tile_num(item);
+//
+            //nearest_tile = find_nearest_free_tile(critter, item_tile);
+//
+            //if nearest_tile == cur_tile then begin
+               //best_choice = item;
+               //return best_choice;
+            //end
+//
+//
+            //if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+               //best_path_len = global_path_len;
+               //best_choice = item;
+               //best_tile = global_nearest_tile;
+            //end
+         //end
+      //end
+   //end
+
+   objects = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_CRITTER);
+   count = len_array(objects);
+   global_path_len = -1;
+   global_nearest_tile = -1;
+   if (count <= 0) then
+      return 0;
+
+   foreach critter_obj in objects begin
+      if not((get_object_data(critter_obj, OBJ_DATA_DAMAGE_FLAGS) bwand DAM_KNOCKED_OUT) == DAM_KNOCKED_OUT) andAlso not(is_really_dead(critter_obj, critter_state(critter_obj), get_critter_stat(critter_obj, STAT_current_hp))) then
+         continue;
+
+      item = obj_carrying_pid_obj(critter_obj, PID_FIELD_MEDIC_KIT);
+
+      if item then begin
+         item_tile = tile_num(critter_obj);
+
+         nearest_tile = find_nearest_free_tile(critter, item_tile);
+
+         if nearest_tile == cur_tile then begin
+            best_choice = critter_obj;
+            gItemPid = PID_FIELD_MEDIC_KIT;
+            return best_choice;
+         end
+
+
+         if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+            best_path_len = global_path_len;
+            best_choice = critter_obj;
+            gItemPid = PID_FIELD_MEDIC_KIT;
+            best_tile = global_nearest_tile;
+         end
+      end
+      else begin
+         item = obj_carrying_pid_obj(critter_obj, PID_FIRST_AID_KIT);
+         if item then begin
+            item_tile = tile_num(critter_obj);
+
+            nearest_tile = find_nearest_free_tile(critter, item_tile);
+
+            if nearest_tile == cur_tile then begin
+               best_choice = critter_obj;
+               gItemPid = PID_FIRST_AID_KIT;
+               return critter_obj;
+            end
+
+
+            if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+               best_path_len = global_path_len;
+               best_choice = critter_obj;
+               gItemPid = PID_FIRST_AID_KIT;
+               best_tile = global_nearest_tile;
+            end
+         end
+      end
+   end
+
+
+   return best_choice;
+end
+
+
+procedure get_heal_friend_chance(variable critter, variable target, variable skill) begin
+   variable critter_int = get_critter_stat(critter, STAT_iq);
+   variable critter_skill;
+   variable target_cur_hp = get_critter_stat(target, STAT_current_hp);
+   variable target_max_hp = get_critter_stat(target, STAT_max_hit_points);
+   variable target_hp_ratio = (target_cur_hp * 100) / target_max_hp;
+   variable heal_chance = 0;
+
+   if target_hp_ratio >= 60 then
+      return 0;
+
+   critter_skill = has_skill(critter, skill);
+   if target_hp_ratio < 10 then
+      return 101;
+
+   heal_chance = (critter_int * 5) + (critter_skill / 6) + ((60 - target_hp_ratio) * 2);
+
+   if heal_chance > 96 then
+      heal_chance = 96;
+   else if heal_chance < 7 then
+      heal_chance = 7;
+
+   return heal_chance;
+end
+
+procedure ai_search_for_doc_item(variable critter, variable ap_cost) begin
+   variable cur_tile = tile_num(critter);
+   variable critter_cur_ap = get_critter_current_ap(critter);
+   variable critter_pe;
+   variable max_radius;
+   variable radius = critter_cur_ap;
+   variable cur_elevation = elevation(critter);
+   variable objects;
+   variable obj;
+   variable object_type;
+   variable count;
+   variable item;
+   variable best_choice;
+   variable best_path_len = 9999;
+   variable best_tile = -1;
+   variable item_tile;
+   variable nearest_tile;
+   variable state;
+   variable critter_obj;
+   variable critter_obj_tile;
+
+   objects = tile_get_objs(cur_tile, cur_elevation);
+   foreach obj in objects begin
+      object_type = obj_type(obj);
+      //if object_type == OBJ_TYPE_ITEM then begin
+         //if obj_pid(obj) == PID_PARAMEDICS_BAG then
+            //return obj;
+         //else if obj_pid(obj) == doc_bag_pid then
+            //best_choice = obj;
+      //end
+      //else
+         if obj != critter andAlso object_type == OBJ_TYPE_CRITTER then begin
+         item = obj_carrying_pid_obj(obj, PID_PARAMEDICS_BAG);
+         if item then begin
+            gItemPid = PID_PARAMEDICS_BAG;
+            return obj;
+         end
+         else begin
+            item = obj_carrying_pid_obj(obj, doc_bag_pid);
+            if item then begin
+               gItemPid = doc_bag_pid;
+               if obj_type(best_choice) != OBJ_TYPE_ITEM then
+                  best_choice = obj;
+            end
+         end
+      end
+   end
+
+   if best_choice != 0 then
+      return best_choice;
+
+
+   state = critter_state(critter);
+   if (state bwand DAM_CRIP_LEG_LEFT) andAlso (state bwand DAM_CRIP_LEG_RIGHT) then
+      radius /= 8;
+   else if (state bwand DAM_CRIP_LEG_LEFT) orElse (state bwand DAM_CRIP_LEG_RIGHT) then
+      radius /= 4;
+
+   radius -= (3 + ap_cost);
+
+
+   critter_pe = get_critter_stat(critter, STAT_pe);
+   max_radius = critter_pe * 3;
+
+   if radius < 1 then
+      radius = 1;
+   else if radius > max_radius then
+      radius = max_radius;
+
+   //objects = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_ITEM);
+   //count = len_array(objects);
+   //global_path_len = -1;
+   //global_nearest_tile = -1;
+//
+   //if (count > 0) then begin
+      //foreach item in objects begin
+         //if (obj_pid(item) == doc_bag_pid orElse obj_pid(item) == PID_PARAMEDICS_BAG) then begin
+            //item_tile = tile_num(item);
+//
+            //nearest_tile = find_nearest_free_tile(critter, item_tile);
+//
+            //if nearest_tile == cur_tile then begin
+               //best_choice = item;
+               //return best_choice;
+            //end
+//
+//
+            //if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+               //best_path_len = global_path_len;
+               //best_choice = item;
+               //best_tile = global_nearest_tile;
+            //end
+         //end
+      //end
+   //end
+
+   objects = objects_in_radius(cur_tile, radius, cur_elevation, OBJ_TYPE_CRITTER);
+   count = len_array(objects);
+   global_path_len = -1;
+   global_nearest_tile = -1;
+   if (count <= 0) then
+      return 0;
+
+   foreach critter_obj in objects begin
+      if not((get_object_data(critter_obj, OBJ_DATA_DAMAGE_FLAGS) bwand DAM_KNOCKED_OUT) == DAM_KNOCKED_OUT) andAlso not(is_really_dead(critter_obj, critter_state(critter_obj), get_critter_stat(critter_obj, STAT_current_hp))) then
+         continue;
+
+      item = obj_carrying_pid_obj(critter_obj, PID_PARAMEDICS_BAG);
+
+      if item then begin
+         item_tile = tile_num(critter_obj);
+
+         nearest_tile = find_nearest_free_tile(critter, item_tile);
+
+         if nearest_tile == cur_tile then begin
+            best_choice = critter_obj;
+            gItemPid = PID_PARAMEDICS_BAG;
+            return best_choice;
+         end
+
+
+         if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+            best_path_len = global_path_len;
+            best_choice = critter_obj;
+            gItemPid = PID_PARAMEDICS_BAG;
+            best_tile = global_nearest_tile;
+         end
+      end
+      else begin
+         item = obj_carrying_pid_obj(critter_obj, doc_bag_pid);
+         if item then begin
+            item_tile = tile_num(critter_obj);
+
+            nearest_tile = find_nearest_free_tile(critter, item_tile);
+
+            if nearest_tile == cur_tile then begin
+               best_choice = critter_obj;
+               gItemPid = doc_bag_pid;
+               return critter_obj;
+            end
+
+
+            if (nearest_tile != -1 andAlso global_path_len > 0 andAlso global_path_len < best_path_len) then begin
+               best_path_len = global_path_len;
+               best_choice = critter_obj;
+               gItemPid = doc_bag_pid;
+               best_tile = global_nearest_tile;
+            end
+         end
+      end
+   end
+
+
+   return best_choice;
+end
+
+procedure g_pick_up_item begin
+   variable item;
+   variable item_sid;
+   variable owner;
+   if gCritter == 0 orElse gObj == 0 then
+      return;
+
+   if obj_type(gObj) == OBJ_TYPE_ITEM then begin
+      item = gObj;
+   end
+   else if obj_type(gObj) == OBJ_TYPE_CRITTER then begin
+      if gitemPid <= 0 then
+         return;
+      item = obj_carrying_pid_obj(gObj, gitemPid);
+      owner = 1;
+   end
+
+   if item then begin
+      if gItemPid <= 0 then
+         gItemPid = obj_pid(item);
+
+      item_sid = get_object_data(item, OBJ_DATA_SID);
+      if item_sid > 0 then begin
+         set_obj_script_objects(item_sid, gCritter, item);
+         exec_obj_script_proc(item_sid, pickup_proc);
+      end
+      if owner then
+         rm_mult_objs_from_inven(gObj, item, 1);
+
+      add_obj_to_inven(gCritter, item);
+   end
+end
+
+procedure reg_anim_combat_get_and_use_item_on_self(variable critter, variable obj, variable itemPid) begin
+   variable i;
+   //if count > 13 then
+      //count = 13;
+   gCritter = critter;
+   gObj = obj;
+   gItemPid = itemPid;
+
+   reg_anim_combat_check(0);
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   reg_anim_obj_run_to_obj(gCritter, obj, 0);
+   reg_anim_turn_towards(gCritter, tile_num(obj), -1);
+   if validate_critter_anim(gCritter, ANIM_magic_hands_ground) then
+      reg_anim_animate(gCritter, ANIM_magic_hands_ground, -1);
+   reg_anim_callback(g_pick_up_item);
+   if validate_critter_anim(gCritter, ANIM_magic_hands_middle) then
+      reg_anim_animate(gCritter, ANIM_magic_hands_middle, -1);
+   reg_anim_callback(g_use_item_self);
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
+end
+
+procedure reg_anim_combat_use_item_on_target(variable critter, variable critter_cur_anim, variable target, variable itemPid, variable ap_cost, variable count, variable self_heal) begin
+   variable i;
+   variable animate;
+   variable enemy_target;
+   variable standup_anim;
+   if count > 10 then
+      count = 10;
+   gCritter = critter;
+   gTarget = target;
+   gApCost = ap_cost;
+   gItemPid = itemPid;
+
+
+   animate = validate_critter_anim(gCritter, ANIM_magic_hands_middle);
+
+   if critter_cur_anim == ANIM_fall_back orElse critter_cur_anim == ANIM_fall_back_sf then
+      standup_anim = ANIM_back_to_standing;
+   else if critter_cur_anim == ANIM_fall_front orElse critter_cur_anim == ANIM_fall_front_sf then
+      standup_anim = ANIM_prone_to_standing;
+
+   reg_anim_combat_check(0);
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   if standup_anim != 0 then
+      reg_anim_animate(gCritter, standup_anim, -1);
+   reg_anim_obj_run_to_obj(gCritter, target, -1);
+   reg_anim_turn_towards(gCritter, tile_num(target), -1);
+   for (i := 0; i < count; i++) begin
+   reg_anim_callback(g_use_item_on_target);
+      if animate then
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+
+      if count > 1 then begin
+         reg_anim_animate(gCritter, ANIM_stand, -1);
+         reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
+      end
+   end
+   if self_heal then begin
+      reg_anim_callback(g_use_check_item_and_self_heal);
+      enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
+      if enemy_target != 0 then
+         reg_anim_turn_towards(gCritter, tile_num(enemy_target), -1);
+      if animate then
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+   end
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
+end
+
+procedure reg_anim_combat_robot_repair_target(variable critter, variable critter_cur_anim, variable target, variable ap_cost, variable count, variable self_heal) begin
+   variable i;
+   variable animate;
+   variable animate2;
+   variable enemy_target;
+   variable standup_anim;
+   if count > 10 then
+      count = 10;
+   gCritter = critter;
+   gTarget = target;
+   gApCost = ap_cost;
+   gItemPid = -1;
+
+
+   //if validate_critter_anim(gCritter, ANIM_magic_hands_middle) then
+      //animate = 1;
+   //else if validate_critter_anim(gCritter, ANIM_throw_punch) then
+      animate2 = 1;
+
+   if critter_cur_anim == ANIM_fall_back orElse critter_cur_anim == ANIM_fall_back_sf then
+      standup_anim = ANIM_back_to_standing;
+   else if critter_cur_anim == ANIM_fall_front orElse critter_cur_anim == ANIM_fall_front_sf then
+      standup_anim = ANIM_prone_to_standing;
+
+   reg_anim_combat_check(0);
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   if standup_anim != 0 then
+      reg_anim_animate(gCritter, standup_anim, -1);
+   reg_anim_obj_run_to_obj(gCritter, target, -1);
+   reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
+   for (i := 0; i < count; i++) begin
+   //reg_anim_callback(g_use_repair_on_target);
+      //if animate then begin
+         //reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+         //if count > 1 then begin
+            //reg_anim_animate(gCritter, ANIM_stand, -1);
+            //reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
+         //end
+      //end
+      //else
+      if animate2 then begin
+         if animate2 == 1 then begin
+            reg_anim_callback(g_use_repair_on_target_punch);
+            reg_anim_animate(gCritter, ANIM_throw_punch, -1);
+            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+
+            animate2 = 2;
+         end
+         else if count > 1 then begin
+            reg_anim_callback(g_use_repair_on_target_revers);
+            reg_anim_animate_reverse(gCritter, ANIM_throw_punch, -1);
+            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
+            animate2 = 1;
+         end
+      end
+   end
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
+end
+
+
+procedure reg_anim_combat_use_item_on_self(variable critter, variable critter_cur_anim, variable itemPid, variable ap_cost, variable count) begin
+   variable i;
+   variable animate;
+   variable standup_anim;
+   if count > 13 then
+      count = 13;
+   gCritter = critter;
+   gItemPid = itemPid;
+   gApCost = ap_cost;
+   animate = validate_critter_anim(critter, ANIM_magic_hands_middle);
+
+   if critter_cur_anim == ANIM_fall_back orElse critter_cur_anim == ANIM_fall_back_sf then
+      standup_anim = ANIM_back_to_standing;
+   else if critter_cur_anim == ANIM_fall_front orElse critter_cur_anim == ANIM_fall_front_sf then
+      standup_anim = ANIM_prone_to_standing;
+
+   reg_anim_combat_check(0);
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   if standup_anim != 0 then
+      reg_anim_animate(gCritter, standup_anim, -1);
+
+   for (i := 0; i < count; i++) begin
+      reg_anim_callback(g_use_item_self);
+      if animate then
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
+
+      if count > 1 then begin
+         reg_anim_animate(gCritter, ANIM_stand, -1);
+         reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
+      end
+   end
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
 end
 
 procedure med_item_charges_restore begin
@@ -275,11 +1934,16 @@ procedure GAMEMODECHANGE begin
    variable lastgamemode;
    variable game_mode;
    if MedToolsMod > 0 then begin
+      game_mode = get_game_mode;
+      lastgamemode = get_sfall_arg_at(1);
       if inven_use_ap_cost > 0 then begin
-         game_mode = get_game_mode;
-         lastgamemode = get_sfall_arg;
          if (game_mode bwand INVENTORY) andAlso not(lastgamemode bwand INVENTORY) then
             gInvenCurAP = get_critter_current_ap(dude_obj);
+      end
+
+      if heal_timer_needs_reset > 0 andAlso (lastgamemode bwand PIPBOY) andAlso not(game_mode bwand PIPBOY) then begin
+         remove_timer_event(timed_event_heal_out_of_combat);
+         add_global_timer_event(random(5,25), timed_event_heal_out_of_combat);
       end
 
       call med_item_charges_restore;
@@ -319,22 +1983,34 @@ procedure med_item_get_or_restore_charges(variable item) begin
 end
 
 //Changes AP cost of FA and DOC items
-procedure apcost_handler begin
+procedure CALCAPCOST begin
+   variable critter = get_sfall_arg;
    variable item_pid;
-   variable dude_FA = has_skill(dude_obj, SKILL_FIRST_AID);
-   variable dude_DOC = has_skill(dude_obj, SKILL_DOCTOR);
-   if dude_DOC < 0 then dude_DOC = 0;
-   if dude_FA < 0 then dude_FA = 0;
-   if active_hand == 0 then begin
-      if critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND) then item_pid := obj_pid(critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND));
-   end else begin
-      if critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND) then item_pid := obj_pid(critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND));
-   end
-   if item_pid == doc_bag_pid or item_pid == PID_PARAMEDICS_BAG then begin
-      final_doc_ap_cost = doc_item_ap_cost;
-      if dude_DOC >= 100 then final_doc_ap_cost = doc_item_ap_cost - (dude_DOC - 50) / 50;
-      if final_doc_ap_cost < min_doc_ap_cost then final_doc_ap_cost = min_doc_ap_cost;
+   variable final_doc_ap_cost;
+   variable active_item = get_active_weapon(critter);
+
+   if active_item then
+      item_pid = obj_pid(active_item);
+
+   if item_pid == doc_bag_pid then begin
+      final_doc_ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, 20);
       set_sfall_return(final_doc_ap_cost);
+      set_sfall_arg(3, final_doc_ap_cost);
+   end
+   else if item_pid == PID_PARAMEDICS_BAG then begin
+      final_doc_ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, 40);
+      set_sfall_return(final_doc_ap_cost);
+      set_sfall_arg(3, final_doc_ap_cost);
+   end
+   else if DisableRepairTools <= 0 andAlso item_pid == tool_pid then begin
+      final_doc_ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_REPAIR, 20);
+      set_sfall_return(final_doc_ap_cost);
+      set_sfall_arg(3, final_doc_ap_cost);
+   end
+   else if DisableRepairTools <= 0 andAlso item_pid == super_tool_pid then begin
+      final_doc_ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_REPAIR, 40);
+      set_sfall_return(final_doc_ap_cost);
+      set_sfall_arg(3, final_doc_ap_cost);
    end
 end
 
@@ -366,6 +2042,11 @@ procedure map_enter_p_proc begin
    variable fa_kit2_count;
    variable critter_pid;
    if MedToolsMod > 0 then begin
+      if heal_timer_needs_reset > 0 then begin
+         remove_timer_event(timed_event_heal_out_of_combat);
+         add_global_timer_event(random(5,25), timed_event_heal_out_of_combat);
+      end
+
       set_proto_data(PID_FIRST_AID_KIT, PROTO_MI_CHARGES, max_charges);
       set_proto_data(PID_FIELD_MEDIC_KIT, PROTO_MI_CHARGES, max_charges_t2);
       set_proto_data(doc_bag_pid, PROTO_MI_CHARGES, doc_max_charges);
@@ -414,179 +2095,633 @@ end
 procedure REMOVEINVENOBJ begin
    variable owner = get_sfall_arg;
    variable removed_item = get_sfall_arg;
-   variable num_item = get_sfall_arg;
-   variable reason = get_sfall_arg;
-   variable dest = get_sfall_arg;
-   variable leftHand  = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
-   variable rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
-   if obj_pid(removed_item) == PID_FIRST_AID_KIT then begin
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) <= 0 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, random(min_charges, max_charges));
-      end
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) > max_charges then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES,max_charges);
-      end
+   variable removed_item_pid = obj_pid(removed_item);
+   variable item_charge;
+   variable min_c;
+   variable max_c;
+
+   if removed_item_pid == PID_FIRST_AID_KIT then begin
+      min_c = min_charges;
+      max_c = max_charges;
    end
-   if obj_pid(removed_item) == PID_FIELD_MEDIC_KIT then begin
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) <= 0 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, random(min_charges_t2, max_charges_t2));
-      end
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) > max_charges_t2 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES,max_charges_t2);
-      end
+   else if removed_item_pid == PID_FIELD_MEDIC_KIT then begin
+      min_c = min_charges_t2;
+      max_c = max_charges_t2;
    end
-   if obj_pid(removed_item) == doc_bag_pid then begin
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) <= 0 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, random(doc_min_charges, doc_max_charges));
-      end
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) > doc_max_charges then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES,doc_max_charges);
-      end
+   else if removed_item_pid == doc_bag_pid then begin
+      min_c = doc_min_charges;
+      max_c = doc_max_charges;
    end
-   if obj_pid(removed_item) == PID_PARAMEDICS_BAG then begin
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) <= 0 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, random(doc_min_charges_t2, doc_max_charges_t2));
-      end
-      if get_object_data(removed_item, OBJ_DATA_CUR_CHARGES) > doc_max_charges_t2 then begin
-         set_object_data(removed_item, OBJ_DATA_CUR_CHARGES,doc_max_charges_t2);
-      end
+   else if removed_item_pid == PID_PARAMEDICS_BAG then begin
+      min_c = doc_min_charges_t2;
+      max_c = doc_max_charges_t2;
    end
+   else
+      return;
+
+   item_charge = get_object_data(removed_item, OBJ_DATA_CUR_CHARGES);
+   if item_charge <= 0 then
+      item_charge = max_c;
+   else if item_charge > max_c then
+      item_charge = max_c;
+   else
+      return;
+
+   set_object_data(removed_item, OBJ_DATA_CUR_CHARGES, item_charge);
 end
 
-procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid) begin
-   variable inv_count = inven_count(inven_obj);
-   variable inv_index;
-   variable item;
-   variable item_pid;
-   variable item_charge;
-   variable min_charge_obj = -1;
-   for (inv_index = 0; inv_index < inv_count; inv_index++) begin
-      item = inven_ptr(inven_obj, inv_index);
-      // Check if item exists and matches charged object PID
-      if item > 0 andAlso obj_pid(item) == charged_obj_pid then begin
-         // Get current charges of the item
-         item_charge = get_object_data(item, OBJ_DATA_CUR_CHARGES);
-         // Update min_charge_obj if uninitialized or current item has fewer charges
-         if min_charge_obj == -1 orElse item_charge < get_object_data(min_charge_obj, OBJ_DATA_CUR_CHARGES) then begin
-            min_charge_obj = item;
-         end
-      end
-   end
-   // Return min_charge_obj if found, otherwise return result of (obj_carrying_pid_obj(inven_obj, charged_obj_pid))
-   if min_charge_obj > 0 then begin
-      return min_charge_obj;
+
+procedure get_ai_disposition(variable critter) begin
+   variable disposition = call_offset_r1(0x428340, critter);
+   return disposition;
+end
+
+procedure get_heal_uses_count(variable critter, variable heal_target, variable heal_ap_cost, variable skill_value, variable is_self_heal) begin
+   variable critter_cur_ap;
+   variable critter_int;
+   variable attack_ap;
+   variable heal_uses;
+   variable max_heal_uses;
+   variable base_heal_uses;
+   variable target_cur_hp;
+   variable target_max_hp;
+   variable target_hp_ratio;
+   variable int_skill_bonus;
+   variable rnd;
+   variable enemy_target;
+   variable enemy_distance;
+   variable enemy_in_range;
+   variable max_attacks;
+   variable ap_left;
+   variable heal_possible;
+   variable best_heal_uses;
+   variable best_attacks;
+   variable best_score;
+   variable attacks_count;
+   variable hp_weight;
+   variable attacks_ap_used;
+   variable heals_ap_used;
+   variable total_ap_used;
+   variable heal_ap_percent;
+   variable score;
+   variable diff;
+   variable bonus_chance;
+   variable penalty_chance;
+   variable ap_penalty;
+   variable aggression;
+   variable hp_weight_modifier;
+   variable heal_distance;
+   variable move_ap_cost;
+   variable state;
+   variable min_attacks_desired;
+   variable enemy_cur_hp;
+   variable enemy_max_hp;
+   variable enemy_hp_ratio;
+   variable optimal_action_bonus;
+   variable random_deviation;
+   variable attacker_is_blind;
+
+   aggression = get_object_ai_data(critter, AI_CAP_AGGRESSION);
+   if aggression < 0 then aggression = 0;
+   if aggression > 100 then aggression = 100;
+
+   critter_int = get_critter_stat(critter, STAT_iq);
+   if critter_int < 1 then critter_int = 1;
+   if critter_int > 10 then critter_int = 10;
+
+   optimal_action_bonus = (critter_int - 5) * 10;
+   random_deviation = 41 - critter_int * 4;
+   if random_deviation < 5 then random_deviation = 5;
+   if random_deviation > 40 then random_deviation = 40;
+
+   attacker_is_blind = Is_Blind(critter);
+
+   hp_weight_modifier = -aggression / 2;
+
+   if aggression >= 80 then
+      min_attacks_desired = 1;
+   else
+      min_attacks_desired = 0;
+
+   critter_cur_ap = get_critter_current_ap(critter);
+
+   if is_self_heal then begin
+      target_cur_hp = get_critter_stat(critter, STAT_current_hp);
+      target_max_hp = get_critter_stat(critter, STAT_max_hp);
+      move_ap_cost = 0;
+      heal_distance = 0;
    end
    else begin
-      return obj_carrying_pid_obj(inven_obj, charged_obj_pid);
+      if not heal_target then
+         return 0;
+      target_cur_hp = get_critter_stat(heal_target, STAT_current_hp);
+      target_max_hp = get_critter_stat(heal_target, STAT_max_hit_points);
+
+      if critter != heal_target then begin
+         distance_objs(heal_distance, critter, heal_target);
+         if heal_distance < 0 then heal_distance = 0;
+      end
+      else begin
+         heal_distance = 0;
+      end
+
+      state = critter_state(critter);
+      if (state bwand DAM_CRIP_LEG_LEFT) andAlso (state bwand DAM_CRIP_LEG_RIGHT) then
+         move_ap_cost = heal_distance * 8;
+      else if (state bwand DAM_CRIP_LEG_LEFT) orElse (state bwand DAM_CRIP_LEG_RIGHT) then
+         move_ap_cost = heal_distance * 4;
+      else
+         move_ap_cost = heal_distance;
    end
+
+   if critter_cur_ap <= move_ap_cost then
+      return 0;
+
+   if target_max_hp <= 0 then
+      return 0;
+
+   if heal_ap_cost <= 0 then
+      heal_ap_cost = 1;
+
+   target_hp_ratio = (target_cur_hp * 100) / target_max_hp;
+
+   hp_weight = 100 - target_hp_ratio + hp_weight_modifier;
+
+   if attacker_is_blind then
+      hp_weight += 10;
+
+   if hp_weight < 0 then hp_weight = 0;
+   if hp_weight > 100 then hp_weight = 100;
+
+   enemy_target = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
+   enemy_in_range = 0;
+
+   if not(enemy_target) andAlso critter != heal_target then begin
+      enemy_target = get_object_data(heal_target, OBJ_DATA_WHO_HIT_ME);
+      if enemy_target andAlso has_trait(TRAIT_OBJECT, enemy_target, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM) then
+         set_object_data(critter, OBJ_DATA_WHO_HIT_ME, enemy_target);
+      else
+         enemy_target = 0;
+   end
+
+   if enemy_target andAlso not(is_really_dead(enemy_target, critter_state(enemy_target), get_critter_stat(enemy_target, STAT_current_hp))) then begin
+      distance_objs(enemy_distance, critter, enemy_target);
+      attack_ap = get_cheapest_attack_ap_cost(critter, enemy_distance);
+      if attack_ap > 0 andAlso attack_ap <= (critter_cur_ap - move_ap_cost) then
+         enemy_in_range = 1;
+
+      enemy_cur_hp = get_critter_stat(enemy_target, STAT_current_hp);
+      enemy_max_hp = get_critter_stat(enemy_target, STAT_max_hp);
+      if enemy_max_hp > 0 then
+         enemy_hp_ratio = (enemy_cur_hp * 100) / enemy_max_hp;
+      else
+         enemy_hp_ratio = 100;
+
+   end
+   else begin
+      enemy_target = 0;
+      enemy_in_range = 0;
+      attack_ap = 999;
+      enemy_cur_hp = 999;
+      enemy_max_hp = 999;
+      enemy_hp_ratio = 100;
+   end
+
+   max_heal_uses = (critter_cur_ap - move_ap_cost) / heal_ap_cost;
+   int_skill_bonus = (critter_int * 5) + (skill_value / 10);
+
+   if enemy_in_range then begin
+      if attack_ap <= 0 then attack_ap = 1;
+      max_attacks = (critter_cur_ap - move_ap_cost) / attack_ap;
+      best_heal_uses = 0;
+      best_attacks = 0;
+      best_score = -1;
+
+      for (attacks_count = max_attacks; attacks_count >= 0; attacks_count--) begin
+         ap_left = critter_cur_ap - move_ap_cost - (attacks_count * attack_ap);
+         if ap_left < 0 then
+            continue;
+
+         heal_possible = ap_left / heal_ap_cost;
+         if heal_possible > max_heal_uses then
+            heal_possible = max_heal_uses;
+
+         ap_left = ap_left - (heal_possible * heal_ap_cost);
+
+         attacks_ap_used = attacks_count * attack_ap;
+         heals_ap_used = heal_possible * heal_ap_cost;
+         total_ap_used = move_ap_cost + attacks_ap_used + heals_ap_used;
+
+         if total_ap_used > 0 then begin
+            if (attacks_ap_used + heals_ap_used) > 0 then
+               heal_ap_percent = (heals_ap_used * 100) / (attacks_ap_used + heals_ap_used);
+            else
+               heal_ap_percent = 0;
+
+            diff = heal_ap_percent - hp_weight;
+            if diff < 0 then diff = -diff;
+
+            ap_penalty = ap_left * 2;
+            score = diff + ap_penalty;
+
+            if ap_left == 0 then
+               score -= 10;
+
+            if attacker_is_blind andAlso attacks_count > 0 then begin
+               if enemy_distance <= 1 then
+                  score += attacks_count * 3;
+               else
+                  score += attacks_count * 10;
+
+               if aggression >= 80 then
+                  score -= attacks_count * 5;
+            end
+
+            if min_attacks_desired > 0 then begin
+               if attacks_count < min_attacks_desired then
+                  score += 100;
+            end
+
+            if (enemy_hp_ratio < 7 orElse enemy_cur_hp < 10) andAlso attacks_count > 0 then begin
+               score -= 20;
+
+               if critter_int >= 6 then
+                  score -= 10;
+
+               if attacker_is_blind then
+                  score += 10;
+            end
+
+            if aggression >= 100 andAlso target_hp_ratio >= 25 then begin
+               if heal_possible > 0 then
+                  score += 50;
+            end
+
+            score -= optimal_action_bonus / 3;
+
+            rnd = random(0, 100);
+            if rnd < random_deviation then begin
+               score += random(0, random_deviation);
+            end
+
+            if score < best_score orElse best_score == -1 then begin
+               best_score = score;
+               best_heal_uses = heal_possible;
+               best_attacks = attacks_count;
+            end
+         end
+      end
+
+      base_heal_uses = best_heal_uses;
+   end
+   else begin
+      base_heal_uses = max_heal_uses;
+   end
+
+   if target_hp_ratio < 15 then begin
+      if attacker_is_blind then begin
+         base_heal_uses = max_heal_uses;
+      end
+      else if critter_int <= 3 then begin
+         if enemy_in_range andAlso (enemy_hp_ratio < 7 orElse enemy_cur_hp < 10) then begin
+
+            rnd = random(0, 100);
+            if rnd < 40 then begin
+               base_heal_uses = 0;
+            end
+            else begin
+               base_heal_uses = max_heal_uses;
+            end
+         end
+         else begin
+            base_heal_uses = random(max_heal_uses / 2, max_heal_uses);
+         end
+      end
+      else begin
+         base_heal_uses = max_heal_uses;
+      end
+
+      if base_heal_uses < 1 then
+         base_heal_uses = 1;
+   end
+   else if target_hp_ratio >= 85 then begin
+      if enemy_in_range then begin
+         max_attacks = (critter_cur_ap - move_ap_cost) / attack_ap;
+         ap_left = critter_cur_ap - move_ap_cost - (max_attacks * attack_ap);
+         base_heal_uses = ap_left / heal_ap_cost;
+
+         rnd = random(0, 100);
+
+         if attacker_is_blind then begin
+            if rnd < 50 then
+               base_heal_uses = max_heal_uses / 2;
+            else
+               base_heal_uses = 0;
+         end
+         else if critter_int >= 6 then begin
+            if rnd >= (10 - aggression / 10) then
+               base_heal_uses = 0;
+         end
+         else if critter_int <= 3 then begin
+            if rnd < 30 then
+               base_heal_uses = max_heal_uses / 2;
+            else if rnd >= (15 - aggression / 10) then
+               base_heal_uses = 0;
+         end
+         else begin
+            if rnd >= (15 - aggression / 10) then
+               base_heal_uses = 0;
+         end
+      end
+      else begin
+         rnd = random(0, 100);
+         if rnd < (15 - aggression / 10) then
+            base_heal_uses = max_heal_uses;
+         else
+            base_heal_uses = 0;
+      end
+   end
+
+   if base_heal_uses <= 0 then
+      return 0;
+
+   if base_heal_uses > max_heal_uses then
+      base_heal_uses = max_heal_uses;
+
+   rnd = random(0, 100);
+
+
+   if rnd < random_deviation / 2 then begin
+      if base_heal_uses < max_heal_uses then
+         base_heal_uses += 1;
+   end
+   else if rnd < random_deviation then begin
+      if base_heal_uses > 0 then
+         base_heal_uses -= 1;
+   end
+
+   if base_heal_uses > 0 andAlso max_heal_uses > base_heal_uses then begin
+      rnd = random(0, 100);
+      if rnd < (10 + int_skill_bonus / 3) then
+         base_heal_uses += 1;
+   end
+
+   bonus_chance = hp_weight;
+   penalty_chance = 100 - hp_weight;
+
+   rnd = random(0, 100);
+
+   if rnd < bonus_chance / 2 then begin
+      heal_uses = base_heal_uses + 1;
+      if heal_uses > max_heal_uses then
+         heal_uses = max_heal_uses;
+   end
+   else if rnd < bonus_chance then begin
+      heal_uses = base_heal_uses;
+   end
+   else if rnd < bonus_chance + penalty_chance / 2 then begin
+      heal_uses = base_heal_uses - 1;
+      if heal_uses < 0 then
+         heal_uses = 0;
+   end
+   else begin
+      heal_uses = base_heal_uses;
+   end
+
+   if heal_uses > 1 then
+      return random(heal_uses / 2, heal_uses);
+   else
+      return heal_uses;
 end
 
 procedure COMBATTURN begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
-   variable critter_name;
    variable critter_int;
    variable critter_type;
    variable critter_cur_hp;
    variable critter_max_hp;
    variable party;
    variable critter_in_party;
+   variable rnd;
+   variable critter_cur_state;
+   variable ap_cost;
+   variable critter_skill_doc;
+   variable critter_skill_fa;
+   variable critter_skill_repair;
    variable doc_item;
    variable fa_item;
-   variable rnd;
-   variable doc_bag_count;
-   variable paramedic_bag_count;
-   variable fa_kit_count;
-   variable fa_kit2_count;
-   variable critter_cur_frm;
+   variable repair_item;
+   variable heal_target;
+   variable skill;
+   variable doc_pid;
+   variable doc_bonus;
+   variable repair_bonus;
+   variable fa_bonus;
+   variable critter_cur_ap = get_critter_current_ap(critter);
+   variable critter_cur_ap_on_turn_start = critter_cur_ap;
+   variable stand_up;
+   variable stand_up_cost;
+   variable critter_cur_anim;
+   variable critter_combat_flags;
+   variable critter_is_robot;
+   variable critter_is_repair_bot;
+   variable critter_is_robobrain;
+   variable critter_fid;
    combat_med_tool_used = 0;
-   doc_used = 0;
+   gCritter = 0;
+   gItemPid = 0;
+   gObj = 0;
+   gTarget = 0;
+   gApCost = 0;
 
-   if turn_status != 1 orElse critter == dude_obj then
+   if critter == dude_obj orElse turn_status < 0 then begin
+      if set_ui_disable == 1 then
+         cancel (ui_disable);
+      set_ui_disable = 0;
+      return;
+   end
+
+   if turn_status != 1 orElse combat_direct_controll == 1 orElse tail_used > 0 orElse critter_cur_ap < fa_item_ap_cost then
       return;
 
    critter_type = critter_kill_type(critter);
-   critter_int = get_critter_stat(critter, STAT_iq);
+   if critter_type == KILL_TYPE_robot_kills orElse get_proto_data(obj_pid(critter), PROTO_CR_BODY_TYPE) == CR_BODY_ROBOTIC then begin
+      critter_fid = critter_art_fid(critter);
+      if critter_fid == FID_MAHAND then
+         critter_is_repair_bot = 1;
+      else if critter_fid == FID_MAROBO then
+         critter_is_robobrain = 1;
+      critter_is_robot = 1;
+   end
 
-   if critter_int <= 1 + ((critter_type == KILL_TYPE_children_kills) * 3) then
+   critter_int = get_critter_stat(critter, STAT_iq);
+   critter_skill_doc = has_skill(critter, SKILL_DOCTOR);
+   critter_skill_fa = has_skill(critter, SKILL_FIRST_AID);
+   critter_skill_repair = has_skill(critter, SKILL_REPAIR);
+
+   if (critter_int <= 1 + ((critter_type == KILL_TYPE_children_kills) * 3) andAlso (critter_is_robot <= 0 andAlso critter_skill_doc + critter_skill_fa < 100)) orElse (not(can_use_items(critter_type)) andAlso (critter_is_robobrain + critter_is_repair_bot) <= 0) then
       return;
 
-   critter_name = obj_name(critter);
-
-
-   critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
-   critter_max_hp = get_critter_stat(critter, STAT_max_hp);
    party = party_member_list(0);
    critter_in_party = is_in_array(critter, party);
-   critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+   if not((NPCsUseMedTools > 0 andAlso not(critter_in_party)) orElse (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party)) then
+      return;
 
-   // npc use doctor's bag if cripled
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) orElse (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party) ) andAlso tail_used <= 0 andAlso doc_used <= 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso (is_disabled(critter) orElse (critter_cur_hp < (critter_max_hp/3 ))) andAlso (critter_type != KILL_TYPE_children_kills orElse (critter_int >= 9 andAlso critter_type == KILL_TYPE_children_kills)) andAlso critter_type != KILL_TYPE_robot_kills then begin
-      doc_bag_count = obj_is_carrying_obj_pid(critter, doc_bag_pid);
-      paramedic_bag_count = obj_is_carrying_obj_pid(critter, PID_PARAMEDICS_BAG);
-      rnd = random(0, 100);
-       // use doctor's bag if in inventory
-      if doc_bag_count > 0 andAlso paramedic_bag_count <= 0 andAlso rnd < 10 + critter_int * 10 then begin
-         doc_used += 1;
-         combat_med_tool_used = doc_used;
-         set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
+   critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
+   critter_cur_state = critter_state(critter);
+
+   if is_really_dead(critter, critter_cur_state, critter_cur_hp) orElse (get_object_data(dude_obj, OBJ_DATA_WHO_HIT_ME) == 0 andAlso get_object_data(critter, OBJ_DATA_WHO_HIT_ME) == 0  andAlso critter_cur_hp > 10)  then
+      return;
+
+   critter_cur_anim = art_anim(obj_art_fid(critter));
+   critter_combat_flags = get_object_data(critter, OBJ_DATA_DAMAGE_FLAGS);
+   if is_in_prone_anim(critter_cur_anim) then begin
+      stand_up = 1;
+      if critter_in_party andAlso has_trait(TRAIT_PERK, critter, PERK_quick_recovery_perk) then
+         stand_up_cost = 1;
+      else
+         stand_up_cost = 3;
+
+      critter_cur_ap -= stand_up_cost;
+      if critter_cur_ap <= 0 then
+         critter_cur_ap = 0;
+
+      if critter_combat_flags bwand DAM_KNOCKED_DOWN != 0 then
+         set_object_data(critter, OBJ_DATA_DAMAGE_FLAGS, critter_combat_flags bwand bwnot(DAM_KNOCKED_DOWN));
+
+      set_critter_current_ap(critter, critter_cur_ap);
+   end
+
+   critter_max_hp = get_critter_stat(critter, STAT_max_hp);
+
+   if critter_is_robot <= 0 then begin
+      doc_item = find_min_charge_obj(critter, PID_PARAMEDICS_BAG);
+      if not(doc_item) then begin
          doc_item = find_min_charge_obj(critter, doc_bag_pid);
-         call reg_anim_magic_hands_middle_combat(critter);
-         set_self(critter);
-         set_self(critter);
-         use_obj_on_obj(doc_item, critter);
-         set_self(0);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(doc_bag_pid, 1)));
+         if not(doc_item) then begin
+            if StimUninjure > 0 then
+               doc_item = obj_carrying_pid_obj(critter, PID_SUPER_STIMPAK);
+         end
+         else
+            doc_bonus = 20;
       end
-      // use paramedic bag if in inventory
-      if paramedic_bag_count > 0 andAlso rnd < 15 + critter_int * 15 then begin
-         doc_used += 1;
-         combat_med_tool_used = doc_used;
-         set_critter_current_ap(critter, (get_critter_current_ap(critter) - 2));
-         doc_item = find_min_charge_obj(critter, PID_PARAMEDICS_BAG);
-         call reg_anim_magic_hands_middle_combat(critter);
-         set_self(critter);
-         set_self(critter);
-         use_obj_on_obj(doc_item, critter);
-         set_self(0);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_PARAMEDICS_BAG, 1)));
+      else
+         doc_bonus = 40;
+
+      fa_item = find_min_charge_obj(critter, PID_FIELD_MEDIC_KIT);
+      if not(fa_item) then begin
+         fa_item = find_min_charge_obj(critter, PID_FIRST_AID_KIT);
+         if fa_item then
+            fa_bonus = 20;
+      end
+      else
+         fa_bonus = 40;
+
+      if critter_skill_repair >= 30 orElse not(critter_in_party) then begin
+         repair_item = obj_carrying_pid_obj(critter, super_tool_pid);
+         if not(repair_item) then begin
+            repair_item = obj_carrying_pid_obj(critter, super_tool_pid);
+            if repair_item then
+               repair_bonus = 20;
+         end
+         else
+            repair_bonus = 40;
+      end
+   end
+   //robots
+   else if critter_is_repair_bot andAlso combat_med_tool_used <= 0 andAlso (((critter_cur_state bwand DAM_CRIP_ARM_LEFT) == 0) orElse ((critter_cur_state bwand DAM_CRIP_ARM_RIGHT) == 0)) then begin
+      skill = SKILL_REPAIR;
+      ap_cost = get_doc_repair_item_ap_cost(critter, skill, 0);
+
+      heal_target = ai_search_wounded_friend(critter, ap_cost, true, true);
+      if heal_target andAlso (is_disabled(heal_target) orElse (get_critter_stat(heal_target, STAT_current_hp) <= 3 * get_critter_stat(heal_target, STAT_max_hp) / 4)) andAlso (random(0, 100) < critter_skill_repair) then begin
+         combat_med_tool_used += 1;
+         call reg_anim_combat_robot_repair_target(critter, critter_cur_anim, heal_target, ap_cost, random(1, 2), false);
       end
    end
 
-   // npc uses fa item if wounded
-   if ((NPCsUseMedTools > 0 andAlso not(critter_in_party)) orElse (NPCsUseMedTools >= 2 andAlso combat_direct_controll != 2 andAlso critter_in_party)) andAlso tail_used <= 0 andAlso critter_cur_hp > 0 andAlso critter_cur_frm == 0 andAlso combat_direct_controll != 1 andAlso combat_med_tool_used <= 0 andAlso doc_used <= 0 andAlso ((critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 4 - (critter_max_hp / 10)))) orElse (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso not(is_dead(critter)) andAlso can_use_items(critter_type) andAlso critter_type != KILL_TYPE_robot_kills then begin
-      fa_kit_count = obj_is_carrying_obj_pid(critter, PID_FIRST_AID_KIT);
-      fa_kit2_count = obj_is_carrying_obj_pid(critter, PID_FIELD_MEDIC_KIT);
+
+   if combat_med_tool_used <= 0 andAlso doc_item andAlso (is_disabled(critter) orElse (critter_cur_hp < (critter_max_hp / 6))) andAlso (critter_type != KILL_TYPE_children_kills orElse (critter_int >= 9 andAlso critter_type == KILL_TYPE_children_kills)) andAlso critter_is_robot <= 0 then begin
       rnd = random(0, 100);
-      // npc can use fa kit if it is in inventory
-      if fa_kit_count > 0 andAlso fa_kit2_count <= 0 andAlso rnd < 6 + ((5 * critter_int * critter_max_hp) / critter_cur_hp) andAlso doc_used <= 0 then begin
-         combat_med_tool_used = 1;
-         fa_item = find_min_charge_obj(critter, PID_FIRST_AID_KIT);
-         call reg_anim_magic_hands_middle_combat(critter);
-         set_self(critter);
-         set_self(critter);
-         use_obj_on_obj(fa_item, critter);
-         set_self(0);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIRST_AID_KIT, 1)));
+      if rnd < doc_bonus + 10 + critter_int * 10 then begin
+         doc_pid = obj_pid(doc_item);
+         if doc_pid == PID_PARAMEDICS_BAG then
+            ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, paramedics_bag_bonus);
+         else
+            ap_cost = get_doc_repair_item_ap_cost(critter, SKILL_DOCTOR, doctors_bag_bonus);
+
+         if critter_cur_ap >= ap_cost then begin
+            combat_med_tool_used += 1;
+            call reg_anim_combat_use_item_on_self(critter, critter_cur_anim, doc_pid, ap_cost, 3);
+         end
       end
-      // use can field medic kit if it is in inventory
-      if fa_kit2_count > 0 andAlso rnd < 6 + ((5 * critter_int * critter_max_hp) / critter_cur_hp) andAlso doc_used <= 0  then begin
+   end
+
+   if combat_med_tool_used <= 0 andAlso fa_item andAlso ((critter_max_hp <= 399 andAlso (critter_cur_hp < (critter_max_hp - 4 - (critter_max_hp / 10)))) orElse (critter_max_hp > 399 andAlso critter_cur_hp < critter_max_hp / 2)) andAlso can_use_items(critter_type) andAlso critter_is_robot <= 0 then begin
+      rnd = random(0, 100);
+      ap_cost = fa_item_ap_cost;
+
+      if rnd < fa_bonus + 6 + ((5 * critter_int * critter_max_hp) / critter_cur_hp) then begin
          combat_med_tool_used = 1;
-         fa_item = find_min_charge_obj(critter, PID_FIELD_MEDIC_KIT);
-         call reg_anim_magic_hands_middle_combat(critter);
-         set_self(critter);
-         set_self(critter);
-         use_obj_on_obj(fa_item, critter);
-         set_self(0);
-         display_msg(parse_str_2(modmsg(msg_npc_use_item), critter_name, proto_data(PID_FIELD_MEDIC_KIT, 1)));
+         call reg_anim_combat_use_item_on_self(critter, critter_cur_anim, obj_pid(fa_item), ap_cost, get_heal_uses_count(critter,critter,fa_item_ap_cost,critter_skill_fa,1));
       end
+   end
+
+   //frienldy heal
+   if doc_item andAlso combat_med_tool_used <= 0 andAlso (critter_skill_doc >= 50 orElse random(0,3)) then begin
+      skill = SKILL_DOCTOR;
+      if obj_pid(doc_item) == PID_PARAMEDICS_BAG then
+         ap_cost = get_doc_repair_item_ap_cost(critter, skill, paramedics_bag_bonus);
+      else
+         ap_cost = get_doc_repair_item_ap_cost(critter, skill, doctors_bag_bonus);
+
+      heal_target = ai_search_wounded_friend(critter, ap_cost, true);
+
+
+      if heal_target andAlso (is_disabled(heal_target) orElse (not(fa_item) andAlso get_critter_stat(heal_target, STAT_current_hp) <= 15)) andAlso (random(0, 100) < 20 + doc_bonus + critter_skill_doc) then begin
+         combat_med_tool_used += 1;
+         call reg_anim_combat_use_item_on_target(critter, critter_cur_anim, heal_target, obj_pid(doc_item), ap_cost, random(1, 2), random(0, 1));
+      end
+   end
+
+   if fa_item andAlso combat_med_tool_used <= 0 andAlso (critter_skill_fa >= 50 orElse random(0,3)) then begin
+      skill = SKILL_FIRST_AID;
+      ap_cost = fa_item_ap_cost;
+      heal_target = ai_search_wounded_friend(critter, ap_cost, 0);
+
+      if heal_target andAlso (random(0, 100) < get_heal_friend_chance(critter, heal_target, skill)) then begin
+         combat_med_tool_used += 1;
+         call reg_anim_combat_use_item_on_target(critter, critter_cur_anim, heal_target, obj_pid(fa_item), ap_cost, get_heal_uses_count(critter,heal_target,ap_cost,critter_skill_fa,false), random(0, 1));
+      end
+   end
+
+   //frienldy heal robot
+   if repair_item andAlso combat_med_tool_used <= 0 andAlso (critter_skill_repair >= 50 orElse random(0,1)) then begin
+      skill = SKILL_REPAIR;
+      if obj_pid(repair_item) == super_tool_pid then
+         ap_cost = get_doc_repair_item_ap_cost(critter, skill, super_tool_bonus);
+      else
+         ap_cost = get_doc_repair_item_ap_cost(critter, skill, tool_bonus);
+
+      heal_target = ai_search_wounded_friend(critter, ap_cost, true, true);
+
+
+      if heal_target andAlso (is_disabled(heal_target) orElse (get_critter_stat(heal_target, STAT_current_hp) <= 3 * get_critter_stat(heal_target, STAT_max_hp) / 4)) andAlso (random(0, 100) < critter_skill_repair) then begin
+         combat_med_tool_used += 1;
+         call reg_anim_combat_use_item_on_target(critter, critter_cur_anim, heal_target, obj_pid(repair_item), ap_cost, random(1, 2), false);
+      end
+   end
+
+   if stand_up andAlso combat_med_tool_used <= 0 then begin
+      set_object_data(critter, OBJ_DATA_DAMAGE_FLAGS, critter_combat_flags);
+      set_critter_current_ap(critter, critter_cur_ap_on_turn_start);
    end
 end
 
 procedure med_tool_split_and_set_charge(variable user, variable med_tool_obj, variable new_charges) begin
    if med_tool_obj <= 0 then
       return;
-
    // Create a new medical tool object with the same PID
    med_tool_obj = create_object(obj_pid(med_tool_obj), 0, 0);
    // Set the new charges for the medical tool
@@ -618,6 +2753,7 @@ procedure USEOBJON begin
    variable tar_name;
    variable user_FA;
    variable user_DOC;
+   variable user_repair;
    variable tar_max_hp;
    variable tar_cur_hp;
    variable leftHand;
@@ -628,7 +2764,6 @@ procedure USEOBJON begin
    variable new_obj_charges;
    variable hp_healed;
    variable heal_cost;
-   variable heal_chance;
    variable min_heal_chance;
    variable max_heal_chance;
    variable healer_perk;
@@ -638,16 +2773,34 @@ procedure USEOBJON begin
    variable cost;
    variable min_cost;
    variable qp_discount;
+   variable target_type;
+   variable another_item;
+   variable game_mod;
+   variable healed_limbs;
    cost = inven_use_ap_cost;
+
+   if objpid != PID_FIRST_AID_KIT andAlso
+      objpid != PID_FIELD_MEDIC_KIT andAlso
+      objpid != doc_bag_pid andAlso
+      objpid != PID_PARAMEDICS_BAG andAlso objpid != tool_pid andAlso objpid != super_tool_pid then
+         return;
+
+   if DisableRepairTools > 0 andAlso (objpid == tool_pid orElse objpid == super_tool_pid) then
+      return;
+
+   if obj_type(target) != OBJ_TYPE_CRITTER then begin
+      if objpid != tool_pid andAlso objpid != super_tool_pid then begin
+         display_msg(modmsg(msg_useless_act));
+         set_sfall_return(0);
+      end
+      return false;
+   end
+
    //check ap inven cost in combat
+   game_mod = get_game_mode;
    if cost > 0 andAlso user == dude_obj andAlso combat_is_initialized then begin
-      if (get_game_mode bwand INVENTORY) then begin
+      if (game_mod bwand INVENTORY) then begin
          call set_inven_cur_ap in 0;
-         if objpid != PID_FIRST_AID_KIT andAlso
-            objpid != PID_FIELD_MEDIC_KIT andAlso
-            objpid != doc_bag_pid andAlso
-            objpid != PID_PARAMEDICS_BAG then
-               return;
 
          ap = gInvenCurAP;
          min_cost = inven_use_ap_cost_min;
@@ -661,106 +2814,208 @@ procedure USEOBJON begin
          end
       end
    end
-   else begin
-      if objpid != PID_FIRST_AID_KIT andAlso
-         objpid != PID_FIELD_MEDIC_KIT andAlso
-         objpid != doc_bag_pid andAlso
-         objpid != PID_PARAMEDICS_BAG then
-            return;
-   end
 
+   target_type = critter_kill_type(target);
    objname = obj_name(obj);
    tar_name = obj_name(target);
    user_FA = has_skill(user, SKILL_FIRST_AID);
    user_DOC = has_skill(user, SKILL_DOCTOR);
    tar_max_hp = get_critter_stat(target, STAT_max_hp);
    tar_cur_hp = get_critter_stat(target, STAT_current_hp);
-   leftHand  = critter_inven_obj2(dude_obj, INVEN_TYPE_LEFT_HAND);
-   rightHand = critter_inven_obj2(dude_obj, INVEN_TYPE_RIGHT_HAND);
+   leftHand = critter_inven_obj2(user, INVEN_TYPE_LEFT_HAND);
+   rightHand = critter_inven_obj2(user, INVEN_TYPE_RIGHT_HAND);
    tar_lost_hp = tar_max_hp - tar_cur_hp;
    skill_bonus = first_aid_kit_bonus;
    heal_cost = 1;
    healer_perk = has_trait(TRAIT_PERK, user, PERK_healer);
    player_level = get_pc_stat(PCSTAT_level);
+   obj_charges = get_object_data(obj, OBJ_DATA_CUR_CHARGES);
 
-   if ET_TU == 0 then healer_perk = healer_perk * 2;
-   //DOC
-   if (objpid == doc_bag_pid orElse objpid == PID_PARAMEDICS_BAG) then begin
-   //item charges restore
-      if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges,doc_max_charges));
-      if objpid == doc_bag_pid andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,doc_max_charges);
-      if objpid == PID_PARAMEDICS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(doc_min_charges_t2,doc_max_charges_t2));
-      if objpid == PID_PARAMEDICS_BAG andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > doc_max_charges_t2 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, doc_max_charges_t2);
-      if user == dude_obj andAlso user_DOC <= 0 then begin
+   //REPAIR
+   if target_type == KILL_TYPE_robot_kills andAlso (objpid == tool_pid orElse objpid == super_tool_pid) then begin
+      if objpid == tool_pid then
+         skill_bonus = tool_bonus;
+      else
+         skill_bonus = super_tool_bonus;
+
+      user_repair = has_skill(user, SKILL_REPAIR);
+      if is_really_dead(target, critter_state(target), tar_cur_hp) then
+         return;
+
+      if user == dude_obj andAlso user_repair <= 0 then begin
          display_msg(parse_str_2(modmsg(msg_skill_needed), objname, 0));
          set_sfall_return(0);
-         return false;
+         return;
       end
-      if obj_type(target) != OBJ_TYPE_CRITTER then begin
-         display_msg(modmsg(msg_useless_act));
-         set_sfall_return(0);
-         return false;
-      end
-      if is_critter_dead(target) or tar_cur_hp <= 0 then begin
-         display_msg(modmsg(msg_target_is_dead));
-         set_sfall_return(0);
-         return false;
-      end
-      if user == dude_obj andAlso (get_game_mode bwand INVENTORY) andAlso combat_is_initialized then begin
+      else if user != dude_obj then
+         user_repair += player_level;
+
+      if user == dude_obj andAlso (game_mod bwand INVENTORY) andAlso combat_is_initialized then begin
          display_msg(modmsg(msg_use_from_hands));
          set_sfall_return(0);
-         return false;
+         return;
       end
       if user == dude_obj andAlso leftHand != obj andAlso rightHand != obj andAlso combat_is_initialized then begin
          display_msg(modmsg(msg_use_from_hands));
          set_sfall_return(0);
-         return false;
+         return;
       end
       if tar_cur_hp >= tar_max_hp andAlso not(is_disabled(target)) then begin
-         if user == dude_obj andAlso target == dude_obj then begin
-            display_msg(modmsg(msg_dude_fullhp));
+         //if user == dude_obj then begin
+            //if target == dude_obj then
+               //display_msg(modmsg(msg_dude_fullhp));
+            //else
+               //display_msg(parse_str_2(modmsg(msg_npc_fullhp), tar_name, 0));
+         //end
+         //set_sfall_return(0);
+         return;
+      end
+
+      if is_disabled(target) then begin
+         doc_self_dmg = 0;
+         healed_limbs = uninjure(user, target, objpid, skill_bonus, true);
+      end
+      else
+         healed_limbs = -1;
+
+      if healed_limbs == -1 orElse healed_limbs > 0 then begin
+         if doc_self_dmg <= 0 andAlso tar_cur_hp > 0 andAlso tar_cur_hp < tar_max_hp then begin
+            if user_repair <= 0 then user_repair = 1;
+
+            hp_healed = 5 + random(((skill_bonus / 10) + (user_repair / 10)), ((skill_bonus / 5) + (user_repair / 6))) + ceil(tar_max_hp / 1000.0 * user_repair);
+            if has_trait(TRAIT_PERK, user, PERK_mr_fixit) > 0 then hp_healed = hp_healed + random(5, 15);
+            if hp_healed > tar_lost_hp then hp_healed = tar_lost_hp;
+
+            if hp_healed > 0 then begin
+               critter_heal(target, hp_healed);
+               if user == dude_obj then
+                  display_msg(parse_str_2(modmsg(repair_msg + msg_dude_heal), hp_healed, 0));
+            end
          end
-         if user != dude_obj or target != dude_obj then begin
-            display_msg(parse_str_2(modmsg(msg_npc_fullhp), tar_name, 0));
+         intface_redraw;
+      end
+      else if healed_limbs < 0 andAlso user == dude_obj then
+         display_msg(modmsg(repair_msg + msg_heal_failed));
+
+      set_sfall_return(0);
+      return;
+   end
+   else if (objpid == tool_pid orElse objpid == super_tool_pid) then begin
+      return;
+   end
+   else if target_type == KILL_TYPE_robot_kills then begin
+      display_msg(modmsg(msg_useless_act));
+      set_sfall_return(0);
+      return;
+   end
+
+   if is_really_dead(target, critter_state(target), tar_cur_hp) then begin
+      display_msg(modmsg(msg_target_is_dead));
+      set_sfall_return(0);
+      return;
+   end
+
+
+   if ET_TU == 0 then
+      healer_perk = healer_perk * 2;
+   //DOC
+   if (objpid == doc_bag_pid orElse objpid == PID_PARAMEDICS_BAG) then begin
+   //item charges restore
+      if objpid == doc_bag_pid then begin
+         if obj_charges <= 0 then begin
+            obj_charges = doc_min_charges;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+         else if obj_charges > doc_max_charges then begin
+            obj_charges = doc_max_charges;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+      end
+      else if objpid == PID_PARAMEDICS_BAG then begin
+         if obj_charges <= 0 then begin
+            obj_charges = doc_min_charges_t2;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+         else if obj_charges > doc_max_charges_t2 then begin
+            obj_charges = doc_max_charges_t2;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+      end
+
+      if user == dude_obj andAlso user_DOC <= 0 then begin
+         display_msg(parse_str_2(modmsg(msg_skill_needed), objname, 0));
+         set_sfall_return(0);
+         return;
+      end
+      else if user != dude_obj andAlso user_DOC > 0 then
+         user_DOC += player_level;
+
+      if user == dude_obj andAlso (game_mod bwand INVENTORY) andAlso combat_is_initialized then begin
+         display_msg(modmsg(msg_use_from_hands));
+         set_sfall_return(0);
+         return;
+      end
+      if user == dude_obj andAlso leftHand != obj andAlso rightHand != obj andAlso combat_is_initialized then begin
+         display_msg(modmsg(msg_use_from_hands));
+         set_sfall_return(0);
+         return;
+      end
+      if tar_cur_hp >= tar_max_hp andAlso not(is_disabled(target)) then begin
+         if user == dude_obj then begin
+            if target == dude_obj then
+               display_msg(modmsg(msg_dude_fullhp));
+            else
+               display_msg(parse_str_2(modmsg(msg_npc_fullhp), tar_name, 0));
          end
          set_sfall_return(0);
-         return false;
+         return;
       end
-      obj_charges = get_object_data(obj, OBJ_DATA_CUR_CHARGES);
+
+
+      if user == dude_obj andAlso user_DOC < min_doc_cmbt andAlso combat_is_initialized then begin
+         display_msg(modmsg(msg_cant_heal_limbs_combat));
+         set_sfall_return(0);
+         return;
+      end
+
+      if objpid == PID_PARAMEDICS_BAG then
+         skill_bonus = paramedics_bag_bonus;
+
       //doc uninjure
       if is_disabled(target) then begin
-         if user_DOC < 0 then begin
-            display_msg(modmsg(msg_cant_heal_limbs));
-            set_sfall_return(0);
-            return false;
-         end
-         if user == dude_obj andAlso user_DOC < min_doc_cmbt andAlso combat_is_initialized then begin
-            display_msg(modmsg(msg_cant_heal_limbs_combat));
-            set_sfall_return(0);
-            return false;
-         end
          doc_self_dmg = 0;
-         if user != dude_obj or (user == dude_obj andAlso user_DOC > 0 andAlso not(combat_is_initialized)) or (user == dude_obj andAlso user_DOC >= min_doc_cmbt andAlso combat_is_initialized) then call uninjure(user, target, objpid);
+         if user != dude_obj orElse (user == dude_obj andAlso user_DOC > 0 andAlso not(combat_is_initialized)) orElse (user == dude_obj andAlso user_DOC >= min_doc_cmbt andAlso combat_is_initialized) then
+            call uninjure(user, target, objpid, skill_bonus);
       end
       //doc healing
-      if tar_cur_hp > 0 andAlso tar_cur_hp < tar_max_hp then begin
+      if doc_self_dmg <= 0 andAlso tar_cur_hp > 0 andAlso tar_cur_hp < tar_max_hp then begin
          if user_DOC <= 0 then user_DOC = 1;
-         hp_healed = random(((skill_bonus / 10) + (user_DOC / 6)), ((skill_bonus / 4) + (user_DOC / 4))) + ceil(tar_max_hp / 600.0 * user_DOC);
+
+         hp_healed = 5 + random(((skill_bonus / 10) + (user_DOC / 6)), ((skill_bonus / 4) + (user_DOC / 4))) + ceil(tar_max_hp / 600.0 * user_DOC);
          if healer_perk > 0 then hp_healed = hp_healed + random(2 * healer_perk, 5 * healer_perk);
          if hp_healed > tar_lost_hp then hp_healed = tar_lost_hp;
-         if doc_self_dmg == 0 andAlso ( (user != dude_obj) or (user == dude_obj andAlso user_DOC > 0 andAlso not(combat_is_initialized)) or (user == dude_obj andAlso user_DOC >= min_doc_cmbt andAlso combat_is_initialized) ) then begin
+         if ( (user != dude_obj) orElse (user == dude_obj andAlso user_DOC > 0 andAlso not(combat_is_initialized)) orElse (user == dude_obj andAlso user_DOC >= min_doc_cmbt andAlso combat_is_initialized) ) then begin
             critter_heal(target, hp_healed);
          end
-         if user == dude_obj andAlso hp_healed > 0 andAlso doc_self_dmg == 0 then begin
+         if user == dude_obj andAlso hp_healed > 0 then begin
             display_msg(parse_str_2(modmsg(msg_dude_heal), hp_healed, 0));
          end
       end
       heal_cost = 1;
+      if heal_cost > obj_charges then
+         heal_cost = obj_charges;
+
       new_obj_charges = obj_charges - heal_cost;
-      //set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);//
-      if not(get_game_mode bwand INVENTORY) then intface_redraw;
+
       if new_obj_charges <= 0 then begin
-         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
+         if user == dude_obj then begin
+            display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
+            if (obj == leftHand orElse obj == rightHand) andAlso not(game_mod bwand INVENTORY) then begin
+               another_item = find_min_charge_obj(user, objpid, true);
+               if another_item != 0 then
+                  set_object_data(obj, OBJ_DATA_CUR_CHARGES, get_object_data(another_item, OBJ_DATA_CUR_CHARGES));
+            end
+         end
          set_sfall_return(1);
       end
       else begin
@@ -769,68 +3024,88 @@ procedure USEOBJON begin
             set_sfall_return(1);
          end
          else begin
-            set_object_data(obj, OBJ_DATA_CUR_CHARGES,new_obj_charges);
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, new_obj_charges);
             set_sfall_return(0);
-            intface_redraw;
          end
       end
+      intface_redraw;
    end
    //FA
    if objpid == PID_FIRST_AID_KIT orElse objpid == PID_FIELD_MEDIC_KIT then begin
-      if objpid == PID_FIRST_AID_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(min_charges,max_charges));
-      if objpid == PID_FIRST_AID_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > max_charges then set_object_data(obj, OBJ_DATA_CUR_CHARGES,max_charges);
-      if objpid == PID_FIELD_MEDIC_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) <= 0 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, random(min_charges_t2,max_charges_t2));
-      if objpid == PID_FIELD_MEDIC_KIT andAlso get_object_data(obj, OBJ_DATA_CUR_CHARGES) > max_charges_t2 then set_object_data(obj, OBJ_DATA_CUR_CHARGES, max_charges_t2);
-      obj_charges = get_object_data(obj, OBJ_DATA_CUR_CHARGES);
-      if objpid == PID_FIELD_MEDIC_KIT then skill_bonus = field_medic_kit_bonus;
-      if user != dude_obj then skill_bonus += (random(10, 30) + player_level * 2);
-      if user == dude_obj andAlso user_FA <= 0 then begin
-         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_skill_needed), objname, 0));
-         set_sfall_return(0);
-         return false;
-      end
-      if obj_type(target) != OBJ_TYPE_CRITTER then begin
-         if user == dude_obj then display_msg(modmsg(msg_useless_act));
-         set_sfall_return(0);
-         return false;
-      end
-      if is_critter_dead(target) or tar_cur_hp <= 0 then begin
-         if user == dude_obj then display_msg(modmsg(msg_target_is_dead));
-         set_sfall_return(0);
-         return false;
-      end
-      if tar_cur_hp >= tar_max_hp andAlso not(is_disabled(target)) then begin
-         if user == dude_obj andAlso target == dude_obj then begin
-            display_msg(modmsg(msg_dude_fullhp));
+      if objpid == PID_FIRST_AID_KIT then begin
+         if obj_charges <= 0 then begin
+            obj_charges = max_charges;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
          end
-         if user != dude_obj or target != dude_obj then begin
-            if user == dude_obj then display_msg(parse_str_2(modmsg(msg_npc_fullhp), tar_name, 0));
+         else if obj_charges > max_charges then begin
+            obj_charges = max_charges;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+      end
+      else if objpid == PID_FIELD_MEDIC_KIT then begin
+         if obj_charges <= 0 then begin
+            obj_charges = max_charges_t2;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+         else if obj_charges > max_charges_t2 then begin
+            obj_charges = max_charges_t2;
+            set_object_data(obj, OBJ_DATA_CUR_CHARGES, obj_charges);
+         end
+      end
+
+      if user == dude_obj then begin
+         if user_FA <= 0 then begin
+            display_msg(parse_str_2(modmsg(msg_skill_needed), objname, 0));
+            set_sfall_return(0);
+            return;
+         end
+      end
+      else
+         user_FA += player_level;
+
+      if tar_cur_hp >= tar_max_hp then begin
+         if user == dude_obj then begin
+            if is_disabled(target) then
+               display_msg(parse_str_2(modmsg(msg_use_doc_instead), objname, 0));
+            else if target == dude_obj then
+               display_msg(modmsg(msg_dude_fullhp));
+            else
+               display_msg(parse_str_2(modmsg(msg_npc_fullhp), tar_name, 0));
          end
          set_sfall_return(0);
-         return false;
+         return;
       end
-      if tar_cur_hp >= tar_max_hp andAlso is_disabled(target) then begin
-         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_use_doc_instead), objname, 0));
-         set_sfall_return(0);
-         return false;
-      end
+
+      if objpid == PID_FIELD_MEDIC_KIT then
+         skill_bonus = field_medic_kit_bonus;
+
       hp_healed = random(((skill_bonus / 10) + (user_FA / 9)), ((skill_bonus / 4) + (user_FA / 5)));
       if hp_healed <= 0 then hp_healed = 1;
       if healer_perk > 0 then hp_healed = hp_healed + random(2 * healer_perk, 5 * healer_perk);
-      if hp_healed > tar_lost_hp then hp_healed = tar_lost_hp;
+      if hp_healed > tar_lost_hp then
+         hp_healed = tar_lost_hp;
+
       if tar_cur_hp < tar_max_hp then begin
          critter_heal(target, hp_healed);
-         if heal_cost > obj_charges then heal_cost = obj_charges;
-         //set_object_data(obj, OBJ_DATA_CUR_CHARGES,obj_charges - heal_cost);
+         if heal_cost > obj_charges then
+            heal_cost = obj_charges;
+
          new_obj_charges = obj_charges - heal_cost;
-         if not(get_game_mode bwand INVENTORY) then intface_redraw;
-         if user == dude_obj then display_msg(parse_str_2(modmsg(msg_dude_heal), hp_healed, 0));
+         if user == dude_obj then
+            display_msg(parse_str_2(modmsg(msg_dude_heal), hp_healed, 0));
+
          if new_obj_charges <= 0 then begin
-            if user == dude_obj then display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
+            if user == dude_obj then begin
+               display_msg(parse_str_2(modmsg(msg_item_used), objname, 0));
+               if (obj == leftHand orElse obj == rightHand) andAlso not(game_mod bwand INVENTORY) then begin
+                  another_item = find_min_charge_obj(user, objpid, true);
+                  if another_item != 0 then
+                     set_object_data(obj, OBJ_DATA_CUR_CHARGES, get_object_data(another_item, OBJ_DATA_CUR_CHARGES));
+               end
+            end
             set_sfall_return(1);
          end
          else begin
-            //
             if leftHand != obj andAlso rightHand != obj then begin
                call med_tool_split_and_set_charge(user, obj, new_obj_charges);
                set_sfall_return(1);
@@ -838,9 +3113,9 @@ procedure USEOBJON begin
             else begin
                set_object_data(obj, OBJ_DATA_CUR_CHARGES,new_obj_charges);
                set_sfall_return(0);
-               intface_redraw;
             end
          end
+         intface_redraw;
       end
    end
 end
@@ -891,16 +3166,203 @@ procedure ecco_heal_mod_handler begin
    return disable_ecco;
 end
 
-
 procedure game_exit_to_menu begin
    write_byte(0x481B2A, 0xB8);
    write_int(0x481B2B, 27);
    sfall_func0("signal_close_game");
 end
 
+procedure non_combat_npc_heal_self begin
+   variable critters_arr;
+   variable critter;
+   variable injuried;
+   variable party;
+   variable critter_cur_frm;
+   variable doc_item;
+   variable fa_item;
+   variable cur_hp;
+   variable max_hp;
+   variable state;
+   variable target_critter;
+   variable target_item;
+   variable found_target;
+   variable last_found_critter;
+   variable last_found_item;
+   variable has_item;
+   variable total;
+   variable i;
+   variable reverse;
+   variable critter_hr;
+
+   critters_arr = list_as_array(LIST_CRITTERS);
+   if NPCsUseMedTools < 3 then
+      party = party_member_list(1);
+
+   total = len_array(critters_arr);
+   reverse = random(0, 1);
+
+   for (i = 0; i < total; i++) begin
+      if reverse then
+         critter = critters_arr[total - 1 - i];
+      else
+         critter = critters_arr[i];
+
+      if critter == dude_obj orElse not(obj_is_visible_flag(critter)) then
+         continue;
+
+      if (NPCsUseMedTools < 3 andAlso is_in_array(critter, party)) orElse not(can_use_items(critter_kill_type(critter))) then
+         continue;
+
+      if get_array(heal_map, critter) != 0 then
+         continue;
+
+      critter_cur_frm = get_object_data(critter, OBJ_DATA_CUR_FRM);
+      if critter_cur_frm != 0 orElse anim_busy(critter) != 0 then
+         continue;
+
+      injuried = is_disabled(critter);
+      cur_hp = get_critter_stat(critter, STAT_current_hp);
+      max_hp = get_critter_stat(critter, STAT_max_hp);
+      state = critter_state(critter);
+
+      if is_really_dead(critter, state, cur_hp) then
+         continue;
+
+      doc_item = 0;
+      fa_item = 0;
+      has_item = 0;
+
+      if injuried then begin
+         doc_item = find_min_charge_obj(critter, doc_bag_pid);
+         if not(doc_item) then begin
+            doc_item = find_min_charge_obj(critter, PID_PARAMEDICS_BAG);
+            if not(doc_item) andAlso StimUninjure > 0 andAlso cur_hp < max_hp - 30 then begin
+               doc_item = obj_carrying_pid_obj(critter, PID_SUPER_STIMPAK);
+            end
+         end
+
+
+         if doc_item then
+            has_item = true;
+      end
+
+      if not(has_item) andAlso cur_hp < max_hp - 10 then begin
+         fa_item = find_min_charge_obj(critter, PID_FIRST_AID_KIT);
+         if not(fa_item) then begin
+            fa_item = find_min_charge_obj(critter, PID_FIELD_MEDIC_KIT);
+            if not(fa_item) then begin
+               if RegenMod <= 0 then begin
+                  if cur_hp < max_hp then begin
+                     fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
+                     if not(fa_item) then begin
+                        fa_item = obj_carrying_pid_obj(critter, PID_HEALING_POWDER);
+                        if not(fa_item) andAlso cur_hp < max_hp - 15 then
+                           fa_item = obj_carrying_pid_obj(critter, PID_SUPER_STIMPAK);
+                     end
+                  end
+               end
+               else if RegenMod > 0 then begin
+                  critter_hr = get_critter_stat(critter, STAT_heal_rate) + get_critter_extra_stat(critter, STAT_heal_rate);
+                  if critter_hr <= 20 then begin
+                     if critter_hr >= -1 then begin
+                        fa_item = obj_carrying_pid_obj(critter, PID_HEALING_POWDER);
+                        if not(fa_item) then
+                           fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
+                     end
+                     else if critter_hr >= -14 then
+                        fa_item = obj_carrying_pid_obj(critter, PID_STIMPAK);
+                  end
+               end
+            end
+         end
+
+         if fa_item then
+            has_item = true;
+      end
+
+      if not(has_item) then
+         continue;
+
+      last_found_critter = critter;
+      if doc_item then
+         last_found_item = doc_item;
+      else if fa_item then
+         last_found_item = fa_item;
+
+      found_target = true;
+      target_critter = critter;
+      if doc_item then
+         target_item = doc_item;
+      else if fa_item then
+         target_item = fa_item;
+      break;
+   end
+
+   if found_target andAlso target_critter andAlso target_item then begin
+      anim(target_critter, ANIM_magic_hands_middle, ANIMATE_FORWARD);
+      set_self(target_critter);
+      set_self(target_critter);
+      use_obj_on_obj(target_item, target_critter);
+      set_self(0);
+
+
+      set_array(heal_map, target_critter, target_item);
+      return 1;
+   end
+
+
+   if last_found_critter andAlso last_found_item then begin
+      clear_array(heal_map);
+
+      anim(last_found_critter, ANIM_magic_hands_middle, ANIMATE_FORWARD);
+      set_self(last_found_critter);
+      set_self(last_found_critter);
+      use_obj_on_obj(last_found_item, last_found_critter);
+      set_self(0);
+
+      set_array(heal_map, last_found_critter, last_found_item);
+      return 1;
+   end
+
+   clear_array(heal_map);
+   return 0;
+end
+
+procedure timed_event_p_proc begin
+   variable param = fixed_param;
+   variable game_mode = get_game_mode;
+   variable healed;
+   variable time;
+   if NPCsUseMedTools < 1 then
+      return;
+   if timed_event_heal_out_of_combat then begin
+      if combat_is_initialized then
+         time = 65;
+      else if game_mode == 0 then begin
+         healed = non_combat_npc_heal_self;
+         if healed then
+            time = random(5, 25);
+         else
+            time = random(25, 75);
+      end
+      else if game_mode bwand WORLDMAP then begin
+         heal_timer_needs_reset = 1;
+      end
+      else if game_mode bwand PIPBOY then begin
+         heal_timer_needs_reset = 1;
+         time = 30000;
+      end
+
+      if time != 0 then begin
+         add_global_timer_event(time, timed_event_heal_out_of_combat);
+      end
+   end
+end
+
 procedure start begin
    variable ECCO_heal_tweak;
    variable was_disabled;
+   variable sfall_ver_maj,ver_minor,ver_build;
    if game_loaded then begin
       MedToolsMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|MedToolsMod");
       ECCO_heal_tweak = get_ini_setting(ECCO_HEALING_SKILLS+"skill_use_mod");
@@ -951,6 +3413,7 @@ procedure start begin
          doc_bag_pid = Sonora_doc_bag_pid;
       end
       if MedToolsMod > 0 then begin
+         heal_map = create_array_map;
          new_mod_msg = add_extra_msg_file(msg_file);
          if ECCO_heal_tweak > 0 then begin
             if ecco_heal_mod_handler <= 0 then begin
@@ -985,15 +3448,50 @@ procedure start begin
 
          end
 
+
          set_global_script_type(0);
          set_global_script_repeat(0);
+
+         sfall_ver_maj = sfall_ver_major;
+         ver_minor = sfall_ver_minor;
+         ver_build = sfall_ver_build;
+
+         if sfall_ver_maj >= 5 then begin
+            if sfall_ver_maj > 5 orElse ver_minor > 0 then begin
+               //sfall_510 = 1;
+//
+               //if sfall_ver_maj > 5 orElse ver_minor > 1 orElse (ver_minor == 1 andAlso ver_build >= 5) then begin
+                  //sfall_515 = 1;
+               //end
+
+               unsafe_script;
+            end
+         end
+
+         RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
+         if RegenMod > 0 then
+            StimUninjure = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Regeneration|StimUninjure");
+
          NPCsUseMedTools = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MedToolsMod|NPCsUseMedTools");
+         DisableRepairTools = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MedToolsMod|DisableRepairTools");
          ET_TU = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|et_tu");
+
+         if Sonora <= 0 andAlso ET_TU <= 0 then begin
+            //Fallout_2 = 1;
+            //if get_proto_data(542, PROTO_FID) == 197 then begin
+               //Megamod = 1;
+            //end
+            if get_proto_data(595, PROTO_FID) == 171 then begin
+               Olympus2207 = 1;
+               tool_pid = 83;
+               super_tool_pid = 301;
+            end
+         end
 
          sfall_mods_config = get_ini_string("ddraw.ini|Scripts|IniConfigFolder");
          if sfall_mods_config <= 0 then sfall_mods_config = "";
          combat_direct_controll = get_ini_setting(sfall_mods_config+"\\sfall-mods.ini|CombatControl|Mode");
-         register_hook_proc(HOOK_CALCAPCOST, apcost_handler);
+         register_hook_proc(HOOK_CALCAPCOST, CALCAPCOST);
          register_hook_proc(HOOK_USEOBJON, USEOBJON);
          if inven_use_ap_cost > 0 then begin
             register_hook_proc(HOOK_USEOBJ, USEOBJ);
@@ -1005,6 +3503,7 @@ procedure start begin
          register_hook_proc(HOOK_GAMEMODECHANGE, GAMEMODECHANGE);
          register_hook_proc(HOOK_DESCRIPTIONOBJ, DESCRIPTIONOBJ);
 
+         add_global_timer_event(11, timed_event_heal_out_of_combat);
          call map_enter_p_proc();
          call med_item_charges_restore;
          intface_redraw;

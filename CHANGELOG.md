@@ -16,6 +16,13 @@
 - Increased level requirement for Faster Healing rank 1 from lvl 3 to 6 for characters with the Fast Metabolism trait when `fast_metabolism_no_passive_regen` is enabled.
 - Kamikaze AP discount settings (steps per -1 AP, accuracy penalty, affected actions) now adjustable via .ini file.
 - Weapon reloading now always resets the Kamikaze movement AP bonus.
+### Medical Tools
+- Doctor's bags and first aid kits no longer heal robots.
+- Multi Tool and Super Tool Kit can now be used on robots to restore HP and repair limbs. Repair tools have no cooldown, are not consumed or broken, and can be used in combat with a sufficient Repair skill, but grant no XP and may damage the robot on a failed skill check. (Repair tools can be disabled via .ini)
+- Only repair robots (Mr. Handy) can repair other robots and do not require tools for it.
+- NPCs (enemies and companions, except robots) can now use doctor's bags and first aid kits in combat to heal their allies.
+- NPCs (enemies and companions) can use doctor's bags and first aid kits to heal themselves out of combat. By default, companions do not self-heal out of combat (can be enabled via .ini).
+- Skill bonuses from doctor's bags, paramedic bags, and tool kits are now taken into account when calculating AP costs.
 
 ## Latest Version v2.0.3
 ### Medical Tools
