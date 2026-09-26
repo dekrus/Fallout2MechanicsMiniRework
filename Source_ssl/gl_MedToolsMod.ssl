@@ -68,6 +68,13 @@
 #define set_obj_script_fixed_value(obj_sid, value) call_offset_v2(0x4A3B34, obj_sid, value)
 #define set_obj_script_objects(obj_sid, source, target) call_offset_v3(0x4A3B0C, obj_sid, source, target)
 #define exec_obj_script_proc(obj_sid, script_proc_type) call_offset_v2(0x4A4810, obj_sid, script_proc_type)
+//sfall 5
+#define REG_ANIM_CLEAR_FORCE                               (4)
+#define REG_ANIM_PRIORITY                                  (5)
+#define REG_ANIM_FLAG_UNSET                                (220)
+#define REG_ANIM_FLAG_SET                                  (221)
+#define reg_anim_clear_forced(who)                    if sfall_510 <= 0 then call reg_anim_clear_forced_sfall_4(who); else begin gNeedToClearLocks = 1; reg_anim_func(REG_ANIM_CLEAR_FORCE, who); end
+
 
 #define DISPOSITION_NONE        -1
 #define DISPOSITION_CUSTOM      0
@@ -128,6 +135,9 @@ variable RegenMod;
 variable StimUninjure;
 variable heal_map;
 variable heal_timer_needs_reset;
+variable original_byte;
+variable sfall_510;
+variable gNeedToClearLocks;
 
 
 export variable combat_med_tool_used;
@@ -145,6 +155,15 @@ procedure validate_critter_anim(variable critter, variable animType) begin
          return true;
    end
    return art_exists(critter_anim_fid(objFid, animType, 0));
+end
+
+procedure reg_anim_clear_forced_sfall_4(variable who) begin
+   variable original_byte = read_byte(0x413C8C);
+
+   write_byte(0x413C8C, 0xEB);
+   reg_anim_clear(who);
+
+   write_byte(0x413C8C, original_byte);
 end
 
 procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid, variable skip_hand_items = 0) begin
@@ -199,12 +218,25 @@ if set_ui_disable > 1 then
    set_ui_disable = 2;
 end
 
+procedure clear_all_locks() begin
+   variable i;
+   reg_anim_combat_check(0);
+   for (i = 0; i < 8; i = i + 1) begin
+      reg_anim_begin();
+      reg_anim_end();
+   end
+   gNeedToClearLocks = 0;
+end
+
 procedure ai_allow_continue_turn(variable critter) begin
    call_offset_v0(0x4227DC);//combat turn
    set_object_data(critter, OBJ_DATA_OUTLINE, get_object_data(critter, OBJ_DATA_OUTLINE) bwand OUTLINE_NOT_DISABLED);
    if set_ui_disable <= 0 then begin
       set_ui_disable = 1;
       call ui_disable when not(game_ui_is_disabled);
+   end
+   if gNeedToClearLocks then begin
+      call clear_all_locks in 0;
    end
 end
 procedure get_cheapest_attack_ap_cost(variable critter, variable target_distance) begin
@@ -275,7 +307,7 @@ procedure g_use_item_self begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -284,7 +316,7 @@ procedure g_use_item_self begin
    end
    if (gItemPid == PID_PARAMEDICS_BAG orElse gItemPid == doc_bag_pid) andAlso not(is_disabled(gCritter)) then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -300,7 +332,7 @@ procedure g_use_item_self begin
 
       if cur_hp >= max_hp orElse (cur_hp > max_hp / random(2,3) andAlso cur_ap >= get_cheapest_attack_ap_cost(gCritter,enemy_distance) andAlso random(0,2)) then begin
          reg_anim_combat_check(0);
-         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_clear_forced(gCritter)
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
          reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
          reg_anim_end();
@@ -364,7 +396,7 @@ procedure g_use_item_self_fa(variable critter, variable item) begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(critter, 1);
+      reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(critter, ANIM_stand, 0);
       reg_anim_animate_reverse(critter, ANIM_stand, 1);
@@ -376,7 +408,7 @@ procedure g_use_item_self_fa(variable critter, variable item) begin
    max_hp = get_critter_stat(critter, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(critter, 1);
+      reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(critter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -420,7 +452,7 @@ procedure g_use_item_self_doc(variable critter, variable item) begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(critter, 1);
+      reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(critter, ANIM_stand, 0);
       reg_anim_animate_reverse(critter, ANIM_stand, 1);
@@ -433,7 +465,7 @@ procedure g_use_item_self_doc(variable critter, variable item) begin
    max_hp = get_critter_stat(critter, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(critter, 1);
+      reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(critter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -554,7 +586,7 @@ procedure g_use_item_self_fa_old begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -565,7 +597,7 @@ procedure g_use_item_self_fa_old begin
    max_hp = get_critter_stat(gCritter, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -598,7 +630,7 @@ procedure g_use_item_on_target begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -607,7 +639,7 @@ procedure g_use_item_on_target begin
    end
    if (gItemPid == PID_PARAMEDICS_BAG orElse gItemPid == doc_bag_pid) andAlso not(is_disabled(gTarget)) then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -618,7 +650,7 @@ procedure g_use_item_on_target begin
       max_hp = get_critter_stat(gTarget, STAT_max_hp);
       if cur_hp >= max_hp then begin
          reg_anim_combat_check(0);
-         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_clear_forced(gCritter)
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
          reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
          reg_anim_end();
@@ -812,7 +844,7 @@ procedure g_repair_self begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -823,7 +855,7 @@ procedure g_repair_self begin
    max_hp = get_critter_stat(gCritter, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
       reg_anim_end();
@@ -1127,7 +1159,7 @@ procedure g_use_repair_on_target_punch_last_target begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -1139,7 +1171,7 @@ procedure g_use_repair_on_target_punch_last_target begin
    max_hp = get_critter_stat(gTarget, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
       reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
@@ -1170,7 +1202,7 @@ procedure g_use_repair_on_target_revers_last_target begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -1182,7 +1214,7 @@ procedure g_use_repair_on_target_revers_last_target begin
    max_hp = get_critter_stat(gTarget, STAT_max_hp);
    if cur_hp >= max_hp then begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
       reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
@@ -1203,7 +1235,7 @@ procedure reg_anim_combat_robot_repair_another_target(variable critter, variable
    gItemPid = -1;
 
    reg_anim_combat_check(0);
-   reg_anim_clear_forced(gCritter, 1);
+   reg_anim_clear_forced(gCritter)
    reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
    reg_anim_animate(gCritter, ANIM_throw_punch, 0);
    reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
@@ -1252,7 +1284,7 @@ procedure g_use_repair_on_target_revers begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -1270,7 +1302,7 @@ procedure g_use_repair_on_target_revers begin
       end
       else begin
          reg_anim_combat_check(0);
-         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_clear_forced(gCritter)
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
          reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
          reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
@@ -1303,7 +1335,7 @@ procedure g_use_repair_on_target_punch begin
    end
    else begin
       reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter, 1);
+      reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
       reg_anim_animate(gCritter, ANIM_stand, 0);
       reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
@@ -1321,7 +1353,7 @@ procedure g_use_repair_on_target_punch begin
       end
       else begin
          reg_anim_combat_check(0);
-         reg_anim_clear_forced(gCritter, 1);
+         reg_anim_clear_forced(gCritter)
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
          reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
          reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
@@ -1801,7 +1833,8 @@ procedure reg_anim_combat_robot_repair_target(variable critter, variable critter
    if standup_anim != 0 then
       reg_anim_animate(gCritter, standup_anim, -1);
    reg_anim_obj_run_to_obj(gCritter, target, -1);
-   reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
+   //reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
+   reg_anim_turn_towards(gCritter, tile_num(target), -1);
    for (i := 0; i < count; i++) begin
    //reg_anim_callback(g_use_repair_on_target);
       //if animate then begin
@@ -3458,7 +3491,7 @@ procedure start begin
 
          if sfall_ver_maj >= 5 then begin
             if sfall_ver_maj > 5 orElse ver_minor > 0 then begin
-               //sfall_510 = 1;
+               sfall_510 = 1;
 //
                //if sfall_ver_maj > 5 orElse ver_minor > 1 orElse (ver_minor == 1 andAlso ver_build >= 5) then begin
                   //sfall_515 = 1;
