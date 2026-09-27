@@ -46,7 +46,7 @@
 {1009}{}{%1% looks fully operational.}
 {1010}{}{%1% uses the %2%.}
 {1011}{}{You fail to repair the damage.}
-{1012}{}{You restored %1% integrity.}
+{1012}{}{You restore %1% integrity.}
 {1013}{}{You aren't skilled enough to use the %1%.}
 {1014}{}{You fail to do any repairs.}
 {1015}{}{%1%: supplies run out.}
