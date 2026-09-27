@@ -96,6 +96,7 @@
 #define Inventory_AP_Cost_ini_QP "mods\\inven_ap_cost.ini|quick_pocket|ReduceCostBy"
 
 #define timed_event_heal_out_of_combat 1
+#define tile_before_critter(critter) (tile_num_in_direction(tile_num(critter), has_trait(TRAIT_OBJECT, critter, OBJECT_CUR_ROT), 1))
 
 #include "sfall.h"
 #include "DEFINE.H"
@@ -138,6 +139,9 @@ variable heal_timer_needs_reset;
 variable original_byte;
 variable sfall_510;
 variable gNeedToClearLocks;
+variable first_turn_passed;
+variable is_actual_combat;
+
 
 
 export variable combat_med_tool_used;
@@ -186,18 +190,15 @@ procedure find_min_charge_obj(variable inven_obj, variable charged_obj_pid, vari
       if skip_hand_items > 0 andAlso (item == right_hand_obj orElse item == left_hand_obj) then
          continue;
 
-      // Check if item exists and matches charged object PID
-      if item > 0 andAlso obj_pid(item) == charged_obj_pid then begin
-         // Get current charges of the item
+      if item andAlso obj_pid(item) == charged_obj_pid then begin
          item_charge = get_object_data(item, OBJ_DATA_CUR_CHARGES);
-         // Update min_charge_obj if uninitialized or current item has fewer charges
          if min_charge_obj == -1 orElse item_charge < last_min_charge then begin
             last_min_charge = item_charge;
             min_charge_obj = item;
          end
       end
    end
-   // Return min_charge_obj if found, otherwise return result of (obj_carrying_pid_obj(inven_obj, charged_obj_pid))
+
    if min_charge_obj > 0 then begin
       return min_charge_obj;
    end
@@ -239,6 +240,38 @@ procedure ai_allow_continue_turn(variable critter) begin
       call clear_all_locks in 0;
    end
 end
+
+procedure share_enemy_data(variable critter, variable target) begin
+   variable cur_enemy;
+   variable target_enemy;
+   variable critter_team;
+   variable target_team;
+
+   if critter == target then begin
+      cur_enemy = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
+      return cur_enemy;
+   end
+
+   cur_enemy = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
+   target_enemy = get_object_data(target, OBJ_DATA_WHO_HIT_ME);
+
+   critter_team = has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM);
+   target_team = has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM);
+
+   if cur_enemy != 0 andAlso target_enemy == 0 then begin
+      if has_trait(TRAIT_OBJECT, cur_enemy, OBJECT_TEAM_NUM) != target_team then
+         set_object_data(target, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+   end
+   else if cur_enemy == 0 andAlso target_enemy != 0 then begin
+      if has_trait(TRAIT_OBJECT, target_enemy, OBJECT_TEAM_NUM) != critter_team then begin
+         set_object_data(critter, OBJ_DATA_WHO_HIT_ME, target_enemy);
+         cur_enemy = target_enemy;
+      end
+   end
+
+   return cur_enemy;
+end
+
 procedure get_cheapest_attack_ap_cost(variable critter, variable target_distance) begin
    variable weapon;
    variable weapon_pid;
@@ -289,12 +322,11 @@ procedure g_use_item_self begin
    variable max_hp;
    variable enemy_target;
    variable enemy_distance;
+   variable tile;
    if gCritter == 0 orElse gItemPid == 0 then
       return;
    item = find_min_charge_obj(gCritter, gItemPid);
    cur_ap = get_critter_current_ap(gCritter);
-
-   //item = 0;
    if item andAlso cur_ap >= gApCost then begin
       set_self(gCritter);
       set_self(gCritter);
@@ -306,11 +338,11 @@ procedure g_use_item_self begin
          critter_set_flee_state(gCritter, 0);
    end
    else begin
+      tile = tile_before_critter(gCritter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_turn_towards(gCritter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
    end
@@ -327,8 +359,9 @@ procedure g_use_item_self begin
       max_hp = get_critter_stat(gCritter, STAT_max_hp);
       cur_ap = get_critter_current_ap(gCritter);
       enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if enemy_target then
+      if enemy_target then begin
          distance_objs(enemy_distance, gCritter, enemy_target);
+      end
 
       if cur_hp >= max_hp orElse (cur_hp > max_hp / random(2,3) andAlso cur_ap >= get_cheapest_attack_ap_cost(gCritter,enemy_distance) andAlso random(0,2)) then begin
          reg_anim_combat_check(0);
@@ -369,6 +402,7 @@ procedure g_use_item_self_fa(variable critter, variable item) begin
    variable max_hp;
    variable enemy_target;
    variable enemy_distance;
+   variable tile;
 
    if critter == 0 orElse item == 0 then
       return;
@@ -378,9 +412,9 @@ procedure g_use_item_self_fa(variable critter, variable item) begin
    max_hp = get_critter_stat(critter, STAT_max_hp);
 
    enemy_target = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
-   if enemy_target then
+   if enemy_target then begin
       distance_objs(enemy_distance, critter, enemy_target);
-
+   end
    if (cur_ap >= get_cheapest_attack_ap_cost(critter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
       return;
 
@@ -395,11 +429,11 @@ procedure g_use_item_self_fa(variable critter, variable item) begin
          critter_set_flee_state(critter, 0);
    end
    else begin
+      tile = tile_before_critter(critter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(critter, ANIM_stand, 0);
-      reg_anim_animate_reverse(critter, ANIM_stand, 1);
+      reg_anim_turn_towards(critter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(critter);
    end
@@ -421,6 +455,7 @@ procedure g_use_item_self_doc(variable critter, variable item) begin
    variable cur_hp;
    variable max_hp;
    variable ap_cost;
+   variable tile;
 
    if critter == 0 orElse item == 0 then
       return;
@@ -439,7 +474,6 @@ procedure g_use_item_self_doc(variable critter, variable item) begin
    if cur_hp >= max_hp orElse cur_ap < ap_cost then
       return;
 
-   // Используем предмет
    if cur_ap >= ap_cost then begin
       set_self(critter);
       set_self(critter);
@@ -451,16 +485,15 @@ procedure g_use_item_self_doc(variable critter, variable item) begin
          critter_set_flee_state(critter, 0);
    end
    else begin
+      tile = tile_before_critter(critter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(critter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(critter, ANIM_stand, 0);
-      reg_anim_animate_reverse(critter, ANIM_stand, 1);
+      reg_anim_turn_towards(critter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(critter);
    end
 
-   // Прерывание, если HP полное
    cur_hp = get_critter_stat(critter, STAT_current_hp);
    max_hp = get_critter_stat(critter, STAT_max_hp);
    if cur_hp >= max_hp then begin
@@ -481,7 +514,6 @@ procedure g_use_check_item_and_self_heal begin
 
    if gCritter == 0 then
       return;
-
 
    //doc
    if is_disabled(gCritter) then begin
@@ -551,66 +583,12 @@ procedure g_use_check_item_and_self_heal begin
    return;
 end
 
-procedure g_use_item_self_fa_old begin
-   variable item;
-   variable cur_ap;
-   variable cur_hp;
-   variable max_hp;
-   variable enemy_target;
-   variable enemy_distance;
-   if gCritter == 0 orElse gItemPid == 0 then
-      return;
-   cur_ap = get_critter_current_ap(gCritter);
-   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
-   max_hp = get_critter_stat(gCritter, STAT_max_hp);
-   enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-   if enemy_target then
-      distance_objs(enemy_distance, gCritter, enemy_target);
-
-   if (cur_ap >= get_cheapest_attack_ap_cost(gCritter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
-      return;
-
-   item = find_min_charge_obj(gCritter, PID_FIELD_MEDIC_KIT);
-   if item == 0 then
-      item = find_min_charge_obj(gCritter, PID_FIRST_AID_KIT);
-
-   if item andAlso cur_ap >= fa_item_ap_cost then begin
-      set_self(gCritter);
-      set_self(gCritter);
-      use_obj_on_obj(item, gCritter);
-      set_self(0);
-      set_critter_current_ap(gCritter, (cur_ap - fa_item_ap_cost));
-      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
-      if gCritter != dude_obj then
-         critter_set_flee_state(gCritter, 0);
-   end
-   else begin
-      reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter)
-      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
-      reg_anim_end();
-      call ai_allow_continue_turn(gCritter);
-   end
-   cur_hp = get_critter_stat(gCritter, STAT_current_hp);
-   max_hp = get_critter_stat(gCritter, STAT_max_hp);
-   if cur_hp >= max_hp then begin
-      reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter)
-      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
-      reg_anim_end();
-      call ai_allow_continue_turn(gCritter);
-   end
-end
-
 procedure g_use_item_on_target begin
    variable item;
    variable cur_ap;
    variable cur_hp;
    variable max_hp;
-   variable cur_enemy;
+   variable tile;
    if gCritter == 0 orElse gItemPid == 0 orElse gTarget == 0 then
       return;
    item = find_min_charge_obj(gCritter, gItemPid);
@@ -623,17 +601,15 @@ procedure g_use_item_on_target begin
       display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
       if gTarget != dude_obj then
          critter_set_flee_state(gTarget, 0);
-      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
-         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
    end
    else begin
+      tile = tile_before_critter(gCritter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_turn_towards(gCritter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
    end
@@ -823,15 +799,16 @@ procedure g_repair_self begin
    variable max_hp;
    variable enemy_target;
    variable enemy_distance;
+   variable tile;
    if gCritter == 0 then
       return;
    cur_ap = get_critter_current_ap(gCritter);
    cur_hp = get_critter_stat(gCritter, STAT_current_hp);
    max_hp = get_critter_stat(gCritter, STAT_max_hp);
    enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-   if enemy_target then
+   if enemy_target then begin
       distance_objs(enemy_distance, gCritter, enemy_target);
-
+   end
    if (cur_ap >= get_cheapest_attack_ap_cost(gCritter, enemy_distance) andAlso cur_hp >= max_hp / 2) orElse cur_hp >= max_hp orElse cur_ap < fa_item_ap_cost then
       return;
 
@@ -843,11 +820,11 @@ procedure g_repair_self begin
          critter_set_flee_state(gCritter, 0);
    end
    else begin
+      tile = tile_before_critter(gCritter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_turn_towards(gCritter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
    end
@@ -992,7 +969,7 @@ procedure ai_search_wounded_friend(variable critter, variable ap_cost, variable 
       return 0;
 
    foreach target in objects begin
-      if target == critter orElse target == skip_target orElse not(obj_is_visible_flag(target)) then
+      if target == 0 orElse target == critter orElse target == skip_target orElse not(obj_is_visible_flag(target)) then
          continue;
 
       if (critter_kill_type(target) == KILL_TYPE_robot_kills) != (is_repair > 0) then begin
@@ -1136,12 +1113,12 @@ procedure ai_search_wounded_friend(variable critter, variable ap_cost, variable 
    return best_choice;
 end
 
-procedure g_use_repair_on_target_punch_last_target begin
+procedure g_use_repair_on_target_last_target begin
    variable cur_ap;
    variable cur_hp;
    variable max_hp;
-   variable cur_enemy;
    variable another_target;
+   variable tile;
    if gCritter == 0 orElse gTarget == 0 then
       return;
    cur_ap = get_critter_current_ap(gCritter);
@@ -1152,17 +1129,15 @@ procedure g_use_repair_on_target_punch_last_target begin
       display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
       if gTarget != dude_obj then
          critter_set_flee_state(gTarget, 0);
-      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
-         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+      call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
    end
    else begin
+      tile = tile_before_critter(gCritter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_turn_towards(gCritter, tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
    end
@@ -1170,53 +1145,12 @@ procedure g_use_repair_on_target_punch_last_target begin
    cur_hp = get_critter_stat(gTarget, STAT_current_hp);
    max_hp = get_critter_stat(gTarget, STAT_max_hp);
    if cur_hp >= max_hp then begin
+      tile = tile_before_critter(gCritter);
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
-      reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-      reg_anim_end();
-      call ai_allow_continue_turn(gCritter);
-   end
-end
-
-procedure g_use_repair_on_target_revers_last_target begin
-   variable cur_ap;
-   variable cur_hp;
-   variable max_hp;
-   variable cur_enemy;
-   if gCritter == 0 orElse gTarget == 0 then
-      return;
-   cur_ap = get_critter_current_ap(gCritter);
-
-   if cur_ap >= gApCost then begin
-      call do_repair(gCritter, gTarget, 30);
-      set_critter_current_ap(gCritter, (cur_ap - gApCost));
-      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
-      if gTarget != dude_obj then
-         critter_set_flee_state(gTarget, 0);
-      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
-         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
-      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
-   end
-   else begin
-      reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter)
-      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
-      reg_anim_end();
-      call ai_allow_continue_turn(gCritter);
-   end
-
-   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
-   max_hp = get_critter_stat(gTarget, STAT_max_hp);
-   if cur_hp >= max_hp then begin
-      reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter)
-      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+      reg_anim_turn_towards(gCritter, tile, -1);
+      reg_anim_animate(gCritter, ANIM_throw_punch, 0);
       reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
@@ -1225,8 +1159,8 @@ end
 
 procedure reg_anim_combat_robot_repair_another_target(variable critter, variable target, variable ap_cost, variable count, variable self_heal) begin
    variable i;
-   variable animate2 = 1;
    variable enemy_target;
+   variable target_tile = tile_num(target);
    if count > 10 then
       count = 10;
    gCritter = critter;
@@ -1240,122 +1174,59 @@ procedure reg_anim_combat_robot_repair_another_target(variable critter, variable
    reg_anim_animate(gCritter, ANIM_throw_punch, 0);
    reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
    reg_anim_obj_run_to_obj(gCritter, target, -1);
-   reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
    for (i := 0; i < count; i++) begin
-      if animate2 then begin
-         if animate2 == 1 then begin
-            reg_anim_callback(g_use_repair_on_target_punch_last_target);
-            reg_anim_animate(gCritter, ANIM_throw_punch, -1);
-            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-            animate2 = 2;
-         end
-         else if count > 1 then begin
-            reg_anim_callback(g_use_repair_on_target_revers_last_target);
-            reg_anim_animate_reverse(gCritter, ANIM_throw_punch, -1);
-            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-            animate2 = 1;
-         end
-      end
+      reg_anim_turn_towards(gCritter, target_tile, -1);
+      reg_anim_callback(g_use_repair_on_target_last_target);
+      reg_anim_animate(gCritter, ANIM_throw_punch, -1);
+      reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
    end
    reg_anim_end();
    call ai_allow_continue_turn(gCritter);
 end
 
-procedure g_use_repair_on_target_revers begin
+procedure g_use_repair_on_target begin
    variable cur_ap;
    variable cur_hp;
    variable max_hp;
-   variable cur_enemy;
    variable another_target;
+   variable target_tile;
    if gCritter == 0 orElse gTarget == 0 then
       return;
    cur_ap = get_critter_current_ap(gCritter);
-
+   target_tile = tile_num(gTarget);
    if cur_ap >= gApCost then begin
       call do_repair(gCritter, gTarget, 30);
       set_critter_current_ap(gCritter, (cur_ap - gApCost));
       display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
       if gTarget != dude_obj then
          critter_set_flee_state(gTarget, 0);
-      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
-         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
+
+      call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
    end
    else begin
       reg_anim_combat_check(0);
       reg_anim_clear_forced(gCritter)
       reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
+      reg_anim_turn_towards(gCritter, target_tile, -1);
       reg_anim_end();
       call ai_allow_continue_turn(gCritter);
    end
 
    cur_hp = get_critter_stat(gTarget, STAT_current_hp);
    max_hp = get_critter_stat(gTarget, STAT_max_hp);
-   if cur_hp >= max_hp orElse (cur_ap >= gApCost) then begin
+   if cur_hp >= max_hp andAlso not(is_disabled(gTarget)) then begin
       if cur_ap >= gApCost then
          another_target = ai_search_wounded_friend(gCritter, gApCost, true, true, gTarget);
       if another_target then begin
-         call reg_anim_combat_robot_repair_another_target(gCritter, another_target, gApCost, random(1, 2), false);
+         call reg_anim_combat_robot_repair_another_target(gCritter, another_target, gApCost, random(1, 3), false);
       end
       else begin
          reg_anim_combat_check(0);
          reg_anim_clear_forced(gCritter)
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-         reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
-         reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-         reg_anim_end();
-         call ai_allow_continue_turn(gCritter);
-      end
-   end
-end
-
-procedure g_use_repair_on_target_punch begin
-   variable cur_ap;
-   variable cur_hp;
-   variable max_hp;
-   variable cur_enemy;
-   variable another_target;
-   if gCritter == 0 orElse gTarget == 0 then
-      return;
-   cur_ap = get_critter_current_ap(gCritter);
-
-   if cur_ap >= gApCost then begin
-      call do_repair(gCritter, gTarget, 30);
-      set_critter_current_ap(gCritter, (cur_ap - gApCost));
-      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
-      if gTarget != dude_obj then
-         critter_set_flee_state(gTarget, 0);
-      cur_enemy = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if cur_enemy != 0 andAlso get_object_data(gTarget, OBJ_DATA_WHO_HIT_ME) == 0 then
-         set_object_data(gTarget, OBJ_DATA_WHO_HIT_ME, cur_enemy);
-      set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
-   end
-   else begin
-      reg_anim_combat_check(0);
-      reg_anim_clear_forced(gCritter)
-      reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-      reg_anim_animate(gCritter, ANIM_stand, 0);
-      reg_anim_animate_reverse(gCritter, ANIM_stand, 1);
-      reg_anim_end();
-      call ai_allow_continue_turn(gCritter);
-   end
-
-   cur_hp = get_critter_stat(gTarget, STAT_current_hp);
-   max_hp = get_critter_stat(gTarget, STAT_max_hp);
-   if cur_hp >= max_hp orElse (cur_ap >= gApCost andAlso random(0,1)) then begin
-      if cur_ap >= gApCost then
-         another_target = ai_search_wounded_friend(gCritter, gApCost, true, true, gTarget);
-      if another_target then begin
-         call reg_anim_combat_robot_repair_another_target(gCritter, another_target, gApCost, random(1, 2), false);
-      end
-      else begin
-         reg_anim_combat_check(0);
-         reg_anim_clear_forced(gCritter)
-         reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
-         reg_anim_animate_reverse(gCritter, ANIM_throw_punch, 0);
+         reg_anim_turn_towards(gCritter, target_tile, -1);
+         reg_anim_animate(gCritter, ANIM_throw_punch, 0);
          reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
          reg_anim_end();
          call ai_allow_continue_turn(gCritter);
@@ -1514,7 +1385,6 @@ procedure ai_search_for_fa_item(variable critter, variable ap_cost) begin
          end
       end
    end
-
 
    return best_choice;
 end
@@ -1761,6 +1631,7 @@ procedure reg_anim_combat_use_item_on_target(variable critter, variable critter_
    variable animate;
    variable enemy_target;
    variable standup_anim;
+   variable target_tile = tile_num(target);
    if count > 10 then
       count = 10;
    gCritter = critter;
@@ -1781,22 +1652,19 @@ procedure reg_anim_combat_use_item_on_target(variable critter, variable critter_
    if standup_anim != 0 then
       reg_anim_animate(gCritter, standup_anim, -1);
    reg_anim_obj_run_to_obj(gCritter, target, -1);
-   reg_anim_turn_towards(gCritter, tile_num(target), -1);
    for (i := 0; i < count; i++) begin
+   reg_anim_turn_towards(gCritter, target_tile, -1);
    reg_anim_callback(g_use_item_on_target);
       if animate then
          reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
-
-      if count > 1 then begin
-         reg_anim_animate(gCritter, ANIM_stand, -1);
-         reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
-      end
    end
    if self_heal then begin
       reg_anim_callback(g_use_check_item_and_self_heal);
       enemy_target = get_object_data(gCritter, OBJ_DATA_WHO_HIT_ME);
-      if enemy_target != 0 then
+      if enemy_target then
          reg_anim_turn_towards(gCritter, tile_num(enemy_target), -1);
+      else
+         reg_anim_turn_towards(gCritter, target_tile, -1);
       if animate then
          reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
    end
@@ -1806,22 +1674,15 @@ end
 
 procedure reg_anim_combat_robot_repair_target(variable critter, variable critter_cur_anim, variable target, variable ap_cost, variable count, variable self_heal) begin
    variable i;
-   variable animate;
-   variable animate2;
    variable enemy_target;
    variable standup_anim;
+   variable target_tile = tile_num(target);
    if count > 10 then
       count = 10;
    gCritter = critter;
    gTarget = target;
    gApCost = ap_cost;
    gItemPid = -1;
-
-
-   //if validate_critter_anim(gCritter, ANIM_magic_hands_middle) then
-      //animate = 1;
-   //else if validate_critter_anim(gCritter, ANIM_throw_punch) then
-      animate2 = 1;
 
    if critter_cur_anim == ANIM_fall_back orElse critter_cur_anim == ANIM_fall_back_sf then
       standup_anim = ANIM_back_to_standing;
@@ -1833,33 +1694,11 @@ procedure reg_anim_combat_robot_repair_target(variable critter, variable critter
    if standup_anim != 0 then
       reg_anim_animate(gCritter, standup_anim, -1);
    reg_anim_obj_run_to_obj(gCritter, target, -1);
-   //reg_anim_turn_towards(gCritter, tile_num_in_direction(tile_num(target), rotation_to_tile(tile_num(critter),tile_num(target)),1), -1);
-   reg_anim_turn_towards(gCritter, tile_num(target), -1);
    for (i := 0; i < count; i++) begin
-   //reg_anim_callback(g_use_repair_on_target);
-      //if animate then begin
-         //reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
-         //if count > 1 then begin
-            //reg_anim_animate(gCritter, ANIM_stand, -1);
-            //reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
-         //end
-      //end
-      //else
-      if animate2 then begin
-         if animate2 == 1 then begin
-            reg_anim_callback(g_use_repair_on_target_punch);
-            reg_anim_animate(gCritter, ANIM_throw_punch, -1);
-            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-
-            animate2 = 2;
-         end
-         else if count > 1 then begin
-            reg_anim_callback(g_use_repair_on_target_revers);
-            reg_anim_animate_reverse(gCritter, ANIM_throw_punch, -1);
-            reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
-            animate2 = 1;
-         end
-      end
+      reg_anim_turn_towards(gCritter, target_tile, -1);
+      reg_anim_callback(g_use_repair_on_target);
+      reg_anim_animate(gCritter, ANIM_throw_punch, -1);
+      reg_anim_play_sfx(gCritter,sfx_build_char_name(gCritter,ANIM_throw_punch,snd_contact), 0);
    end
    reg_anim_end();
    call ai_allow_continue_turn(gCritter);
@@ -1870,6 +1709,7 @@ procedure reg_anim_combat_use_item_on_self(variable critter, variable critter_cu
    variable i;
    variable animate;
    variable standup_anim;
+   variable tile = tile_before_critter(critter);
    if count > 13 then
       count = 13;
    gCritter = critter;
@@ -1888,14 +1728,10 @@ procedure reg_anim_combat_use_item_on_self(variable critter, variable critter_cu
       reg_anim_animate(gCritter, standup_anim, -1);
 
    for (i := 0; i < count; i++) begin
+      reg_anim_turn_towards(gCritter, tile, -1);
       reg_anim_callback(g_use_item_self);
       if animate then
-         reg_anim_animate(gCritter, ANIM_magic_hands_middle, 0);
-
-      if count > 1 then begin
-         reg_anim_animate(gCritter, ANIM_stand, -1);
-         reg_anim_animate_reverse(gCritter, ANIM_stand, 0);
-      end
+         reg_anim_animate(gCritter, ANIM_magic_hands_middle, -1);
    end
    reg_anim_end();
    call ai_allow_continue_turn(gCritter);
@@ -2245,7 +2081,7 @@ procedure get_heal_uses_count(variable critter, variable heal_target, variable h
       heal_distance = 0;
    end
    else begin
-      if not heal_target then
+      if not(heal_target) then
          return 0;
       target_cur_hp = get_critter_stat(heal_target, STAT_current_hp);
       target_max_hp = get_critter_stat(heal_target, STAT_max_hit_points);
@@ -2286,16 +2122,9 @@ procedure get_heal_uses_count(variable critter, variable heal_target, variable h
    if hp_weight < 0 then hp_weight = 0;
    if hp_weight > 100 then hp_weight = 100;
 
-   enemy_target = get_object_data(critter, OBJ_DATA_WHO_HIT_ME);
+   enemy_target = share_enemy_data(critter, heal_target);
    enemy_in_range = 0;
 
-   if not(enemy_target) andAlso critter != heal_target then begin
-      enemy_target = get_object_data(heal_target, OBJ_DATA_WHO_HIT_ME);
-      if enemy_target andAlso has_trait(TRAIT_OBJECT, enemy_target, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, critter, OBJECT_TEAM_NUM) then
-         set_object_data(critter, OBJ_DATA_WHO_HIT_ME, enemy_target);
-      else
-         enemy_target = 0;
-   end
 
    if enemy_target andAlso not(is_really_dead(enemy_target, critter_state(enemy_target), get_critter_stat(enemy_target, STAT_current_hp))) then begin
       distance_objs(enemy_distance, critter, enemy_target);
@@ -2523,8 +2352,8 @@ procedure get_heal_uses_count(variable critter, variable heal_target, variable h
 
    if heal_uses > 1 then
       return random(heal_uses / 2, heal_uses);
-   else
-      return heal_uses;
+   else if heal_uses < 1 then
+      return random(0,1);
 end
 
 procedure COMBATTURN begin
@@ -2568,11 +2397,28 @@ procedure COMBATTURN begin
    gTarget = 0;
    gApCost = 0;
 
+   if is_actual_combat <= 0 andAlso first_turn_passed == 0 andAlso critter != dude_obj then begin
+      is_actual_combat = 1;
+      first_turn_passed = 1;
+   end
+
    if critter == dude_obj orElse turn_status < 0 then begin
+      if turn_status < 0 then begin
+         first_turn_passed = 0;
+         is_actual_combat = 0;
+      end
+      else if first_turn_passed <= 0 andAlso critter == dude_obj then begin
+         first_turn_passed = 1;
+      end
       if set_ui_disable == 1 then
          cancel (ui_disable);
       set_ui_disable = 0;
       return;
+   end
+
+   if is_actual_combat <= 0 then begin
+      if get_object_data(dude_obj, OBJ_DATA_WHO_HIT_ME) != 0 orElse get_object_data(critter, OBJ_DATA_WHO_HIT_ME) != 0 then
+         is_actual_combat = 1;
    end
 
    if turn_status != 1 orElse combat_direct_controll == 1 orElse tail_used > 0 orElse critter_cur_ap < fa_item_ap_cost then
@@ -2604,7 +2450,7 @@ procedure COMBATTURN begin
    critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
    critter_cur_state = critter_state(critter);
 
-   if is_really_dead(critter, critter_cur_state, critter_cur_hp) orElse (get_object_data(dude_obj, OBJ_DATA_WHO_HIT_ME) == 0 andAlso get_object_data(critter, OBJ_DATA_WHO_HIT_ME) == 0  andAlso critter_cur_hp > 10)  then
+   if is_really_dead(critter, critter_cur_state, critter_cur_hp) orElse (is_actual_combat == 0 andAlso critter_cur_hp > 10)  then
       return;
 
    critter_cur_anim = art_anim(obj_art_fid(critter));
@@ -2670,12 +2516,17 @@ procedure COMBATTURN begin
       heal_target = ai_search_wounded_friend(critter, ap_cost, true, true);
       if heal_target andAlso (is_disabled(heal_target) orElse (get_critter_stat(heal_target, STAT_current_hp) <= 3 * get_critter_stat(heal_target, STAT_max_hp) / 4)) andAlso (random(0, 100) < critter_skill_repair) then begin
          combat_med_tool_used += 1;
-         call reg_anim_combat_robot_repair_target(critter, critter_cur_anim, heal_target, ap_cost, random(1, 2), false);
+         call reg_anim_combat_robot_repair_target(critter, critter_cur_anim, heal_target, ap_cost, random(1, 4), false);
       end
+
+      if stand_up andAlso combat_med_tool_used <= 0 then begin
+         set_object_data(critter, OBJ_DATA_DAMAGE_FLAGS, critter_combat_flags);
+         set_critter_current_ap(critter, critter_cur_ap_on_turn_start);
+      end
+      return;
    end
 
-
-   if combat_med_tool_used <= 0 andAlso doc_item andAlso (is_disabled(critter) orElse (critter_cur_hp < (critter_max_hp / 6))) andAlso (critter_type != KILL_TYPE_children_kills orElse (critter_int >= 9 andAlso critter_type == KILL_TYPE_children_kills)) andAlso critter_is_robot <= 0 then begin
+   if combat_med_tool_used <= 0 andAlso doc_item andAlso (is_disabled(critter) orElse (not(fa_item) andAlso critter_cur_hp < (critter_max_hp / 5))) andAlso (critter_type != KILL_TYPE_children_kills orElse (critter_int >= 9 andAlso critter_type == KILL_TYPE_children_kills)) andAlso critter_is_robot <= 0 then begin
       rnd = random(0, 100);
       if rnd < doc_bonus + 10 + critter_int * 10 then begin
          doc_pid = obj_pid(doc_item);
