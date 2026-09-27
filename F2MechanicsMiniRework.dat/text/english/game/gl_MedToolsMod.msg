@@ -24,6 +24,8 @@
 {24}{}{You receive %1% experience for the successful use of the Doctor skill.}
 {25}{}{Your inept handling only made things worse.}
 {26}{}{Due to your inept handling, %1% takes %2% damage.}
+{28}{}{%1% heals %2%.}
+{29}{}{%1% heals you.}
 
 {80}{}{Incompatible Medical Tools Mods detected:}
 {81}{}{EcCo and F2MMR}
@@ -59,4 +61,5 @@
 {1026}{}{Due to your inept handling, %1% takes %2% damage.}
 {1027}{}{%1% repairs itself.}
 {1028}{}{%1% repairs %2%.}
-{1310}{}{It has supplies for %d/%d uses.}
+{1029}{}{%1% repairs you.}
+{1310}{}{ It has supplies for %d/%d uses.}

@@ -26,8 +26,11 @@
 #define msg_exp 24
 #define msg_critical_miss_dude 25
 #define msg_critical_miss_tar 26
+#define msg_npc_use_item_on_target 28
+#define msg_npc_use_item_on_dude 29
 #define msg_npc_repairs_self 1027
 #define msg_npc_repairs_target 1028
+#define msg_npc_repairs_dude 1029
 #define repair_msg 1000
 #define msg_uses_left 310
 #define all_disabilities (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT bwor DAM_CRIP_LEG_LEFT bwor DAM_CRIP_LEG_RIGHT bwor DAM_BLIND)
@@ -580,6 +583,12 @@ procedure g_use_check_item_and_self_heal begin
       end
    end
 
+   reg_anim_combat_check(0);
+   reg_anim_clear_forced(gCritter)
+   reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
+   reg_anim_turn_towards(gCritter, tile_before_critter(gCritter), -1);
+   reg_anim_end();
+   call ai_allow_continue_turn(gCritter);
    return;
 end
 
@@ -598,9 +607,15 @@ procedure g_use_item_on_target begin
    if item andAlso cur_ap >= gApCost then begin
       call_offset_v3(0x49C5FC, gCritter, gTarget, item);
       set_critter_current_ap(gCritter, (cur_ap - gApCost));
-      display_msg(parse_str_2(modmsg(msg_npc_use_item), obj_name(gCritter), proto_data(gItemPid, 1)));
-      if gTarget != dude_obj then
+
+      if gTarget != dude_obj then begin
          critter_set_flee_state(gTarget, 0);
+         display_msg(parse_str_2(modmsg(msg_npc_use_item_on_target), obj_name(gCritter), obj_name(gTarget)));
+      end
+      else
+         display_msg(parse_str_2(modmsg(msg_npc_use_item_on_dude), obj_name(gCritter), obj_name(gTarget)));
+
+
       call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
    end
@@ -1126,9 +1141,13 @@ procedure g_use_repair_on_target_last_target begin
    if cur_ap >= gApCost then begin
       call do_repair(gCritter, gTarget, 30);
       set_critter_current_ap(gCritter, (cur_ap - gApCost));
-      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
-      if gTarget != dude_obj then
+      if gTarget != dude_obj then begin
          critter_set_flee_state(gTarget, 0);
+         display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      end
+      else
+         display_msg(parse_str_2(modmsg(msg_npc_repairs_dude), obj_name(gCritter), obj_name(gTarget)));
+
       call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
    end
@@ -1197,9 +1216,12 @@ procedure g_use_repair_on_target begin
    if cur_ap >= gApCost then begin
       call do_repair(gCritter, gTarget, 30);
       set_critter_current_ap(gCritter, (cur_ap - gApCost));
-      display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
-      if gTarget != dude_obj then
+      if gTarget != dude_obj then begin
          critter_set_flee_state(gTarget, 0);
+         display_msg(parse_str_2(modmsg(msg_npc_repairs_target), obj_name(gCritter), obj_name(gTarget)));
+      end
+      else
+         display_msg(parse_str_2(modmsg(msg_npc_repairs_dude), obj_name(gCritter), obj_name(gTarget)));
 
       call share_enemy_data(gCritter, gTarget);
       set_object_data(gTarget, OBJ_DATA_COMBAT_STATE, get_object_data(gTarget, OBJ_DATA_COMBAT_STATE) bwor 1);
