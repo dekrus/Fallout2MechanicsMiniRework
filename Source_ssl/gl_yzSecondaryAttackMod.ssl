@@ -329,6 +329,8 @@ variable PlasmaDamageReductionPerTile;
 variable PlasmaForced;
 variable PlasmaCustomPids;
 variable PlasmaDisabledPids;
+variable PlasmaOldExpl;
+variable PlasmaOldExplPids;
 variable ShotgunSecondaryAttackMod;
 variable ShotgunKnockbackMin;
 variable ShotgunKnockbackMax;
@@ -410,7 +412,7 @@ variable one_hander_bonus;
 variable finesse;
 variable gWeapon;
 variable gWeaponPid;
-//variable weapon_anim;
+//variable gWeaponAnim;
 variable weapon_flags;
 variable weapon_ammo_pid;
 variable weapon_caliber;
@@ -4030,78 +4032,93 @@ procedure plasma_alt_explosion begin
    variable rot;
    variable expl_tile;
 
-   if blast_radius <= 2 then begin
-      pid = PID_EXPLOSION_EMP_2;
-      exlposion_2 = create_object_sid(pid, tar_tile, target_elevation, -1);
-      set_flags(exlposion_2, FLAGS_OBJECT_PROJECTILE_visible);
-      obj_set_light_level(exlposion_2, 60, 8);
-   end
-   else begin
+   if PlasmaOldExpl == 1 orElse (PlasmaOldExpl == 2 andAlso  is_in_array(gWeaponPid, PlasmaOldExplPids)) then begin
       if gWeaponDamageType == DMG_emp orElse gWeaponDamageType == DMG_electrical then
          pid = PID_EXPLOSION_EMP_1;
-      sfx = "WHP1XXX1";
-   end
-   exlposion = create_object_sid(pid, tar_tile, target_elevation, -1);
-   set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
-   obj_set_light_level(exlposion, 60, 8);
 
-
-
-   reg_anim_combat_check(0);
-   if blast_radius <= 2 then begin
-      set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 2);
-      set_object_data(exlposion_2, OBJ_DATA_CUR_Y, get_object_data(exlposion_2, OBJ_DATA_CUR_Y) - 2);
-      set_object_data(exlposion, OBJ_DATA_CUR_FRM, 9);
-      set_object_data(exlposion_2, OBJ_DATA_CUR_FRM, 7);
-
-      reg_anim_begin();
-      reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
-      reg_anim_play_sfx(exlposion, sfx, -1);
-      reg_anim_animate_reverse(exlposion, ANIM_stand, 0);
-      reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, 3);
-      reg_anim_destroy(exlposion);
-      reg_anim_end();
-
+      exlposion = create_object(pid, tar_tile, target_elevation);
       reg_anim_combat_check(0);
       reg_anim_begin();
-      reg_anim_unset_flag(exlposion_2, OBJECT_HIDDEN, 0);
-      reg_anim_animate_reverse(exlposion_2, ANIM_stand, 0);
-      reg_anim_set_flag(exlposion_2, FLAG_OBJECT_HIDDEN, 2);
-      reg_anim_destroy(exlposion_2);
+      reg_anim_animate(exlposion,0, 0);
+      if blast_radius >= 2 then begin
+         reg_anim_animate_reverse(exlposion,0, 2);
+      end
+      else begin
+         reg_anim_animate_reverse(exlposion,0, 0);
+      end
+      reg_anim_play_sfx(exlposion,sfx, 0);
+      reg_anim_destroy(exlposion);
       reg_anim_end();
    end
    else begin
-      set_object_data(exlposion, OBJ_DATA_CUR_X, get_object_data(exlposion, OBJ_DATA_CUR_X) - 4);
-      set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 20);
-      reg_anim_begin();
-      reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
-      reg_anim_play_sfx(exlposion, sfx, -1);
-      reg_anim_animate(exlposion,ANIM_stand, 0);
-      if blast_radius <= 2 then
-         reg_anim_animate_reverse(exlposion,ANIM_stand, 2);
-      reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, -1);
-      reg_anim_destroy(exlposion);
-      reg_anim_end();
+      if blast_radius <= 2 then begin
+         pid = PID_EXPLOSION_EMP_2;
+         exlposion_2 = create_object_sid(pid, tar_tile, target_elevation, -1);
+         set_flags(exlposion_2, FLAGS_OBJECT_PROJECTILE_visible);
+         obj_set_light_level(exlposion_2, 60, 8);
+      end
+      else begin
+         if gWeaponDamageType == DMG_emp orElse gWeaponDamageType == DMG_electrical then
+            pid = PID_EXPLOSION_EMP_1;
+         sfx = "WHP1XXX1";
+      end
+      exlposion = create_object_sid(pid, tar_tile, target_elevation, -1);
+      set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
+      obj_set_light_level(exlposion, 60, 8);
+      reg_anim_combat_check(0);
+      if blast_radius <= 2 then begin
+         set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 2);
+         set_object_data(exlposion_2, OBJ_DATA_CUR_Y, get_object_data(exlposion_2, OBJ_DATA_CUR_Y) - 2);
+         set_object_data(exlposion, OBJ_DATA_CUR_FRM, 9);
+         set_object_data(exlposion_2, OBJ_DATA_CUR_FRM, 7);
 
-      for (rot = 0; rot < 6; rot++) begin
-         expl_tile = tile_num_in_direction(tar_tile, rot, 1);
-         exlposion = create_object_sid(pid, expl_tile, target_elevation, -1);
-         set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
-         obj_set_light_level(exlposion, 60, 8);
+         reg_anim_begin();
+         reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
+         reg_anim_play_sfx(exlposion, sfx, -1);
+         reg_anim_animate_reverse(exlposion, ANIM_stand, 0);
+         reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, 3);
+         reg_anim_destroy(exlposion);
+         reg_anim_end();
+
+         reg_anim_combat_check(0);
+         reg_anim_begin();
+         reg_anim_unset_flag(exlposion_2, OBJECT_HIDDEN, 0);
+         reg_anim_animate_reverse(exlposion_2, ANIM_stand, 0);
+         reg_anim_set_flag(exlposion_2, FLAG_OBJECT_HIDDEN, 2);
+         reg_anim_destroy(exlposion_2);
+         reg_anim_end();
+      end
+      else begin
          set_object_data(exlposion, OBJ_DATA_CUR_X, get_object_data(exlposion, OBJ_DATA_CUR_X) - 4);
          set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 20);
          reg_anim_begin();
          reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
+         reg_anim_play_sfx(exlposion, sfx, -1);
          reg_anim_animate(exlposion,ANIM_stand, 0);
          if blast_radius <= 2 then
             reg_anim_animate_reverse(exlposion,ANIM_stand, 2);
          reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, -1);
          reg_anim_destroy(exlposion);
          reg_anim_end();
+
+         for (rot = 0; rot < 6; rot++) begin
+            expl_tile = tile_num_in_direction(tar_tile, rot, 1);
+            exlposion = create_object_sid(pid, expl_tile, target_elevation, -1);
+            set_flags(exlposion, FLAGS_OBJECT_PROJECTILE_visible);
+            obj_set_light_level(exlposion, 60, 8);
+            set_object_data(exlposion, OBJ_DATA_CUR_X, get_object_data(exlposion, OBJ_DATA_CUR_X) - 4);
+            set_object_data(exlposion, OBJ_DATA_CUR_Y, get_object_data(exlposion, OBJ_DATA_CUR_Y) - 20);
+            reg_anim_begin();
+            reg_anim_unset_flag(exlposion, OBJECT_HIDDEN, 0);
+            reg_anim_animate(exlposion,ANIM_stand, 0);
+            if blast_radius <= 2 then
+               reg_anim_animate_reverse(exlposion,ANIM_stand, 2);
+            reg_anim_set_flag(exlposion, FLAG_OBJECT_HIDDEN, -1);
+            reg_anim_destroy(exlposion);
+            reg_anim_end();
+         end
       end
-
    end
-
 
    foreach new_tar:dmg in plasma_dmg_array begin
       if new_tar <= 0 then
@@ -6970,7 +6987,7 @@ procedure AFTERHITROLL begin
          gWeaponMaxDmg = get_proto_data(gWeaponPid, PROTO_WP_DMG_MAX) + 2 * bonus_ranged_damage;
          weapon_perk = get_proto_data(gWeaponPid, PROTO_WP_PERK);
          weapon_cur_ammo = get_object_data(gWeapon, OBJ_DATA_CUR_CHARGES);
-         //weapon_anim = get_proto_data(gWeaponPid, PROTO_WP_ANIM);
+         //gWeaponAnim = get_proto_data(gWeaponPid, PROTO_WP_ANIM);
          gWeaponProjPid = get_proto_data(gWeaponPid, PROTO_WP_PROJ_PID);
          //weapon_ammo_cost = get_proto_data(gWeaponPid, PROTO_WP_BURST);
          weapon_ammo_cost = get_weapon_ammo_cost(gWeaponPid);
@@ -8402,6 +8419,17 @@ procedure start begin
 
             PlasmaCustomPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaCustomPids"), ",");
             fix_array(PlasmaCustomPids);
+
+            PlasmaOldExplPids = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaOldExplPids");
+            if PlasmaOldExplPids == -1 then
+               PlasmaOldExpl = 1;
+            else begin
+               PlasmaOldExplPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|PlasmaOldExplPids"), ",");
+               if len_array(PlasmaOldExplPids) > 0 then begin
+                  PlasmaOldExpl = 2;
+                  fix_array(PlasmaOldExplPids);
+               end
+            end
          end
 
          ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
