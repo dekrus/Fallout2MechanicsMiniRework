@@ -7717,7 +7717,6 @@ procedure COMBATDAMAGE begin
    end
 end
 
-
 procedure set_spray_by_skill_and_dist(variable attacker, variable target, variable weapon, variable body_part) begin
    variable attacker_pe = get_critter_stat(attacker, STAT_pe);
    variable attacker_st = get_critter_stat(attacker, STAT_st);
@@ -7731,20 +7730,17 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    variable Base_CenterMult = 1;
    variable CenterMult;
    variable CenterDiv = burst_bullets_num;
-   variable TargetMult = 1;
-   variable TargetDiv = burst_bullets_num;
    variable recoil;
-   variable body_part_penalty = 1;
    variable distance = tile_distance_objs(attacker, target);
    variable distance_penalty = (10 + distance);
-   variable distance_penalty_mult = 18;
+   variable distance_penalty_mult = 5;
    variable max_hit_chance = 100;
    variable max_hit_chance_devider;
    if distance <= 1 then
       return;
 
    if body_part != BODY_HIT_TORSO andAlso body_part != BODY_UNCALLED then
-      max_hit_chance_devider = ((-get_bodypart_hit_modifier(body_part)) / 7.0) * 2;
+      max_hit_chance_devider = ((-get_bodypart_hit_modifier(body_part)) / 7.0) * 3.5;
 
    if attacker == dude_obj then begin
       attacker_pe +=  2 * has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
@@ -7765,29 +7761,27 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    if attacker_st < weapon_min_st then
       recoil = 1 + (weapon_min_st - attacker_st);
    else begin
+      recoil = 1 - (attacker_st - weapon_min_st) / 10.0;
       if wpn_animation != WPN_ANIM_SMG andAlso wpn_dmg_type != DMG_laser AndAlso wpn_dmg_type < DMG_electrical andAlso wpn_dmg_type > DMG_emp then begin
          if wpn_animation == WPN_ANIM_BIG_GUN then
             recoil *= 1.25;
          else if wpn_animation == WPN_ANIM_MINIGUN then
-            weapon_min_st *= 1.35;
+            recoil *= 1.35;
          else if wpn_animation != WPN_ANIM_SMG then
             recoil *= 1.1;
       end
       else
-         weapon_min_st *= 1.05;
+         recoil *= 1.05;
 
-      recoil = 1 - (weapon_min_st - attacker_st) / 10.0;
    end
 
-   if recoil <= 0.1 then
-      recoil = 0.1;
-
+   if recoil <= 0.2 then
+      recoil = 0.2;
 
    if distance > attacker_pe * 5 then
       distance_penalty += (distance - attacker_pe * 5);
 
-   distance_penalty *= distance_penalty_mult * recoil * 0.2;
-
+   distance_penalty *= distance_penalty_mult * recoil;
 
    CenterMult = round(attacker_skill / distance_penalty);
 
@@ -7801,15 +7795,10 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    else if CenterMult > CenterDiv then
       CenterMult = CenterDiv;
 
-
-
-
    if max_hit_chance_devider > 0 then begin
-      if recoil <= 0.5 then
-         recoil = 0.5;
       max_hit_chance = round(attacker_skill / (max_hit_chance_devider * recoil));
-      if max_hit_chance > 90 then
-         max_hit_chance = 90;
+      if max_hit_chance > 95 then
+         max_hit_chance = 95;
    end
 
    set_spray_settings(CenterMult, CenterDiv, 1, 1);

@@ -232,7 +232,7 @@ Some perks have been reworked (more to come later).
 **Weapon Handling** (1 rank):
 - Strength requirements for weapon use reduced by 3.
 - Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just the primary target).
-- Burst mod only: Strength requirements for burst fire recoil control also reduced by 3.
+- Aimed burst mod only: Strength requirements for aimed burst fire recoil control also reduced by 3.
 
 **Demolition Expert** (1 rank):
 - Explosions and all grenade types deal +10 to both min and max damage (added to weapon's base min/max during damage calculation = affected by armor and crits).
