@@ -9,6 +9,7 @@
 ### Regen Mod
 - "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
 - Fixed burn effect application from fire, energy, and explosive attacks.
+- Fixed an issue with Sfall5 where the right-click drop-down action menu could stay stuck on screen instead of disappearing.
 ### Traits Plus
 - Fixed a bug where Fast_Metabolism = 0 did not disable the new Trait effect, but merely reverted its description to the original one.
 - Added a new .ini option to disable the passive regeneration effect of Fast Metabolism Plus.

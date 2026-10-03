@@ -285,6 +285,8 @@
 #define g_extra_stat_expected_bonus_b 22
 #define g_hp_lost 23
 
+#define reg_anim_clear_forced(who)                    if sfall_510 <= 0 then call reg_anim_clear_forced_sfall_4(who); else begin gNeedToClearLocks = 1; reg_anim_func(REG_ANIM_CLEAR_FORCE, who); end
+
 
 
 #include "sfall.h"
@@ -466,6 +468,8 @@ variable inven_use_ap_cost_quick_pockets_discount;
 variable gInvenCurAP;
 variable gPoisHypoTryCount;
 variable gPoisHypoTryTarget;
+variable gNeedToClearLocks;
+variable IfaceBarWinId;
 //variable cur_map_event_array_name;
 
 variable party_levels;
@@ -475,6 +479,27 @@ export variable tail_used;
 
 import variable combat_med_tool_used;
 import variable import_alt_attack_aoe_targets_arr;
+
+procedure clear_all_locks begin
+   variable i;
+   if gNeedToClearLocks > 0 then begin
+      reg_anim_combat_check(0);
+      for (i = 0; i < 8; i = i + 1) begin
+         reg_anim_begin();
+         reg_anim_end();
+      end
+      gNeedToClearLocks = 0;
+   end
+end
+
+procedure reg_anim_clear_forced_sfall_4(variable who) begin
+   variable original_byte = read_byte(0x413C8C);
+
+   write_byte(0x413C8C, 0xEB);
+   reg_anim_clear(who);
+
+   write_byte(0x413C8C, original_byte);
+end
 
 procedure add_to_poisoned_perk_weapons(variable weapon_pid) begin
    variable num = PoisonAppliedWeapons[weapon_pid] + 1;
@@ -1171,46 +1196,6 @@ procedure kill_dude begin
    end
 end
 
-
-procedure itemDestroyAllHidden(variable obj) begin
-   variable num_items = inven_count(obj);
-   variable item;
-   while (num_items > 0) do begin
-      item = inven_ptr(obj, num_items);
-      num_items -= 1;
-      if item <= 0 orElse ((get_proto_data(obj_pid(item), PROTO_FLAG_EXT) bwand HIDDEN_ITEM) == 0) then
-         continue;
-
-      rm_obj_from_inven(obj, item);
-      destroy_object(item);
-   end
-
-end
-
-procedure kill_critter_no_anim(variable target) begin
-   variable target_flags = get_flags(target);
-   variable target_sid = get_object_data(target, OBJ_DATA_SID);
-   if sfall_510 > 0 then
-      reg_anim_clear_forced(target, sfall_510);
-   else
-      reg_anim_clear(target);
-
-   combat_delete_critter(target);
-   party_remove(target);
-   set_flags(target, (target_flags bwor FLAG_NOBLOCK bwor FLAG_FLAT bwand bwnot(FLAG_LIGHTING)));
-   if target_sid != -1 then begin
-      call_offset_v1(0x4A61D4, target_sid);
-      set_object_data(target, OBJ_DATA_SID, -1);
-   end
-   //clear drugs
-   write_int(0x518438, target);
-   call_offset_v2(0x4A2790, EVENT_TYPE_DRUG, 0x42DA54); //queue_clear_type
-
-   call itemDestroyAllHidden(target);
-   tile_refresh_display;
-end
-
-
 procedure show_death_msg begin
    variable target;
    variable target_death_frm;
@@ -1454,10 +1439,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
       end
       else begin
          reg_anim_combat_check(0);
-         if sfall_510 > 0 then
-            reg_anim_clear_forced(target, sfall_510);
-         else
-            reg_anim_clear(target);
+         reg_anim_clear_forced(target)
 
          reg_anim_func(REG_ANIM_BEGIN, RB_RESERVED);
          reg_anim_set_priority(sfall_510);
@@ -1514,6 +1496,7 @@ procedure critter_inflict_poison_dmg(variable target,variable dmg_value, variabl
             final_death_art = death_anim_sf;
          end
          reg_anim_callback(show_death_msg);
+         reg_anim_callback(clear_all_locks);
          reg_anim_end();
          set_array(death_array, target, final_death_art);
       end
@@ -5631,8 +5614,7 @@ inline procedure check_events_queue(variable cur_game_time) begin
    critter = 0;
    time_was_skip = 0;
    if on_global_map <= 0 then begin
-      set_window_flag(WINTYPE_PIPBOY, WIN_FLAG_HIDDEN, 1);
-      set_window_flag(WINTYPE_IFACEBAR, WIN_FLAG_HIDDEN, 1);
+      set_window_flag(IfaceBarWinId, WIN_FLAG_HIDDEN, 1);
    end
    if combat_is_initialized then begin
       if combat_end <= 0 andAlso cur_game_time > combat_turn_start_time then begin
@@ -5677,15 +5659,9 @@ inline procedure check_events_queue(variable cur_game_time) begin
       end
    end
    if on_global_map <= 0 then begin
-      set_window_flag(WINTYPE_PIPBOY, WIN_FLAG_HIDDEN, 0);
-      set_window_flag(WINTYPE_IFACEBAR, WIN_FLAG_HIDDEN, 0);
-      //if sfall_510 > 0 then begin
-         call_offset_v1(0x45EBD8, false); //interfaceRenderHitPoints
-         call_offset_v0(0x431A78); //displayMonitorRefresh
-      //end
-      //else
-         //call_offset_v0(0x45EB98);// 0x45EB98
-      //tile_refresh_display;
+      set_window_flag(IfaceBarWinId, WIN_FLAG_HIDDEN, 0);
+      call_offset_v1(0x45EBD8, false); //interfaceRenderHitPoints
+      call_offset_v0(0x431A78); //displayMonitorRefresh
    end
 end
 
@@ -7233,7 +7209,6 @@ procedure start begin
             end
          end
       end
-
       RegenMod = get_ini_setting ("mods\\F2MechanicsMiniRework.ini|Main|RegenMod");
       PoisonMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PoisonMod");
       new_regpois_msg = add_extra_msg_file("gl_RegPoisMod.msg");
@@ -7245,6 +7220,7 @@ procedure start begin
       regen_perk_name = modmsg(msg_perk_regen);
 
       if RegenMod > 0 orElse PoisonMod > 0 then begin
+         IfaceBarWinId = sfall_func2("get_window_attribute", WINTYPE_IFACEBAR, 5);
          inven_use_ap_cost = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|inv_ap_cost");
          inven_use_ap_cost_quick_pockets_discount = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|qp_discount");
          inven_use_ap_cost_min = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|min_ap_cost");
