@@ -68,7 +68,7 @@ Some perks have been reworked (more to come later):
   - Rank 2 (without Fast Metabolism): +6 healing rate (total). HP regen at half effectiveness and 1 guaranteed injury healed every 5 seconds.
   - Rank 1 (with Fast Metabolism): x2 passive health regeneration from Fast Metabolism.
 - **Pyromaniac** (1 rank): +5 flat fire damage (ignores armor, not multiplied by crits). Fire area attacks can deal critical damage to all targets in the area (not just primary target). Own fire still deals damage but leaves no burns (Regen mod only).
-- **Weapon Handling** (1 rank): Strength requirements for weapon use reduced by 3. Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just primary target). With Burst mod: strength requirements for burst fire recoil control also reduced by 3.
+- **Weapon Handling** (1 rank): Strength requirements for weapon use reduced by 3. Area attacks with any weapon type can deal critical damage to all targets in the area of effect (not just primary target). With Aimed Burst mod: strength requirements for aimed burst fire recoil control also reduced by 3.
 - **Demolition Expert** (1 rank): Explosions (and all grenade types) deal +10 min and max damage (added to weapon's base, affected by armor and crits). Explosive weapons (and all grenade types) can deal critical damage to all targets in the blast radius (not just primary target). Planted explosives always detonate on time.
 - **Dodger** (1 rank): +5 Armor Class. Reduces maximum hit chance against the player by 5% (stacks with other sources).
 ### Regen & Poison Mod
