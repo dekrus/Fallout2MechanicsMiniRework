@@ -66,7 +66,8 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Maximum additional targets depends on weapon and ammo type, and can be configured in `F2MechanicsMiniRework.ini`.
 
 **Pulse Weapons:**  
-![Secondary-Attack](images/PULSE_CHAIN.gif) ![Secondary-Attack](images/PULSE_BOUNCE.gif)  
+<img src="images/PULSE_CHAIN.gif" width="400"> <img src="images/PULSE_BOUNCE.gif" width="400">  
+*Left: instant chain lightning. Right: traveling arc between targets (both configurable in `F2MechanicsMiniRework.ini`).*
 - Attack animation can be either instant chain lightning or traveling arc between targets (configurable in `F2MechanicsMiniRework.ini`).
 - Pulse and EMP weapons deal damage in a "chain" to up to X additional targets closest to each other.
 - Maximum distance and number of additional targets are configurable in `F2MechanicsMiniRework.ini`.
