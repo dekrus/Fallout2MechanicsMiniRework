@@ -86,7 +86,7 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Insufficient Strength may cause knockdown from weapon recoil.
 
 **Plasma Weapons:**  
-![Secondary-Attack](images/PLASMA.gif) ![Secondary-Attack](images/PLASMA_old.gif)  
+<img src="images/PLASMA.gif" width="300"> <img src="images/PLASMA_old.gif" width="300">  
 *Left: new explosion animation (default). Right: old explosion animation (can be enabled in the .ini file).*
 - Creates an explosion that damages all creatures within a configurable radius.
 - Damage falls off with distance from the blast center (configurable rate).
