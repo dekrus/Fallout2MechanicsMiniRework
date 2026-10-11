@@ -86,11 +86,13 @@ This module adds alternative fire modes to Laser, Plasma, Gauss, and other weapo
 - Insufficient Strength may cause knockdown from weapon recoil.
 
 **Plasma Weapons:**  
-![Secondary-Attack](images/PLASMA.gif)  
+![Secondary-Attack](images/PLASMA.gif) ![Secondary-Attack](images/PLASMA_old.gif)  
+*Left: new explosion animation (default). Right: old explosion animation (can be enabled in the .ini file).*
 - Creates an explosion that damages all creatures within a configurable radius.
 - Damage falls off with distance from the blast center (configurable rate).
 - Critical chance calculated separately for each target.
 - Alternate attack consumes (2 * base attack cost, minimum 3) energy cells.
+- Old plasma explosion animation can be restored via the `.ini` file.
 
 **Pistols & SMGs:**  
 ![Secondary-Attack](images/PISTOLS_SMGS.gif)  
