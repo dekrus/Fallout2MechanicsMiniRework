@@ -251,6 +251,7 @@
 
 #define ECCO_COMBAT_INI_FILE                "ecco_config\\combat.ini"
 #define ECCO_INI_AMMOCOST_SECTION    "AMMOCOST"
+#define ShotgunKnockdownArray_name    "F2MMRSKA"
 
 #define TARGET_HIGHLIGHT read_int(0x6639B0) //0 = off, 1 = on, 2 = targeting only
 
@@ -332,11 +333,20 @@ variable PlasmaDisabledPids;
 variable PlasmaOldExpl;
 variable PlasmaOldExplPids;
 variable ShotgunSecondaryAttackMod;
-variable ShotgunKnockbackMin;
-variable ShotgunKnockbackMax;
+//variable ShotgunKnockbackMin;
+//variable ShotgunKnockbackMax;
 variable ShotgunForced;
 variable ShotgunKnockbackDisabledPids;
 variable ShotgunKnockbackCustomPids;
+
+//variable ShotgunKnockbackDiv;
+//variable ShotgunKnockdownDiv;
+//variable ShotgunKnockbackHeavyMult;
+//variable ShotgunKnockbackMultihexMult;
+//variable ShotgunKnockbackPerkMult;
+variable ShotgunAllowKnockbackDistance;
+variable ShotgunKnockdownArray;
+
 variable PistolSecondaryAttackMod;
 variable PistolDoubleTapForced;
 variable DoubleTapCustomPids;
@@ -1003,6 +1013,9 @@ procedure lvar_full_reset begin
    gPulseTileNext = 0;
    gPulseTileNextDistance = 0;
    gPulseTileAttackedCount = 0;
+   if array_exists(ShotgunKnockdownArray) then begin
+      clear_array(ShotgunKnockdownArray);
+   end
 end
 
 procedure is_hit_from_front(variable attacker_tile, variable target) begin
@@ -6949,7 +6962,6 @@ procedure AFTERHITROLL begin
       laser_max_targets = 0;
       dmg_was_set_to_zero = 0;
       get_new_targets = 0;
-      //gCombatHighlight = read_int(0x56D38C);
       clear_array(import_alt_attack_aoe_targets_arr);
       gauss_new_main_target = 0;
       laser_new_main_target = 0;
@@ -7434,7 +7446,6 @@ procedure COMBATDAMAGE begin
    variable knockback_distance;
    variable attacker_target_distance;
    variable rnd;
-   variable target_is_wearing_power_armor;
    variable stonewall_perk;
    variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
    variable actual_attack;
@@ -7448,6 +7459,8 @@ procedure COMBATDAMAGE begin
    variable damage_to_attacker_new;
    variable attacker_flags_new;
    variable target_flags_new;
+   variable knockback_mult;
+   variable knockdown_chance;
 
    if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
       actual_attack = 1;
@@ -7584,7 +7597,7 @@ procedure COMBATDAMAGE begin
          // plasma aoe dmg end
 
          //shotgun alt fire(knockback)
-         if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso is_wpn_alt_fire_prohibited(gWeaponPid, alt_fire_shotgun_knockback) <= 0 andAlso (weapon_caliber == gShotgunCaliber orElse is_in_array(gWeaponPid, ShotgunKnockbackCustomPids)) andAlso (is_alt_fire_aimed(attacker,target_bodypart) orElse ShotgunForced > 0 orElse ((attacker != dude_obj andAlso target_bodypart == BODY_UNCALLED) andAlso is_single_shot andAlso not(random(0,2)))) then begin
+         if ShotgunSecondaryAttackMod > 0 andAlso (attacker == dude_obj orElse ShotgunSecondaryAttackMod > 1) andAlso weapon andAlso is_wpn_alt_fire_prohibited(gWeaponPid, alt_fire_shotgun_knockback) <= 0 andAlso (weapon_caliber == gShotgunCaliber orElse is_in_array(gWeaponPid, ShotgunKnockbackCustomPids)) andAlso (is_alt_fire_aimed(attacker,target_bodypart) orElse ShotgunForced > 0 orElse (attacker != dude_obj andAlso is_single_shot andAlso (target_bodypart == BODY_HIT_TORSO orElse (target_bodypart == BODY_UNCALLED andAlso not(random(0,2)))))) then begin
             if target == attacker orElse (attacker_flags bwand DAM_BACKWASH) then begin
                call lvar_full_reset;
                return;
@@ -7596,65 +7609,92 @@ procedure COMBATDAMAGE begin
                call reset_gFastShotAimedAllowed in 0;
             end
 
+            if (get_proto_data(obj_pid(target), PROTO_CR_FLAGS) bwand CFLG_NOKNOCKBACK) then begin
+               call lvar_full_reset;
+               return;
+            end
+
             distance_objs(attacker_target_distance, attacker, target);
-            knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-            if has_trait(TRAIT_OBJECT, target, OBJECT_TEAM_NUM) == TEAM_PLAYER then begin
-               if target == dude_obj then begin
-                  target_is_wearing_power_armor = player_wearing_power_armor;
-                  stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
-               end
-               if target_is_wearing_power_armor then begin
-                  knockback_distance = 1;
-                  rnd = 5;
-               end
-               else if stonewall_perk then begin
-                  if random(0, 1) then begin
-                     knockback_distance = 0;
-                     rnd = 10;
-                  end
-                  else begin
-                     knockback_distance = knockback_distance / 2;
-                     rnd = random(0, 20 + 10 * ShotgunForced);
+            if ShotgunAllowKnockbackDistance >= 0 then begin
+               if ShotgunAllowKnockbackDistance == 0 then begin
+                  if attacker_target_distance > (gWeaponRange + 1) / 2 then begin
+                     call lvar_full_reset;
+                     return;
                   end
                end
-               else begin
-                  rnd = random(0, 10 + 10 * ShotgunForced);
+               else if attacker_target_distance > ShotgunAllowKnockbackDistance then begin
+                  call lvar_full_reset;
+                  return;
                end
             end
-            else begin
-               target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-               if power_armor_fid(critter_art_fid(target)) then target_is_wearing_power_armor = 1;
-               if attacker_target_distance > 10 or is_multihex(target) or target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or target_is_wearing_power_armor then begin
-                  if knockback_distance > 1 then knockback_distance = random(1, knockback_distance / 2);
-                  rnd = random(0, 4 + (6 * ShotgunForced));
-               end
-               else begin
-                  knockback_distance = random(ShotgunKnockbackMin, ShotgunKnockbackMax);
-                  rnd = random(0, 2 + (3 * ShotgunForced));
+
+            if ShotgunForced <= 0 andAlso attacker != dude_obj then begin
+               if target_bodypart == BODY_UNCALLED then begin
+                  write_int(combat_data + C_ATTACK_BODY_PART, BODY_HIT_TORSO);
+                  //set_critter_current_ap(attacker, get_critter_current_ap(attacker) - 1);
                end
             end
-            if knockback_distance < 1 then knockback_distance = 1;
-            if (attacker_target_distance < 10 or attacker_target_distance <= gWeaponRange / 2) then begin
-               if dmgtotar_was_return <= 0 then begin
-                  set_sfall_return(damage_to_target);
-                  set_sfall_arg(2, damage_to_target);
-                  dmgtotar_was_return = 1;
-               end
-               set_sfall_return(damage_to_attacker);
-               set_sfall_arg(3, damage_to_attacker);
-               if rnd <= 0 then begin
-                  set_sfall_return(target_flags bwor DAM_KNOCKED_DOWN);
-                  set_sfall_arg(4, target_flags bwor DAM_KNOCKED_DOWN);
-               end
-               else begin
-                  set_sfall_return(target_flags);
-                  set_sfall_arg(4, target_flags);
-               end
-               set_sfall_return(attacker_flags);
-               set_sfall_arg(5, attacker_flags);
-               set_sfall_return(knockback_distance);
-               set_sfall_arg(10, knockback_distance);
-            end
+
+            set_array(ShotgunKnockdownArray, target, 1);
+            return;
+            //old
+            //knockback_mult = 1.0;
+            //if target == dude_obj then begin
+               //stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+               //if stonewall_perk then
+                  //knockback_mult = ShotgunKnockbackHeavyMult;
+               //else begin
+                  //if player_wearing_power_armor then
+                     //knockback_mult = ShotgunKnockbackHeavyMult;
+               //end
+            //end
+            //else begin
+               //target_kill_type = critter_kill_type(target);
+               //if target_kill_type == KILL_TYPE_super_mutant_kills
+                  //orElse target_kill_type == KILL_TYPE_deathclaw_kills
+                  //orElse target_kill_type == KILL_TYPE_robot_kills
+                  //orElse power_armor_fid(critter_art_fid(target)) then
+                  //knockback_mult = ShotgunKnockbackHeavyMult;
+            //end
+//
+            //if is_multihex(target) then
+               //knockback_mult = knockback_mult * ShotgunKnockbackMultihexMult;
+//
+            //if weapon_perk == PERK_weapon_knockback then
+               //knockback_mult = knockback_mult * ShotgunKnockbackPerkMult;
+//
+            //knockback_distance = round(damage_to_target / ShotgunKnockbackDiv * knockback_mult);
+            //if knockback_distance < ShotgunKnockbackMin then
+               //knockback_distance = ShotgunKnockbackMin;
+            //if knockback_distance > ShotgunKnockbackMax then
+               //knockback_distance = ShotgunKnockbackMax;
+//
+            //knockdown_chance = damage_to_target / ShotgunKnockdownDiv;
+            //knockdown_chance = knockdown_chance * knockback_mult;
+            //if weapon_perk == PERK_weapon_knockout_perk then
+               //knockdown_chance = knockdown_chance * 2;
+//
+            //if dmgtotar_was_return <= 0 then begin
+               //set_sfall_return(damage_to_target);
+               //set_sfall_arg(2, damage_to_target);
+               //dmgtotar_was_return = 1;
+            //end
+            //set_sfall_return(damage_to_attacker);
+            //set_sfall_arg(3, damage_to_attacker);
+//
+            //if random(1, 100) <= knockdown_chance then begin
+               //set_sfall_return(target_flags bwor DAM_KNOCKED_DOWN);
+               //set_sfall_arg(4, target_flags bwor DAM_KNOCKED_DOWN);
+            //end
+            //else begin
+               //set_sfall_return(target_flags);
+               //set_sfall_arg(4, target_flags);
+            //end
+//
+            //set_sfall_return(attacker_flags);
+            //set_sfall_arg(5, attacker_flags);
+            //set_sfall_return(knockback_distance);
+            //set_sfall_arg(10, knockback_distance);
          end
          //shotgun alt fire(knockback) end
 
@@ -7717,11 +7757,21 @@ procedure COMBATDAMAGE begin
    end
 end
 
+// by burn
+procedure math_round_chance(variable val) begin
+   variable intVal = floor(val);
+   variable chance = (val - intVal)*100;
+   variable rnd = random(1, 100);
+   variable ret := (intVal + 1) if rnd <= chance else intVal;
+
+   return ret;
+end
+
 procedure set_spray_by_skill_and_dist(variable attacker, variable target, variable weapon, variable body_part) begin
    variable attacker_pe = get_critter_stat(attacker, STAT_pe);
    variable attacker_st = get_critter_stat(attacker, STAT_st);
    variable attacker_skill = get_ranged_weapon_skill_lvl(attacker, weapon);
-   variable attacker_skill_mult = 7;
+   variable attacker_skill_mult = 3.7;
    variable wpn_pid = obj_pid(weapon);
    variable wpn_animation = get_proto_data(wpn_pid, PROTO_WP_ANIM);
    variable wpn_dmg_type = get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE);
@@ -7730,21 +7780,37 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
    variable Base_CenterMult = 1;
    variable CenterMult;
    variable CenterDiv = burst_bullets_num;
-   variable recoil;
+   variable recoil_base;
+   variable per_bullet_recoil = 0.63;
    variable distance = tile_distance_objs(attacker, target);
-   variable distance_penalty = (10 + distance);
-   variable distance_penalty_mult = 5;
+   variable distance_penalty_base = (25 + distance);
+   variable distance_penalty_mult = 2.6;
    variable max_hit_chance = 100;
    variable max_hit_chance_devider;
-   if distance <= 1 then
-      return;
+   variable total_center;
+   variable i;
+   variable recoil_i;
+   variable spread_i;
+   variable dp_i;
+   variable cm_i;
+   variable target_ratio_min;
+   variable target_ratio_max;
+   variable target_ratio;
+   variable target_mult;
+   variable target_div;
+   variable mhc_norm;
+   variable close_bonus;
+   variable effective_hc;
+
+   //if distance <= 1 then
+      //return;
 
    if body_part != BODY_HIT_TORSO andAlso body_part != BODY_UNCALLED then
-      max_hit_chance_devider = ((-get_bodypart_hit_modifier(body_part)) / 7.0) * 3.5;
+      max_hit_chance_devider = -(get_bodypart_hit_modifier(body_part) / 2.0);
 
    if attacker == dude_obj then begin
-      attacker_pe +=  2 * has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
-      attacker_st +=  3 * has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
+      attacker_pe += 2 * has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
+      attacker_st += 3 * has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
       if has_trait(TRAIT_TRAIT, attacker, TRAIT_one_hander) then begin
          if wpn_animation <= WPN_ANIM_SMG then
             attacker_st += 3;
@@ -7753,57 +7819,130 @@ procedure set_spray_by_skill_and_dist(variable attacker, variable target, variab
       end
    end
 
-   if attacker_skill > 174 then
-      attacker_skill += 2.5 * (attacker_skill - 174);
+   if attacker_skill > 140 then
+      attacker_skill = 140 + (attacker_skill - 140) * 2.0;
+   else
+      attacker_skill *= 0.9;
 
-   attacker_skill *=  attacker_skill_mult;
+   attacker_skill *= attacker_skill_mult;
 
    if attacker_st < weapon_min_st then
-      recoil = 1 + (weapon_min_st - attacker_st);
-   else begin
-      recoil = 1 - (attacker_st - weapon_min_st) / 10.0;
-      if wpn_animation != WPN_ANIM_SMG andAlso wpn_dmg_type != DMG_laser AndAlso wpn_dmg_type < DMG_electrical andAlso wpn_dmg_type > DMG_emp then begin
-         if wpn_animation == WPN_ANIM_BIG_GUN then
-            recoil *= 1.25;
-         else if wpn_animation == WPN_ANIM_MINIGUN then
-            recoil *= 1.35;
-         else if wpn_animation != WPN_ANIM_SMG then
-            recoil *= 1.1;
-      end
-      else
-         recoil *= 1.05;
+      recoil_base = 2.0 * (1.5 + (weapon_min_st - attacker_st));
+   else
+      recoil_base = 2.0 * (1 - (attacker_st - weapon_min_st) / 8.0);
 
+   if wpn_dmg_type == DMG_normal_dam
+      orElse wpn_dmg_type == DMG_fire
+      orElse wpn_dmg_type == DMG_plasma
+      orElse wpn_dmg_type == DMG_explosion then begin
+         if get_proto_data(wpn_pid, PROTO_WP_CALIBER) == gShotgunCaliber orElse wpn_animation == WPN_ANIM_ROCKET_LAUNCHER then begin
+            recoil_base *= 1.5;
+            per_bullet_recoil = 0.85;
+         end
+         else begin
+            if wpn_animation == WPN_ANIM_BIG_GUN then
+               recoil_base *= 1.1;
+            else if wpn_animation == WPN_ANIM_MINIGUN then
+               recoil_base *= 1.05;
+            else if wpn_animation == WPN_ANIM_SMG then
+               recoil_base *= 0.9;
+         end
    end
+   else
+      recoil_base *= 0.85;
 
-   if recoil <= 0.2 then
-      recoil = 0.2;
+   if recoil_base <= 0.05 then
+      recoil_base = 0.05;
+
+   if body_part != BODY_HIT_TORSO andAlso body_part != BODY_UNCALLED then begin
+      if max_hit_chance_devider <= 100 then
+         recoil_base *= 1 + max_hit_chance_devider / 100.0;
+      else
+         recoil_base *= 2;
+   end
 
    if distance > attacker_pe * 5 then
-      distance_penalty += (distance - attacker_pe * 5);
+      distance_penalty_base += (distance - attacker_pe * 5);
 
-   distance_penalty *= distance_penalty_mult * recoil;
+   total_center = 0.0;
+   i = 0;
+   while (i < burst_bullets_num) do begin
+      recoil_i = recoil_base * (1 + per_bullet_recoil * i);
+      spread_i = recoil_i * (1 + distance * 0.035);
+      dp_i = distance_penalty_base * distance_penalty_mult * spread_i;
+      cm_i = attacker_skill / dp_i;
 
-   CenterMult = round(attacker_skill / distance_penalty);
+      if cm_i > 1.0 then
+         cm_i = 1.0;
 
-   if body_part == BODY_HIT_TORSO orElse body_part == BODY_UNCALLED then begin
-      if CenterMult < burst_bullets_num * 0.34 then
-         CenterMult = ceil(burst_bullets_num * 0.34);
+      total_center += cm_i;
+      i++;
    end
 
-   if CenterMult < Base_CenterMult then
+   CenterMult = math_round_chance(total_center);
+
+   if body_part == BODY_HIT_TORSO orElse body_part == BODY_UNCALLED then begin
+      Base_CenterMult = ceil(burst_bullets_num / 3.0);
+      if CenterMult < Base_CenterMult then
+         CenterMult = Base_CenterMult;
+   end
+   else if CenterMult < Base_CenterMult then
       CenterMult = Base_CenterMult;
-   else if CenterMult > CenterDiv then
+
+   if CenterMult > CenterDiv then
       CenterMult = CenterDiv;
 
    if max_hit_chance_devider > 0 then begin
-      max_hit_chance = round(attacker_skill / (max_hit_chance_devider * recoil));
+      spread_i = recoil_base * (1 + distance * 0.035);
+      max_hit_chance = round(attacker_skill / (max_hit_chance_devider * spread_i));
       if max_hit_chance > 95 then
          max_hit_chance = 95;
    end
 
-   set_spray_settings(CenterMult, CenterDiv, 1, 1);
+   if body_part == BODY_HIT_EYES orElse body_part == BODY_HIT_HEAD then begin
+      target_ratio_min = 0.2;
+      target_ratio_max = 0.85;
+   end
+   else if body_part == BODY_HIT_TORSO orElse body_part == BODY_UNCALLED then begin
+      target_ratio_min = 0.60;
+      target_ratio_max = 1.00;
+   end
+   else begin
+      target_ratio_min = 0.4;
+      target_ratio_max = 1.0;
+   end
+
+   close_bonus = 0;
+   if distance <= attacker_pe then begin
+      close_bonus = round(30 * (1 - distance / (attacker_pe + 1.0)));
+   end
+
+   effective_hc = max_hit_chance + close_bonus;
+   if effective_hc > 95 then
+      effective_hc = 95;
+
+   mhc_norm = effective_hc / 95.0;
+   if mhc_norm > 1.0 then
+      mhc_norm = 1.0;
+   else if mhc_norm < 0.0 then
+      mhc_norm = 0.0;
+
+   target_ratio = target_ratio_min + (target_ratio_max - target_ratio_min) * mhc_norm;
+
+   if target_ratio < 0.05 then
+      target_ratio = 0.05;
+   else if target_ratio > 1.00 then
+      target_ratio = 1.00;
+
+   target_div = CenterMult;
+   target_mult = math_round_chance(target_ratio * CenterMult);
+   if target_mult > target_div then target_mult = target_div;
+   if target_mult < 1 then target_mult = 1;
+
+   set_spray_settings(CenterMult, CenterDiv, target_mult, target_div);
    aimed_burst_max_hit = max_hit_chance;
    gAimedBurstTarget = target;
+
    return max_hit_chance;
 end
 
@@ -8070,6 +8209,7 @@ procedure set_aimed_burst(variable key_is_pressed = 0) begin
       reg_anim_animate_reverse(timer, ANIM_stand, 0);
       reg_anim_callback(set_aimed_button);
       reg_anim_destroy(timer);
+      reg_anim_destroy(clear_all_locks);
       reg_anim_end();
       write_int(0x510944, combat_state);
    end
@@ -8428,12 +8568,69 @@ procedure start begin
             gShotgunCaliber = CALIBER_12_GAUGE;
 
          if ShotgunSecondaryAttackMod > 0 then begin
-            ShotgunKnockbackMin = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMin");
-            if ShotgunKnockbackMin < 1 then ShotgunKnockbackMin = 1;
-            ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
-            if ShotgunKnockbackMax < 1 then ShotgunKnockbackMax = 5;
-            ShotgunForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunForcedActivation");
+            ShotgunKnockdownArray = load_array(ShotgunKnockdownArray_name);
+            if not(array_exists(ShotgunKnockdownArray)) then begin
+               ShotgunKnockdownArray = create_array_map;
+               save_array(ShotgunKnockdownArray_name, ShotgunKnockdownArray);
+            end
 
+            //ShotgunKnockbackMin = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMin");
+            //if ShotgunKnockbackMin < 0 then
+               //ShotgunKnockbackMin = 1;
+//
+            //ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
+            //if ShotgunKnockbackMax < 0 then
+               //ShotgunKnockbackMax = 6;
+
+            ShotgunForced = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunForcedActivation");
+            if ShotgunForced < 0 then
+               ShotgunForced = 0;
+
+            ShotgunAllowKnockbackDistance = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunAllowKnockbackDistance");
+            if ShotgunAllowKnockbackDistance <= -1 then
+               ShotgunAllowKnockbackDistance = -1;
+
+            //ShotgunKnockbackDiv = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockBACKdiv");
+            //if ShotgunKnockbackDiv == "" then
+               //ShotgunKnockbackDiv = 10.0;
+            //else begin
+               //ShotgunKnockbackDiv = atof(ShotgunKnockbackDiv);
+               //if ShotgunKnockbackDiv <= 0 then
+                  //ShotgunKnockbackDiv = 10.0;
+            //end
+
+            //ShotgunKnockdownDiv = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockDOWNdiv");
+            //if ShotgunKnockdownDiv == "" then
+               //ShotgunKnockdownDiv = 1.0;
+            //else begin
+               //ShotgunKnockdownDiv = atof(ShotgunKnockdownDiv);
+               //if ShotgunKnockdownDiv <= 0 then
+                  //ShotgunKnockdownDiv = 1.0;
+            //end
+
+            //ShotgunKnockbackHeavyMult = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackHeavyMult");
+            //if ShotgunKnockbackHeavyMult == "" then
+               //ShotgunKnockbackHeavyMult = 0.5;
+            //else begin
+               //ShotgunKnockbackHeavyMult = atof(ShotgunKnockbackHeavyMult);
+               //if ShotgunKnockbackHeavyMult < 0 then ShotgunKnockbackHeavyMult = 0;
+            //end
+
+            //ShotgunKnockbackMultihexMult = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMultihexMult");
+            //if ShotgunKnockbackMultihexMult == "" then
+               //ShotgunKnockbackMultihexMult = 0.5;
+            //else begin
+               //ShotgunKnockbackMultihexMult = atof(ShotgunKnockbackMultihexMult);
+               //if ShotgunKnockbackMultihexMult < 0 then ShotgunKnockbackMultihexMult = 0;
+            //end
+//
+            //ShotgunKnockbackPerkMult = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackPerkMult");
+            //if ShotgunKnockbackPerkMult == "" then
+               //ShotgunKnockbackPerkMult = 1.5;
+            //else begin
+               //ShotgunKnockbackPerkMult = atof(ShotgunKnockbackPerkMult);
+               //if ShotgunKnockbackPerkMult <= 0 then ShotgunKnockbackPerkMult = 1.5;
+            //end
 
             ShotgunKnockbackDisabledPids = string_split_ints(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackDisabledPids"), ",");
             fix_array(ShotgunKnockbackDisabledPids);

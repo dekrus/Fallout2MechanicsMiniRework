@@ -1,0 +1,391 @@
+#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
+                                       critter_fid == FID_NAPOWR or \
+                                       critter_fid == FID_HANPWR or \
+                                       critter_fid == FID_MABOSS or \
+                                       critter_fid == FID_NMSUPA or \
+                                       critter_fid == FID_NMCAPA or \
+                                       critter_fid == FID_NMVIPA or \
+                                       critter_fid == FID_NMMYPA)
+
+#define is_multihex(critter_obj)  (get_flags(critter_obj) bwand FLAG_MULTIHEX)
+#define ShotgunKnockdownArray_name    "F2MMRSKA"
+
+#include "define_extra.h"
+#include "DEFINE.H"
+#include "sfall.h"
+
+variable ShotgunSecondaryAttackMod;
+variable ShotgunKnockbackHeavyMult;
+variable ShotgunKnockbackMultihexMult;
+variable ShotgunKnockdownHeavyMult;
+variable ShotgunKnockdownMultihexMult;
+variable ShotgunKnockbackDiv;
+variable ShotgunKnockbackRandomBonusMin;
+variable ShotgunKnockbackRandomBonusMax;
+variable ShotgunKnockdownRandomBonusMin;
+variable ShotgunKnockdownRandomBonusMax;
+variable ShotgunKnockbackMin;
+variable ShotgunKnockbackMax;
+variable ShotgunKnockdownDiv;
+variable ShotgunKnockdownArray;
+variable ShotgunAmmoKB_Type;
+variable ShotgunAmmoKB_Value;
+variable ShotgunAmmoKD_Type;
+variable ShotgunAmmoKD_Value;
+
+
+procedure get_dude_worn_armor_perk begin
+   variable dude_armor = critter_inven_obj(dude_obj, INVEN_TYPE_WORN);
+   variable armor_perk;
+   if dude_armor > 0 then armor_perk = get_proto_data(obj_pid(dude_armor), PROTO_AR_PERK);
+   return armor_perk;
+end
+
+procedure player_wearing_power_armor begin
+   variable armor_perk = get_dude_worn_armor_perk;
+   if armor_perk == PERK_armor_powered or armor_perk == PERK_armor_advanced_1 or armor_perk == PERK_armor_advanced_2 then begin
+      return true;
+   end
+   else begin
+      return false;
+   end
+end
+
+// by burn
+procedure math_round_chance(variable val) begin
+   variable intVal = floor2(val);
+   variable chance = (val - intVal)*100;
+   variable rnd = random(1, 100);
+   variable ret := (intVal + 1) if rnd <= chance else intVal;
+
+   return ret;
+end
+
+procedure parse_float_ini(variable key, variable default_value, variable max) begin
+   variable raw = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|" + key);
+   variable val;
+   if raw == "" then
+      return default_value;
+   val = atof(raw);
+   if val < 0 then
+      val = 0;
+   if val > max then
+      val = max;
+   return val;
+end
+
+procedure parse_ammo_modifiers(variable str, variable type_map, variable value_map) begin
+   variable pairs, i, p, parts, val_str, v;
+
+   if str == "" then
+      return;
+
+   pairs = string_split(str, ",");
+   i = 0;
+   while i < len_array(pairs) do begin
+      parts = string_split(pairs[i], ":");
+      if len_array(parts) == 2 then begin
+         p = atoi(parts[0]);
+         if p > 0 then begin
+            val_str = parts[1];
+
+            if val_str == "-1" then begin
+               type_map[p] = 4;
+               value_map[p] = 0;
+            end
+            else if substr(val_str, 0, 1) == "=" then begin
+               type_map[p] = 2;
+               v = round(atof(substr(val_str, 1, 99)) * 10000.0);
+               if v < -1000000 then v = -1000000;
+               if v >  1000000 then v =  1000000;
+               value_map[p] = v;
+            end
+            else if substr(val_str, 0, 1) == "+" then begin
+               type_map[p] = 3;
+               v = round(atof(substr(val_str, 1, 99)) * 10000.0);
+               if v < -1000000 then v = -1000000;
+               if v >  1000000 then v =  1000000;
+               value_map[p] = v;
+            end
+            else begin
+               type_map[p] = 1;
+               v = round(atof(val_str) * 10000.0);
+               if v < 1 then v = 1;
+               if v > 1000000 then v = 1000000;
+               value_map[p] = v;
+            end
+         end
+      end
+      i++;
+   end
+end
+
+procedure apply_ammo_modifier(variable type_map, variable value_map, variable pid, variable value) begin
+   variable t = get_array(type_map, pid);
+   variable num;
+   if t == 0 then
+      return value;
+
+   num = get_array(value_map, pid);
+
+   if t == 1 then
+      return value * (num / 10000.0);
+   else if t == 2 then
+      return num / 10000.0;
+   else if t == 3 then
+      return value + (num / 10000.0);
+   return 0;
+end
+
+procedure COMBATDAMAGE begin
+   variable target = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable damage_to_target = get_sfall_arg;
+   variable damage_to_attacker = get_sfall_arg;
+   variable target_flags = get_sfall_arg;
+   variable attacker_flags = get_sfall_arg;
+   variable weapon = get_sfall_arg;
+   variable combat_body_part = get_sfall_arg;
+   variable dmg_mult = get_sfall_arg;
+   variable original_knockback_distance = get_sfall_arg_at(10);
+   variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable actual_attack;
+   variable knockback_distance;
+   variable knockdown_chance;
+   variable target_kill_type;
+   variable stonewall_perk;
+   variable weapon_perk;
+   variable weapon_ammo_pid;
+   variable knockback_mult;
+   variable knockdown_mult;
+   variable rnd_min;
+   variable rnd_max;
+   variable weapon_pid;
+
+   if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then
+      actual_attack = 1;
+
+   if actual_attack <= 0 orElse weapon == 0 then
+      return;
+
+   if get_array(ShotgunKnockdownArray, target) < 1 then
+      return;
+
+   weapon_pid = obj_pid(weapon);
+
+   knockback_mult = 1.0;
+   knockdown_mult = 1.0;
+
+   if target == dude_obj then begin
+      stonewall_perk = has_trait(TRAIT_PERK, dude_obj, PERK_stonewall_perk);
+      if stonewall_perk then begin
+         knockback_mult = 0.5;
+         knockdown_mult = 0.5;
+      end
+      else if player_wearing_power_armor then begin
+         knockback_mult = ShotgunKnockbackHeavyMult;
+         knockdown_mult = ShotgunKnockdownHeavyMult;
+      end
+   end
+   else begin
+      target_kill_type = critter_kill_type(target);
+      if target_kill_type == KILL_TYPE_super_mutant_kills
+         orElse target_kill_type == KILL_TYPE_deathclaw_kills
+         orElse target_kill_type == KILL_TYPE_robot_kills
+         orElse power_armor_fid(critter_art_fid(target)) then begin
+         knockback_mult = ShotgunKnockbackHeavyMult;
+         knockdown_mult = ShotgunKnockdownHeavyMult;
+      end
+   end
+
+   if is_multihex(target) then begin
+      knockback_mult *= ShotgunKnockbackMultihexMult;
+      knockdown_mult *= ShotgunKnockdownMultihexMult;
+   end
+
+   weapon_perk = get_proto_data(weapon_pid, PROTO_WP_PERK);
+
+   weapon_ammo_pid = get_weapon_ammo_pid(weapon);
+
+   if (ShotgunKnockbackRandomBonusMax > 0) orElse (damage_to_target > 0) then begin
+      rnd_min = ShotgunKnockbackRandomBonusMin;
+      rnd_max = ShotgunKnockbackRandomBonusMax;
+      if rnd_min > rnd_max then rnd_min = rnd_max;
+
+      knockback_distance = random(rnd_min, rnd_max);
+      if damage_to_target > 0 then
+         knockback_distance += damage_to_target / ShotgunKnockbackDiv;
+
+      knockback_distance = knockback_distance * knockback_mult;
+
+      if weapon_perk == PERK_weapon_knockback then
+         knockback_distance *= 2;
+
+      knockback_distance = apply_ammo_modifier(ShotgunAmmoKB_Type, ShotgunAmmoKB_Value, weapon_ammo_pid, knockback_distance);
+
+      knockback_distance = math_round_chance(knockback_distance);
+
+      if knockback_distance < original_knockback_distance then
+         knockback_distance = original_knockback_distance;
+
+      if knockback_distance < ShotgunKnockbackMin then
+         knockback_distance = ShotgunKnockbackMin;
+      if knockback_distance > ShotgunKnockbackMax then
+         knockback_distance = ShotgunKnockbackMax;
+   end
+   else
+      knockback_distance = original_knockback_distance;
+
+   if damage_to_target > 0 then begin
+      rnd_min = ShotgunKnockdownRandomBonusMin;
+      rnd_max = ShotgunKnockdownRandomBonusMax;
+      if rnd_min > rnd_max then rnd_min = rnd_max;
+
+      knockdown_chance = random(rnd_min, rnd_max);
+      knockdown_chance += damage_to_target / ShotgunKnockdownDiv;
+      knockdown_chance *= knockdown_mult;
+
+      if weapon_perk == PERK_weapon_knockout_perk then
+         knockdown_chance *= 2;
+
+      knockdown_chance = apply_ammo_modifier(ShotgunAmmoKD_Type, ShotgunAmmoKD_Value, weapon_ammo_pid, knockdown_chance);
+
+      knockdown_chance = round(knockdown_chance);
+      if knockdown_chance < 0 then knockdown_chance = 0;
+      if knockdown_chance > 100 then knockdown_chance = 100;
+   end
+   else
+      knockdown_chance = 0;
+
+   set_sfall_return(damage_to_target);
+   set_sfall_arg(2, damage_to_target);
+   set_sfall_return(damage_to_attacker);
+   set_sfall_arg(3, damage_to_attacker);
+
+   if knockdown_chance > 0 andAlso random(1, 100) <= knockdown_chance then
+      target_flags = target_flags bwor DAM_KNOCKED_DOWN;
+
+   set_sfall_return(target_flags);
+   set_sfall_arg(4, target_flags);
+   set_sfall_return(attacker_flags);
+   set_sfall_arg(5, attacker_flags);
+   set_sfall_return(knockback_distance);
+   set_sfall_arg(10, knockback_distance);
+
+   set_array(ShotgunKnockdownArray, target, 0);
+end
+
+procedure start begin
+   variable SecondaryAttackMod;
+   variable raw;
+   variable parts;
+   variable i;
+
+   if not(game_loaded) then
+      return;
+
+   SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
+   if SecondaryAttackMod <= 0 then
+      exit;
+
+   ShotgunSecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunSecondaryAttackMod");
+   if ShotgunSecondaryAttackMod <= 0 then
+      exit;
+
+   register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+   set_global_script_type(0);
+   set_global_script_repeat(0);
+
+   ShotgunKnockdownArray = load_array(ShotgunKnockdownArray_name);
+   if not(array_exists(ShotgunKnockdownArray)) then begin
+      ShotgunKnockdownArray = create_array_map;
+      save_array(ShotgunKnockdownArray_name, ShotgunKnockdownArray);
+   end
+
+   raw = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackRandomBonus");
+   if raw == "" then begin
+      ShotgunKnockbackRandomBonusMin = 1;
+      ShotgunKnockbackRandomBonusMax = 2;
+   end
+   else begin
+      parts = string_split(raw, ",");
+      if len_array(parts) == 2 then begin
+         ShotgunKnockbackRandomBonusMin = atoi(parts[0]);
+         ShotgunKnockbackRandomBonusMax = atoi(parts[1]);
+      end
+      else begin
+         ShotgunKnockbackRandomBonusMin = 0;
+         ShotgunKnockbackRandomBonusMax = atoi(raw);
+      end
+      if ShotgunKnockbackRandomBonusMin > ShotgunKnockbackRandomBonusMax then begin
+         i = ShotgunKnockbackRandomBonusMin;
+         ShotgunKnockbackRandomBonusMin = ShotgunKnockbackRandomBonusMax;
+         ShotgunKnockbackRandomBonusMax = i;
+      end
+      if ShotgunKnockbackRandomBonusMin < 0 then ShotgunKnockbackRandomBonusMin = 0;
+      if ShotgunKnockbackRandomBonusMax < 0 then ShotgunKnockbackRandomBonusMax = 0;
+   end
+
+   raw = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockdownRandomBonus");
+   if raw == "" then begin
+      ShotgunKnockdownRandomBonusMin = 0;
+      ShotgunKnockdownRandomBonusMax = 0;
+   end
+   else begin
+      parts = string_split(raw, ",");
+      if len_array(parts) == 2 then begin
+         ShotgunKnockdownRandomBonusMin = atoi(parts[0]);
+         ShotgunKnockdownRandomBonusMax = atoi(parts[1]);
+      end
+      else begin
+         ShotgunKnockdownRandomBonusMin = 0;
+         ShotgunKnockdownRandomBonusMax = atoi(raw);
+      end
+      if ShotgunKnockdownRandomBonusMin > ShotgunKnockdownRandomBonusMax then begin
+         i = ShotgunKnockdownRandomBonusMin;
+         ShotgunKnockdownRandomBonusMin = ShotgunKnockdownRandomBonusMax;
+         ShotgunKnockdownRandomBonusMax = i;
+      end
+      if ShotgunKnockdownRandomBonusMin < 0 then ShotgunKnockdownRandomBonusMin = 0;
+      if ShotgunKnockdownRandomBonusMax < 0 then ShotgunKnockdownRandomBonusMax = 0;
+   end
+
+   ShotgunKnockbackMin = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMin");
+   if ShotgunKnockbackMin < 0 then ShotgunKnockbackMin = 1;
+
+   ShotgunKnockbackMax = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockbackMax");
+   if ShotgunKnockbackMax < 0 then ShotgunKnockbackMax = 6;
+
+   raw = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockBACKdiv");
+   if raw == "" then ShotgunKnockbackDiv = 10.0;
+   else begin
+      ShotgunKnockbackDiv = atof(raw);
+      if ShotgunKnockbackDiv <= 0 then ShotgunKnockbackDiv = 10.0;
+   end
+
+   raw = get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunKnockDOWNdiv");
+   if raw == "" then ShotgunKnockdownDiv = 1.0;
+   else begin
+      ShotgunKnockdownDiv = atof(raw);
+      if ShotgunKnockdownDiv <= 0 then ShotgunKnockdownDiv = 1.0;
+   end
+
+   ShotgunKnockbackHeavyMult    = parse_float_ini("ShotgunKnockbackHeavyMult", 0.5, 5.0);
+   ShotgunKnockdownHeavyMult    = parse_float_ini("ShotgunKnockdownHeavyMult", 0.5, 5.0);
+   ShotgunKnockbackMultihexMult = parse_float_ini("ShotgunKnockbackMultihexMult", 0.5, 5.0);
+   ShotgunKnockdownMultihexMult = parse_float_ini("ShotgunKnockdownMultihexMult", 1.0, 5.0);
+
+   ShotgunAmmoKB_Type  = create_array_map;
+   ShotgunAmmoKB_Value = create_array_map;
+   ShotgunAmmoKD_Type  = create_array_map;
+   ShotgunAmmoKD_Value = create_array_map;
+
+   call parse_ammo_modifiers(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunAmmoKnockbackModifiers"), ShotgunAmmoKB_Type, ShotgunAmmoKB_Value);
+   call parse_ammo_modifiers(get_ini_string("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|ShotgunAmmoKnockdownModifiers"), ShotgunAmmoKD_Type, ShotgunAmmoKD_Value);
+
+   fix_array(ShotgunAmmoKB_Type);
+   fix_array(ShotgunAmmoKB_Value);
+   fix_array(ShotgunAmmoKD_Type);
+   fix_array(ShotgunAmmoKD_Value);
+end

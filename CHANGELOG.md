@@ -6,6 +6,8 @@
 - Alt-fire AP cost for **pistols (Double Tap)** and **shotguns (Knockback)** now always costs **+1 AP** (like a regular aimed shot) for characters with the **Fast Shot** trait.
 - Added a separate .ini variable for the Strength requirement multiplier in the Double Tap accuracy penalty formula.
 - Added .ini option to enable the old plasma explosion animation.
+- Restored compatibility of **shotguns (Knockback)** with the EcCo damage formula.
+- Added .ini option to configure knockdown chance for **shotguns (Knockback)**.
 ### Regen Mod
 - "Healing Rate has reached maximum value" message now triggers only on increase, not when already at cap.
 - Fixed burn effect application from fire, energy, and explosive attacks.
