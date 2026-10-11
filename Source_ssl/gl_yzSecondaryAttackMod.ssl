@@ -8209,7 +8209,7 @@ procedure set_aimed_burst(variable key_is_pressed = 0) begin
       reg_anim_animate_reverse(timer, ANIM_stand, 0);
       reg_anim_callback(set_aimed_button);
       reg_anim_destroy(timer);
-      reg_anim_destroy(clear_all_locks);
+      reg_anim_callback(clear_all_locks);
       reg_anim_end();
       write_int(0x510944, combat_state);
    end
