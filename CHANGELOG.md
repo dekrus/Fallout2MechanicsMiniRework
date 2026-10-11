@@ -1,4 +1,4 @@
-## Work in Progress
+## Latest Version v2.0.4
 ### Secondary Attack Mod
 - Fixed a bug where alt-fire attacks for characters with the Fast Shot trait wouldn't work at all if `AimedBurstSecondaryAttackMod` was disabled, even when `AllowFastShot` was enabled.
 - Fixed arrays for shotgun knockback and aimed burst weapon PIDs (custom & disabled lists).
@@ -29,7 +29,7 @@
 - NPCs (enemies and companions) can use doctor's bags and first aid kits to heal themselves out of combat. By default, companions do not self-heal out of combat (can be enabled via .ini).
 - Skill bonuses from doctor's bags, paramedic bags, and tool kits are now taken into account when calculating AP costs.
 
-## Latest Version v2.0.3
+## Version v2.0.3
 ### Medical Tools
 - Fixed compatibility with INVENTORY AP COST mods. Healing items applied from inventory with AP below 3 now properly execute their effects.
 ### Regen Mod
@@ -40,7 +40,6 @@
 #### Perks
 - Toughness now has 2 ranks and grants +10% resistance to all damage types (previously only normal damage, and 3 ranks).
 - Swift Learner now has 1 rank and grants a +25% bonus whenever experience points are earned (previously 3 ranks of +5% each).
-
 
 ## Version v2.0.2
 - Added compatibility options with different Inventory AP Cost mods.
