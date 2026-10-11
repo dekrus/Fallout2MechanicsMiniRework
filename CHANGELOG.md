@@ -29,6 +29,7 @@
 - NPCs (enemies and companions) can use doctor's bags and first aid kits to heal themselves out of combat. By default, companions do not self-heal out of combat (can be enabled via .ini).
 - Skill bonuses from doctor's bags, paramedic bags, and tool kits are now taken into account when calculating AP costs.
 
+
 ## Version v2.0.3
 ### Medical Tools
 - Fixed compatibility with INVENTORY AP COST mods. Healing items applied from inventory with AP below 3 now properly execute their effects.
