@@ -96,10 +96,10 @@
 {364}{}{You feel the radiation beginning to leave your body on its own. About damn time.}
 
 {370}{}{Social Disinhibition}
-{371}{}{Your social barriers have crumbled. You say everything on your mind, and oddly enough, people find it damn charming! Charisma is permanently increased by 1.}
+{371}{}{Years of self-restraint, drowned in a bottle. You now say whatever's on your mind, and oddly enough, people find it damn charming! Charisma is permanently increased by 1.}
 {372}{}{}
 {373}{}{}
-{374}{}{You feel an overwhelming urge to tell the next person you meet all about your day.}
+{374}{}{You feel an overwhelming urge to tell the next stranger you meet everything about your day.}
 
 #
 #  NEVADA
