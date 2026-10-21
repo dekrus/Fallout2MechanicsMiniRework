@@ -284,6 +284,7 @@ variable ver_minor;
 variable sfall_510;
 variable sfall_515;
 variable YAAM_active;
+variable ecco_damage_active;
 variable COMBAT_SPEED_MAX;
 
 variable SecondaryAttackMod_msg;
@@ -431,7 +432,7 @@ variable gWeaponRange;
 variable weapon_min_st;
 variable gWeaponMinDmg;
 variable gWeaponMaxDmg;
-variable weapon_perk;
+variable gWeaponPerk;
 variable gWeaponProjPid;
 //variable weapon_proj_pid_max_frames;
 variable weapon_cur_ammo;
@@ -524,7 +525,14 @@ variable offsetTester;
 variable offsetX;
 variable offsetY;
 
+//ecco var
 variable ecco_ammocost_map;
+variable ini_dr_adjust_by_attack_mode;
+variable ini_dt_mode_positive;
+variable ini_dt_mode_negative;
+variable ini_dt_mult_positive;
+variable ini_dt_mult_negative;
+variable last_dtdr;
 
 variable aimed_burst_hit_penalty;
 
@@ -796,9 +804,9 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target, variable t
 
    hit_chance = weapon_skill + 4;
 
-   if weapon_perk == PERK_weapon_long_range then
+   if gWeaponPerk == PERK_weapon_long_range then
        perception_bonus_mult = 4;
-   else if weapon_perk == PERK_weapon_scope_range then begin
+   else if gWeaponPerk == PERK_weapon_scope_range then begin
        perception_bonus_mult = 5;
        min_effective_dist = 8;
    end
@@ -855,7 +863,7 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target, variable t
    end
 
       // net +20% to_hit bonus for PERK_weapon_accurate
-   if weapon_perk == PERK_weapon_accurate then begin
+   if gWeaponPerk == PERK_weapon_accurate then begin
       hit_chance += 20;
    end
 
@@ -866,7 +874,7 @@ procedure get_ranged_chance_to_hit(variable attacker,variable target, variable t
 
    //darkness to_hit penalty in low light(considering PERK_night_vision) without PERK_weapon_night_sight
    // not only for dude!
-   if weapon_perk != PERK_weapon_night_sight andAlso obj_visible_light <= 52428 then begin
+   if gWeaponPerk != PERK_weapon_night_sight andAlso obj_visible_light <= 52428 then begin
       if obj_visible_light <= 26214 then begin
          hit_chance -= 40;
       end
@@ -995,7 +1003,7 @@ procedure lvar_full_reset begin
    gWeaponRange = 0;
    gWeaponMinDmg = 0;
    gWeaponMaxDmg = 0;
-   weapon_perk = 0;
+   gWeaponPerk = 0;
    gWeaponProjPid = 0;
    weapon_cur_ammo = 0;
    weapon_ammo_cost = 0;
@@ -1119,6 +1127,162 @@ procedure get_crit_mult(variable crit_power_roll,variable target) begin
    return crit_mult;
 end
 
+procedure get_ammo_value(variable weapon, variable param) begin
+   variable pid := -1, value := 0; // default DR value
+
+   if weapon then begin
+      pid := get_weapon_ammo_pid(weapon);
+      if (pid > -1) then value := get_proto_data(pid, param);
+   end
+   if (pid == -1 and param != PROTO_AM_DR_MOD) then value := 1; // default value for Mult/Div
+
+   return value;
+end
+
+procedure get_weapon_attack_mode_by_attack_type(variable weapon, variable attackType) begin
+   if (attackType == ATKTYPE_KICK orElse (attackType >= ATKTYPE_STRONGKICK andAlso attackType <= ATKTYPE_PIERCINGKICK)) then
+      return ATTACK_MODE_KICK;
+
+   if not(weapon) then
+      return ATTACK_MODE_PUNCH;
+
+   return weapon_attack_mode(obj_pid(weapon), attackType);
+end
+
+procedure load_attack_mode_from_ini begin
+   variable LVar0 := 1;
+   variable LVar1 := 0;
+   ini_dr_adjust_by_attack_mode := create_array(-1, 0);
+   while (LVar0 <= 8) do begin
+      LVar1 := get_ini_string("ecco_config\\combat.ini" + "|" + "ATTACK_MODES" + "|" + "dr_adjust_" + LVar0);
+      if (LVar1 != "") then begin
+         set_array(ini_dr_adjust_by_attack_mode, LVar0, atoi(LVar1));
+      end
+      LVar0 := LVar0 + 1;
+   end
+   if len_array(ini_dr_adjust_by_attack_mode) > 0 then
+      fix_array(ini_dr_adjust_by_attack_mode);
+end
+
+procedure calc_dtdr_vanilla_plus(variable arg0, variable arg1, variable arg2) begin
+   variable LVar3 := 0;
+   variable LVar4 := 0;
+   if (arg2 > 0) then begin
+      LVar4 := ini_dt_mode_positive;
+      LVar3 := ini_dt_mult_positive;
+   end
+   else begin
+      LVar4 := ini_dt_mode_negative;
+      LVar3 := ini_dt_mult_negative;
+   end
+   if (LVar4 == 1) then begin
+      arg0 := arg0 + (0.10000 * arg2 * LVar3);
+   end
+   else begin
+      if (LVar4 == 2) then begin
+         arg0 := arg0 * (1.00000 + (0.01000 * arg2 * LVar3));
+      end
+   end
+   arg1 := arg1 + arg2;
+   if (not(last_dtdr)) then begin
+      last_dtdr := create_array(2, 0);
+   end
+   set_array(last_dtdr, 0, arg0 if (arg0 > 0) else 0);
+   set_array(last_dtdr, 1, (arg1 if (arg1 < 100) else 100) if ((arg1 if (arg1 < 100) else 100) > 0) else 0);
+   return last_dtdr;
+end
+
+procedure calc_effective_dtdr(variable arg0, variable arg1, variable arg2, variable arg3, variable arg4, variable arg5) begin
+   if (arg4) then begin
+      arg0 := arg0 * 20 / 100;
+      arg1 := arg1 * 20 / 100;
+   end
+   else begin
+      //if ((arg5 == 60) orElse ((((arg6 == 12) orElse (arg6 == 13)) orElse (arg6 == 18)) orElse (arg6 == 19))) then begin
+      if (arg5 == 60) then begin
+         arg0 := arg0 * 20 / 100;
+      end
+      if ((arg3 == dude_obj) andAlso has_trait(2, arg3, 4)) then begin
+         arg1 := arg1 + 30;
+      end
+   end
+   return calc_dtdr_vanilla_plus(arg0, arg1, arg2);
+end
+
+// by burn
+procedure math_round_chance(variable val) begin
+   variable intVal = floor(val);
+   variable chance = (val - intVal)*100;
+   variable rnd = random(1, 100);
+   variable ret := (intVal + 1) if rnd <= chance else intVal;
+
+   return ret;
+end
+
+procedure calc_damage_ecco(variable weapon, variable rounds, variable targetDT, variable targetDR, variable rangedBonus, variable criticalMult,
+      variable difficulty, variable ctdSource, variable flags, variable dmgType, variable weaponPerk, variable f2mmr_weapon_dmg = -50)
+begin
+   variable accumulatedDamage, ammoDiv, ammoMult, ammoDR, i, baseDamage, bulletDamage, staticMult, calcDTDR, bypassArmor, criticalRounds, attackMode;
+   if (rounds <= 0) then begin
+      return 0;
+   end
+
+   ammoDiv := get_ammo_value(weapon, PROTO_AM_DMG_DIV);
+   if (ammoDiv == 0) then ammoDiv := 1; // prevent divide by zero
+   ammoMult := get_ammo_value(weapon, PROTO_AM_DMG_MULT);
+   ammoDR := get_ammo_value(weapon, PROTO_AM_DR_MOD); // we use DR mod as DT&DR mod
+
+   // DR Adjust mod by attack mode
+   //attackMode := get_weapon_attack_mode_by_attack_type(weapon, attackType);
+   attackMode = ATTACK_MODE_SINGLE;
+   if (attackMode != ATTACK_MODE_THROW or dmgType == DMG_normal_dam) then begin // don't apply to thrown explosives
+      ammoDR += ini_dr_adjust_by_attack_mode[attackMode];
+   end
+
+   bypassArmor := (flags bwand DAM_BYPASS) and dmgType != DMG_emp;
+
+   // For the first bullet
+   calcDTDR := calc_effective_dtdr(targetDT, targetDR, ammoDR, ctdSource, bypassArmor, weaponPerk);
+
+   staticMult := 0.01 * difficulty * ammoMult / ammoDiv;
+   //criticalMult *= 0.5;
+
+   //if (ini_burst_critical_fraction != 1.0 and (bypassArmor or criticalMult > 1)) then
+      //criticalRounds := math_max(math_round_chance(ini_burst_critical_fraction * rounds), 1);
+   //else
+      criticalRounds := rounds;
+
+   // Start of damage calculation loop
+   for (i := 0; i < rounds; i++) begin
+      // After a fraction of bullets, don't allow any more criticals, to make bursts less OP.
+      if (i == criticalRounds) then begin
+         if (bypassArmor) then begin
+            calcDTDR := calc_effective_dtdr(targetDT, targetDR, ammoDR, ctdSource, false, weaponPerk);
+         end
+         if (criticalMult > 1) then begin
+            criticalMult := 1;
+         end
+      end
+
+      if f2mmr_weapon_dmg == -50 then
+         baseDamage := random(gWeaponMinDmg, gWeaponMaxDmg);
+      else
+         baseDamage = f2mmr_weapon_dmg;
+
+      bulletDamage := baseDamage - calcDTDR[0];
+      if (bulletDamage <= 0) then
+         continue;
+
+      bulletDamage := math_round_chance(bulletDamage * staticMult * (1 - calcDTDR[1] / 100.0) * criticalMult);
+
+      if (bulletDamage > 0) then begin
+         accumulatedDamage += bulletDamage;
+      end
+   end
+
+   return accumulatedDamage;
+end
+
 procedure calc_dmg_electric(variable attacker, variable target, variable add_to_exort_arr = 0) begin
    variable attacker_lu = get_critter_stat(attacker, STAT_lu);
    variable critical_chance = get_critter_stat(attacker, STAT_crit_chance);
@@ -1136,6 +1300,7 @@ procedure calc_dmg_electric(variable attacker, variable target, variable add_to_
    variable orig_target_team;
    variable target_cr_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
    variable kill_type;
+   variable difficulty;
    if (target_cr_flags bwand CFLG_INVULN) != 0 then
       return -1;
 
@@ -1151,7 +1316,7 @@ procedure calc_dmg_electric(variable attacker, variable target, variable add_to_
 
    if gWeaponDamageType != DMG_emp then begin
       //not for moving lightning
-      //if weapon_perk == PERK_weapon_penetrate then begin
+      //if gWeaponPerk == PERK_weapon_penetrate then begin
          //target_dt = target_dt * 0.2;
       //end
        //if YAAM ammo active
@@ -1204,17 +1369,29 @@ procedure calc_dmg_electric(variable attacker, variable target, variable add_to_
    if ElecDamageReductionPerTarget != 0 then
        weapon_dmg = weapon_dmg * (ElecDamageReductionPerTarget ^ gPulseTileAttackedCount);
 
-   dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
-
-   if gLivingAnatomyBonus > 0 then begin
-      kill_type = critter_kill_type(target);
-      if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
-         dmg += gLivingAnatomyBonus * living_anatomy;
+   if ecco_damage_active > 0 then begin
+      difficulty := 100;
+      if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+         if (combat_difficulty == 0) then
+            difficulty := 75;
+         else if (combat_difficulty == 2) then
+            difficulty := 125;
+      end
+      if ElecDamageReductionPerTarget != 0 then
+          crit_mult = crit_mult * (ElecDamageReductionPerTarget ^ gPulseTileAttackedCount);
+      dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, flags, gWeaponDamageType, gWeaponPerk);
    end
+   else begin
+      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
+      if gLivingAnatomyBonus > 0 then begin
+         kill_type = critter_kill_type(target);
+         if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
+            dmg += gLivingAnatomyBonus * living_anatomy;
+      end
 
-   if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
-      dmg += gPyromaniac_perk * gPyromaniac_bonus;
-
+      if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
+         dmg += gPyromaniac_perk * gPyromaniac_bonus;
+   end
 
    if dmg < min_dmg then begin
       return DMG_ZERO;
@@ -1239,6 +1416,7 @@ procedure calc_dmg_laser_main_target(variable attacker, variable target, variabl
    variable dmg;
    variable target_cr_flags;
    variable kill_type = critter_kill_type(target);
+   variable difficulty;
    if obj_type(target) != OBJ_TYPE_CRITTER then
       return 0;
 
@@ -1255,7 +1433,7 @@ procedure calc_dmg_laser_main_target(variable attacker, variable target, variabl
       target_dr = target_dr + 30;
    end
    //guaranteed increase in laser armor-piercing when using an alternative firing mode
-   if weapon_perk == PERK_weapon_penetrate then begin
+   if gWeaponPerk == PERK_weapon_penetrate then begin
       target_dt = target_dt * 0.1;
       target_dr = target_dr * 0.1;
    end
@@ -1288,16 +1466,26 @@ procedure calc_dmg_laser_main_target(variable attacker, variable target, variabl
    if target_dr > 90 then target_dr = 90;
    if target_dr < 0 then target_dr = 0;
 
-   dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
-
-   if gLivingAnatomyBonus > 0 then begin
-      kill_type = critter_kill_type(target);
-      if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
-         dmg += gLivingAnatomyBonus * living_anatomy;
+   if ecco_damage_active > 0 then begin
+      difficulty := 100;
+      if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+         if (combat_difficulty == 0) then
+            difficulty := 75;
+         else if (combat_difficulty == 2) then
+            difficulty := 125;
+      end
+      dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, DAM_HIT bwor DAM_BYPASS, gWeaponDamageType, gWeaponPerk);
    end
-
-   if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
-      dmg += gPyromaniac_perk * gPyromaniac_bonus;
+   else begin
+      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
+      if gLivingAnatomyBonus > 0 then begin
+         kill_type = critter_kill_type(target);
+         if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
+            dmg += gLivingAnatomyBonus * living_anatomy;
+      end
+      if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
+         dmg += gPyromaniac_perk * gPyromaniac_bonus;
+   end
 
    if dmg < min_dmg then begin
       dmg = 0;
@@ -1329,6 +1517,7 @@ procedure calc_dmg_laser(variable attacker, variable target, variable laser_targ
    variable cur_attack_dmg;
    variable cur_combat_target = get_object_data(combat_data, C_ATTACK_TARGET);
    variable kill_type;
+   variable difficulty;
    cur_attack_dmg = get_array(cur_attack_results_arr, target);
    if cur_attack_dmg != 0 then
       return cur_attack_dmg;
@@ -1382,7 +1571,7 @@ procedure calc_dmg_laser(variable attacker, variable target, variable laser_targ
          target_dr += ammo_dr_mod;
 
       //guaranteed increase in laser armor-piercing when using an alternative firing mode
-      if weapon_perk == PERK_weapon_penetrate then begin
+      if gWeaponPerk == PERK_weapon_penetrate then begin
          target_dt = target_dt * 0.1;
          target_dr = target_dr * 0.1;
       end
@@ -1418,16 +1607,28 @@ procedure calc_dmg_laser(variable attacker, variable target, variable laser_targ
       if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
          weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
-      dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
-
-      if gLivingAnatomyBonus > 0 then begin
-         kill_type = critter_kill_type(target);
-         if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
-            dmg += gLivingAnatomyBonus * living_anatomy;
+      if ecco_damage_active > 0 then begin
+         difficulty := 100;
+         if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+            if (combat_difficulty == 0) then
+               difficulty := 75;
+            else if (combat_difficulty == 2) then
+               difficulty := 125;
+         end
+         dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, flags, gWeaponDamageType, gWeaponPerk);
       end
+      else begin
+         dmg = round(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
 
-      if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
-         dmg += gPyromaniac_perk * gPyromaniac_bonus;
+         if gLivingAnatomyBonus > 0 then begin
+            kill_type = critter_kill_type(target);
+            if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
+               dmg += gLivingAnatomyBonus * living_anatomy;
+         end
+
+         if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
+            dmg += gPyromaniac_perk * gPyromaniac_bonus;
+      end
 
       if dmg < min_dmg then begin
          dmg = DMG_ZERO;
@@ -1453,6 +1654,7 @@ procedure calc_dmg(variable attacker, variable target, variable weapon_dmg, vari
    variable flags = DAM_HIT;
    variable target_cr_flags = get_proto_data(obj_pid(target), PROTO_CR_FLAGS);
    variable kill_type;
+   variable difficulty;
 
    if (target_cr_flags bwand CFLG_INVULN) != 0 then begin
       return DMG_DODGE;
@@ -1480,7 +1682,7 @@ procedure calc_dmg(variable attacker, variable target, variable weapon_dmg, vari
       target_dr += ammo_dr_mod;
    end
 
-   if weapon_perk == PERK_weapon_penetrate then begin
+   if gWeaponPerk == PERK_weapon_penetrate then begin
       target_dt = target_dt * 0.2;
    end
 
@@ -1514,15 +1716,29 @@ procedure calc_dmg(variable attacker, variable target, variable weapon_dmg, vari
    if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
       weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
-   dmg = round(((weapon_dmg - target_dt) * (100.0 - target_dr) / 100.0) * crit_mult);
 
-   if gLivingAnatomyBonus > 0 then begin
-      if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
-         dmg += gLivingAnatomyBonus * living_anatomy;
+   if ecco_damage_active > 0 then begin
+      difficulty := 100;
+      if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+         if (combat_difficulty == 0) then
+            difficulty := 75;
+         else if (combat_difficulty == 2) then
+            difficulty := 125;
+      end
+      dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, flags, gWeaponDamageType, gWeaponPerk);
+   end
+   else begin
+      dmg = round(((weapon_dmg - target_dt) * (100.0 - target_dr) / 100.0) * crit_mult);
+
+      if gLivingAnatomyBonus > 0 then begin
+         if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
+            dmg += gLivingAnatomyBonus * living_anatomy;
+      end
+
+      if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
+         dmg += gPyromaniac_perk * gPyromaniac_bonus;
    end
 
-   if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
-      dmg += gPyromaniac_perk * gPyromaniac_bonus;
    if dmg < min_dmg then begin
       return DMG_ZERO;
    end
@@ -1556,6 +1772,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable lof_target
    variable weapon_dmg = gGaussWeaponDmg;
    variable kill_type = critter_kill_type(target);
    variable HitChance = 1;
+   variable difficulty;
    cur_attack_dmg = get_array(cur_attack_results_arr, target);
    if cur_attack_dmg != 0 then
       return cur_attack_dmg;
@@ -1612,7 +1829,7 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable lof_target
       else
          target_dr += ammo_dr_mod;
 
-      if weapon_perk == PERK_weapon_penetrate orElse Sonora > 0 then begin
+      if gWeaponPerk == PERK_weapon_penetrate orElse Sonora > 0 then begin
          target_dt = target_dt * 0.1;
          target_dr = target_dr * 0.1;
       end
@@ -1643,7 +1860,19 @@ procedure calc_dmg_gauss(variable attacker, variable target, variable lof_target
       if target_dr < 0 then target_dr = 0;
       if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
          weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
-      dmg = round((((weapon_dmg) - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
+
+      if ecco_damage_active > 0 then begin
+         difficulty := 100;
+         if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+            if (combat_difficulty == 0) then
+               difficulty := 75;
+            else if (combat_difficulty == 2) then
+               difficulty := 125;
+         end
+         dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, flags, gWeaponDamageType, gWeaponPerk, weapon_dmg);
+      end
+      else
+         dmg = round((((weapon_dmg) - target_dt) * (100 - target_dr) / 100.0) * crit_mult);
 
       if GaussDamageReductionPerTarget > 0 then begin
          cur_dmg_reduction_dt = 2 * target_dt;
@@ -1704,6 +1933,7 @@ procedure calc_dmg_plasma(variable attacker, variable target, variable distance,
    variable disatance_dmg_mult;
    variable dmg_mult = 1;
    variable kill_type;
+   variable difficulty;
    cur_attack_dmg = get_array(cur_attack_results_arr, target);
 
    if cur_attack_dmg != 0 then
@@ -1728,7 +1958,7 @@ procedure calc_dmg_plasma(variable attacker, variable target, variable distance,
       target_dr = target_dr + 30;
    end
 
-   if weapon_perk == PERK_weapon_penetrate then begin
+   if gWeaponPerk == PERK_weapon_penetrate then begin
       target_dt = target_dt * 0.2;
    end
 
@@ -1776,17 +2006,27 @@ procedure calc_dmg_plasma(variable attacker, variable target, variable distance,
    if gWeaponDamageType == DMG_explosion andAlso gDemolitionExpert then
       weapon_dmg += gDemolitionExpert * gDemolitionExpertBonus;
 
-   dmg = ceil(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * dmg_mult * crit_mult);
-
-   if gLivingAnatomyBonus > 0 then begin
-      kill_type = critter_kill_type(target);
-      if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
-         dmg += gLivingAnatomyBonus * living_anatomy;
+   if ecco_damage_active > 0 then begin
+      difficulty := 100;
+      if (has_trait(TRAIT_OBJECT, attacker, OBJECT_TEAM_NUM) != has_trait(TRAIT_OBJECT, dude_obj, OBJECT_TEAM_NUM)) then begin
+         if (combat_difficulty == 0) then
+            difficulty := 75;
+         else if (combat_difficulty == 2) then
+            difficulty := 125;
+      end
+      dmg = calc_damage_ecco(gWeapon, 1, get_critter_stat(target, STAT_dmg_thresh + gWeaponDamageType), get_critter_stat(target, STAT_dmg_resist + gWeaponDamageType), bonus_ranged_damage * 2, crit_mult, difficulty, attacker, flags, gWeaponDamageType, gWeaponPerk);
    end
+   else begin
+      dmg = ceil(((weapon_dmg - target_dt) * (100 - target_dr) / 100.0) * dmg_mult * crit_mult);
+      if gLivingAnatomyBonus > 0 then begin
+         kill_type = critter_kill_type(target);
+         if kill_type != KILL_TYPE_alien_kills andAlso kill_type != KILL_TYPE_robot_kills then
+            dmg += gLivingAnatomyBonus * living_anatomy;
+      end
 
-   if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
-      dmg += gPyromaniac_perk * gPyromaniac_bonus;
-
+      if gWeaponDamageType == DMG_fire andAlso gPyromaniac_perk then
+         dmg += gPyromaniac_perk * gPyromaniac_bonus;
+   end
    if add_to_exort_arr > 0 then
       call add_to_export_arr(target, dmg);
    if dmg < min_dmg then begin
@@ -6995,9 +7235,11 @@ procedure AFTERHITROLL begin
             call lvar_full_reset in 0;
          gWeaponDamageType = get_proto_data(gWeaponPid, PROTO_WP_DMG_TYPE);
          weapon_min_st = get_proto_data(gWeaponPid, PROTO_WP_MIN_ST);
+         if attacker == dude_obj then
+            bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
          gWeaponMinDmg = get_proto_data(gWeaponPid, PROTO_WP_DMG_MIN) + 2 * bonus_ranged_damage;
          gWeaponMaxDmg = get_proto_data(gWeaponPid, PROTO_WP_DMG_MAX) + 2 * bonus_ranged_damage;
-         weapon_perk = get_proto_data(gWeaponPid, PROTO_WP_PERK);
+         gWeaponPerk = get_proto_data(gWeaponPid, PROTO_WP_PERK);
          weapon_cur_ammo = get_object_data(gWeapon, OBJ_DATA_CUR_CHARGES);
          //gWeaponAnim = get_proto_data(gWeaponPid, PROTO_WP_ANIM);
          gWeaponProjPid = get_proto_data(gWeaponPid, PROTO_WP_PROJ_PID);
@@ -7024,7 +7266,7 @@ procedure AFTERHITROLL begin
             gWeaponRange = get_proto_data(gWeaponPid, PROTO_WP_RANGE_2);
             if (weapon_flags bwand ATKMODE_SEC_SINGLE) == ATKMODE_SEC_SINGLE andAlso ((weapon_flags bwand ATKMODE_SEC_BURST) != ATKMODE_SEC_BURST) then is_single_shot = 1;
          end
-         if (ammo_mult - ammo_div) >= 0 andAlso ammo_div > 0 then begin
+         if ecco_damage_active <= 0 andAlso (ammo_mult - ammo_div) >= 0 andAlso ammo_div > 0 then begin
             gWeaponMinDmg = round(1.0 * gWeaponMinDmg * ammo_mult / ammo_div);
             gWeaponMaxDmg = round(1.0 * gWeaponMaxDmg * ammo_mult / ammo_div);
          end
@@ -7050,7 +7292,6 @@ procedure AFTERHITROLL begin
          gWeaponHandlingPerk = has_trait(TRAIT_PERK, attacker, PERK_weapon_handling_perk);
          sharpshooter = has_trait(TRAIT_PERK, attacker, PERK_sharpshooter);
          bonus_crit_power_roll = get_critter_stat(attacker, STAT_better_crit);
-         bonus_ranged_damage = has_trait(TRAIT_PERK, attacker, PERK_bonus_ranged_damage);
          living_anatomy = has_trait(TRAIT_PERK, attacker, PERK_living_anatomy_perk);
          night_vision = has_trait(TRAIT_PERK, attacker, PERK_night_vision);
          if AllowSniperPerk then begin
@@ -7660,7 +7901,7 @@ procedure COMBATDAMAGE begin
             //if is_multihex(target) then
                //knockback_mult = knockback_mult * ShotgunKnockbackMultihexMult;
 //
-            //if weapon_perk == PERK_weapon_knockback then
+            //if gWeaponPerk == PERK_weapon_knockback then
                //knockback_mult = knockback_mult * ShotgunKnockbackPerkMult;
 //
             //knockback_distance = round(damage_to_target / ShotgunKnockbackDiv * knockback_mult);
@@ -7671,7 +7912,7 @@ procedure COMBATDAMAGE begin
 //
             //knockdown_chance = damage_to_target / ShotgunKnockdownDiv;
             //knockdown_chance = knockdown_chance * knockback_mult;
-            //if weapon_perk == PERK_weapon_knockout_perk then
+            //if gWeaponPerk == PERK_weapon_knockout_perk then
                //knockdown_chance = knockdown_chance * 2;
 //
             //if dmgtotar_was_return <= 0 then begin
@@ -7755,16 +7996,6 @@ procedure COMBATDAMAGE begin
          //gauss alt dmg end
       end
    end
-end
-
-// by burn
-procedure math_round_chance(variable val) begin
-   variable intVal = floor(val);
-   variable chance = (val - intVal)*100;
-   variable rnd = random(1, 100);
-   variable ret := (intVal + 1) if rnd <= chance else intVal;
-
-   return ret;
 end
 
 procedure set_spray_by_skill_and_dist(variable attacker, variable target, variable weapon, variable body_part) begin
@@ -8173,7 +8404,7 @@ procedure map_enter_p_proc begin
    set_proto_data(pid_trans_block, PROTO_FID, INVISIBLE_MISC_FID);
 end
 
-procedure get_ini_section_int_to_int(variable file, variable section, variable fixArray := false) begin
+procedure get_ini_section_int_to_int(variable file, variable section, variable fixArray := true) begin
    variable ar, ar2 := temp_array_map, k, v;
    ar := get_ini_section(file, section);
    foreach k: v in ar begin
@@ -8371,10 +8602,35 @@ procedure bonus_check begin
       gDemolitionExpertBonus = 10;
 end
 
+procedure math_clamp(variable arg0, variable arg1, variable arg2) begin
+   variable LVar3 := 0;
+   variable LVar4 := 0;
+   if (arg1 < arg2) then begin
+      LVar3 := arg1;
+      LVar4 := arg2;
+   end
+   else begin
+      LVar3 := arg2;
+      LVar4 := arg1;
+   end
+   if (arg0 < LVar3) then begin
+      return LVar3;
+   end
+   else begin
+      if (arg0 > LVar4) then begin
+         return LVar4;
+      end
+      else begin
+         return arg0;
+      end
+   end
+end
+
 procedure start begin
    variable test;
    variable SecondaryAttackMod;
    variable AnimationsAtOnceLimit;
+   variable damage_fromula;
    if game_loaded then begin
       import_alt_attack_aoe_targets_arr = create_array_map;
       LaserFID = get_proto_data(pid_ka_pow, PROTO_FID);
@@ -8389,11 +8645,24 @@ procedure start begin
          if AnimationsAtOnceLimit < 127 then
             set_ini_setting("ddraw.ini|Misc|AnimationsAtOnceLimit", 127);
 
-         //if get_proto_data(PID_10MM_AP, PROTO_AM_DR_MOD) > 0 orElse get_proto_data(PID_ROCKET_AP, PROTO_AM_DR_MOD) > 0 then
-            //YAAM_active = 1;
-
-         if get_ini_setting("ddraw.ini|Misc|DamageFormula") == 5 then
+         damage_fromula = get_ini_setting("ddraw.ini|Misc|DamageFormula");
+         if damage_fromula == 5 then
             YAAM_active = 1;
+         else begin
+            ecco_damage_active = get_ini_setting("ecco_config\\combat.ini|DAMAGE|enabled");
+            if ecco_damage_active then begin
+               ecco_damage_active = 1;
+               call load_attack_mode_from_ini;
+               ini_dt_mode_positive := get_ini_setting("ecco_config\\combat.ini|DAMAGE|dt_mode_positive");
+               ini_dt_mode_negative := get_ini_setting("ecco_config\\combat.ini|DAMAGE|dt_mode_negative");
+               ini_dt_mult_positive := math_clamp(atof(get_ini_string("ecco_config\\combat.ini|DAMAGE|dt_mult_positive")), 0.00000, 10);
+               ini_dt_mult_negative := math_clamp(atof(get_ini_string("ecco_config\\combat.ini|DAMAGE|dt_mult_negative")), 0.00000, 10);
+               //ecco AMMOCOST
+               ecco_ammocost_map = get_ini_section_int_to_int(ECCO_COMBAT_INI_FILE, ECCO_INI_AMMOCOST_SECTION, true);
+               if len_array(ecco_ammocost_map) <= 0 then
+                  ecco_ammocost_map = -1;
+            end
+         end
 
 
          sfall_ver_maj = sfall_ver_major;
@@ -8666,12 +8935,6 @@ procedure start begin
          end
 
          SecondaryAttackMod_msg = add_extra_msg_file(msg_file);
-
-         //ecco AMMOCOST
-         ecco_ammocost_map = get_ini_section_int_to_int(ECCO_COMBAT_INI_FILE, ECCO_INI_AMMOCOST_SECTION, true);
-         if len_array(ecco_ammocost_map) <= 0 then
-            ecco_ammocost_map = -1;
-
 
          register_hook_proc(HOOK_ITEMDAMAGE, ITEMDAMAGE);
          register_hook_proc(HOOK_COMBATDAMAGE, COMBATDAMAGE);
