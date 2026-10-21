@@ -151,6 +151,8 @@
 #define id_to_regen_time_array_name "F2MMRREGT"
 #define saved_stats_array_name "F2MMRPRSS"
 #define id_to_event_key_array_name "F2MMREFAK"
+
+#define id_to_burn_count_array_name "F2MMRBCAN"
 #define combatants_array_name "F2MMRCTCA"
 
 #define POTENTIAL_PARTY_PIDs_ARRAY_name "PotentPartyPids"
@@ -470,6 +472,7 @@ variable gPoisHypoTryCount;
 variable gPoisHypoTryTarget;
 variable gNeedToClearLocks;
 variable IfaceBarWinId;
+variable gQueueUpdated;
 //variable cur_map_event_array_name;
 
 variable party_levels;
@@ -479,6 +482,8 @@ export variable tail_used;
 
 import variable combat_med_tool_used;
 import variable import_alt_attack_aoe_targets_arr;
+
+procedure REAL_COMBATDAMAGE_add_timer_failsafe;
 
 procedure clear_all_locks begin
    variable i;
@@ -1870,6 +1875,18 @@ procedure weapon_apply_poison_USEOBJON(variable target, variable user, variable 
 end
 
 
+procedure check_burn_tag begin
+   variable tag_is_active = is_iface_tag_active(iface_tag_burn);
+   variable dude_burn_count = get_array(id_to_burn_count, get_unique_id(dude_obj));
+   if dude_burn_count <= 0 andAlso tag_is_active > 0 then begin
+      hide_iface_tag(iface_tag_burn);
+   end
+   else if dude_burn_count > 0 andAlso tag_is_active <= 0 then begin
+      show_iface_tag(iface_tag_burn);
+   end
+end
+
+
 procedure check_regen_tag begin
    variable hr;
    variable color;
@@ -1882,7 +1899,7 @@ procedure check_regen_tag begin
       return;
    hr = get_critter_stat(dude_obj, STAT_heal_rate);
    if hr >= min_hr_to_regen(dude_obj) andAlso (combat_is_initialized orElse (dude_cur_hits < dude_max_hits orElse ((TraitsPlus > 0 andAlso has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing) < 2) andAlso gIsDudeFastMetaPlus <= 0 andAlso has_fake_perk_npc(dude_obj, regen_perk_name) <= 0)) orElse (PoisonMod > 0 andAlso get_poison(dude_obj) > 0)) then begin
-      if hr == gLastTagHr then
+      if hr == gLastTagHr andAlso not(combat_is_initialized) then
          return;
 
       gLastTagHr = hr;
@@ -2310,18 +2327,19 @@ end
 procedure remove_all_burns(variable critter, variable cur_game_time) begin
    variable critter_cur_hp;
    variable critter_id = get_unique_id(critter);
-   variable PoisonTickDmg;
-   variable RegenTickHP;
+   //variable PoisonTickDmg;
+   //variable RegenTickHP;
    variable next_event_key;
    variable event_key;
    variable event_type;
    variable stat;
    variable stat_value;
-   variable cur_poison;
+   //variable cur_poison;
    variable was_add_regen;
-   variable was_add_poison;
+   //variable was_add_poison;
    variable next_regen_time;
    variable first_event_key;
+   variable prev_event_key = 0;
    set_array(id_to_burn_count, critter_id, 0);
    if critter == dude_obj andAlso is_iface_tag_active(iface_tag_burn) then begin
       //set_fake_trait_npc(dude_obj, "burn", 0, 168,"");
@@ -2337,7 +2355,7 @@ procedure remove_all_burns(variable critter, variable cur_game_time) begin
             event_type = get_array(event_queue_array, event_key + event_type_offset);
             if event_type == EVENT_TYPE_BURN then begin
                was_add_regen = 0;
-               was_add_poison = 0;
+               //was_add_poison = 0;
 
                set_array(event_queue_array, event_key + event_type_offset, 0);
 
@@ -2366,15 +2384,22 @@ procedure remove_all_burns(variable critter, variable cur_game_time) begin
                   end
                end
 
-               if event_key == first_event_key then
+
+               next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
+
+               if event_key == get_first_event_key(critter_id) then begin
                   set_first_event_key(critter_id, next_event_key);
-
-               next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
+               end
+               else if prev_event_key != 0 then begin
+                  set_array(event_queue_array, prev_event_key + next_event_key_offset, next_event_key);
+               end
                call queue_remove(critter_id, event_key);
-
+               gQueueUpdated = 1;
             end
-            else
+            else begin
+               prev_event_key = event_key;
                next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
+            end
 
             event_key = next_event_key;
          end
@@ -2435,7 +2460,7 @@ procedure add_burn_effect_to_saved_arrays(variable critter, variable burn_count,
    variable cur_game_time;
    variable critter_type;
 
-   if is_taking_damage <= 0 andAlso get_critter_stat(critter, STAT_current_hp) >= get_critter_stat(critter, STAT_max_hp) then begin
+   if RegenMod <= 0 orElse (is_taking_damage <= 0 andAlso get_critter_stat(critter, STAT_current_hp) >= get_critter_stat(critter, STAT_max_hp)) then begin
       new_burn_count = 0;
    end
    else begin
@@ -4906,7 +4931,6 @@ procedure queue_add_poison_event(variable critter_id, variable time) begin
    set_array(event_queue_array, cur_key + next_event_key_offset, new_key);
 end
 
-
 procedure disabled_scr_events_queue_critter(variable critter) begin
    variable critter_cur_hp;
    variable critter_id;
@@ -4915,7 +4939,7 @@ procedure disabled_scr_events_queue_critter(variable critter) begin
    variable event_type;
    variable stat;
    variable stat_value;
-   variable cur_burn_count;
+   //variable cur_burn_count;
    if not(array_exists(event_queue_array)) then
       return;
    critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
@@ -4923,6 +4947,10 @@ procedure disabled_scr_events_queue_critter(variable critter) begin
       critter_id = get_unique_id(critter);
       event_key = get_first_event_key(critter_id);
       if event_key != 0 then begin
+         set_array(id_to_burn_count, critter_id, 0);
+         if critter == dude_obj andAlso is_iface_tag_active(iface_tag_burn) then begin
+            hide_iface_tag(iface_tag_burn);
+         end
          while event_key != 0 do begin
             event_type = get_array(event_queue_array, event_key + event_type_offset);
             set_array(event_queue_array, event_key + event_type_offset, 0);
@@ -4932,11 +4960,6 @@ procedure disabled_scr_events_queue_critter(variable critter) begin
                call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
             end
             else if event_type == EVENT_TYPE_BURN then begin
-               set_array(id_to_burn_count, critter_id, 0);
-               if critter == dude_obj andAlso is_iface_tag_active(iface_tag_burn) then begin
-                  hide_iface_tag(iface_tag_burn);
-               end
-
                stat = get_array(event_queue_array, event_key + stat_offset);
                stat_value = get_array(event_queue_array, event_key + stat_value_offset);
                call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
@@ -4952,7 +4975,9 @@ procedure disabled_scr_events_queue_critter(variable critter) begin
                set_array(id_to_regen_time, critter_id, 0);
             end
             next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
-            set_first_event_key(critter_id, next_event_key);
+            if event_key == get_first_event_key(critter_id) then begin
+               set_first_event_key(critter_id, next_event_key);
+            end
             call queue_remove(critter_id, event_key);
             event_key = next_event_key;
          end
@@ -4981,13 +5006,13 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
    variable cur_burn;
    variable min_hr_to_regen_cur_critter = min_hr_to_regen(critter);
    event_procces = 0;
+   gQueueUpdated = 0;
    critter_cur_hp = get_critter_stat(critter, STAT_current_hp);
    if not(is_really_dead(critter, critter_state(critter), critter_cur_hp)) andAlso get_array(death_array, critter) == 0 then begin
       critter_id = check_id(critter);
       //call check_id(critter, critter_id);
 
       event_key = get_first_event_key(critter_id);
-
       if event_key != 0 then begin
          critter_in_party = is_in_array(critter, party_array);
          while event_key != 0 do begin
@@ -5025,16 +5050,16 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
                end
                else if event_type == EVENT_TYPE_BURN then begin
                   call add_burn_effect_to_saved_arrays(critter, -1);
+                  if gQueueUpdated <= 0 then begin
+                     stat = get_array(event_queue_array, event_key + stat_offset);
+                     stat_value = get_array(event_queue_array, event_key + stat_value_offset);
+                     call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
 
-                  stat = get_array(event_queue_array, event_key + stat_offset);
-                  stat_value = get_array(event_queue_array, event_key + stat_value_offset);
-                  call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
-
-                  stat = get_array(event_queue_array, event_key + stat2_offset);
-                  stat_value = get_array(event_queue_array, event_key + stat2_value_offset);
-                  call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
+                     stat = get_array(event_queue_array, event_key + stat2_offset);
+                     stat_value = get_array(event_queue_array, event_key + stat2_value_offset);
+                     call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
+                  end
                end
-
 
                if PoisonMod > 0 andAlso was_add_poison <= 0 then begin
                   if get_poison(critter) > 0 andAlso get_array(id_to_poison_time, critter_id) <= 0 then begin
@@ -5065,9 +5090,18 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
                   end
                end
 
-               next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
-               set_first_event_key(critter_id, next_event_key);
-               call queue_remove(critter_id, event_key);
+               if gQueueUpdated andAlso event_type == EVENT_TYPE_BURN then begin
+                  next_event_key = get_first_event_key(critter_id);
+                  gQueueUpdated = 0;
+               end
+               else begin
+                  next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
+                  if event_key == get_first_event_key(critter_id) then begin
+                     set_first_event_key(critter_id, next_event_key);
+                  end
+                  call queue_remove(critter_id, event_key);
+                  gQueueUpdated = 0;
+               end
                event_key = next_event_key;
                event_procces = 1;
                if no_break <= 0 then
@@ -5102,7 +5136,6 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
          end
       end
 
-
       if PoisonMod > 0 andAlso was_add_poison <= 0 then begin
          if get_poison(critter) > 0 andAlso get_array(id_to_poison_time, critter_id) <= 0 then begin
             call queue_add_poison_event(critter_id, cur_game_time + poison_repeat_ticks);
@@ -5110,6 +5143,7 @@ procedure check_events_queue_critter(variable critter, variable party_array, var
       end
    end
    set_game_time_no_queue_check(cur_game_time);
+   gQueueUpdated = 0;
    return event_procces;
 end
 
@@ -5473,14 +5507,15 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
             end
             else if event_type == EVENT_TYPE_BURN then begin
                call add_burn_effect_to_saved_arrays(critter, -1);
+               if gQueueUpdated <= 0 then begin
+                  stat = get_array(event_queue_array, event_key + stat_offset);
+                  stat_value = get_array(event_queue_array, event_key + stat_value_offset);
+                  call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
 
-               stat = get_array(event_queue_array, event_key + stat_offset);
-               stat_value = get_array(event_queue_array, event_key + stat_value_offset);
-               call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
-
-               stat = get_array(event_queue_array, event_key + stat2_offset);
-               stat_value = get_array(event_queue_array, event_key + stat2_value_offset);
-               call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
+                  stat = get_array(event_queue_array, event_key + stat2_offset);
+                  stat_value = get_array(event_queue_array, event_key + stat2_value_offset);
+                  call add_and_save_stats(critter, critter_id, stat, stat_value, true, true);
+               end
             end
 
             if critter_cur_hp > 0 then
@@ -5515,9 +5550,19 @@ procedure check_critter_events_in_combat(variable critter, variable critter_id, 
                end
             end
 
-            next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
-            set_first_event_key(critter_id, next_event_key);
-            call queue_remove(critter_id, event_key);
+
+            if gQueueUpdated andAlso event_type == EVENT_TYPE_BURN then begin
+               next_event_key = get_first_event_key(critter_id);
+               gQueueUpdated = 0;
+            end
+            else begin
+               next_event_key = get_array(event_queue_array, event_key + next_event_key_offset);
+               if event_key == get_first_event_key(critter_id) then begin
+                  set_first_event_key(critter_id, next_event_key);
+               end
+               call queue_remove(critter_id, event_key);
+               gQueueUpdated = 0;
+            end
             event_key = next_event_key;
          end
          //not yet
@@ -6056,7 +6101,8 @@ procedure REAL_COMBATDAMAGE_RSULTS begin
    if gOneTimeCall <= 0 andAlso (len_array(array_add_poison) > 0 orElse len_array(array_add_burn) > 0 orElse len_array(import_alt_attack_aoe_targets_arr) > 0) then begin
       gOneTimeCall = 1;
       call delayed_add_poison;
-      call delayed_add_burn;
+      if RegenMod > 0 then
+         call delayed_add_burn;
       call clear_imported_arr;
    end
 end
@@ -6064,9 +6110,14 @@ end
 
 
 procedure REAL_COMBATDAMAGE_add_timer begin
+cancel (REAL_COMBATDAMAGE_add_timer_failsafe);
    add_global_timer_event(0, fixed_param_COMBATDAMAGE);
 end
 
+procedure REAL_COMBATDAMAGE_add_timer_failsafe begin
+   cancel (REAL_COMBATDAMAGE_add_timer);
+   add_global_timer_event(0, fixed_param_COMBATDAMAGE);
+end
 
 procedure disable_anim_priority begin
    if priority_disabled > 0 orElse sfall_510 > 0 then
@@ -6204,6 +6255,7 @@ procedure timed_event_p_proc begin
    else if timed_event == fixed_param_COMBATDAMAGE_add_timer then begin
       call enable_anim_priority;
       call REAL_COMBATDAMAGE_add_timer when (combat_data > 0 andAlso art_anim(obj_art_fid(get_object_data(combat_data, C_ATTACK_SOURCE))) == gEndAttackAnim andAlso get_object_data(get_object_data(combat_data, C_ATTACK_SOURCE), OBJ_DATA_CUR_FRM) == gEndAttackAnimFrame);
+      call REAL_COMBATDAMAGE_add_timer_failsafe when (combat_data > 0 andAlso art_anim(obj_art_fid(get_object_data(combat_data, C_ATTACK_SOURCE))) == 0 andAlso get_object_data(get_object_data(combat_data, C_ATTACK_SOURCE), OBJ_DATA_CUR_FRM) == 0);
    end
    else if timed_event == fixed_param_COMBATDAMAGE then begin
       call REAL_COMBATDAMAGE_RSULTS;
@@ -6338,19 +6390,24 @@ procedure COMBATTURN begin
          end
          set_array(combatants_array, critter_id, 1);
          combat_turn_critter = critter;
+         if RegenMod > 0 then begin
+            call check_burn_tag in 0;
+            call check_regen_tag in 0;
+         end
       end
 
       if Critter == dude_obj then begin
          if critter_turn_status == COMBAT_TURN_START then begin
-            call check_regen_tag in 0;
             dude_turn = dude_obj;
             if dude_turn_critter_dies > 0 then begin
                set_global_script_type(3);
                set_global_script_repeat(1);
             end
          end
-         else
+         else if RegenMod > 0 then begin
+            call check_burn_tag in 0;
             call check_regen_tag in 0;
+         end
       end
       else begin
          if RegenMod > 0 andAlso critter_cur_hp > 0 andAlso dude_hp > 0 then begin
@@ -7314,8 +7371,13 @@ procedure start begin
          iface_tag_burn = add_iface_tag;
          set_iface_tag_text(iface_tag_regen,modmsg(msg_heal_tag), 0);
          set_iface_tag_text(iface_tag_burn,modmsg(msg_burn_tag), 1);
-         id_to_burn_count = create_array_map;
-         fix_array(id_to_burn_count);
+
+         id_to_burn_count = load_array(id_to_burn_count_array_name);
+         if not id_to_burn_count then begin
+            id_to_burn_count = create_array_map;
+            save_array(id_to_burn_count_array_name, id_to_burn_count);
+         end
+
          combatants_array = load_array(combatants_array_name);
          if not combatants_array then begin
             combatants_array = create_array_map;
@@ -7582,8 +7644,10 @@ procedure start begin
                all_in_one_repeat_time_global = all_in_one_repeat_time;
 
          end
-         if RegenMod > 0 then
+         if RegenMod > 0 then begin
             call check_regen_tag;
+            call check_burn_tag;
+         end
 
          add_global_timer_event(0, fixed_param_rm_mod);
       end
@@ -7594,6 +7658,7 @@ procedure start begin
          id_to_poison_time = load_array(id_to_poison_timer_array_name);
          id_to_regen_time = load_array(id_to_regen_time_array_name);
          id_to_first_event_array = load_array(id_to_event_key_array_name);
+         id_to_burn_count = load_array(id_to_burn_count_array_name);
          add_global_timer_event(0, fixed_param_rm_mod);
          call map_enter_p_proc();
          //call check_regen_tag;
@@ -7603,6 +7668,7 @@ procedure start begin
             free_array(id_to_poison_time);
             free_array(id_to_regen_time);
             free_array(id_to_first_event_array);
+            free_array(id_to_burn_count);
             exit;
          end
       end

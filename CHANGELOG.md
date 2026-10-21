@@ -1,3 +1,10 @@
+## Work in Progress
+### Regen Mod
+- Fixed the display of the Scorched and Healing tags under direct NPC control.
+- Fixed the Scorched effect being applied to the attacker when self-damage occurs while using Secondary Attacks.
+- The Scorched effect is no longer applied when RegenMod is disabled.
+- Fixed a possible bug involving constant stat changes due to incorrect clearing of the Scorched effect.
+
 ## Latest Version v2.0.4.1
 ### Secondary Attack Mod
 - Fixed a bug where alt-fire attacks for characters with the Fast Shot trait wouldn't work at all if `AimedBurstSecondaryAttackMod` was disabled, even when `AllowFastShot` was enabled.
