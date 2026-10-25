@@ -6,7 +6,9 @@
 - Fixed a possible bug involving constant stat changes due to incorrect clearing of the Scorched effect.
 ### Secondary Attack Mod
 - Added compatibility with the EcCo 1.0.0 damage formula.
-
+##### Sneak Detection Mod
+- Minor optimization to improve performance.
+- For sfall 5, fixed a call to an unsafe function when SneakRework is disabled.
 
 ## Latest Version v2.0.4.1
 ### Secondary Attack Mod
