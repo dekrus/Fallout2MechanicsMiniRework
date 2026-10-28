@@ -4814,7 +4814,8 @@ procedure queue_remove_all(variable critter_id) begin
       end
       event_key = next_event_key;
    end
-   set_first_event_key(critter_id, 0);
+   if array_exists(id_to_first_event_array) then
+      set_first_event_key(critter_id, 0);
 end
 
 inline procedure remove_from_saved_stats(variable critter_id) begin
