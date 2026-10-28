@@ -4884,7 +4884,7 @@ procedure set_dude_traits_from_ini begin
    end
    else begin
       drug_addict_array = load_array(ARRAY_CHEM_NAME);
-      if (drug_addict_array == 0) then begin
+      if not(array_exists(drug_addict_array)) then begin
          v1_2_new_install = 1;
          drug_addict_array = create_array_map;
          save_array(ARRAY_CHEM_NAME, drug_addict_array);
