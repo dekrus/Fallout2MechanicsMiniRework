@@ -37,6 +37,7 @@
 #define timed_hp_regen 1
 #define timed_ap_give 5
 #define timed_ap_debt 10
+#define timed_get_traits 15
 #define timed_collect_c_data 25
 #define timed_report_aoe 50
 #define timed_faster_healing_state 75
@@ -288,6 +289,7 @@ variable gFasterHealingPerk;
 variable characterEditorSelectedItem;
 variable timer_is_up;
 variable desc_timer_is_up;
+variable trait_timer_is_up;
 
 // TRAIT_drug_addict
 variable drug_addict;
@@ -530,8 +532,7 @@ procedure TOHIT begin
          end
          else if active_item > 0 andAlso weapon_is_two_handed(active_item) == 0 then begin
             // penalty if both arms crippled
-            if (critter_state(attacker) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT))
-               == (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT) then begin
+            if (critter_state(attacker) bwand (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT)) == (DAM_CRIP_ARM_LEFT bwor DAM_CRIP_ARM_RIGHT) then begin
                new_hit_chance -= ONE_HANDER_HIT_BONUS;
             end
          end
@@ -775,7 +776,7 @@ procedure CALCAPCOST begin
             wpn_range = 0;
          wpn_is_melee = 1;
       end
-      if AutoMoveToAttack_move_dist > 0 andAlso combat_is_initialized then begin
+      if kamikaze > 0 andAlso AutoMoveToAttack_move_dist > 0 andAlso combat_is_initialized then begin
          if AutoMoveToAttack_start_hex == tile_num(real_dude_obj) then begin
             orig_ap_cost = get_sfall_arg_at(3);
             new_ap_cost = orig_ap_cost - AutoMoveToAttack_move_dist / kamikaze_walk_div - (kamikaze_hex_walked_num / kamikaze_walk_div);
@@ -824,7 +825,7 @@ procedure CALCAPCOST begin
          end
       end
    end
-   if kamikaze_hex_walked_num >= kamikaze_walk_div then begin
+   if kamikaze > 0 andAlso kamikaze_hex_walked_num >= kamikaze_walk_div then begin
       atk_type = get_sfall_arg_at(1);
       if kamikaze_ap_discount_type >= KAMIKAZE_DISCOUNT_ATTACK_RELOAD orElse (atk_type != ATKTYPE_LWEP_RELOAD andAlso atk_type != ATKTYPE_RWEP_RELOAD andAlso kamikaze_ap_discount_type <= KAMIKAZE_DISCOUNT_ATTACK_ONLY) then begin
          if active_item == 0 orElse kamikaze_ap_discount_type < KAMIKAZE_DISCOUNT_ATTACK_RELOAD_USE then
@@ -2103,9 +2104,198 @@ procedure sync_faster_healing_global begin
       set_perk_ranks(PERK_faster_healing, 1);
 end
 
+procedure dude_traits_changed(variable trait_1, variable trait_2) begin
+   variable traits_have_changed;
+   if dude_trait_1 != trait_1 then begin
+      dude_trait_1 = trait_1;
+      traits_have_changed = 1;
+   end
+   if dude_trait_2 != trait_2 then begin
+      dude_trait_2 = trait_2;
+      traits_have_changed = 1;
+   end
+   if traits_have_changed > 0 then begin
+      call drug_restore;
+   end
+   return traits_have_changed;
+end
+
+procedure sfall_4_set_unarmed_dmg_bytes begin
+   if read_byte(0x47253A) == 0xEB then
+      return;
+
+   write_byte(0x47253A, 0xEB);
+end
+
+procedure sfall_4_unset_unarmed_dmg_bytes begin
+   if read_byte(0x47253A) == 0x75 then
+      return;
+
+   write_byte(0x47253A, 0x75);
+end
+
+procedure get_real_dude_traits begin
+   variable trait_1 = read_int(0x66BE40);
+   variable trait_2 = read_int(0x66BE44);
+   variable traits_have_changed = dude_traits_changed(trait_1, trait_2);
+
+   if traits_have_changed > 0 then begin
+      if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
+         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) then begin
+            fast_metabolism = 1;
+            //if fast_metabolism_no_passive_regen > 0 then
+               //call fast_metabolism_no_passive_regen_penalty_add;
+
+            if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 andAlso fast_metabolism_no_passive_regen <= 0 then begin
+               add_global_timer_event(50, timed_hp_regen);
+               timer_is_up = 1;
+            end
+         end else begin
+            fast_metabolism = 0;
+            //call fast_metabolism_no_passive_regen_penalty_remove;
+         end
+      end
+
+      if bruiser >= 0 andAlso bruiser < 2 then begin
+         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) then begin
+            bruiser = 1;
+         end else begin
+            bruiser = 0;
+         end
+      end
+
+     if small_frame >= 0 andAlso small_frame < 2 then begin
+         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) then begin
+            small_frame = 1;
+         end else begin
+            small_frame = 0;
+         end
+      end
+
+      if one_hander >= 0 andAlso one_hander < 2 then begin
+         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) then begin
+            one_hander = 1;
+            //call one_hander_uncripple;
+         end
+         else begin
+            //call one_hander_cripple;
+            call one_hander_bonus_remove;
+            one_hander = 0;
+         end
+      end
+
+      if finesse >= 0 andAlso finesse < 2 then begin
+         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) then begin
+            finesse = 1;
+         end else begin
+            finesse = 0;
+         end
+      end
+
+      if kamikaze >= 0 andAlso kamikaze < 2 then begin
+         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) then begin
+            kamikaze = 1;
+         end else begin
+            if kamikaze_hex_walked_num > 0 then begin
+               kamikaze_hex_walked_num = 0;
+               intface_redraw;
+            end
+            kamikaze = 0;
+         end
+      end
+
+      if heavy_handed >= 0 andAlso heavy_handed < 2 then begin
+         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) then begin
+            heavy_handed = 1;
+         end else begin
+            heavy_handed = 0;
+         end
+      end
+
+      if bloody_mess >= 0 andAlso bloody_mess < 2 then begin
+         if (trait_1 == TRAIT_bloody_mess) orElse (trait_2 == TRAIT_bloody_mess) then begin
+            bloody_mess = 1;
+            // allow bloody mess to affect player death
+            if sfall_508 <= 0 andAlso bloody_mess_player_death_changed <= 0 then begin
+               write_byte(0x410700, 0x31);
+               write_byte(0x410701, 0xC0);
+               bloody_mess_player_death_changed = 1;
+            end
+         end else begin
+            if bloody_mess_player_death_changed > 0 then begin
+               write_byte(0x410700, 0x75);
+               write_byte(0x410701, 0x16);
+               bloody_mess_player_death_changed = 0;
+            end
+            bloody_mess = 0;
+         end
+      end
+
+      if jinxed >= 0 andAlso jinxed < 2 then begin
+         if (trait_1 == TRAIT_jinxed) orElse (trait_2 == TRAIT_jinxed) then begin
+            jinxed = 1;
+         end else begin
+            jinxed = 0;
+         end
+      end
+
+      if drug_addict >= 0 andAlso drug_addict < 2 then begin
+         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) then begin
+            drug_addict = 1;
+            if not(array_exists(drug_addict_stat_check_array)) then begin
+               drug_addict_stat_check_array = create_array_map;
+               fix_array(drug_addict_stat_check_array);
+            end
+            call da_radaway_timer;
+         end else begin
+            drug_addict = 0;
+         end
+      end
+
+      if drug_resistant >= 0 andAlso drug_resistant < 2 then begin
+         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) then begin
+            drug_resistant = 1;
+         end else begin
+            drug_resistant = 0;
+         end
+      end
+
+      if skilled >= 0 andAlso skilled < 2 then begin
+         if ((trait_1 == TRAIT_skilled) orElse (trait_2 == TRAIT_skilled)) then begin
+            skilled = 1;
+         end else begin
+            skilled = 0;
+         end
+      end
+      if heavy_handed > 0 orElse bruiser > 0 then begin
+         call sfall_4_set_unarmed_dmg_bytes;
+      end
+      else begin
+         call sfall_4_unset_unarmed_dmg_bytes;
+      end
+   end
+
+   gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
+   if timer_is_up <= 0 andAlso fast_metabolism_MMR_regen <= 0 andAlso (gFasterHealingPerk >= 2 orElse (fast_metabolism_no_passive_regen > 0 andAlso gFasterHealingPerk > 0)) then begin
+      add_global_timer_event(50, timed_hp_regen);
+      timer_is_up = 1;
+   end
+
+   return traits_have_changed;
+end
+
 procedure timed_event_p_proc begin
    variable param = fixed_param;
-   if param == timed_hp_regen then begin
+
+   if param == timed_faster_healing_state then begin
+      call sync_faster_healing_global;
+      desc_timer_is_up = 0;
+   end
+   if param == timed_get_traits then begin
+      call get_real_dude_traits;
+      trait_timer_is_up = 0;
+   end
+   else if param == timed_hp_regen then begin
       call dude_timed_hp_regen;
    end
    else if param == timed_ap_give then begin
@@ -2116,10 +2306,6 @@ procedure timed_event_p_proc begin
    end
    else if param == timed_rad_rm then begin
       call da_radaway_timer;
-   end
-   else if param == timed_faster_healing_state then begin
-      call sync_faster_healing_global;
-      desc_timer_is_up = 0;
    end
    else if param == timed_collect_c_data then begin
       if combat_display == 1 then begin
@@ -2252,7 +2438,7 @@ procedure AFTERHITROLL begin
    variable atk_type;
    main_attacker = attacker;
    //kamikaze
-   if kamikaze_hex_walked_num > 0 then begin
+   if kamikaze > 0 andAlso kamikaze_hex_walked_num > 0 then begin
       if kamikaze_hex_walked_num >= kamikaze_walk_div then
          kamikaze_ap_used = 1;
 
@@ -3649,182 +3835,6 @@ procedure drug_modify_drug_addict(variable drug_pid) begin
    end
 end
 
-procedure dude_traits_changed(variable trait_1, variable trait_2) begin
-   variable traits_have_changed;
-   if dude_trait_1 != trait_1 then begin
-      dude_trait_1 = trait_1;
-      traits_have_changed = 1;
-   end
-   if dude_trait_2 != trait_2 then begin
-      dude_trait_2 = trait_2;
-      traits_have_changed = 1;
-   end
-   if traits_have_changed > 0 then begin
-      call drug_restore;
-   end
-   return traits_have_changed;
-end
-
-procedure sfall_4_set_unarmed_dmg_bytes begin
-   if read_byte(0x47253A) == 0xEB then
-      return;
-
-   write_byte(0x47253A, 0xEB);
-end
-
-procedure sfall_4_unset_unarmed_dmg_bytes begin
-   if read_byte(0x47253A) == 0x75 then
-      return;
-
-   write_byte(0x47253A, 0x75);
-end
-
-procedure get_real_dude_traits begin
-   variable trait_1 = read_int(0x66BE40);
-   variable trait_2 = read_int(0x66BE44);
-   variable traits_have_changed = dude_traits_changed(trait_1, trait_2);
-
-   if traits_have_changed > 0 then begin
-      if fast_metabolism >= 0 andAlso fast_metabolism < 2 then begin
-         if ((trait_1 == TRAIT_fast_metabolism) orElse (trait_2 == TRAIT_fast_metabolism)) then begin
-            fast_metabolism = 1;
-            //if fast_metabolism_no_passive_regen > 0 then
-               //call fast_metabolism_no_passive_regen_penalty_add;
-
-            if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 andAlso fast_metabolism_no_passive_regen <= 0 then begin
-               add_global_timer_event(50, timed_hp_regen);
-               timer_is_up = 1;
-            end
-         end else begin
-            fast_metabolism = 0;
-            //call fast_metabolism_no_passive_regen_penalty_remove;
-         end
-      end
-
-      if bruiser >= 0 andAlso bruiser < 2 then begin
-         if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) then begin
-            bruiser = 1;
-         end else begin
-            bruiser = 0;
-         end
-      end
-
-     if small_frame >= 0 andAlso small_frame < 2 then begin
-         if ((trait_1 == TRAIT_small_frame) orElse (trait_2 == TRAIT_small_frame)) then begin
-            small_frame = 1;
-         end else begin
-            small_frame = 0;
-         end
-      end
-
-      if one_hander >= 0 andAlso one_hander < 2 then begin
-         if ((trait_1 == TRAIT_one_hander) orElse (trait_2 == TRAIT_one_hander)) then begin
-            one_hander = 1;
-            //call one_hander_uncripple;
-         end
-         else begin
-            //call one_hander_cripple;
-            call one_hander_bonus_remove;
-            one_hander = 0;
-         end
-      end
-
-      if finesse >= 0 andAlso finesse < 2 then begin
-         if ((trait_1 == TRAIT_finesse) orElse (trait_2 == TRAIT_finesse)) then begin
-            finesse = 1;
-         end else begin
-            finesse = 0;
-         end
-      end
-
-      if kamikaze >= 0 andAlso kamikaze < 2 then begin
-         if ((trait_1 == TRAIT_kamikaze) orElse (trait_2 == TRAIT_kamikaze)) then begin
-            kamikaze = 1;
-         end else begin
-            kamikaze = 0;
-         end
-      end
-
-      if heavy_handed >= 0 andAlso heavy_handed < 2 then begin
-         if ((trait_1 == TRAIT_heavy_handed) orElse (trait_2 == TRAIT_heavy_handed)) then begin
-            heavy_handed = 1;
-         end else begin
-            heavy_handed = 0;
-         end
-      end
-
-      if bloody_mess >= 0 andAlso bloody_mess < 2 then begin
-         if (trait_1 == TRAIT_bloody_mess) orElse (trait_2 == TRAIT_bloody_mess) then begin
-            bloody_mess = 1;
-            // allow bloody mess to affect player death
-            if sfall_508 <= 0 andAlso bloody_mess_player_death_changed <= 0 then begin
-               write_byte(0x410700, 0x31);
-               write_byte(0x410701, 0xC0);
-               bloody_mess_player_death_changed = 1;
-            end
-         end else begin
-            if bloody_mess_player_death_changed > 0 then begin
-               write_byte(0x410700, 0x75);
-               write_byte(0x410701, 0x16);
-               bloody_mess_player_death_changed = 0;
-            end
-            bloody_mess = 0;
-         end
-      end
-
-      if jinxed >= 0 andAlso jinxed < 2 then begin
-         if (trait_1 == TRAIT_jinxed) orElse (trait_2 == TRAIT_jinxed) then begin
-            jinxed = 1;
-         end else begin
-            jinxed = 0;
-         end
-      end
-
-      if drug_addict >= 0 andAlso drug_addict < 2 then begin
-         if ((trait_1 == TRAIT_drug_addict) orElse (trait_2 == TRAIT_drug_addict)) then begin
-            drug_addict = 1;
-            if not(array_exists(drug_addict_stat_check_array)) then begin
-               drug_addict_stat_check_array = create_array_map;
-               fix_array(drug_addict_stat_check_array);
-            end
-            call da_radaway_timer;
-         end else begin
-            drug_addict = 0;
-         end
-      end
-
-      if drug_resistant >= 0 andAlso drug_resistant < 2 then begin
-         if ((trait_1 == TRAIT_drug_resistant) orElse (trait_2 == TRAIT_drug_resistant)) then begin
-            drug_resistant = 1;
-         end else begin
-            drug_resistant = 0;
-         end
-      end
-
-      if skilled >= 0 andAlso skilled < 2 then begin
-         if ((trait_1 == TRAIT_skilled) orElse (trait_2 == TRAIT_skilled)) then begin
-            skilled = 1;
-         end else begin
-            skilled = 0;
-         end
-      end
-      if heavy_handed > 0 orElse bruiser > 0 then begin
-         call sfall_4_set_unarmed_dmg_bytes;
-      end
-      else begin
-         call sfall_4_unset_unarmed_dmg_bytes;
-      end
-   end
-
-   gFasterHealingPerk = has_trait(TRAIT_PERK, real_dude_obj, PERK_faster_healing);
-   if timer_is_up <= 0 andAlso fast_metabolism_MMR_regen <= 0 andAlso (gFasterHealingPerk >= 2 orElse (fast_metabolism_no_passive_regen > 0 andAlso gFasterHealingPerk > 0)) then begin
-      add_global_timer_event(50, timed_hp_regen);
-      timer_is_up = 1;
-   end
-
-   return traits_have_changed;
-end
-
 procedure can_mod_drugs(variable drug_pid) begin
    variable prohibed_drugs;
    variable can_mod = 1;
@@ -5136,9 +5146,16 @@ procedure DESCRIPTIONOBJ begin
    end
 end
 
-
 procedure sync_faster_healing_global_timer begin
    add_global_timer_event(0, timed_faster_healing_state);
+end
+
+procedure get_real_dude_traits_global_timer begin
+   add_global_timer_event(0, timed_get_traits);
+   if desc_timer_is_up > 0 then begin
+      remove_timer_event(timed_faster_healing_state);
+      add_global_timer_event(0, timed_faster_healing_state);
+   end
 end
 
 procedure GAMEMODECHANGE begin
@@ -5157,7 +5174,15 @@ procedure GAMEMODECHANGE begin
    end
 
    if game_mode == 0 orElse (game_mode bwand (COMBAT bwor INVENTORY)) then begin
-      call get_real_dude_traits;
+      if (last_game_mode bwand CHARSCREEN) then begin
+         if trait_timer_is_up <= 0 then begin
+            trait_timer_is_up = 1;
+            call get_real_dude_traits_global_timer;
+         end
+      end
+      else
+         call get_real_dude_traits;
+
       call check_toughness_bonus(dude_obj, get_unique_id(dude_obj));
       if desc_timer_is_up <= 0 then begin
          desc_timer_is_up = 1;
@@ -5207,7 +5232,8 @@ procedure MOVECOST begin
       end
       if kamikaze_last_tile != critter_cur_tile then begin
          hex_moved = get_sfall_arg_at(1);
-         if crit_is_moving(real_dude_obj) then kamikaze_hex_walked_num += hex_moved;
+         if crit_is_moving(real_dude_obj) then
+            kamikaze_hex_walked_num += hex_moved;
          if critter == real_dude_obj andAlso kamikaze_hex_walked_num % kamikaze_walk_div == 0 then begin
             intface_redraw;
          end
@@ -5519,6 +5545,7 @@ procedure set_new_perk_stats begin
 end
 
 procedure start begin
+   variable rnd;
    if (game_loaded) then begin
       TraitsPlus = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|TraitsPlus");
       traits_plus_msg_file = add_extra_msg_file(new_msg_file);
@@ -5648,8 +5675,9 @@ procedure start begin
 
       if (fast_metabolism >= 0 orElse gFasterHealingPerk >= 2) andAlso fast_metabolism_MMR_regen <= 0 then begin
          if fast_metabolism_no_passive_regen <= 0 orElse (fast_metabolism > 0 andAlso gFasterHealingPerk > 0) then begin
-            gLastRegenTime = game_time - random(10,30);
-            add_global_timer_event(gLastRegenTime + 50, timed_hp_regen);
+            rnd = random(10, 30);
+            gLastRegenTime = game_time - rnd;
+            add_global_timer_event(50 - rnd, timed_hp_regen);
             timer_is_up = 1;
          end
          gGlobalMapSpeedMult = get_ini_setting("ddraw.ini|Misc|WorldMapTimeMod");

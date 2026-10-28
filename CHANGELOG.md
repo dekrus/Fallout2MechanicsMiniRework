@@ -9,6 +9,10 @@
 ##### Sneak Detection Mod
 - Minor optimization to improve performance.
 - For sfall 5, fixed a call to an unsafe function when SneakRework is disabled.
+### Traits Plus
+- Fixed a division-by-zero error when the Kamikaze trait was disabled.
+- Added a check for trait changes when taking the Mutation perk and then canceling the actual selection.
+
 
 ## Latest Version v2.0.4.1
 ### Secondary Attack Mod
