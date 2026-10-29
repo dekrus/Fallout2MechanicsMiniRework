@@ -448,6 +448,7 @@ variable gLastCritterCalledTargetTorsoName;
 variable gAimedFastShotTweakEnabled;
 variable gFastShotCanUseMore;
 variable gFastShotAimedAllowed;
+variable gFastShotAimedAllowedItemPid;
 variable gFastShotAimedActivated;
 
 variable ammo_mult;
@@ -1024,6 +1025,7 @@ procedure lvar_full_reset begin
    if array_exists(ShotgunKnockdownArray) then begin
       clear_array(ShotgunKnockdownArray);
    end
+   intface_redraw;
 end
 
 procedure is_hit_from_front(variable attacker_tile, variable target) begin
@@ -3637,6 +3639,8 @@ procedure display_dmg_exec_all_script_procs2 begin
             if attacker_team != target_team andAlso (get_object_data(target, OBJ_DATA_WHO_HIT_ME) <= 0 orElse dmg_value >= target_cur_hp orElse not(random(0,2))) then begin
                set_object_data(target, OBJ_DATA_WHO_HIT_ME, attacker);
             end
+            if target == dude_obj then
+               set_object_data(target, OBJ_DATA_CUR_HP, (target_cur_hp - dmg_value));
             if target_sid > 0 then begin
                call exec_dmg_script(target, target_sid, attacker, dmg_value, real_orig_target_team, atk_weapon);
             end
@@ -4284,6 +4288,7 @@ procedure plasma_alt_explosion begin
    variable exlposion_2;
    variable rot;
    variable expl_tile;
+   variable cur_dmg;
 
    if PlasmaOldExpl == 1 orElse (PlasmaOldExpl == 2 andAlso  is_in_array(gWeaponPid, PlasmaOldExplPids)) then begin
       if gWeaponDamageType == DMG_emp orElse gWeaponDamageType == DMG_electrical then
@@ -4396,6 +4401,18 @@ procedure plasma_alt_explosion begin
          if random(0,2) then attack_setup(new_tar, attacker);
       end
 
+      if new_tar == attacker then begin
+         flags = read_int(combat_data + C_ATTACK_FLAGS_SOURCE) bwor flags;
+         if (flags bwand DAM_DEAD) == 0 then begin
+            write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+            cur_dmg = read_int(combat_data + C_ATTACK_DAMAGE_SOURCE) + dmg;
+            write_int(combat_data + C_ATTACK_DAMAGE_SOURCE, cur_dmg);
+            if cur_dmg >= get_critter_stat(attacker, STAT_current_hp) then begin
+               flags = flags bwor DAM_DEAD;
+               write_int(combat_data + C_ATTACK_FLAGS_SOURCE, flags);
+            end
+         end
+      end
       call critter_inflict_dmg(new_tar, attacker, dmg, DMG_plasma, flags, tar_tile);
    end
 end
@@ -6675,12 +6692,16 @@ procedure calculate_and_apply_alt_attack_cost(variable weapon, variable alt_atk_
    variable base_alt_attack_cost;
    variable multiplier = 2;
 
-   if weapon <= 0 then
+   if weapon <= 0 then begin
+      gFastShotCanUseMore = 0;
       return -1;
+   end
 
    cur_ammo = get_weapon_ammo_count(weapon);
-   if cur_ammo <= 0 then
+   if cur_ammo <= 0 then begin
+      gFastShotCanUseMore = 0;
       return -1;
+   end
 
    weapon_pid = obj_pid(weapon);
    base_cost = get_weapon_ammo_cost(weapon_pid);
@@ -6715,16 +6736,19 @@ procedure calculate_and_apply_alt_attack_cost(variable weapon, variable alt_atk_
 
    alt_attack_cost += base_alt_attack_cost;
 
-   if cur_ammo < alt_attack_cost + base_cost then
-      return -1;
-
-   if weapon > 0 andAlso apply_cost > 0 then
-      set_weapon_ammo_count(weapon, cur_ammo - alt_attack_cost);
-
-   if cur_ammo >= 2 * alt_attack_cost + base_cost then
-      gFastShotCanUseMore = 1;
-   else
+   if cur_ammo < alt_attack_cost + base_cost then begin
       gFastShotCanUseMore = 0;
+      return -1;
+   end
+
+   if weapon > 0 andAlso apply_cost > 0 then begin
+      set_weapon_ammo_count(weapon, cur_ammo - alt_attack_cost);
+   end
+   if cur_ammo >= alt_attack_cost + 2 * base_cost then
+      gFastShotCanUseMore = 1;
+   else begin
+      gFastShotCanUseMore = 0;
+   end
 
    return alt_attack_cost;
 end
@@ -6920,8 +6944,11 @@ procedure CALCAPCOST begin
    if gAimedFastShotTweakEnabled > 0 andAlso fast_shot > 0 andAlso user == dude_obj andAlso item > 0 andAlso obj_item_subtype(item) == item_type_weapon andAlso get_attack_anim(item, atk_type) == ANIM_fire_single then begin
       fast_shot_type = wpn_allow_any_alt_attack_fast_shot(item, atk_type);
       if is_aimed <= 0 then begin
-         if fast_shot_type > 0 then
+         if fast_shot_type > 0 then begin
             gFastShotAimedAllowed = 1;
+            if item then
+               gFastShotAimedAllowedItemPid = obj_pid(item);
+         end
       end
 
       if gAimedFastShotTweakEnabled >= 2 andAlso fast_shot_type < 2 then begin
@@ -8324,10 +8351,10 @@ end
 procedure set_non_aimed_button_fast_shot begin
    variable hand = (0x5970F8 + (active_hand * 0x18));
    variable current_mode_adr = (hand + 0x10);
-   variable current_mode = read_int(current_mode_adr);
-   variable new_mode = current_mode - 1;
-   if new_mode < 0 then
-      new_mode = 0;
+   //variable current_mode = read_int(current_mode_adr);
+   //variable new_mode = current_mode - 1;
+   //if new_mode < 0 then
+      //new_mode = 0;
 
    write_int(current_mode_adr, 1);
 
@@ -8338,22 +8365,35 @@ procedure FastShotAimedDisable begin
    gFastShotAimedAllowed = 0;
 end
 
+procedure callback_intface_redraw begin
+   intface_redraw;
+end
 
 procedure TARGETOBJECT begin
    variable is_attacking = get_sfall_arg;
    variable can_be_attacked = get_sfall_arg;
    variable target = get_sfall_arg;
+   variable item;
 
    call restore_torso_name;
    if target > 0 andAlso is_attacking andAlso can_be_attacked then begin
       real_orig_target = target;
       if attack_is_aimed then begin
          if has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) then begin
+            item = get_active_item(dude_obj);
+
+            if not(item) then
+               return;
+
+            if obj_pid(item) != gFastShotAimedAllowedItemPid then
+               return;
+
             if gFastShotAimedActivated <= 0 then begin
                call FastShotAimedDisable in 0;
                call set_non_aimed_button_fast_shot;
                gFastShotAimedActivated = 1;
             end
+            call callback_intface_redraw when (get_object_data(combat_data, C_ATTACK_TARGET) == 0);
          end
          else if obj_type(target) == OBJ_TYPE_CRITTER then
             call Change_torso_name(dude_obj, target);
@@ -8955,6 +8995,10 @@ procedure start begin
          set_global_script_type(0);
          set_global_script_repeat(0);
 
+         // Force set un-aimed attack on game load
+         if attack_is_aimed then begin
+            write_int(((0x5970F8 + (active_hand * 0x18)) + 0x10), 1);
+         end
          intface_redraw;
       end
    end

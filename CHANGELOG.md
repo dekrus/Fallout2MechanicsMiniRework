@@ -6,6 +6,9 @@
 - Fixed a possible bug involving constant stat changes due to incorrect clearing of the Scorched effect.
 ### Secondary Attack Mod
 - Added compatibility with the EcCo 1.0.0 damage formula.
+- Fixed an incorrect state that allowed switching to aimed fire mode with the Fast Shot trait when an alternate attack is not possible.
+- Fixed the inability to perform aimed attacks in melee combat for a player with the Fast Shot trait when FastShotFix is enabled in ddraw.ini.
+- Fixed the absence of self-damage when caught in a plasma explosion area while attacking scenery (doors, walls).
 ##### Sneak Detection Mod
 - Minor optimization to improve performance.
 - For sfall 5, fixed a call to an unsafe function when SneakRework is disabled.
