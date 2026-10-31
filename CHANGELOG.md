@@ -1,4 +1,5 @@
 ## Work in Progress
+- Added a script that prevents the damage-received animation for creatures in Power Armor (NPCs and the player) when damage is 0. A metal impact sound plays on hit.
 ### Regen Mod
 - Fixed the display of the Scorched and Healing tags under direct NPC control.
 - Fixed the Scorched effect being applied to the attacker when self-damage occurs while using Secondary Attacks.

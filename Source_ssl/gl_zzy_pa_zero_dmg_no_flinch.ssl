@@ -1,0 +1,246 @@
+#define SFALL_SC_EVALUATION   (true)  // short - circuit evaluation
+#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define critter_anim_fid(objFid, animType, rot)       ((rot * 0x10000000) bwor ((animType * 0x10000) bwand 0xFF0000) bwor (objFid bwand 0xF00FFFF))
+#define power_armor_fid(critter_fid)   (critter_fid == FID_HAPOWR or \
+                                       critter_fid == FID_NAPOWR or \
+                                       critter_fid == FID_HANPWR or \
+                                       critter_fid == FID_MABOSS or \
+                                       critter_fid == FID_NMSUPA or \
+                                       critter_fid == FID_NMCAPA or \
+                                       critter_fid == FID_NMVIPA or \
+                                       critter_fid == FID_NMMYPA)
+
+#define pid_scroll_block (0x500000C)
+#define _combat_turn_running read_int(0x51093C)
+
+#include "define_extra.h"
+#include "miscpid.h"
+#include "DEFINE.H"
+#include "sfall.h"
+
+
+variable PowerArmorNoFlinch;
+variable target_array;
+variable called;
+variable gForcedSound;
+variable sfx_bullet;
+variable sfx_bullet_burst;
+variable sfx_melee_thorw;
+
+procedure get_dude_worn_armor_perk begin
+   variable dude_armor = critter_inven_obj(dude_obj, INVEN_TYPE_WORN);
+   variable armor_perk;
+   if dude_armor > 0 then armor_perk = get_proto_data(obj_pid(dude_armor), PROTO_AR_PERK);
+   return armor_perk;
+end
+
+procedure player_wearing_power_armor begin
+   //variable armor_perk = get_dude_worn_armor_perk;
+   variable dude_fid = critter_anim_fid(critter_art_fid(dude_obj), 0, 0);
+   if power_armor_fid(dude_fid) then begin
+      return true;
+   end
+   else begin
+      return false;
+   end
+end
+
+procedure return_flags begin
+   variable target;
+   variable flag_to_remove;
+   called = 0;
+   if len_array(target_array) <= 0 then
+      return;
+
+   foreach target:flag_to_remove in target_array begin
+      if flag_to_remove == DAM_KNOCKED_DOWN then
+         set_object_data(target, OBJ_DATA_DAMAGE_FLAGS, (get_object_data(target, OBJ_DATA_DAMAGE_FLAGS) bwand bwnot(flag_to_remove)));
+   end
+
+end
+
+procedure return_sound begin
+   gForcedSound = 0;
+   clear_array(target_array);
+end
+
+procedure play_sfx_unarmed(variable attacker, variable target, variable attack_anim) begin
+   variable impostor;
+   variable rot_atk_to_tar = rotation_to_tile(tile_num(attacker), tile_num(target));
+   variable sfx;
+   variable action_delay = anim_action_frame (attacker, attack_anim);
+   variable sound_target;
+   sfx = sfx_melee_thorw[random(0, 2)];
+   sound_target = create_object_sid(pid_scroll_block, tile_num(attacker), elevation(attacker), -1);
+   set_obj_visibility(sound_target, 1);
+   impostor = create_object_sid(PID_PROJ_PLANT_SPIKE, 0, elevation(attacker), -1);
+   anim(impostor, ANIMATE_ROTATION, rot_atk_to_tar);
+   set_obj_visibility(impostor, 1);
+   set_object_data(impostor, OBJ_DATA_FID, obj_art_fid(attacker));
+
+   reg_anim_combat_check(0);
+   reg_anim_clear(impostor);
+   reg_anim_func(REG_ANIM_BEGIN, RB_UNRESERVED);
+   reg_anim_animate(impostor, attack_anim, -1);
+   reg_anim_play_sfx(sound_target, sfx, action_delay);
+   reg_anim_destroy(impostor);
+   reg_anim_destroy(sound_target);
+   reg_anim_end();
+end
+
+procedure get_attack_anim(variable weapon,variable attack_type) begin
+   variable attack_anim;
+   variable attack_anim_arr;
+   variable index;
+   if attack_type >= ATKTYPE_LWEP_RELOAD andAlso attack_type <= ATKTYPE_RWEP_RELOAD then begin
+      return -1;
+   end
+   //kick
+   if attack_type == ATKTYPE_KICK orElse (attack_type >= ATKTYPE_STRONGKICK andAlso attack_type <= ATKTYPE_PIERCINGKICK) then begin
+      return ANIM_kick_leg;
+   end
+   //punch
+   if weapon <= 0 then begin
+      return ANIM_throw_punch;
+   end
+   attack_anim_arr = [ANIM_stand, ANIM_throw_punch, ANIM_kick_leg, ANIM_swing_anim, ANIM_thrust_anim, ANIM_throw_anim, ANIM_fire_single, ANIM_fire_burst, ANIM_fire_continuous];
+   if attack_type == ATKTYPE_LWEP1 OrElse attack_type == ATKTYPE_RWEP1 then begin
+      index = get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x0000000F;
+   end
+   else begin
+      index = (get_proto_data(obj_pid(weapon), PROTO_FLAG_EXT) bwand 0x000000F0) / 16;
+   end
+   attack_anim = attack_anim_arr[index];
+   return attack_anim;
+end
+
+procedure COMBATDAMAGE begin
+   variable target = get_sfall_arg;
+   variable attacker = get_sfall_arg;
+   variable dmgtotar = get_sfall_arg;
+   variable dmgtoatkr = get_sfall_arg;
+   variable tar_flags = get_sfall_arg;
+   variable atkr_flags = get_sfall_arg;
+   variable weapon = get_sfall_arg;
+   variable attack_type = get_sfall_arg_at(11);
+   variable no_flinch_target;
+   variable cur_flags;
+   variable target_fid;
+   variable actual_attack;
+   variable actual_target = get_object_data(combat_data, C_ATTACK_TARGET);
+   variable attack_anim;
+
+   if (attacker != dude_obj andAlso actual_target > 0) orElse (attacker == dude_obj) then begin
+      actual_attack = 1;
+   end
+
+   if actual_attack <= 0 then
+      return;
+
+   if dmgtotar <= 0 andAlso (atkr_flags bwand DAM_HIT) andAlso not(tar_flags bwand DAM_DEAD) then begin
+      target_fid = critter_art_fid(target);
+      if power_armor_fid(target_fid) then begin
+         no_flinch_target = 1;
+      end
+      else begin
+         target_fid = critter_anim_fid(target_fid, 0, 0);
+         if power_armor_fid(target_fid) then begin
+            no_flinch_target = 1;
+         end
+      end
+      if not(no_flinch_target) then
+         return;
+
+      if gForcedSound == 0 then begin
+         gForcedSound = 1;
+         call return_sound when (get_object_data(combat_data, C_ATTACK_TARGET) == 0);
+      end
+
+      if weapon <= 0 then begin
+         attack_anim = get_attack_anim(weapon, attack_type);
+         call play_sfx_unarmed(attacker, target, attack_anim);
+      end
+
+      cur_flags = get_object_data(target, OBJ_DATA_DAMAGE_FLAGS);
+      if not(cur_flags bwand (DAM_KNOCKED_DOWN bwor DAM_KNOCKED_OUT)) then begin
+         set_sfall_return(0);
+         set_sfall_arg(2, 0);
+         set_sfall_return(dmgtoatkr);
+         set_sfall_arg(3, dmgtoatkr);
+         set_sfall_return(0);
+         set_sfall_arg(4, 0);
+         set_sfall_return(DAM_HIT);
+         set_sfall_arg(5, DAM_HIT);
+
+         set_array(target_array, target, DAM_KNOCKED_DOWN);
+         set_object_data(target, OBJ_DATA_DAMAGE_FLAGS, (get_object_data(target, OBJ_DATA_DAMAGE_FLAGS) bwor DAM_KNOCKED_DOWN));
+
+         if called <= 0 then begin
+            called = 1;
+            call return_flags in 0;
+         end
+      end
+      else begin
+         set_array(target_array, target, 1);
+      end
+   end
+end
+
+procedure BUILDSFXWEAPON begin
+   variable sound_type = get_sfall_arg;
+   variable weapon = get_sfall_arg;
+   variable atk_type = get_sfall_arg;
+   variable target = get_sfall_arg;
+   variable atk_anim;
+   variable is_burst;
+
+   if target <= 0 orElse len_array(target_array) <= 0 orElse target_array[target] <= 0 then
+      return;
+
+   if not(weapon) orElse gForcedSound == 0 then
+      return;
+
+   if weapon_dmg_type(weapon) != DMG_normal_dam andAlso obj_pid(weapon) != PID_ACTIVE_FLARE then
+      return;
+
+   if sound_type != 4 then
+      return;
+
+   atk_anim = get_attack_anim(weapon, atk_type);
+
+   if atk_anim == ANIM_fire_burst then
+      set_sfall_return(sfx_bullet_burst[random(0, 1)]);
+   else if atk_anim == ANIM_fire_single then
+      set_sfall_return(sfx_bullet[random(0, 2)]);
+   else if atk_anim == ANIM_thrust_anim orElse atk_anim == ANIM_swing_anim orElse atk_anim == ANIM_throw_anim orElse atk_anim == ANIM_throw_punch then
+      set_sfall_return(sfx_melee_thorw[random(0, 2)]);
+   else
+      return;
+
+end
+
+procedure start begin
+   if game_loaded then begin
+      PowerArmorNoFlinch = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PowerArmorNoFlinch");
+      if PowerArmorNoFlinch > 0 then begin
+         sfx_bullet = ["WHS1MXX1","WHV1MXX1","WHV1MXX2"];
+         fix_array(sfx_bullet);
+         sfx_bullet_burst = ["WHM1MXX1","WHM1MXX2"];
+         fix_array(sfx_bullet_burst);
+         sfx_melee_thorw = ["WH81MXX1","WH81MXX2","WH71MXX1"];
+         fix_array(sfx_melee_thorw);
+
+         register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
+         if sfall_ver_major == 5 then
+            register_hook_proc_spec(HOOK_BUILDSFXWEAPON, BUILDSFXWEAPON);
+         else
+            register_hook_proc_spec(HOOK_BUILDSFXWEAPON_sfall4, BUILDSFXWEAPON);
+         target_array = create_array_map;
+         fix_array(target_array);
+         set_global_script_type(0);
+         set_global_script_repeat(0);
+      end
+      else
+         exit;
+   end
+end

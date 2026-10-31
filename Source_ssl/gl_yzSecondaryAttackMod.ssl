@@ -245,6 +245,9 @@
          gSoundEffectsWasDisabled = 0; \
    end
 
+#define timed_set_aimed_button 1
+#define timed_FastShotAimedDisable 2
+
 #define OUTLINE_TYPE_MASK 0xFFFFFF
 #define OUTLINE_DISABLED 0x80000000
 #define OUTLINE_NOT_DISABLED 0x7FFFFFFF
@@ -268,6 +271,7 @@
 variable g_art_handle;
 variable g_art_fid;
 
+variable IfaceBarWinId;
 variable gAttackerFid;
 variable gAttackerFlags;
 variable gCurrentAttacker;
@@ -286,6 +290,10 @@ variable sfall_515;
 variable YAAM_active;
 variable ecco_damage_active;
 variable COMBAT_SPEED_MAX;
+variable PowerArmorNoFlinch;
+variable g_sfx_bullet;
+//variable g_sfx_bullet_burst;
+//variable g_sfx_melee_thorw;
 
 variable SecondaryAttackMod_msg;
 variable LaserSecondaryAttackMod;
@@ -3958,6 +3966,7 @@ procedure get_combat_dmg_and_flags(variable target) begin
 end
 
 procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_value, variable dmg_type, variable flags, variable dmg_source_tile, variable no_dodge_anim = 0) begin
+   variable target_fid;
    variable target_cur_hp;
    variable target_cur_anim;
    variable death_anim;
@@ -3970,6 +3979,8 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    variable is_front_hit;
    variable dmg_anim;
    variable fall_anim;
+   variable no_flinch_target;
+   variable no_dmg_sfx;
    //check if the target and attack exists and is a creature
    if target <= 0 orElse obj_type(target) != OBJ_TYPE_CRITTER orElse get_array(death_array,target) > 0 then begin
       return;
@@ -4048,6 +4059,21 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    if no_dodge_anim > 0 andAlso (cur_dmg < 0 orElse (target_cr_flags bwand CFLG_INVULN)) then
       return;
 
+   if PowerArmorNoFlinch > 0 andAlso cur_dmg == 0 then begin
+      target_fid = critter_art_fid(target);
+      if power_armor_fid(target_fid) then begin
+         no_flinch_target = 1;
+      end
+      else begin
+         target_fid = critter_anim_fid(target_fid, 0, 0);
+         if power_armor_fid(target_fid) then begin
+            no_flinch_target = 1;
+         end
+      end
+      if no_flinch_target > 0 andAlso dmg_type == DMG_normal_dam then
+         no_dmg_sfx = g_sfx_bullet[random(0, 2)];
+   end
+
    reg_anim_combat_check(0);
    if not(is_in_prone_anim(target_cur_anim)) orElse (flags bwand DAM_DEAD) != 0 then
       reg_anim_clear_forced(target)
@@ -4065,7 +4091,11 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
    else if target_cur_hp > cur_dmg then begin
       //hit sound for laser and gauss
       if gAllowProjHitSound then begin
-         reg_anim_play_sfx(target, sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, target), 0);
+         if no_dmg_sfx != 0 then
+            reg_anim_play_sfx(target, no_dmg_sfx, 0);
+         else
+            reg_anim_play_sfx(target, sfx_build_weapon_name(snd_weapon_hitting, gWeapon, hit_right_weapon_primary, target), 0);
+
          if gProjToHideOnTargetHit <= 0 andAlso alt_fire_selected == alt_fire_gauss then
             gAllowProjHitSound = 0;
       end
@@ -4087,7 +4117,7 @@ procedure critter_inflict_dmg(variable target,variable attacker,variable dmg_val
             reg_anim_play_sfx(target, sfx_build_char_name(target, fall_anim, snd_knock_down), 0);
             reg_anim_animate(target, fall_anim, 0);
          end
-         else begin
+         else if no_flinch_target <= 0 then begin
             is_front_hit = is_hit_from_front(dmg_source_tile, target);
             dmg_anim := ANIM_hit_from_back - is_front_hit;
 
@@ -5479,6 +5509,7 @@ procedure gauss_line_dmg(variable attacker, variable target, variable new_end_ti
    variable attacker_kill_type;
    variable target_pid;
    variable target_pid_flags;
+   variable target_fid;
 
    if obj_type(target) == OBJ_TYPE_CRITTER then begin
       if (get_object_data(combat_data, C_ATTACK_FLAGS_TARGET) bwand DAM_DEAD) != 0 orElse get_critter_stat(target, STAT_current_hp) < get_object_data(combat_data, C_ATTACK_DAMAGE_TARGET) then begin
@@ -5526,7 +5557,8 @@ procedure gauss_line_dmg(variable attacker, variable target, variable new_end_ti
       close_range = 1;
 
    attacker_kill_type = critter_kill_type(attacker);
-   if attacker_kill_type != KILL_TYPE_big_boss andAlso attacker_kill_type != KILL_TYPE_robot_kills andAlso attacker_kill_type != KILL_TYPE_super_mutant_kills andAlso not(power_armor_fid(critter_art_fid(attacker))) then begin
+   target_fid = critter_anim_fid(critter_art_fid(target), 0, 0);
+   if attacker_kill_type != KILL_TYPE_big_boss andAlso attacker_kill_type != KILL_TYPE_robot_kills andAlso attacker_kill_type != KILL_TYPE_super_mutant_kills andAlso not(power_armor_fid(target_fid)) then begin
       weapon_st_shortage = calc_weapon_st_shortage(attacker, gWeaponPid);
       if weapon_st_shortage > 0 andAlso (random(0, (weapon_st_shortage + 2)) > 2 orElse weapon_st_shortage > 3) then
          attacker_kickback = 1;
@@ -6623,8 +6655,9 @@ procedure get_dude_worn_armor_perk begin
 end
 
 procedure player_wearing_power_armor begin
-   variable armor_perk = get_dude_worn_armor_perk;
-   if armor_perk == PERK_armor_powered or armor_perk == PERK_armor_advanced_1 or armor_perk == PERK_armor_advanced_2 then begin
+   //variable armor_perk = get_dude_worn_armor_perk;
+   variable dude_fid = critter_anim_fid(critter_art_fid(dude_obj), 0, 0);
+   if power_armor_fid(dude_fid) then begin
       return true;
    end
    else begin
@@ -6633,10 +6666,18 @@ procedure player_wearing_power_armor begin
 end
 
 procedure set_dude_weapon_button_non_aimed begin
-   variable hand = (0x5970F8 + (active_hand * 0x18));
-
+   variable hand;
+   variable current_mode_adr;
+   variable current_mode;
+   variable new_mode;
    if attack_is_aimed then begin
-      write_int(hand + 0x10, read_int(hand + 0x10) - 1);
+      hand = (0x5970F8 + (active_hand * 0x18));
+      current_mode_adr = (hand + 0x10);
+      current_mode = read_int(current_mode_adr);
+      new_mode = current_mode - 1;
+      if new_mode < 0 then
+         new_mode = 0;
+      write_int(current_mode_adr, new_mode);
       intface_redraw;
    end
 end
@@ -6731,20 +6772,30 @@ procedure calculate_and_apply_alt_attack_cost(variable weapon, variable alt_atk_
       end
    end
 
-   if targets_count > 1 then
-      alt_attack_cost *= targets_count;
-
-   alt_attack_cost += base_alt_attack_cost;
-
-   if cur_ammo < alt_attack_cost + base_cost then begin
-      gFastShotCanUseMore = 0;
-      return -1;
+   if alt_atk_type == alt_fire_gauss then begin
+      if cur_ammo < base_cost then begin
+         gFastShotCanUseMore = 0;
+         return -1;
+      end
+      else
+         alt_attack_cost = 1;
    end
+   else begin
+      if targets_count > 1 then
+         alt_attack_cost *= targets_count;
 
+      alt_attack_cost += base_alt_attack_cost;
+
+      if cur_ammo < alt_attack_cost + base_cost then begin
+         gFastShotCanUseMore = 0;
+         return -1;
+      end
+   end
    if weapon > 0 andAlso apply_cost > 0 then begin
       set_weapon_ammo_count(weapon, cur_ammo - alt_attack_cost);
    end
-   if cur_ammo >= alt_attack_cost + 2 * base_cost then
+
+   if cur_ammo >= alt_attack_cost + (2 - (alt_atk_type == alt_fire_gauss)) * base_cost then
       gFastShotCanUseMore = 1;
    else begin
       gFastShotCanUseMore = 0;
@@ -6805,6 +6856,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    variable cur_atk_anim;
    variable temp_alt_fire;
    variable ammo_pid;
+   variable ammo_count;
    variable damage_type;
    variable cur_wpn_anim;
    variable forced;
@@ -6812,10 +6864,14 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    if weapon_ptr <= 0 then
       return 0;
 
+   ammo_count = get_weapon_ammo_count(weapon_ptr);
+   if ammo_count <= 0 then
+      return 0;
+
    pid = obj_pid(weapon_ptr);
 
    if ShotgunSecondaryAttackMod > 0 andAlso ShotgunForced < 1 then
-      if (get_proto_data(pid, PROTO_WP_CALIBER) == gShotgunCaliber orElse (array_exists(ShotgunKnockbackCustomPids) andAlso is_in_array(pid, ShotgunKnockbackCustomPids))) andAlso not(is_in_array(pid, ShotgunKnockbackDisabledPids)) andAlso get_weapon_ammo_count(weapon_ptr) > 0 then
+      if (get_proto_data(pid, PROTO_WP_CALIBER) == gShotgunCaliber orElse (array_exists(ShotgunKnockbackCustomPids) andAlso is_in_array(pid, ShotgunKnockbackCustomPids))) andAlso not(is_in_array(pid, ShotgunKnockbackDisabledPids))  then
          return 2;
 
    cur_atk_anim = get_attack_anim(weapon_ptr, attack_type);
@@ -6855,7 +6911,7 @@ procedure wpn_allow_any_alt_attack_fast_shot(variable weapon_ptr, variable attac
    if GaussSecondaryAttackMod > 0 andAlso GaussForced < 1 andAlso (attacker == dude_obj orElse GaussSecondaryAttackMod >= 2) andAlso is_wpn_alt_fire_prohibited(pid, alt_fire_gauss) < 1 then begin
       ammo_pid = get_proto_data(pid, PROTO_WP_AMMO_PID);
       if (array_exists(GaussCustomPids) andAlso is_in_array(pid, GaussCustomPids)) orElse (ammo_pid == PID_2MM_EC_AMMO) orElse (Sonora > 0 andAlso pid == pid_sonora_railgun) then begin
-         if GaussForced > 0 orElse is_alt_fire_aimed(attacker, bodypart) then begin
+         if GaussForced > 0 orElse (is_alt_fire_aimed(attacker, bodypart) andAlso calculate_and_apply_alt_attack_cost(weapon_ptr, alt_fire_gauss, 1, 0) >= 0) then begin
             alt_fire_selected = temp_alt_fire;
             return 1;
          end
@@ -6924,6 +6980,11 @@ procedure wpn_allow_alt_asault_rifles(variable weapon_ptr, variable atk_type) be
       return 0;
 end
 
+procedure callback_intface_redraw begin
+   //set_window_flag(IfaceBarWinId, WIN_FLAG_HIDDEN, 0);
+   intface_redraw;
+end
+
 procedure CALCAPCOST begin
    variable user = get_sfall_arg;
    variable atk_type = get_sfall_arg;
@@ -6934,6 +6995,8 @@ procedure CALCAPCOST begin
    variable new_ap_cost;
    variable fast_shot;
    variable fast_shot_type;
+   variable hand;
+   variable current_mode, current_mode_adr, new_mode;
    one_time_AFTERHITROLL = 0;
    gFastShotAimedAllowed = 0;
    gCurAtkType = atk_type;
@@ -6978,6 +7041,21 @@ procedure CALCAPCOST begin
       set_sfall_return(new_ap_cost);
    end
    gLastAtkType = gCurAtkType;
+
+   if item > 0 andAlso fast_shot > 0 andAlso gFastShotAimedAllowedItemPid > 0 andAlso is_aimed > 0 then begin
+      if fast_shot_type <= 0 then begin
+         hand = (0x5970F8 + (active_hand * 0x18));
+         current_mode_adr = (hand + 0x10);
+         current_mode = read_int(current_mode_adr);
+         new_mode = current_mode - 1;
+         if new_mode < 0 then
+            new_mode = 0;
+
+         write_int(current_mode_adr, new_mode);
+         gFastShotAimedAllowedItemPid = 0;
+         call callback_intface_redraw in 0;
+      end
+   end
 end
 
 procedure wpn_allow_alt_gauss(variable weapon_ptr, variable attack_type, variable bodypart, variable attacker) begin
@@ -8336,37 +8414,57 @@ procedure set_aimed_button_fast_shot begin
    variable current_mode;
 
    if gFastShotCanUseMore then begin
-      hand = (0x5970F8 + (active_hand * 0x18));
-      current_mode_adr = (hand + 0x10);
-      current_mode = read_int(current_mode_adr);
-      write_int(current_mode_adr, current_mode + 1);
+      if not(attack_is_aimed) then begin
+         hand = (0x5970F8 + (active_hand * 0x18));
+         current_mode_adr = (hand + 0x10);
+         current_mode = read_int(current_mode_adr);
+         write_int(current_mode_adr, current_mode + 1);
+      end
    end
    else begin
       gFastShotAimedActivated = 0;
-      intface_redraw;
+      //intface_redraw;
    end
    gFastShotAimedActivated = 0;
+   intface_redraw;
 end
 
 procedure set_non_aimed_button_fast_shot begin
-   variable hand = (0x5970F8 + (active_hand * 0x18));
-   variable current_mode_adr = (hand + 0x10);
-   //variable current_mode = read_int(current_mode_adr);
-   //variable new_mode = current_mode - 1;
-   //if new_mode < 0 then
-      //new_mode = 0;
+   variable hand;
+   variable current_mode_adr;
+   variable current_mode;
+   variable new_mode;
 
-   write_int(current_mode_adr, 1);
+   if not(attack_is_aimed) then
+      return;
 
-   call set_aimed_button_fast_shot in 0;
+   hand = (0x5970F8 + (active_hand * 0x18));
+   current_mode_adr = (hand + 0x10);
+   current_mode = read_int(current_mode_adr);
+   new_mode = current_mode - 1;
+   if new_mode < 1 then
+      new_mode = 1;
+
+   write_int(current_mode_adr, new_mode);
+   //call set_aimed_button_fast_shot in 0;
+   add_global_timer_event(0, timed_set_aimed_button);
+   intface_redraw;
 end
 
 procedure FastShotAimedDisable begin
    gFastShotAimedAllowed = 0;
+   set_window_flag(IfaceBarWinId, WIN_FLAG_HIDDEN, 0);
 end
 
-procedure callback_intface_redraw begin
-   intface_redraw;
+procedure timed_event_p_proc begin
+   variable param = fixed_param;
+
+   if param == timed_set_aimed_button then begin
+      call set_aimed_button_fast_shot;
+   end
+   else if param == timed_FastShotAimedDisable then begin
+      call FastShotAimedDisable;
+   end
 end
 
 procedure TARGETOBJECT begin
@@ -8389,10 +8487,13 @@ procedure TARGETOBJECT begin
                return;
 
             if gFastShotAimedActivated <= 0 then begin
-               call FastShotAimedDisable in 0;
+               set_window_flag(IfaceBarWinId, WIN_FLAG_HIDDEN, 1);
+               //call FastShotAimedDisable in 0;
                call set_non_aimed_button_fast_shot;
+               add_global_timer_event(0, timed_FastShotAimedDisable);
                gFastShotAimedActivated = 1;
             end
+
             call callback_intface_redraw when (get_object_data(combat_data, C_ATTACK_TARGET) == 0);
          end
          else if obj_type(target) == OBJ_TYPE_CRITTER then
@@ -8457,9 +8558,15 @@ procedure get_ini_section_int_to_int(variable file, variable section, variable f
 end
 
 procedure set_aimed_button begin
-   variable hand = (0x5970F8 + (active_hand * 0x18));
-   variable current_mode_adr = (hand + 0x10);
-   variable current_mode = read_int(current_mode_adr);
+   variable hand;
+   variable current_mode_adr;
+   variable current_mode;
+   if attack_is_aimed then
+      return;
+
+   hand = (0x5970F8 + (active_hand * 0x18));
+   current_mode_adr = (hand + 0x10);
+   current_mode = read_int(current_mode_adr);
    write_int(current_mode_adr, current_mode + 1);
    write_int(0x519024, InterfaceBarWindow);
    intface_redraw;
@@ -8679,6 +8786,17 @@ procedure start begin
       set_proto_data(pid_trans_block, PROTO_FID, INVISIBLE_MISC_FID);
       SecondaryAttackMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SecondaryAttackMod");
       if SecondaryAttackMod > 0 then begin
+         PowerArmorNoFlinch = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|PowerArmorNoFlinch");
+         if PowerArmorNoFlinch > 0 then begin
+            g_sfx_bullet = ["WHS1MXX1","WHV1MXX1","WHV1MXX2"];
+            fix_array(g_sfx_bullet);
+            //g_sfx_bullet_burst = ["WHM1MXX1","WHM1MXX2"];
+            //fix_array(g_sfx_bullet_burst);
+            //g_sfx_melee_thorw = ["WH81MXX1","WH81MXX2","WH71MXX1"];
+            //fix_array(g_sfx_melee_thorw);
+         end
+
+
          gAimedFastShotTweakEnabled = get_ini_setting("mods\\F2MechanicsMiniRework.ini|SecondaryAttack|AllowFastShot");
 
          AnimationsAtOnceLimit = get_ini_setting("ddraw.ini|Misc|AnimationsAtOnceLimit");
@@ -8999,6 +9117,7 @@ procedure start begin
          if attack_is_aimed then begin
             write_int(((0x5970F8 + (active_hand * 0x18)) + 0x10), 1);
          end
+         IfaceBarWinId = sfall_func2("get_window_attribute", WINTYPE_IFACEBAR, 5);
          intface_redraw;
       end
    end
