@@ -16,7 +16,9 @@
 ### Traits Plus
 - Fixed a division-by-zero error when the Kamikaze trait was disabled.
 - Added a check for trait changes when taking the Mutation perk and then canceling the actual selection.
-
+### Miss Mod
+- Added options to configure weapon drop chance multipliers for enemy NPCs.
+- Added a check for the critical "drop weapon" flag (DAM_DROP). When set in the COMBATDAMAGE_HOOK by other mods, or added to the ARMS crit tables, the weapon from the corresponding arm is dropped regardless of chance.
 
 ## Latest Version v2.0.4.1
 ### Secondary Attack Mod

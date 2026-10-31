@@ -8749,28 +8749,21 @@ procedure bonus_check begin
       gDemolitionExpertBonus = 10;
 end
 
-procedure math_clamp(variable arg0, variable arg1, variable arg2) begin
-   variable LVar3 := 0;
-   variable LVar4 := 0;
-   if (arg1 < arg2) then begin
-      LVar3 := arg1;
-      LVar4 := arg2;
+procedure math_clamp(variable val, variable a, variable b) begin
+   variable min, max;
+   if (a < b) then begin
+      min := a;
+      max := b;
+   end else begin
+      min := b;
+      max := a;
    end
-   else begin
-      LVar3 := arg2;
-      LVar4 := arg1;
-   end
-   if (arg0 < LVar3) then begin
-      return LVar3;
-   end
-   else begin
-      if (arg0 > LVar4) then begin
-         return LVar4;
-      end
-      else begin
-         return arg0;
-      end
-   end
+   if (val < min) then
+      return min;
+   else if (val > max) then
+      return max;
+   else
+      return val;
 end
 
 procedure start begin

@@ -25,6 +25,10 @@ variable target_who_can_drop;
 variable target_who_can_drop_hp;
 variable exp_rh_wpn_drop_critters_array;
 variable exp_lh_wpn_drop_critters_array;
+variable WeaponDropNonCriticalChanceNPCMultiplier;
+variable WeaponDropCriticalChanceNPCMultiplier;
+variable WeaponDropFinesseMultiplier;
+
 
 procedure clear_lvars begin
    target_who_can_drop = -1;
@@ -125,24 +129,56 @@ procedure Drop_Weapons(variable target,variable hand) begin
    end
 end
 
-
 procedure STDPROCEDURE begin
    variable rnd;
    variable party;
    variable target_in_party;
-   variable party_bonus;
+   variable drop_chance;
+   variable resist;
+   variable mult;
    variable exp_target;
-   variable finesse;
    if combat_is_initialized then begin
       if target_who_can_drop > 0 andAlso ((target_bodypart == BODY_HIT_LEFT_ARM orElse target_bodypart == BODY_HIT_RIGHT_ARM) andAlso atk_rslt > MISS andAlso combat_dmg > 0 andAlso target_who_can_drop_hp != get_critter_stat(target_who_can_drop, STAT_current_hp)) then begin
          party = party_member_list(0);
          target_in_party = is_in_array(target_who_can_drop, party);
-         if not(target_in_party) then party_bonus = 1;
-         rnd = random(0, 100);
-         if rnd < WpnDropNonCrit + WpnDropNonCrit * 7 * party_bonus andAlso atk_rslt == HIT then begin
-            call Drop_Weapons(target_who_can_drop,target_bodypart);
+         if combat_data > 0 andAlso (get_object_data(combat_data, C_ATTACK_FLAGS_TARGET) bwand DAM_DROP) then
+            rnd = -1;
+         else
+            rnd = random(0, 99);
+
+         if rnd >= 0 then begin
+            if atk_rslt == HIT then begin
+               drop_chance = WpnDropNonCrit;
+               mult = WeaponDropNonCriticalChanceNPCMultiplier;
+            end
+            else if atk_rslt == CRITICAL_HIT then begin
+               drop_chance = WpnDropCrit;
+               mult = WeaponDropCriticalChanceNPCMultiplier;
+            end
+
+            if not(target_in_party) then begin
+               drop_chance = drop_chance * mult;
+            end
+
+            if (combat_data > 0 andAlso get_object_data(combat_data, C_ATTACK_SOURCE) == real_dude_obj andAlso has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_finesse)) then
+               drop_chance *= WeaponDropFinesseMultiplier;
+
+            resist = (get_critter_stat(target_who_can_drop, STAT_en) + get_critter_stat(target_who_can_drop, STAT_st) + get_critter_stat(target_who_can_drop, STAT_ag) + get_critter_stat(target_who_can_drop, STAT_lu) / 3.0) / 30.0;
+
+            if resist >= 0.5556 then
+               mult = 1.0 - (resist - 0.5556) * 1.35;
+            else
+               mult = 1.0 + (0.5556 - resist) * 4.5;
+
+            if mult > 3.0 then mult = 3.0;
+            if mult < 0.25 then mult = 0.25;
+
+            drop_chance = drop_chance * mult;
+
+            drop_chance = ceil(drop_chance);
          end
-         if ((combat_data > 0 andAlso get_object_data(combat_data, C_ATTACK_SOURCE) == real_dude_obj andAlso has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_finesse)) orElse rnd < WpnDropCrit + WpnDropCrit * party_bonus) andAlso atk_rslt == CRITICAL_HIT then begin
+
+         if rnd < drop_chance then begin
             call Drop_Weapons(target_who_can_drop,target_bodypart);
          end
          call clear_lvars();
@@ -156,7 +192,7 @@ procedure STDPROCEDURE begin
             exp_target = 0;
          end
          if len_array(exp_lh_wpn_drop_critters_array) > 0 then begin
-            foreach exp_target in exp_rh_wpn_drop_critters_array begin
+            foreach exp_target in exp_lh_wpn_drop_critters_array begin
                call Drop_Weapons(exp_target,BODY_HIT_LEFT_ARM);
             end
             clear_array(exp_lh_wpn_drop_critters_array);
@@ -354,6 +390,19 @@ procedure AFTERHITROLL begin
    end
 end
 
+procedure get_config_set_float(variable ini_path, variable default_value) begin
+   variable cur_value;
+   cur_value = get_ini_string(ini_path);
+   if (cur_value == "") then
+      return default_value;
+   else begin
+      if cur_value == "0" orElse cur_value == "0.0" then
+         return 0;
+      else
+         return atof(cur_value);
+   end
+end
+
 procedure start begin
    if game_loaded then begin
       variable MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
@@ -361,6 +410,9 @@ procedure start begin
          WpnDropCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChance");
          WpnDropNonCrit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropNonCriticalChance");
          CrippleMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|CripplingExplosions");
+         WeaponDropNonCriticalChanceNPCMultiplier = get_config_set_float(("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropNonCriticalChanceNPCMultiplier"), 2.0);
+         WeaponDropCriticalChanceNPCMultiplier = get_config_set_float(("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChanceNPCMultiplier"), 2.0);
+         WeaponDropFinesseMultiplier = get_config_set_float(("mods\\F2MechanicsMiniRework.ini|Miss|WeaponDropCriticalChanceNPCMultiplier"), 2.0);
          if CrippleMod > 0 then begin
             RLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|RLcrip");
             LLcrip = get_ini_setting("mods\\F2MechanicsMiniRework.ini|CripplingExplosions|LLcrip");
