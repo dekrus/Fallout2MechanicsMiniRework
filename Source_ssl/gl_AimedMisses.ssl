@@ -1250,7 +1250,7 @@ procedure AFTERHITROLL begin
          else if weapon_attack_anim == ANIM_fire_burst orElse weapon_attack_anim == ANIM_fire_continuous then begin
             burst = 1;
          end
-         else if  weapon_attack_anim == ANIM_throw_anim andAlso wpn_dmg_type != DMG_normal_dam then begin
+         else if  weapon_attack_anim == ANIM_throw_anim andAlso (wpn_dmg_type == DMG_explosion orElse wpn_dmg_type ==  DMG_plasma orElse wpn_dmg_type == DMG_emp orElse weapon_pid == PID_MOLOTOV_COCKTAIL) then begin
             grenade = 1;
          end
       end
@@ -1795,6 +1795,11 @@ procedure start begin
    variable ver_build;
    if game_loaded then begin
       MissMod = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|MissToHit");
+      if MissMod > 0 then begin
+         if get_ini_setting("ecco_config\\combat.ini|CRITICALS|drop_flag_fix") > 0 then begin
+            set_ini_setting("ecco_config\\combat.ini|CRITICALS|drop_flag_fix", 0);
+         end
+      end
       BodyRndHit = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|BodyRndHit");
       //gDifficultAiming = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Miss|DifficultAiming");
       SwingThrustTweak = get_ini_setting("mods\\F2MechanicsMiniRework.ini|MAIN|SwingThrust");

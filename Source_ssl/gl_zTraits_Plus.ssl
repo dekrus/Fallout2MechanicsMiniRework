@@ -2388,12 +2388,14 @@ procedure weapon_is_grenade(variable weapon,variable attack_type) begin
    variable attack_anim;
    variable dmg_type;
    variable is_grenade;
+   variable wpn_pid;
    if weapon <= 0 orElse attack_type < ATKTYPE_LWEP1 orElse obj_item_subtype(weapon) != item_type_weapon then begin
       return -1;
    end
 
-   dmg_type = get_proto_data(obj_pid(weapon), PROTO_WP_DMG_TYPE);
-   if dmg_type == DMG_explosion orElse dmg_type ==  DMG_plasma orElse dmg_type == DMG_emp then begin
+   wpn_pid = obj_pid(weapon);
+   dmg_type = get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE);
+   if dmg_type == DMG_explosion orElse dmg_type ==  DMG_plasma orElse dmg_type == DMG_emp orElse dmg_type == PID_MOLOTOV_COCKTAIL then begin
       attack_anim = get_attack_anim(weapon, attack_type);
       if attack_anim == ANIM_throw_anim then
          is_grenade = 1;

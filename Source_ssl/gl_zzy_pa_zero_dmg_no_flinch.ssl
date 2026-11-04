@@ -64,6 +64,15 @@ procedure return_sound begin
    clear_array(target_array);
 end
 
+procedure clear_all_locks() begin
+   variable i;
+   reg_anim_combat_check(0);
+   for (i = 0; i < 8; i = i + 1) begin
+      reg_anim_begin();
+      reg_anim_end();
+   end
+end
+
 procedure play_sfx_unarmed(variable attacker, variable target, variable attack_anim) begin
    variable impostor;
    variable rot_atk_to_tar = rotation_to_tile(tile_num(attacker), tile_num(target));
@@ -85,6 +94,7 @@ procedure play_sfx_unarmed(variable attacker, variable target, variable attack_a
    reg_anim_play_sfx(sound_target, sfx, action_delay);
    reg_anim_destroy(impostor);
    reg_anim_destroy(sound_target);
+   reg_anim_callback(clear_all_locks);
    reg_anim_end();
 end
 

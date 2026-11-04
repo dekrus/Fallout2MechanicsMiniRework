@@ -19,6 +19,8 @@
 ### Miss Mod
 - Added options to configure weapon drop chance multipliers for enemy NPCs.
 - Added a check for the critical "drop weapon" flag (DAM_DROP). When set in the COMBATDAMAGE_HOOK by other mods, or added to the ARMS crit tables, the weapon from the corresponding arm is dropped regardless of chance.
+- Added an option that allows dropping any item from the hands, not just weapons.
+- Weapons should now drop right during the damage animation, not after it.
 
 ## Latest Version v2.0.4.1
 ### Secondary Attack Mod
