@@ -109,11 +109,20 @@ procedure add_timed_check_set_fid14 begin
    add_global_timer_event(0, timed_check_set_fid);
 end
 
+procedure add_timed_wpn_drop_ATTACK_END begin
+   add_global_timer_event(0, timed_timed_wpn_drop_ATTACK_END);
+end
+
+procedure add_timed_wpn_drop begin
+   add_global_timer_event(0, timed_wpn_drop);
+end
+
 procedure cancel_timed_check_set_fid begin
    variable was_set;
    variable fid;
    variable no_wpn_fid;
 
+   cancel (add_timed_wpn_drop);
    if (gTimerTarget1 != 0) then begin
       fid = obj_art_fid(gTimerTarget1);
       no_wpn_fid = critter_art_fid(gTimerTarget1);
@@ -410,11 +419,11 @@ procedure Drop_Weapons(variable target,variable hand) begin
 
       if (DropAnyItem > 0 andAlso hand == BODY_HIT_RIGHT_ARM) orElse (weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER)))))) then begin
          rm_obj_from_inven(target, weapon);
-         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 3));
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
          if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
          while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
-            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 3));
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
             blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
             if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
@@ -447,11 +456,11 @@ procedure Drop_Weapons(variable target,variable hand) begin
       end
       if (DropAnyItem > 0 andAlso hand == BODY_HIT_LEFT_ARM) orElse (weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) orElse (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) orElse (weapon_lh_flags_ext bwand WEAPON_2HAND))) then begin
          rm_obj_from_inven(target, weapon);
-         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 3));
+         dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
          if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
          while (tile_contains_obj_pid(dropped_hex, elevation(target), 33554499) != 0) or blocking_obj do begin
-            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 3));
+            dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
             count += 1;
             blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_BLOCK);
             if blocking_obj andAlso obj_type(blocking_obj) == OBJ_TYPE_CRITTER then blocking_obj = 0;
@@ -613,14 +622,6 @@ procedure setup_wpn_drop begin
          exp_target = 0;
       end
    end
-end
-
-procedure add_timed_wpn_drop_ATTACK_END begin
-   add_global_timer_event(0, timed_timed_wpn_drop_ATTACK_END);
-end
-
-procedure add_timed_wpn_drop begin
-   add_global_timer_event(0, timed_wpn_drop);
 end
 
 procedure COMBATDAMAGE begin
@@ -813,7 +814,7 @@ procedure COMBATDAMAGE begin
    if DropProcActive <= 0 orElse (target_type == OBJ_TYPE_CRITTER andAlso cur_frm == 0 andAlso DropProcActive < 2) then begin
       if cur_frm == 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
          gTimerTarget = target;
-         call add_timed_wpn_drop when (art_anim(obj_art_fid(gTimerTarget)) != 0);
+         call add_timed_wpn_drop when ((gTimerTarget != 0 andAlso art_anim(obj_art_fid(gTimerTarget)) != 0));
          if DropProcActive <= 0 then
             call add_timed_wpn_drop_ATTACK_END when _combat_turn_running <= 0;
          DropProcActive = 2;
