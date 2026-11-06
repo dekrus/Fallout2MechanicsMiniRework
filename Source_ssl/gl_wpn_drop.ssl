@@ -10,7 +10,7 @@
 #define reg_anim_animate_and_move(object, tile, animID, delay)                 sfall_func4("reg_anim_animate_and_move", object, tile, animID, delay)
 #define critter_anim_fid(objFid, animType, rot)       ((rot * 0x10000000) bwor ((animType * 0x10000) bwand 0xFF0000) bwor (objFid bwand 0xF00FFFF))
 #define _combat_turn_running read_int(0x51093C)
-#define critter_art_fid(critter_obj)   (obj_art_fid(critter_obj) bwand 0xFFFF0FFF)
+#define critter_art_fid(critter_obj)   (get_object_data(critter_obj, OBJ_DATA_FID) bwand 0xFFFF0FFF)
 #include "define_extra.h"
 #include "miscpid.h"
 #include "DEFINE.H"
@@ -49,7 +49,7 @@ variable gTimerTarget12;
 variable gTimerTarget13;
 variable gTimerTarget14;
 variable check_fid_arr;
-
+variable real_dude_obj_last_active_hand;
 
 
 procedure add_timed_check_set_fid1 begin
@@ -122,9 +122,10 @@ procedure cancel_timed_check_set_fid begin
    variable fid;
    variable no_wpn_fid;
 
-   cancel (add_timed_wpn_drop);
+   cancel(add_timed_wpn_drop);
+
    if (gTimerTarget1 != 0) then begin
-      fid = obj_art_fid(gTimerTarget1);
+      fid = get_object_data(gTimerTarget1, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget1);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -135,7 +136,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget2 != 0) then begin
-      fid = obj_art_fid(gTimerTarget2);
+      fid = get_object_data(gTimerTarget2, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget2);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -146,7 +147,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget3 != 0) then begin
-      fid = obj_art_fid(gTimerTarget3);
+      fid = get_object_data(gTimerTarget3, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget3);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -157,7 +158,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget4 != 0) then begin
-      fid = obj_art_fid(gTimerTarget4);
+      fid = get_object_data(gTimerTarget4, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget4);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -168,7 +169,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget5 != 0) then begin
-      fid = obj_art_fid(gTimerTarget5);
+      fid = get_object_data(gTimerTarget5, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget5);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -179,7 +180,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget6 != 0) then begin
-      fid = obj_art_fid(gTimerTarget6);
+      fid = get_object_data(gTimerTarget6, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget6);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -190,7 +191,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget7 != 0) then begin
-      fid = obj_art_fid(gTimerTarget7);
+      fid = get_object_data(gTimerTarget7, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget7);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -201,7 +202,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget8 != 0) then begin
-      fid = obj_art_fid(gTimerTarget8);
+      fid = get_object_data(gTimerTarget8, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget8);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -212,7 +213,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget9 != 0) then begin
-      fid = obj_art_fid(gTimerTarget9);
+      fid = get_object_data(gTimerTarget9, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget9);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -223,7 +224,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget10 != 0) then begin
-      fid = obj_art_fid(gTimerTarget10);
+      fid = get_object_data(gTimerTarget10, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget10);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -234,7 +235,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget11 != 0) then begin
-      fid = obj_art_fid(gTimerTarget11);
+      fid = get_object_data(gTimerTarget11, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget11);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -245,7 +246,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget12 != 0) then begin
-      fid = obj_art_fid(gTimerTarget12);
+      fid = get_object_data(gTimerTarget12, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget12);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -256,7 +257,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget13 != 0) then begin
-      fid = obj_art_fid(gTimerTarget13);
+      fid = get_object_data(gTimerTarget13, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget13);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -267,7 +268,7 @@ procedure cancel_timed_check_set_fid begin
    end
 
    if (gTimerTarget14 != 0) then begin
-      fid = obj_art_fid(gTimerTarget14);
+      fid = get_object_data(gTimerTarget14, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(gTimerTarget14);
       if fid != no_wpn_fid then begin
          was_set = 1;
@@ -294,7 +295,7 @@ procedure check_set_fid begin
    variable no_wpn_fid;
    variable anim_art;
    foreach critter in check_fid_arr begin
-      fid = obj_art_fid(critter);
+      fid = get_object_data(critter, OBJ_DATA_FID);
       no_wpn_fid = critter_art_fid(critter);
       anim_art = art_anim(fid);
       if fid != no_wpn_fid andAlso (anim_art == 0 orElse anim_art == ANIM_fall_back_sf orElse anim_art == ANIM_fall_front_sf) then begin
@@ -309,72 +310,72 @@ end
 procedure add_timed_check_set_fid(variable critter) begin
    if (gTimerTarget1 == 0) then begin
       gTimerTarget1 = critter;
-      call add_timed_check_set_fid1 when (art_anim(obj_art_fid(gTimerTarget1)) == 0);
+      call add_timed_check_set_fid1 when (art_anim(get_object_data(gTimerTarget1, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget2 == 0) then begin
       gTimerTarget2 = critter;
-      call add_timed_check_set_fid2 when (art_anim(obj_art_fid(gTimerTarget2)) == 0);
+      call add_timed_check_set_fid2 when (art_anim(get_object_data(gTimerTarget2, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget3 == 0) then begin
       gTimerTarget3 = critter;
-      call add_timed_check_set_fid3 when (art_anim(obj_art_fid(gTimerTarget3)) == 0);
+      call add_timed_check_set_fid3 when (art_anim(get_object_data(gTimerTarget3, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget4 == 0) then begin
       gTimerTarget4 = critter;
-      call add_timed_check_set_fid4 when (art_anim(obj_art_fid(gTimerTarget4)) == 0);
+      call add_timed_check_set_fid4 when (art_anim(get_object_data(gTimerTarget4, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget5 == 0) then begin
       gTimerTarget5 = critter;
-      call add_timed_check_set_fid5 when (art_anim(obj_art_fid(gTimerTarget5)) == 0);
+      call add_timed_check_set_fid5 when (art_anim(get_object_data(gTimerTarget5, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget6 == 0) then begin
       gTimerTarget6 = critter;
-      call add_timed_check_set_fid6 when (art_anim(obj_art_fid(gTimerTarget6)) == 0);
+      call add_timed_check_set_fid6 when (art_anim(get_object_data(gTimerTarget6, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget7 == 0) then begin
       gTimerTarget7 = critter;
-      call add_timed_check_set_fid7 when (art_anim(obj_art_fid(gTimerTarget7)) == 0);
+      call add_timed_check_set_fid7 when (art_anim(get_object_data(gTimerTarget7, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget8 == 0) then begin
       gTimerTarget8 = critter;
-      call add_timed_check_set_fid8 when (art_anim(obj_art_fid(gTimerTarget8)) == 0);
+      call add_timed_check_set_fid8 when (art_anim(get_object_data(gTimerTarget8, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget9 == 0) then begin
       gTimerTarget9 = critter;
-      call add_timed_check_set_fid9 when (art_anim(obj_art_fid(gTimerTarget9)) == 0);
+      call add_timed_check_set_fid9 when (art_anim(get_object_data(gTimerTarget9, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget10 == 0) then begin
       gTimerTarget10 = critter;
-      call add_timed_check_set_fid10 when (art_anim(obj_art_fid(gTimerTarget10)) == 0);
+      call add_timed_check_set_fid10 when (art_anim(get_object_data(gTimerTarget10, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget11 == 0) then begin
       gTimerTarget11 = critter;
-      call add_timed_check_set_fid11 when (art_anim(obj_art_fid(gTimerTarget11)) == 0);
+      call add_timed_check_set_fid11 when (art_anim(get_object_data(gTimerTarget11, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget12 == 0) then begin
       gTimerTarget12 = critter;
-      call add_timed_check_set_fid12 when (art_anim(obj_art_fid(gTimerTarget12)) == 0);
+      call add_timed_check_set_fid12 when (art_anim(get_object_data(gTimerTarget12, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget13 == 0) then begin
       gTimerTarget13 = critter;
-      call add_timed_check_set_fid13 when (art_anim(obj_art_fid(gTimerTarget13)) == 0);
+      call add_timed_check_set_fid13 when (art_anim(get_object_data(gTimerTarget13, OBJ_DATA_FID)) == 0);
       return;
    end
    if (gTimerTarget14 == 0) then begin
       gTimerTarget14 = critter;
-      call add_timed_check_set_fid14 when (art_anim(obj_art_fid(gTimerTarget14)) == 0);
+      call add_timed_check_set_fid14 when (art_anim(get_object_data(gTimerTarget14, OBJ_DATA_FID)) == 0);
       return;
    end
 end
@@ -405,7 +406,12 @@ procedure Drop_Weapons(variable target,variable hand) begin
 
    tar_hex = tile_num(target);
    tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
-   weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
+   if (target == real_dude_obj andAlso real_dude_obj_last_active_hand == 1) orElse target != real_dude_obj then
+      weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
+
+   if weapon > 0 andAlso obj_item_subtype(weapon) != item_type_weapon andAlso DropAnyItem < 1 then
+      weapon = 0;
+
    if weapon > 0 then begin
       if obj_item_subtype(weapon) == item_type_weapon then begin
          weapon_pid = obj_pid(weapon);
@@ -414,7 +420,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
          //if weapon_anim <= WPN_ANIM_NONE andAlso get_proto_data(weapon_pid, PROTO_WP_PROJ_PID) > 0 then
             //is_throwing_weapon = 1;
          //if not (weapon_anim > WPN_ANIM_NONE orElse is_throwing_weapon) then
-            //return;
+            //return; FLAG_LEFT_HAND
       end
 
       if (DropAnyItem > 0 andAlso hand == BODY_HIT_RIGHT_ARM) orElse (weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER)))))) then begin
@@ -441,7 +447,11 @@ procedure Drop_Weapons(variable target,variable hand) begin
    end
    //all weapons in the game are either right-handed or two-handed, so the player drops weapon only if the shot was in the right hand
    else begin
-      weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
+      if (target == real_dude_obj andAlso real_dude_obj_last_active_hand == 0) orElse target != real_dude_obj then
+         weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
+      if weapon > 0 andAlso obj_item_subtype(weapon) != item_type_weapon andAlso DropAnyItem < 1 then
+         weapon = 0;
+
       if weapon <= 0 then
          return;
 
@@ -810,11 +820,11 @@ procedure COMBATDAMAGE begin
       end
    end
 
-   cur_frm = art_anim(obj_art_fid(target));
+   cur_frm = art_anim(get_object_data(target, OBJ_DATA_FID));
    if DropProcActive <= 0 orElse (target_type == OBJ_TYPE_CRITTER andAlso cur_frm == 0 andAlso DropProcActive < 2) then begin
       if cur_frm == 0 andAlso target_type == OBJ_TYPE_CRITTER then begin
          gTimerTarget = target;
-         call add_timed_wpn_drop when ((gTimerTarget != 0 andAlso art_anim(obj_art_fid(gTimerTarget)) != 0));
+         call add_timed_wpn_drop when ((gTimerTarget != 0 andAlso art_anim(get_object_data(gTimerTarget, OBJ_DATA_FID)) != 0));
          if DropProcActive <= 0 then
             call add_timed_wpn_drop_ATTACK_END when _combat_turn_running <= 0;
          DropProcActive = 2;
@@ -856,6 +866,12 @@ procedure timed_event_p_proc begin
       call clear_lvars();
    end
 end
+procedure CALCAPCOST begin
+   variable critter = get_sfall_arg;
+   //variable atk_type = get_sfall_arg;
+   if critter == real_dude_obj then
+      real_dude_obj_last_active_hand = active_hand;
+end
 
 procedure start begin
    if game_loaded then begin
@@ -886,6 +902,7 @@ procedure start begin
          end
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
+         register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
          set_global_script_type(0);
          set_global_script_repeat(0);
       end
