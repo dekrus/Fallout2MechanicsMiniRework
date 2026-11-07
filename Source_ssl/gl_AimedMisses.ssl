@@ -644,14 +644,14 @@ procedure COMBATDAMAGE begin
             //
             else if wpnanim == WPN_ANIM_CLUB or wpnanim == WPN_ANIM_SLEDGEHAMMER then begin
                if not(tar_flags bwand DAM_KNOCKED_DOWN) andAlso not(tar_flags bwand DAM_KNOCKED_OUT) then begin
-                  rnd = random(0, 90);
+                  rnd = random(0, 95);
                   target_kill_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
                   tar_max_hp = get_critter_stat(target, STAT_max_hp);
-                  if target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or power_armor_fid(obj_art_fid(target)) then begin
+                  if target_kill_type == KILL_TYPE_super_mutant_kills or target_kill_type == KILL_TYPE_deathclaw_kills or target_kill_type == KILL_TYPE_robot_kills or power_armor_fid(get_object_data(target, OBJ_DATA_FID)) then begin
                      knockback_distance *= 4;
                   end
                   else begin
-                     knockback_distance *= 7;
+                     knockback_distance *= 6;
                   end
                   if dmgtotar > (tar_max_hp / 3) then begin
                      rnd -= 20;
