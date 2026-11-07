@@ -6675,8 +6675,8 @@ procedure set_dude_weapon_button_non_aimed begin
       current_mode_adr = (hand + 0x10);
       current_mode = read_int(current_mode_adr);
       new_mode = current_mode - 1;
-      if new_mode < 0 then
-         new_mode = 0;
+      if new_mode < 1 then
+         new_mode = 1;
       write_int(current_mode_adr, new_mode);
       intface_redraw;
    end
@@ -7048,8 +7048,8 @@ procedure CALCAPCOST begin
          current_mode_adr = (hand + 0x10);
          current_mode = read_int(current_mode_adr);
          new_mode = current_mode - 1;
-         if new_mode < 0 then
-            new_mode = 0;
+         if new_mode < 1 then
+            new_mode = 1;
 
          write_int(current_mode_adr, new_mode);
          gFastShotAimedAllowedItemPid = 0;
