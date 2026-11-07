@@ -2008,8 +2008,14 @@ procedure set_faster_healing_desc(variable game_load = 0) begin
       end
       if gFasterHealingPerk > 1 orElse ((gFasterHealingPerk > 0) andAlso is_perk_window_open) then begin
          current_state = 3 + (fast_metabolism_MMR_regen <= 0);
-         if in_char_screen then
-            call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse (gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
+         if in_char_screen then begin
+            if fast_metabolism == 0 orElse fast_metabolism == 1 then begin
+               call set_repeat_perk_desc when ((has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) != fast_metabolism) orElse (gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
+            end
+            else begin
+               call set_repeat_perk_desc when ((gFasterHealingPerk < 2 andAlso is_perk_window_open != 1));
+            end
+         end
       end
       else begin
          current_state = 5;
@@ -2079,10 +2085,12 @@ procedure sync_faster_healing_global begin
 
    stored_state = get_sfall_global_int(fast_metabolism_fast_healing_perk_stat);
 
-   if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then
-      fast_metabolism = 1;
-   else
-      fast_metabolism = 0;
+   if fast_metabolism == 0 orElse fast_metabolism == 1 then begin
+      if has_trait(TRAIT_TRAIT, real_dude_obj, TRAIT_fast_metabolism) then
+         fast_metabolism = 1;
+      else
+         fast_metabolism = 0;
+   end
 
    if fast_metabolism > 0 then begin
       real_state = 1 + (fast_metabolism_MMR_regen <= 0);
@@ -2100,7 +2108,7 @@ procedure sync_faster_healing_global begin
       call apply_perk_state(real_state);
       //call set_faster_healing_desc;
    end
-   if fast_metabolism then
+   if fast_metabolism > 0 then
       set_perk_ranks(PERK_faster_healing, 1);
 end
 
@@ -2155,6 +2163,13 @@ procedure get_real_dude_traits begin
             //call fast_metabolism_no_passive_regen_penalty_remove;
          end
       end
+      else if fast_metabolism >= 2 then begin
+         if fast_metabolism_MMR_regen <= 0 andAlso timer_is_up <= 0 andAlso fast_metabolism_no_passive_regen <= 0 then begin
+            add_global_timer_event(50, timed_hp_regen);
+            timer_is_up = 1;
+         end
+      end
+
 
       if bruiser >= 0 andAlso bruiser < 2 then begin
          if ((trait_1 == TRAIT_bruiser) orElse (trait_2 == TRAIT_bruiser)) then begin
@@ -5579,6 +5594,9 @@ procedure start begin
          else
             exit;
       end
+      finesse_hit_to_crit = 0;
+      finesse_hit_to_crit_bonus = 0;
+      finesse_bonus_added = 0;
 
       Nevada = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Nevada");
       Sonora = get_ini_setting("mods\\F2MechanicsMiniRework.ini|Main|Sonora");
