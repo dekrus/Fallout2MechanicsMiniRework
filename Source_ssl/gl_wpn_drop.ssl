@@ -50,6 +50,7 @@ variable gTimerTarget13;
 variable gTimerTarget14;
 variable check_fid_arr;
 variable real_dude_obj_last_active_hand;
+variable gDudeTurn;
 
 
 procedure add_timed_check_set_fid1 begin
@@ -394,6 +395,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
    variable blocking_obj;
    variable count;
    variable max_count = 6;
+   variable is_weapon;
    //variable is_throwing_weapon = 1;
    if target <= 0 then
       return;
@@ -406,14 +408,15 @@ procedure Drop_Weapons(variable target,variable hand) begin
 
    tar_hex = tile_num(target);
    tar_critter_type = metarule(METARULE_CRITTER_KILL_TYPE, target);
+
    if (target == real_dude_obj andAlso real_dude_obj_last_active_hand == 1) orElse target != real_dude_obj then
       weapon = critter_inven_obj(target, INVEN_TYPE_RIGHT_HAND);
 
    if weapon > 0 andAlso obj_item_subtype(weapon) != item_type_weapon andAlso DropAnyItem < 1 then
       weapon = 0;
-
    if weapon > 0 then begin
       if obj_item_subtype(weapon) == item_type_weapon then begin
+         is_weapon = 1;
          weapon_pid = obj_pid(weapon);
          weapon_rh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
@@ -422,8 +425,10 @@ procedure Drop_Weapons(variable target,variable hand) begin
          //if not (weapon_anim > WPN_ANIM_NONE orElse is_throwing_weapon) then
             //return; FLAG_LEFT_HAND
       end
+      else
+         is_weapon = 0;
 
-      if (DropAnyItem > 0 andAlso hand == BODY_HIT_RIGHT_ARM) orElse (weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER)))))) then begin
+      if (DropAnyItem > 0 andAlso hand == BODY_HIT_RIGHT_ARM) orElse (is_weapon > 0 andAlso weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM) orElse ((weapon_rh_flags_ext bwand WEAPON_2HAND) andAlso (not(tar_critter_type == KILL_TYPE_super_mutant_kills andAlso (weapon_anim == WPN_ANIM_MINIGUN orElse weapon_anim == WPN_ANIM_ROCKET_LAUNCHER)))))) then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
@@ -449,13 +454,19 @@ procedure Drop_Weapons(variable target,variable hand) begin
    else begin
       if (target == real_dude_obj andAlso real_dude_obj_last_active_hand == 0) orElse target != real_dude_obj then
          weapon = critter_inven_obj(target, INVEN_TYPE_LEFT_HAND);
-      if weapon > 0 andAlso obj_item_subtype(weapon) != item_type_weapon andAlso DropAnyItem < 1 then
+
+      if weapon > 0 andAlso obj_item_subtype(weapon) == item_type_weapon then
+         is_weapon = 1;
+      else
+         is_weapon = 0;
+
+      if is_weapon < 0 andAlso DropAnyItem < 1 then
          weapon = 0;
 
       if weapon <= 0 then
          return;
 
-      if obj_item_subtype(weapon) == item_type_weapon then begin
+      if is_weapon then begin
          weapon_pid = obj_pid(weapon);
          weapon_lh_flags_ext = get_proto_data(weapon_pid, PROTO_FLAG_EXT);
          weapon_anim = get_proto_data(weapon_pid, PROTO_WP_ANIM);
@@ -464,7 +475,7 @@ procedure Drop_Weapons(variable target,variable hand) begin
          //if not (weapon_anim > WPN_ANIM_NONE orElse is_throwing_weapon) then
             //return;
       end
-      if (DropAnyItem > 0 andAlso hand == BODY_HIT_LEFT_ARM) orElse (weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) orElse (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) orElse (weapon_lh_flags_ext bwand WEAPON_2HAND))) then begin
+      if (DropAnyItem > 0 andAlso hand == BODY_HIT_LEFT_ARM andAlso is_weapon <= 0) orElse (is_weapon > 0 andAlso weapon_anim >= WPN_ANIM_NONE andAlso ((hand == BODY_HIT_RIGHT_ARM andAlso target == dude_obj) orElse (hand == BODY_HIT_LEFT_ARM andAlso target != dude_obj) orElse (weapon_lh_flags_ext bwand WEAPON_2HAND))) then begin
          rm_obj_from_inven(target, weapon);
          dropped_hex = tile_num_in_direction(tar_hex, random(0, 5), random(1, 2));
          blocking_obj = obj_blocking_line(target, dropped_hex, BLOCKING_TYPE_SHOOT);
@@ -838,6 +849,7 @@ end
 
 procedure AFTERHITROLL begin
    DropProcActive = 0;
+   call clear_lvars();
 end
 
 procedure get_config_set_float(variable ini_path, variable default_value) begin
@@ -857,6 +869,10 @@ procedure timed_event_p_proc begin
    variable timed_event = fixed_param;
    if timed_event == timed_wpn_drop then begin
       call setup_wpn_drop;
+      if gDudeTurn <= 0 then begin
+         cancel (add_timed_wpn_drop_ATTACK_END);
+         remove_timer_event(timed_timed_wpn_drop_ATTACK_END);
+      end
    end
    else if timed_event == timed_check_set_fid then begin
       call check_set_fid;
@@ -868,9 +884,20 @@ procedure timed_event_p_proc begin
 end
 procedure CALCAPCOST begin
    variable critter = get_sfall_arg;
-   //variable atk_type = get_sfall_arg;
    if critter == real_dude_obj then
       real_dude_obj_last_active_hand = active_hand;
+end
+
+procedure COMBATTURN begin
+   variable turn_status = get_sfall_arg;
+   variable critter = get_sfall_arg;
+   if critter == dude_obj then
+      gDudeTurn = 1;
+
+   if turn_status <= 0 then begin
+      gDudeTurn = 0;
+      call clear_lvars();
+   end
 end
 
 procedure start begin
@@ -903,6 +930,7 @@ procedure start begin
          register_hook_proc_spec(HOOK_COMBATDAMAGE, COMBATDAMAGE);
          register_hook_proc_spec(HOOK_AFTERHITROLL, AFTERHITROLL);
          register_hook_proc_spec(HOOK_CALCAPCOST, CALCAPCOST);
+         register_hook_proc(HOOK_COMBATTURN, COMBATTURN);
          set_global_script_type(0);
          set_global_script_repeat(0);
       end

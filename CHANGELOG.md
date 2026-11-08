@@ -1,4 +1,4 @@
-## Work in Progress
+## Latest Version 2.0.4.2
 - Added a script that prevents the damage-received animation for creatures in Power Armor (NPCs and the player) when damage is 0. A metal impact sound plays on hit.
 ### Regen Mod
 - Fixed the display of the Scorched and Healing tags under direct NPC control.
@@ -16,14 +16,15 @@
 ### Traits Plus
 - Fixed a division-by-zero error when the Kamikaze trait was disabled.
 - Added a check for trait changes when taking the Mutation perk and then canceling the actual selection.
-- Fixed the incorrect number of Faster Healing perk ranks when Fast Metabolism=2.
+- Fixed the incorrect number of Faster Healing perk ranks when "Fast Metabolism=2".
+- For the Chem Reliant trait: if Nuka-Cola doesn't provide any immediate effects when consumed, it will now increase radiation level by 1 (in addition to healing 1 HP), making it easier to accumulate the required number of doses for the perk.
 ### Miss Mod
 - Added options to configure weapon drop chance multipliers for enemy NPCs.
 - Added a check for the critical "drop weapon" flag (DAM_DROP). When set in the COMBATDAMAGE_HOOK by other mods, or added to the ARMS crit tables, the weapon from the corresponding arm is dropped regardless of chance.
 - Added an option that allows dropping any item from the hands, not just weapons.
 - Weapons should now drop right during the damage animation, not after it.
 
-## Latest Version v2.0.4.1
+## Version 2.0.4.1
 ### Secondary Attack Mod
 - Fixed a bug where alt-fire attacks for characters with the Fast Shot trait wouldn't work at all if `AimedBurstSecondaryAttackMod` was disabled, even when `AllowFastShot` was enabled.
 - Fixed arrays for shotgun knockback and aimed burst weapon PIDs (custom & disabled lists).
@@ -54,7 +55,6 @@
 - NPCs (enemies and companions, except robots) can now use doctor's bags and first aid kits in combat to heal their allies.
 - NPCs (enemies and companions) can use doctor's bags and first aid kits to heal themselves out of combat. By default, companions do not self-heal out of combat (can be enabled via .ini).
 - Skill bonuses from doctor's bags, paramedic bags, and tool kits are now taken into account when calculating AP costs.
-
 
 ## Version v2.0.3
 ### Medical Tools

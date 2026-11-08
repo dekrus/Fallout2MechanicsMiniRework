@@ -2763,7 +2763,8 @@ procedure ITEMDAMAGE begin
       if demolition_expert_perk then begin
          weapon = get_sfall_arg_at(2);
          atk_type = get_sfall_arg_at(4);
-         wpn_pid = obj_pid(weapon);
+         if weapon > 0 then
+            wpn_pid = obj_pid(weapon);
          if weapon > 0 andAlso (get_proto_data(wpn_pid, PROTO_WP_DMG_TYPE) == DMG_explosion orElse weapon_is_grenade(weapon, atk_type)) then begin
             default_min_wpn_dmg = get_sfall_arg_at(0);
             default_max_wpn_dmg = get_sfall_arg_at(1);
@@ -4288,7 +4289,7 @@ procedure drug_addict_stat_check_set(variable target, variable drug_pid) begin
 end
 
 procedure NUKA_COLA_MODIFY(variable drug_obj) begin
-   variable drug_pid = obj_pid(drug_obj);
+   variable drug_pid;
    variable stat;
    variable value;
    variable i;
@@ -4298,7 +4299,10 @@ procedure NUKA_COLA_MODIFY(variable drug_obj) begin
    variable total_effect;
    variable first_free_slot = -1;
    variable second_free_slot = -1;
+   if drug_obj <= 0 then
+      return;
 
+   drug_pid = obj_pid(drug_obj);
    if not(is_pid_cola(drug_pid)) then
       return;
 
