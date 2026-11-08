@@ -1,4 +1,8 @@
-## Latest Version 2.0.4.2
+## Latest Version 2.0.4.3
+### Secondary Attack Mod
+- Fixed: a real aimed shot could be performed with the Fast Shot trait when switching hands between two different weapons that both have an available and selected alternate fire mode, with AllowFastShot enabled.
+
+## Version 2.0.4.2
 - Added a script that prevents the damage-received animation for creatures in Power Armor (NPCs and the player) when damage is 0. A metal impact sound plays on hit.
 ### Regen Mod
 - Fixed the display of the Scorched and Healing tags under direct NPC control.

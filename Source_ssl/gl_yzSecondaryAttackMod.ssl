@@ -7009,10 +7009,10 @@ procedure CALCAPCOST begin
       if is_aimed <= 0 then begin
          if fast_shot_type > 0 then begin
             gFastShotAimedAllowed = 1;
-            if item then
-               gFastShotAimedAllowedItemPid = obj_pid(item);
          end
       end
+      if item then
+         gFastShotAimedAllowedItemPid = obj_pid(item);
 
       if gAimedFastShotTweakEnabled >= 2 andAlso fast_shot_type < 2 then begin
          if gFastShotAimedActivated orElse is_aimed then
@@ -7042,7 +7042,7 @@ procedure CALCAPCOST begin
    end
    gLastAtkType = gCurAtkType;
 
-   if item > 0 andAlso fast_shot > 0 andAlso gFastShotAimedAllowedItemPid > 0 andAlso is_aimed > 0 then begin
+   if item > 0 andAlso fast_shot > 0 andAlso gFastShotAimedAllowedItemPid == obj_pid(item) andAlso is_aimed > 0 then begin
       if fast_shot_type <= 0 then begin
          hand = (0x5970F8 + (active_hand * 0x18));
          current_mode_adr = (hand + 0x10);
@@ -8530,7 +8530,15 @@ end
 procedure COMBATTURN begin
    variable turn_status = get_sfall_arg;
    variable critter = get_sfall_arg;
+   variable item;
    if turn_status <= 0 then begin
+      if gAimedFastShotTweakEnabled > 0 andAlso critter == dude_obj then begin
+         item = get_active_item(critter);
+         if sfall_ver_maj >= 5 andAlso has_trait(TRAIT_TRAIT, dude_obj, TRAIT_fast_shot) andAlso item > 0 andAlso obj_pid(item) == gFastShotAimedAllowedItemPid then begin
+            write_int(((0x5970F8 + (active_hand * 0x18)) + 0x10), 1);
+            intface_redraw;
+         end
+      end
       call lvar_full_reset();
    end
    //force CALCAPCOST at start of turn for gAimedFastShotTweakEnabled
